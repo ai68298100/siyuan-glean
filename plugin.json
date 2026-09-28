@@ -1,0 +1,48 @@
+{
+  "name": "siyuan-glean",
+  "author": "ai68298100",
+  "url": "https://github.com/ai68298100/siyuan-glean",
+  "version": "0.1.0",
+  "minAppVersion": "3.8.5",
+  "disabledInPublish": false,
+  "backends": [
+    "all"
+  ],
+  "frontends": [
+    "desktop",
+    "mobile",
+    "browser-desktop",
+    "browser-mobile",
+    "desktop-window"
+  ],
+  "displayName": {
+    "default": "Lv Glean",
+    "zh-CN": "小驴拾遗"
+  },
+  "description": {
+    "default": "Glean your clippings before they gather dust: turn web clippings and imports in SiYuan into a living reading library — status triage, AI enrichment, daily resurfacing. All data stays on your documents.",
+    "zh-CN": "小驴拾遗，把吃灰的收藏捡回来喂给自己：剪藏文章属性规范、状态分拣、AI 摘要打标、每日重浮，数据全部落在文档上，卸载不丢。"
+  },
+  "readme": {
+    "default": "README.md",
+    "en-US": "README.en-US.md"
+  },
+  "icon": "icon.png",
+  "preview": "preview.png",
+  "keywords": [
+    "剪藏",
+    "稍后读",
+    "阅读管理",
+    "收件箱",
+    "文章库",
+    "读库",
+    "收藏管理",
+    "网页剪藏",
+    "阅读队列",
+    "重浮",
+    "web clipper",
+    "read later",
+    "reading list",
+    "inbox"
+  ]
+}

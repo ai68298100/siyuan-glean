@@ -1,0 +1,479 @@
+/**
+ * 小驴拾遗全局样式：只用 b3 CSS 变量适配明暗主题，类名前缀 glean-。
+ * 设计基调（作者要求）：简约、现代——细分隔、弱边框、卡片圆角、克制配色。
+ */
+
+.glean-panel,
+.glean-tab-root {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    background: var(--b3-theme-background);
+    color: var(--b3-theme-on-background);
+    font-size: 13px;
+}
+
+.glean-tab-root {
+    padding: 0;
+    overflow: hidden;
+}
+
+/* ---------- 头部 ---------- */
+
+.glean-panel__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px 6px;
+}
+
+.glean-panel__brand {
+    font-weight: 600;
+    font-size: 14px;
+    letter-spacing: 0.2px;
+}
+
+.glean-panel__actions {
+    display: flex;
+    gap: 2px;
+}
+
+.glean-icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--b3-theme-on-surface);
+    cursor: pointer;
+    padding: 4px;
+    transition: background 0.15s ease;
+
+    &:hover {
+        background: var(--b3-theme-background-light);
+    }
+
+    svg {
+        width: 14px;
+        height: 14px;
+        fill: currentColor;
+    }
+}
+
+/* ---------- 搜索 ---------- */
+
+.glean-panel__search {
+    padding: 0 12px 8px;
+}
+
+.glean-search {
+    width: 100%;
+    font-size: 12.5px;
+}
+
+/* ---------- 队列 segmented ---------- */
+
+.glean-queues {
+    display: flex;
+    gap: 2px;
+    padding: 0 8px 8px;
+    overflow-x: auto;
+
+    &::-webkit-scrollbar {
+        display: none;
+    }
+}
+
+.glean-queues__item {
+    flex: 1 0 auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 9px;
+    border: none;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--b3-theme-on-surface);
+    font-size: 12px;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background 0.15s ease;
+
+    &:hover {
+        background: var(--b3-theme-background-light);
+    }
+
+    &--active {
+        background: var(--b3-theme-primary-lightest);
+        color: var(--b3-theme-primary);
+        font-weight: 500;
+    }
+}
+
+.glean-queues__count {
+    font-size: 10.5px;
+    line-height: 1;
+    padding: 2px 5px;
+    border-radius: 8px;
+    background: var(--b3-theme-background-light);
+    color: var(--b3-theme-on-surface);
+    opacity: 0.8;
+}
+
+/* ---------- 列表 ---------- */
+
+.glean-list {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 2px 8px 8px;
+}
+
+.glean-card {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 10px;
+    margin-bottom: 4px;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    background: var(--b3-theme-background);
+    transition: background 0.15s ease, border-color 0.15s ease;
+
+    &:hover {
+        background: var(--b3-list-hover);
+    }
+
+    &--candidate {
+        border: 1px dashed var(--b3-border-color);
+    }
+
+    &--selected {
+        border-color: var(--b3-theme-primary);
+        background: var(--b3-theme-primary-lightest);
+    }
+}
+
+.glean-card__check {
+    display: inline-flex;
+    align-items: center;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+
+    .glean-card:hover &,
+    .glean-card--selected & {
+        opacity: 1;
+    }
+}
+
+.glean-card__body {
+    flex: 1;
+    min-width: 0;
+    cursor: pointer;
+}
+
+.glean-card__title {
+    font-size: 13px;
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.glean-card__meta {
+    margin-top: 2px;
+    font-size: 11.5px;
+    color: var(--b3-theme-on-surface);
+    opacity: 0.7;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.glean-card__ops {
+    display: flex;
+    gap: 2px;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+
+    .glean-card:hover & {
+        opacity: 1;
+    }
+}
+
+.glean-op-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--b3-theme-on-surface);
+    cursor: pointer;
+    font-size: 12px;
+
+    &:hover {
+        background: var(--b3-theme-background-light);
+        color: var(--b3-theme-primary);
+    }
+}
+
+/* ---------- 空态 ---------- */
+
+.glean-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 48px 16px;
+    text-align: center;
+}
+
+.glean-empty__title {
+    font-weight: 500;
+    color: var(--b3-theme-on-surface);
+}
+
+.glean-empty__hint {
+    font-size: 12px;
+    color: var(--b3-theme-on-surface);
+    opacity: 0.6;
+    max-width: 240px;
+    line-height: 1.6;
+}
+
+.glean-panel__loading {
+    padding: 32px 16px;
+    text-align: center;
+    color: var(--b3-theme-on-surface);
+    opacity: 0.6;
+    font-size: 12px;
+}
+
+.glean-section-label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 2px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--b3-theme-on-surface);
+    opacity: 0.6;
+}
+
+/* ---------- 批量操作条 ---------- */
+
+.glean-batchbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 12px;
+    border-top: 1px solid var(--b3-border-color);
+    background: var(--b3-theme-surface);
+    font-size: 12px;
+}
+
+.glean-batchbar__ops {
+    display: flex;
+    gap: 6px;
+}
+
+/* ---------- 迁移器弹窗 ---------- */
+
+.glean-migrate {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    height: 100%;
+    padding: 14px 16px;
+    font-size: 13px;
+    overflow: hidden;
+}
+
+.glean-migrate__intro {
+    margin: 0;
+    line-height: 1.7;
+    color: var(--b3-theme-on-surface);
+}
+
+.glean-migrate__ops {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    justify-content: flex-end;
+    margin-top: auto;
+}
+
+.glean-migrate__resume {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.glean-migrate__summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+    color: var(--b3-theme-on-surface);
+    opacity: 0.8;
+    font-size: 12px;
+}
+
+.glean-migrate__status {
+    color: var(--b3-theme-on-surface);
+    opacity: 0.7;
+    font-size: 12px;
+}
+
+.glean-migrate__table {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    border: 1px solid var(--b3-border-color);
+    border-radius: 8px;
+}
+
+.glean-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+
+    th,
+    td {
+        padding: 6px 10px;
+        text-align: left;
+        border-bottom: 1px solid var(--b3-border-color);
+    }
+
+    th {
+        position: sticky;
+        top: 0;
+        background: var(--b3-theme-surface);
+        font-weight: 500;
+        z-index: 1;
+    }
+
+    &__title {
+        max-width: 220px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    &__url {
+        max-width: 260px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        color: var(--b3-theme-primary);
+    }
+}
+
+.glean-progress {
+    height: 4px;
+    border-radius: 2px;
+    background: var(--b3-theme-background-light);
+    overflow: hidden;
+    margin-bottom: 8px;
+}
+
+.glean-progress__bar {
+    height: 100%;
+    border-radius: 2px;
+    background: var(--b3-theme-primary);
+    transition: width 0.25s ease;
+}
+
+.glean-migrate__done-title {
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.glean-migrate__manual-list {
+    margin-top: 8px;
+    overflow: auto;
+}
+
+.glean-migrate__manual-row {
+    padding: 4px 8px;
+    border-left: 2px solid var(--b3-theme-warning);
+    margin-bottom: 4px;
+    font-size: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ---------- 设置 ---------- */
+
+.glean-settings {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    height: 100%;
+    padding: 8px 16px 16px;
+    font-size: 13px;
+    overflow-y: auto;
+}
+
+.glean-settings__section {
+    padding: 10px 0;
+    border-bottom: 1px solid var(--b3-border-color);
+
+    h3 {
+        margin: 0 0 8px;
+        font-size: 13px;
+        font-weight: 600;
+    }
+}
+
+.glean-settings__desc {
+    margin: -4px 0 8px;
+    font-size: 12px;
+    color: var(--b3-theme-on-surface);
+    opacity: 0.65;
+    line-height: 1.6;
+}
+
+.glean-settings__notebooks {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+}
+
+.glean-check {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    padding: 3px 0;
+}
+
+.glean-settings__row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 4px 0;
+
+    input[type="number"] {
+        width: 90px;
+    }
+}
+
+.glean-settings__footer {
+    position: sticky;
+    bottom: 0;
+    display: flex;
+    justify-content: flex-end;
+    padding: 10px 0 0;
+    background: var(--b3-theme-background);
+}
