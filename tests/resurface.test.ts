@@ -1,0 +1,124 @@
+/** domain/resurface 纯函数单测（T-1400，插件灵魂算法） */
+import test from "node:test";
+import assert from "node:assert/strict";
+
+import {
+    ageDays,
+    pickDaily,
+    recentlySurfaced,
+    stableHash,
+    staleCandidates,
+    surfaceScore,
+    todayStamp,
+    type SurfaceItem,
+} from "../src/domain/resurface.ts";
+
+const NOW = new Date(2026, 8, 29, 12, 0, 0); // 2026-09-29
+
+function item(partial: Partial<SurfaceItem>): SurfaceItem {
+    return {
+        id: "20260901-aaaaaaa",
+        title: "t",
+        status: "inbox",
+        priority: 3,
+        time: "20260901000000",
+        aiTags: [],
+        lastSurfaced: "",
+        summary: "",
+        ...partial,
+    };
+}
+
+test("ageDays：按 YYYYMMDDHHmmss 计算", () => {
+    assert.equal(ageDays("20260922120000", NOW), 7);
+    assert.equal(ageDays("20260929120000", NOW), 0);
+    assert.equal(ageDays("bad", NOW), 0);
+});
+
+test("stableHash：确定性且分散", () => {
+    assert.equal(stableHash("20260901-aaa20260929"), stableHash("20260901-aaa20260929"));
+    assert.notEqual(stableHash("a"), stableHash("b"));
+});
+
+test("pickDaily：同池同日两次挑选结果一致（跨重启稳定）", () => {
+    const pool = [
+        item({ id: "1", time: "20260601000000" }),
+        item({ id: "2", time: "20260701000000" }),
+        item({ id: "3", time: "20260801000000" }),
+        item({ id: "4", time: "20260901000000" }),
+        item({ id: "5", time: "20260910000000" }),
+    ];
+    const a = pickDaily(pool, [], { count: 3, now: NOW });
+    const b = pickDaily(pool, [], { count: 3, now: NOW });
+    assert.deepEqual(a.map((p) => p.item.id), b.map((p) => p.item.id));
+    assert.equal(a.length, 3);
+});
+
+test("pickDaily：吃灰更久的排前面", () => {
+    const pool = [
+        item({ id: "new", time: "20260928000000" }),
+        item({ id: "old", time: "20260601000000" }),
+    ];
+    const picks = pickDaily(pool, [], { count: 1, now: NOW });
+    assert.equal(picks[0].item.id, "old");
+});
+
+test("pickDaily：当天已 surfaced 的不再出现（幂等）", () => {
+    const pool = [
+        item({ id: "a", time: "20260601000000", lastSurfaced: "20260929" }),
+        item({ id: "b", time: "20260701000000" }),
+    ];
+    const picks = pickDaily(pool, [], { count: 3, now: NOW });
+    assert.deepEqual(picks.map((p) => p.item.id), ["b"]);
+});
+
+test("pickDaily：priority 高者优先（同吃灰天数）", () => {
+    const pool = [
+        item({ id: "p3", time: "20260815000000", priority: 3 }),
+        item({ id: "p5", time: "20260815000000", priority: 5 }),
+    ];
+    const picks = pickDaily(pool, [], { count: 1, now: NOW });
+    assert.equal(picks[0].item.id, "p5");
+});
+
+test("pickDaily：与近 7 天重浮标签重叠者被多样性降权", () => {
+    const recentTagSets = [new Set(["ai", "架构"])];
+    const pool = [
+        item({ id: "same", time: "20260601000000", aiTags: ["AI"] }),
+        item({ id: "diff", time: "20260602000000", aiTags: ["设计"] }),
+    ];
+    const picks = pickDaily(pool, recentTagSets, { count: 2, now: NOW });
+    assert.equal(picks[0].item.id, "diff");
+});
+
+test("pickDaily：includeDone 才把已读纳入池", () => {
+    const pool = [item({ id: "done", status: "done", time: "20260601000000" })];
+    assert.equal(pickDaily(pool, [], { count: 3, now: NOW }).length, 0);
+    assert.equal(pickDaily(pool, [], { count: 3, includeDone: true, now: NOW }).length, 1);
+});
+
+test("recentlySurfaced：只算近 7 天且不含今天", () => {
+    const items = [
+        item({ id: "today", lastSurfaced: "20260929" }),
+        item({ id: "3d", lastSurfaced: "20260926" }),
+        item({ id: "8d", lastSurfaced: "20260921" }),
+        item({ id: "bad", lastSurfaced: "xxx" }),
+    ];
+    const recent = recentlySurfaced(items, NOW);
+    assert.deepEqual(recent.map((r) => r.id), ["3d"]);
+});
+
+test("staleCandidates：inbox/later 且 ≥ 限值", () => {
+    const items = [
+        item({ id: "in90", status: "inbox", time: "20260701000000" }),
+        item({ id: "later90", status: "later", time: "20260701000000" }),
+        item({ id: "done90", status: "done", time: "20260701000000" }),
+        item({ id: "in10", status: "inbox", time: "20260919000000" }),
+    ];
+    const stale = staleCandidates(items, 90, NOW);
+    assert.deepEqual(stale.map((s) => s.id), ["in90", "later90"]);
+});
+
+test("todayStamp：YYYYMMDD", () => {
+    assert.equal(todayStamp(NOW), "20260929");
+});

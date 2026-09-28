@@ -1,5 +1,18 @@
 # 进度（PROGRESS）
 
+## M4 — 抗吃灰内核（v0.4.0 工作版本，待真机验收）✅（2026-09-29）
+
+- [x] T-1400 每日重浮：domain/resurface.ts 纯函数——确定性挑选（stableHash(id+日期) tiebreak，
+  同池同日跨重启结果一致）、lastSurfaced=当天幂等排除、近 7 天重浮标签重叠多样性降权、
+  priority 加权；lastSurfaced 只在用户行动时写（未行动明天自然回池，平静原则）。11 项单测。
+- [x] T-1402 今日拾遗视图：面板第四视图且为默认首屏；原型帧一次过审回 port
+  （渐变左条大卡+✨拾遗标签+AI摘要+改天/归档/读了三按钮+平静脚注）；空态 🌱"明天再见，不用有负担"
+- [x] T-1401 配额与超龄：inbox 超 quota 温和横幅 + 超龄归档候选横幅一键批量归档
+  （staleCandidates 纯函数 + archiveStale 服务）
+- [x] 索引/域链路补 summary 字段（重浮卡展示 AI 摘要）
+- [x] 质量门禁：check 0 错、48/48 测试、构建+门禁全绿、spike 7/7（165 i18n 键，CSS 26.9KB）
+- 真机验收项（作者）：重浮挑选实际观感与"读了/改天"手感（B-0002 扩充）
+
 ## M3 — AI 富化（v0.3.0 工作版本，待真机验收）✅（2026-09-29）
 
 - [x] T-1300 富化管线：services/enrich-service.ts（chatGPT 摘要+AI标签 → 写 ai-tags/summary，

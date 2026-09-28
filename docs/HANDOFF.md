@@ -3,7 +3,7 @@
 > 续跑口令（新会话直接粘贴）：
 > **阅读 D:\思源插件\小驴拾遗\docs\HANDOFF.md，按其中"下一步"继续开发；工程纪律见 AGENTS.md 与 docs/DECISIONS.md，UI 以 docs/UI-STANDARD.md 为准，先通读 TODO.md 与 docs/DATA-CONTRACT.md 再动手。**
 
-## 当前状态（2026-09-29 第四轮开发完成：M3 AI 富化 + 桌面 rail/行表）
+## 当前状态（2026-09-29 第五轮开发完成：M4 抗吃灰内核）
 
 - 仓库：`D:\思源插件\小驴拾遗` = GitHub [ai68298100/siyuan-glean](https://github.com/ai68298100/siyuan-glean)，main 已推送。
 - **M3 AI 富化全量落地**（v0.3.0 工作版本，未打 tag）：
@@ -34,11 +34,22 @@
   富化/查重/相关旧文/三个 AI 动作/智能体工具实际效果（需真实模型，隔离内核测不了）。
 - 三轮功能（M1/M2/M3）验收后建议直接发 v1.0.0（或按里程碑 v1.1/v1.2 切分，与作者确认）。
 
-## 下一步（M4 抗吃灰内核，插件灵魂）
+## M4 实现速记（本轮新增）
 
-1. **T-1400 每日重浮**：domain/resurface.ts 纯函数先行（评分=f(入库天数,priority,与近 7 天已重浮的
-   语义多样性)+确定性挑选跨重启稳定），写 `custom-clip-last-surfaced`（YYYYMMDD 幂等，面板打开时补算，
-   不做后台进程——规划书 §9 第 8 条）；单测覆盖。
-2. **T-1402 重浮视图**：面板第四视图"今日拾遗"（原型先补帧：大卡+摘要+一键 读了/改天/归档，平静文案）。
-3. **T-1401 配额与超龄**：inbox 超上限提示条（已有 candidates 横幅扩展）+ 超龄分组一键归档。
-4. M4 完成后记账+推送+更新本页；然后 M5 生态（逐项请示作者）+ 准备 v1.0.0 发布材料（README GIF/五张截图）。
+- 重浮算法（domain/resurface.ts，纯函数）：确定性=stableHash(id+YYYYMMDD) tiebreak；幂等=lastSurfaced==今天
+  不再出现；多样性=与近 7 天重浮文章标签重叠降权；**lastSurfaced 只在用户行动（读了/改天/归档）时写**，
+  未行动明天自然回池（平静原则，属性可复算，无后台进程）。
+- 今日拾遗 = 面板默认首屏（views[0]）；原型帧 design/prototype.html「今日拾遗 · 暗」；UI-STANDARD §5.7。
+- 配额/超龄：库视图 inbox/later 顶部横幅（overQuota / stalePool ≥ staleDays 一键归档）。
+- node --test：tests/*.test.ts 直接 import domain（带 .ts 扩展名）。
+
+## 下一步（M5 生态 + 发布准备）
+
+1. **v1.0.0 发布材料**（作者真机验收 M1-M4 后）：README 头图 GIF 脚本（剪藏→面板→收录→看板→重浮）、
+   集市五张截图（收件池/看板/重浮卡/关联推荐/迁移报告——按 UI-STANDARD 从真机截）、
+   集市描述关键词复查、CHANGELOG.md 建立。打 tag/发 Release 逐次请示作者（D-0005）。
+2. **M5 生态任务逐项请示后再启动**（规划书口径）：T-1500 收集箱 / T-1501 Pocket/Omnivore/wallabag 导入 /
+   T-1502 摘录制卡（等内核 V2）/ T-1503 推入渐进阅读（D-0008 延后项，作者发话才立项）/ T-1504 快照 /
+   T-1505 小驴协同。
+3. B-0004 AI 真机验收（作者配置模型后）+ B-0002 UI 真机验收，验收问题记 BLOCKERS 修复。
+4. 技术债小项：面板视图偏好持久化（记住上次视图）、ai-log 查看入口（设置-维护）。

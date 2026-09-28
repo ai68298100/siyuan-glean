@@ -10,6 +10,9 @@ import { aggregateStats } from "../domain/stats.ts";
 import type { ClipIndexEntry, CandidateEntry, GleanIndex } from "../services/index-store";
 import StatsView from "./StatsView.svelte";
 import HighlightView from "./HighlightView.svelte";
+import ResurfaceView from "./ResurfaceView.svelte";
+import { archiveStale } from "../services/resurface-service";
+import { ageDays } from "../domain/resurface.ts";
 
 interface Props {
     facade: GleanFacade;
@@ -19,8 +22,8 @@ let { facade }: Props = $props();
 
 const i18n = $derived(facade.i18n);
 
-type PanelView = "library" | "stats" | "highlights";
-let view = $state<PanelView>("library");
+type PanelView = "resurface" | "library" | "stats" | "highlights";
+let view = $state<PanelView>("resurface");
 let loading = $state(true);
 let index = $state<GleanIndex>({ version: 1, updatedAt: "", clips: {}, candidates: {} });
 let activeQueue = $state<ClipStatus>("inbox");
@@ -33,10 +36,12 @@ let isTabCanvas = $state(false);
 let dragOverCol = $state<ClipStatus | null>(null);
 let dragId = $state("");
 let enrichingId = $state("");
+let archivingStale = $state(false);
 
 type QueueKey = ClipStatus;
 const queues: QueueKey[] = ["inbox", "later", "reading", "done", "archived"];
 const views: { key: PanelView; labelKey: string }[] = [
+    { key: "resurface", labelKey: "view.resurface" },
     { key: "library", labelKey: "view.library" },
     { key: "stats", labelKey: "view.stats" },
     { key: "highlights", labelKey: "view.highlights" },
@@ -79,6 +84,27 @@ const rows = $derived.by<Row[]>(() => {
 
 const candidateCount = $derived(Object.keys(index.candidates).length);
 const totalClips = $derived(Object.keys(index.clips).length);
+
+const inboxTotal = $derived(Object.values(index.clips).filter((entry) => entry.status === "inbox").length + candidateCount);
+const overQuota = $derived(inboxTotal > facade.settings.inboxQuota);
+const stalePool = $derived.by(() => {
+    const limit = facade.settings.staleDays;
+    return Object.values(index.clips).filter((entry) =>
+        (entry.status === "inbox" || entry.status === "later") && ageDays(entry.time) >= limit
+    );
+});
+
+async function doArchiveStale() {
+    if (archivingStale) return;
+    archivingStale = true;
+    try {
+        const n = await archiveStale(facade.pluginInstance, facade.settings);
+        showMessage(t(i18n, "panel.staleArchived", { n }), 3000);
+        await reload();
+    } finally {
+        archivingStale = false;
+    }
+}
 
 /** tab 画布 rail 数据源：站点/标签聚合（纯函数，来自统计域层） */
 const railStats = $derived.by(() => {
@@ -459,6 +485,21 @@ function metaLine(entry: Row): string {
             </div>
         {:else}
             <div class="glean-list">
+                {#if overQuota && activeQueue === "inbox"}
+                    <div class="glean-quota">
+                        <span>⚖️</span>
+                        <span style="flex:1">{t(i18n, "panel.quotaOver", { total: inboxTotal, quota: facade.settings.inboxQuota })}</span>
+                    </div>
+                {/if}
+                {#if stalePool.length > 0 && (activeQueue === "inbox" || activeQueue === "later")}
+                    <div class="glean-quota">
+                        <span>🧹</span>
+                        <span style="flex:1">{t(i18n, "panel.staleCandidates", { n: stalePool.length })}</span>
+                        <button class="glean-cap-btn" disabled={archivingStale} onclick={() => void doArchiveStale()}>
+                            {t(i18n, "panel.archiveStale")}
+                        </button>
+                    </div>
+                {/if}
                 {#if candidateCount > 0 && activeQueue === "inbox"}
                     <div class="glean-candidates">
                         <span>📥</span>
@@ -571,6 +612,8 @@ function metaLine(entry: Row): string {
                 </footer>
             {/if}
         {/if}
+    {:else if view === "resurface"}
+        <ResurfaceView {facade} onMutated={() => void reload()} />
     {:else if view === "stats"}
         <StatsView {facade} {index} onCaptured={() => void reload()} />
     {:else}

@@ -153,5 +153,15 @@
   "ai.relatedTitle": "Related articles",
   "rail.queues": "Queues",
   "rail.sites": "Sites",
-  "rail.tags": "Tags"
+  "rail.tags": "Tags",
+  "view.resurface": "Glean",
+  "resurface.recent": "${n} resurfaced this week",
+  "resurface.cardTag": "PICK ${n}",
+  "resurface.noSummary": "No summary yet — click to read, or use ✨ on the card",
+  "resurface.calmNote": "Read more if you like · Skipping is free · See you tomorrow",
+  "panel.quotaOver": "${total} new clippings, past your soft limit of ${quota} — worth a cleanup",
+  "panel.staleCandidates": "${n} stale articles are archive candidates",
+  "panel.archiveStale": "Archive all",
+  "panel.staleArchived": "Archived ${n} stale articles",
+  "resurface.date": "${m}/${d}"
 }

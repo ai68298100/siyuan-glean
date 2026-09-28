@@ -450,6 +450,35 @@ input.mini { width: 64px; text-align: center; }
 .glean-progress { height: 6px; border-radius: 3px; background: var(--hover); overflow: hidden; }
 .glean-progress i { display: block; height: 100%; background: var(--g-accent-grad); }
 
+
+/* ===== 今日拾遗卡（M4，UI-STANDARD 场景 §5.7） ===== */
+.resurface-head { padding: 14px 14px 6px; }
+.resurface-date { font-size: 11px; color: var(--b3-theme-on-surface); opacity: .8; }
+.surf-card {
+    margin: 0 12px 10px; border-radius: 18px; padding: 14px 15px;
+    background: var(--b3-theme-surface); border: 1px solid var(--b3-border-color);
+    position: relative; overflow: hidden;
+}
+.surf-card::before {
+    content: ""; position: absolute; inset: 0 auto 0 0; width: 3px;
+    background: var(--g-accent-grad);
+}
+.surf-card .s-tag { font-size: 9.5px; font-weight: 700; letter-spacing: .8px; color: var(--glean-accent-b); text-transform: uppercase; }
+.surf-card .s-title { margin-top: 5px; font-size: 13.5px; font-weight: 700; line-height: 1.5; cursor: pointer; }
+.surf-card .s-summary { margin-top: 6px; font-size: 11.5px; line-height: 1.65; color: var(--b3-theme-on-surface); }
+.surf-card .s-meta { margin-top: 8px; font-size: 10px; color: var(--b3-theme-on-surface); display: flex; gap: 8px; align-items: center; }
+.surf-card .s-acts { margin-top: 11px; display: flex; gap: 6px; }
+.s-act {
+    flex: 1; border: none; padding: 7px 0; border-radius: 10px; font-size: 11.5px; font-weight: 600;
+    cursor: pointer; background: var(--hover); color: var(--b3-theme-on-background); transition: all .2s;
+}
+.s-act:hover { background: var(--b3-theme-background-light); }
+.s-act.pri { background: var(--g-accent-grad); color: #fff; box-shadow: 0 4px 14px -4px rgba(249,115,22,.5); }
+.surf-done {
+    text-align: center; padding: 60px 24px;
+}
+.surf-done .art { width: 72px; height: 72px; margin: 0 auto 14px; border-radius: 24px; display: grid; place-items: center; font-size: 30px; background: linear-gradient(160deg, color-mix(in srgb, var(--st-done) 16%, transparent), color-mix(in srgb, var(--st-done) 6%, transparent)); }
+
 </style>
 </head>
 <body>
@@ -919,6 +948,69 @@ input.mini { width: 64px; text-align: center; }
         <div style="font-size:10.5px; color:var(--b3-theme-on-surface); opacity:.7; padding: 4px 6px">
           所有数据都在你的文档上 · 卸载插件不丢 · v0.2.0
         </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ============ 今日拾遗（暗，M4 灵魂场景） ============ -->
+<div style="position:relative">
+  <div class="frame-label">今日拾遗 · 暗</div>
+  <div class="frame theme-dark">
+    <div class="panel">
+      <div class="panel-head" style="padding-bottom:0">
+        <div class="brand-row">
+          <div class="brand-mark">🌾</div>
+          <div><div class="brand-name">今日拾遗</div><div class="brand-sub">9月29日 · 从吃灰堆里挑的 3 篇</div></div>
+          <div class="head-actions"><button class="iconbtn">↻</button></div>
+        </div>
+      </div>
+      <div class="list" style="padding-top:8px">
+        <div class="surf-card">
+          <div class="s-tag">✨ 拾遗 · 第 1 篇</div>
+          <div class="s-title">The rise of local-first software: CRDTs, sync engines, and the end of the loading spinner</div>
+          <div class="s-summary">本地优先软件正把数据所有权交还用户：CRDT 让多端无冲突合并，同步引擎成为新的数据库层。</div>
+          <div class="s-meta"><span>📰 inkandswitch.com</span><span>· 约 26 分钟</span><span class="stale">吃灰 33 天</span></div>
+          <div class="s-acts"><button class="s-act">改天</button><button class="s-act">归档</button><button class="s-act pri">✓ 读了</button></div>
+        </div>
+        <div class="surf-card">
+          <div class="s-tag">✨ 拾遗 · 第 2 篇</div>
+          <div class="s-title">How Linear builds product: small teams, deep context, and a culture of written thinking</div>
+          <div class="s-summary">Linear 的产品方法论：小团队保持完整上下文，书面思考代替会议，把"为什么"写进工单。</div>
+          <div class="s-meta"><span>📰 linear.app</span><span>· 约 12 分钟</span><span class="stale">吃灰 41 天</span></div>
+          <div class="s-acts"><button class="s-act">改天</button><button class="s-act">归档</button><button class="s-act pri">✓ 读了</button></div>
+        </div>
+        <div class="surf-card">
+          <div class="s-tag">✨ 拾遗 · 第 3 篇</div>
+          <div class="s-title">像堆乐高一样搭后端：事件驱动架构入门</div>
+          <div class="s-summary">用事件把服务解耦：生产者只管发布，消费者各取所需，扩展新功能像拼积木一样插上去。</div>
+          <div class="s-meta"><span>📰 zh.dev.to</span><span>· 约 14 分钟</span><span class="stale">吃灰 8 天</span></div>
+          <div class="s-acts"><button class="s-act">改天</button><button class="s-act">归档</button><button class="s-act pri">✓ 读了</button></div>
+        </div>
+        <div style="text-align:center; font-size:10.5px; color:var(--b3-theme-on-surface); opacity:.6; padding: 4px 0 12px">
+          读完可以再来 · 改天没有成本 · 明天见 👋
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 今日拾遗 · 空态 ============ -->
+<div style="position:relative">
+  <div class="frame-label">今日拾遗 · 空态</div>
+  <div class="frame theme-light" style="height:420px">
+    <div class="panel">
+      <div class="panel-head" style="padding-bottom:0">
+        <div class="brand-row">
+          <div class="brand-mark">🌾</div>
+          <div><div class="brand-name">今日拾遗</div><div class="brand-sub">9月29日</div></div>
+        </div>
+      </div>
+      <div class="surf-done">
+        <div class="art">🌱</div>
+        <div class="h" style="font-size:13.5px; font-weight:600">今天没有待拾的</div>
+        <div class="p" style="font-size:11.5px; color:var(--b3-theme-on-surface); margin-top:6px; line-height:1.7">明天再见，不用有负担</div>
       </div>
     </div>
   </div>

@@ -23,6 +23,7 @@ export interface ClipIndexEntry {
     priority: number;
     rating: number;
     surfaced: string;
+    summary: string;
     aiTags: string[];
     updated: string;
 }
@@ -94,6 +95,7 @@ export function applyAttrsToIndex(
             priority: attrs.priority ?? 3,
             rating: attrs.rating ?? 0,
             surfaced: attrs.lastSurfaced ?? "",
+            summary: attrs.summary ?? "",
             aiTags: attrs.aiTags,
             updated: doc.updated,
         };

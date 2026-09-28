@@ -153,5 +153,15 @@
   "ai.relatedTitle": "相关旧文",
   "rail.queues": "队列",
   "rail.sites": "站点",
-  "rail.tags": "标签"
+  "rail.tags": "标签",
+  "view.resurface": "今日拾遗",
+  "resurface.date": "${m}月${d}日",
+  "resurface.recent": "近 7 天已重浮 ${n} 篇",
+  "resurface.cardTag": "拾遗 · 第 ${n} 篇",
+  "resurface.noSummary": "还没有摘要，点标题直接读，或用卡上 ✨ 生成",
+  "resurface.calmNote": "读完可以再来 · 改天没有成本 · 明天见",
+  "panel.quotaOver": "新剪藏 ${total} 篇，超过了提醒上限 ${quota}——建议先清一清",
+  "panel.staleCandidates": "${n} 篇超龄未读，成了归档候选",
+  "panel.archiveStale": "一键归档",
+  "panel.staleArchived": "已归档 ${n} 篇超龄文章"
 }
