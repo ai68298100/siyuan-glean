@@ -1,26 +1,21 @@
 {
   "pluginName": "小驴拾遗",
   "tagline": "把吃灰的收藏捡回来喂给自己",
-
   "cmd.openPanel": "打开读库面板",
   "cmd.addToList": "加入读库",
   "cmd.rebuildIndex": "重建读库索引",
   "cmd.openMigrate": "整理剪藏库（迁移器）",
-
   "dock.title": "拾遗读库",
-
   "queue.inbox": "新剪藏",
   "queue.later": "稍后读",
   "queue.reading": "阅读中",
   "queue.done": "已读",
   "queue.archived": "归档",
-
   "status.inbox": "新剪藏",
   "status.later": "稍后读",
   "status.reading": "阅读中",
   "status.done": "已读",
   "status.archived": "归档",
-
   "action.addToInbox": "加入读库",
   "action.startReading": "开始阅读",
   "action.markDone": "标记已读",
@@ -41,7 +36,6 @@
   "action.captureAll": "全部收录",
   "action.close": "完成",
   "panel.loading": "加载中…",
-
   "migrate.columnTitle": "标题",
   "migrate.columnUrl": "来源链接",
   "migrate.columnWords": "字数",
@@ -53,7 +47,6 @@
   "migrate.paused": "已暂停",
   "migrate.discardProgress": "丢弃上次进度",
   "migrate.candidatesLabel": "待收录",
-
   "panel.empty": "这里还空着",
   "panel.emptyHint": "剪藏文章入库后，会先落在这里等你分拣",
   "panel.noAnchor": "还没设置读库笔记本",
@@ -68,7 +61,6 @@
   "panel.untitled": "无标题",
   "panel.unknownSite": "未知来源",
   "panel.staleDays": "吃灰 ${n} 天",
-
   "migrate.title": "整理剪藏库",
   "migrate.intro": "扫描读库笔记本里的剪藏文章，回填来源 URL 与入库时间等属性。已有属性的文档会自动跳过，不会覆盖你的手填内容。",
   "migrate.dryRun": "先看报告（不写入）",
@@ -83,7 +75,6 @@
   "migrate.foundUrl": "找到来源链接",
   "migrate.skipHasAttrs": "已有属性，跳过",
   "migrate.batchSize": "每批写入条数",
-
   "settings.title": "小驴拾遗设置",
   "settings.anchorNotebooks": "读库笔记本",
   "settings.anchorNotebooksDesc": "这些笔记本里的新文档会被当作剪藏文章管理；可多选",
@@ -99,7 +90,6 @@
   "settings.dangerGroup": "维护",
   "settings.rebuildIndex": "重建索引",
   "settings.rebuildIndexDesc": "索引只是缓存，随时可以重建，不动文档上的数据",
-
   "ai.enriching": "AI 富化中…",
   "ai.enrichDone": "AI 摘要与标签已写入",
   "ai.enrichFailed": "AI 暂不可用，已跳过（不影响文章数据）",
@@ -108,7 +98,6 @@
   "ai.actionSummary": "AI 总结",
   "ai.actionPoints": "AI 要点",
   "ai.actionCounter": "AI 反方观点",
-
   "resurface.title": "今日拾遗",
   "resurface.subtitle": "从吃灰堆里挑出来的 ${n} 篇",
   "resurface.read": "读了",
@@ -116,18 +105,15 @@
   "resurface.archive": "归档",
   "resurface.allDone": "今天没有待拾的",
   "resurface.allDoneHint": "明天再见，不用有负担",
-
   "msg.added": "已加入读库",
   "msg.alreadyIn": "已在读库中",
   "msg.statusChanged": "状态已更新",
   "msg.indexRebuilt": "索引已重建",
   "msg.noSelection": "请先把光标放进一篇文档",
   "msg.confirmBatch": "确认对选中 ${n} 篇执行该操作？",
-
   "highlight.title": "本文高亮",
-  "highlight.empty": "本文还没有高亮/引述块",
+  "highlight.empty": "本文还没有引述块",
   "highlight.count": "${n} 条",
-
   "stats.title": "阅读统计",
   "stats.total": "库内文章",
   "stats.read": "已读",
@@ -135,5 +121,30 @@
   "stats.thisWeek": "本周新增",
   "stats.bySite": "站点分布",
   "stats.byTag": "标签分布",
-  "stats.exportWeekly": "生成本周周报"
+  "stats.exportWeekly": "生成本周周报",
+  "view.library": "库",
+  "view.stats": "统计",
+  "view.highlights": "高亮",
+  "panel.libraryCount": "读库 ${n} 篇",
+  "panel.candidatesDetected": "检测到 ${n} 篇未收录的剪藏",
+  "stats.wan": "万",
+  "stats.doneUnit": "篇",
+  "stats.exportDone": "周报已生成，见读库笔记本「读库周报」",
+  "migrate.stepScan": "扫描报告",
+  "migrate.stepRun": "分批回填",
+  "migrate.stepDone": "完成",
+  "migrate.backfillableLabel": "可回填",
+  "migrate.okLabel": "已回填",
+  "migrate.batchNote": "每批 ${n} 篇 · 可暂停",
+  "board.groupTitle": "读库数据库（看板）",
+  "board.mountTitle": "挂载读库看板",
+  "board.mountDesc": "在第一个读库笔记本创建「读库数据库」，收录文章自动挂入；看板列即状态机",
+  "board.mountAction": "挂载",
+  "board.mounted": "看板就绪：新绑定 ${n} 篇",
+  "highlight.noDoc": "还没打开文档",
+  "highlight.noDocHint": "打开一篇文档后，这里的引述块会自动聚合",
+  "highlight.emptyHint": "用 > 引用或批注插件添加的高亮会出现在这里",
+  "highlight.quoteTag": "引述",
+  "ai.actionsPreview": "总结 / 要点 / 反方观点（M3 上线）",
+  "settings.sovereigntyNote": "所有数据都在你的文档上，卸载不丢"
 }

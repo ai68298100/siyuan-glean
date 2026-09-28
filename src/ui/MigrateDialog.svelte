@@ -1,5 +1,5 @@
 <script lang="ts">
-/** 存量迁移器弹窗（T-1102）：dry-run 报告 → 分批回填（可暂停/续跑）→ 完成报告三类。 */
+/** 存量迁移器弹窗（T-1102）：步进器（扫描报告→分批回填→完成）+ 统计卡 + 可暂停续跑。 */
 import { onMount } from "svelte";
 import { showMessage } from "siyuan";
 import type { GleanFacade } from "../types";
@@ -22,6 +22,7 @@ let { facade, onClose }: Props = $props();
 const i18n = $derived(facade.i18n);
 
 type Phase = "intro" | "scanning" | "report" | "running" | "paused" | "done";
+type Step = 1 | 2 | 3;
 
 let phase = $state<Phase>("intro");
 let rows = $state<MigrateRow[]>([]);
@@ -29,6 +30,8 @@ let cursor = $state(0);
 let filter = $state<"all" | "pending" | "ok" | "skipped" | "manual">("all");
 let aborted = $state(false);
 let resumeAvailable = $state(false);
+
+const step = $derived<Step>(phase === "intro" || phase === "scanning" ? 1 : phase === "report" ? 2 : 3);
 
 onMount(async () => {
     const progress = await loadMigrateProgress(facade.pluginInstance);
@@ -89,7 +92,6 @@ async function startRun() {
     const signal = { get aborted() { return aborted; } };
     let last: Awaited<ReturnType<typeof runBackfillBatch>> | null = null;
     try {
-        // eslint-disable-next-line no-constant-condition
         while (true) {
             last = await runBackfillBatch(facade.pluginInstance, facade.settings, { signal });
             cursor = last.processed;
@@ -107,13 +109,14 @@ async function startRun() {
     }
 }
 
-async function closeAndClean() {
-    if (phase !== "done") {
-        // 保留进度，下次可续跑
-        onClose();
-        return;
+function rowStateClass(row: MigrateRow): string {
+    switch (row.state) {
+        case "ok": return "glean-mrow__st glean-mrow__st--ok";
+        case "skipped": return "glean-mrow__st glean-mrow__st--skip";
+        case "manual": return "glean-mrow__st glean-mrow__st--manual";
+        case "error": return "glean-mrow__st glean-mrow__st--err";
+        default: return "glean-mrow__st";
     }
-    onClose();
 }
 
 function rowStateLabel(row: MigrateRow): string {
@@ -121,106 +124,124 @@ function rowStateLabel(row: MigrateRow): string {
         case "ok": return "✓";
         case "skipped": return t(i18n, "migrate.skipHasAttrs");
         case "manual": return t(i18n, "migrate.needUrl");
-        case "error": return row.detail || "error";
+        case "error": return "!";
         default: return t(i18n, "migrate.foundUrl");
     }
 }
 </script>
 
 <div class="glean-migrate">
+    <div class="glean-dlg-head">
+        <div class="glean-brand__mark" style="width:26px;height:26px;border-radius:9px">
+            <svg style="width:13px;height:13px"><use href="#iconGleanWheat" /></svg>
+        </div>
+        <div>
+            <div class="glean-dlg-head__t">{t(i18n, "migrate.title")}</div>
+            <div class="glean-dlg-head__sub">{t(i18n, "migrate.intro")}</div>
+        </div>
+    </div>
+
+    {#if phase !== "intro"}
+        <div class="glean-stepper">
+            <div class="glean-step" class:glean-step--done={step > 1} class:glean-step--on={step === 1}>
+                <div class="glean-step__ball">{step > 1 ? "✓" : "1"}</div>
+                <div class="glean-step__lb">{t(i18n, "migrate.stepScan")}</div>
+            </div>
+            <div class="glean-stepper__line" class:glean-stepper__line--done={step > 2}></div>
+            <div class="glean-step" class:glean-step--done={step > 2} class:glean-step--on={step === 2}>
+                <div class="glean-step__ball">{step > 2 ? "✓" : "2"}</div>
+                <div class="glean-step__lb">{t(i18n, "migrate.stepRun")}</div>
+            </div>
+            <div class="glean-stepper__line" class:glean-stepper__line--done={step > 2}></div>
+            <div class="glean-step" class:glean-step--on={step === 3}>
+                <div class="glean-step__ball">3</div>
+                <div class="glean-step__lb">{t(i18n, "migrate.stepDone")}</div>
+            </div>
+        </div>
+    {/if}
+
     {#if phase === "intro"}
-        <p class="glean-migrate__intro">{t(i18n, "migrate.intro")}</p>
         {#if resumeAvailable}
-            <div class="glean-migrate__resume">
-                <button class="b3-button b3-button--outline" onclick={() => void resume()}>
+            <div style="display:flex; gap:8px">
+                <button class="glean-btn glean-btn--pri" onclick={() => void resume()}>
                     {t(i18n, "migrate.continue")}（{cursor}/{rows.length}）
                 </button>
-                <button class="b3-button b3-button--text" onclick={() => void clearMigrateProgress(facade.pluginInstance).then(() => (resumeAvailable = false))}>
+                <button class="glean-btn glean-btn--ghost" onclick={() => void clearMigrateProgress(facade.pluginInstance).then(() => (resumeAvailable = false))}>
                     {t(i18n, "migrate.discardProgress")}
                 </button>
             </div>
         {/if}
         <div class="glean-migrate__ops">
-            <button class="b3-button b3-button--outline" onclick={() => void startScan()}>
+            <button class="glean-btn glean-btn--pri" onclick={() => void startScan()}>
                 {t(i18n, "migrate.dryRun")}
             </button>
         </div>
     {:else if phase === "scanning"}
-        <div class="glean-migrate__status">{t(i18n, "migrate.scanning")}</div>
+        <div class="glean-panel__loading">{t(i18n, "migrate.scanning")}</div>
     {:else if phase === "report"}
-        <div class="glean-migrate__summary">
-            <span>{t(i18n, "migrate.total", { n: rows.length })}</span>
-            <span>· {t(i18n, "migrate.backfillable", { n: counts.pending })}</span>
-            <span>· {t(i18n, "migrate.needUrl")} {counts.manual}</span>
-            <span>· {t(i18n, "migrate.skipHasAttrs")} {counts.skipped}</span>
+        <div class="glean-mstats">
+            <div class="glean-mstat"><div class="glean-mstat__n">{counts.pending}</div><div class="glean-mstat__l">{t(i18n, "migrate.backfillableLabel")}</div></div>
+            <div class="glean-mstat"><div class="glean-mstat__n">{counts.skipped}</div><div class="glean-mstat__l">{t(i18n, "migrate.skipHasAttrs")}</div></div>
+            <div class="glean-mstat"><div class="glean-mstat__n">{counts.manual}</div><div class="glean-mstat__l">{t(i18n, "migrate.needUrl")}</div></div>
         </div>
-        <div class="glean-migrate__table">
-            <table class="glean-table">
-                <thead>
-                    <tr><th>{t(i18n, "migrate.columnTitle")}</th><th>{t(i18n, "migrate.columnUrl")}</th><th>{t(i18n, "migrate.columnWords")}</th><th>{t(i18n, "migrate.foundUrl")}</th></tr>
-                </thead>
-                <tbody>
-                    {#each visibleRows as row (row.id)}
-                        <tr>
-                            <td class="glean-table__title">{row.title || row.hpath}</td>
-                            <td class="glean-table__url">{row.url || "—"}</td>
-                            <td>{row.words || "—"}</td>
-                            <td>{rowStateLabel(row)}</td>
-                        </tr>
-                    {/each}
-                </tbody>
-            </table>
+        <div class="glean-mtable">
+            {#each visibleRows as row (row.id)}
+                <div class="glean-mrow">
+                    <span class="glean-mrow__ti">{row.title || row.hpath}</span>
+                    <span class="glean-mrow__url">{row.url || "—"}</span>
+                    <span class={rowStateClass(row)}>{rowStateLabel(row)}</span>
+                </div>
+            {/each}
         </div>
         <div class="glean-migrate__ops">
-            <select class="b3-select" bind:value={filter}>
+            <select class="b3-select" style="font-size:12px" bind:value={filter}>
                 <option value="all">{t(i18n, "migrate.filterAll")}</option>
                 <option value="pending">{t(i18n, "migrate.filterPending")}</option>
                 <option value="manual">{t(i18n, "migrate.needUrl")}</option>
                 <option value="skipped">{t(i18n, "migrate.skipHasAttrs")}</option>
             </select>
-            <button class="b3-button b3-button--text" onclick={() => void startScan()}>{t(i18n, "migrate.rescan")}</button>
-            <button class="b3-button" onclick={() => void startRun()} disabled={counts.pending === 0}>
+            <button class="glean-btn glean-btn--ghost" onclick={() => void startScan()}>{t(i18n, "migrate.rescan")}</button>
+            <button class="glean-btn glean-btn--pri" onclick={() => void startRun()} disabled={counts.pending === 0}>
                 {t(i18n, "migrate.run")}
             </button>
         </div>
     {:else if phase === "running" || phase === "paused"}
-        <div class="glean-migrate__progress">
+        <div>
             <div class="glean-progress"><div class="glean-progress__bar" style={`width:${progressPct}%`}></div></div>
-            <div class="glean-migrate__status">
-                {t(i18n, "migrate.writing")} {cursor}/{rows.length}
-                {#if phase === "paused"}（{t(i18n, "migrate.paused")}）{/if}
+            <div class="glean-prog-meta">
+                <span>{t(i18n, "migrate.writing")} {cursor} / {rows.length}{phase === "paused" ? `（${t(i18n, "migrate.paused")}）` : ""}</span>
+                <span>{t(i18n, "migrate.batchNote", { n: facade.settings.migrateBatchSize })}</span>
             </div>
         </div>
         <div class="glean-migrate__ops">
             {#if phase === "running"}
-                <button class="b3-button b3-button--outline" onclick={() => (aborted = true)}>
-                    {t(i18n, "migrate.pause")}
-                </button>
+                <button class="glean-btn" onclick={() => (aborted = true)}>{t(i18n, "migrate.pause")}</button>
             {:else}
-                <button class="b3-button" onclick={() => void startRun()}>{t(i18n, "migrate.continue")}</button>
+                <button class="glean-btn glean-btn--pri" onclick={() => void startRun()}>{t(i18n, "migrate.continue")}</button>
             {/if}
         </div>
     {:else if phase === "done"}
-        <div class="glean-migrate__done">
-            <div class="glean-migrate__done-title">{t(i18n, "migrate.done")}</div>
-            <div class="glean-migrate__summary">
-                {t(i18n, "migrate.summary", { ok: counts.ok, skip: counts.skipped, manual: counts.manual })}
-            </div>
-            {#if counts.manual > 0}
-                <div class="glean-migrate__manual-list">
-                    <div class="glean-section-label">{t(i18n, "migrate.needUrl")}</div>
-                    {#each rows.filter((row) => row.state === "manual") as row (row.id)}
-                        <div class="glean-migrate__manual-row" title={row.hpath}>{row.title || row.hpath}</div>
-                    {/each}
-                </div>
-            {/if}
+        <div class="glean-mstats">
+            <div class="glean-mstat"><div class="glean-mstat__n">{counts.ok}</div><div class="glean-mstat__l">{t(i18n, "migrate.okLabel")}</div></div>
+            <div class="glean-mstat"><div class="glean-mstat__n">{counts.skipped}</div><div class="glean-mstat__l">{t(i18n, "migrate.skipHasAttrs")}</div></div>
+            <div class="glean-mstat"><div class="glean-mstat__n">{counts.manual}</div><div class="glean-mstat__l">{t(i18n, "migrate.needUrl")}</div></div>
         </div>
+        {#if counts.manual > 0}
+            <div class="glean-mtable">
+                {#each rows.filter((row) => row.state === "manual") as row (row.id)}
+                    <div class="glean-mrow">
+                        <span class="glean-mrow__ti" title={row.hpath}>{row.title || row.hpath}</span>
+                        <span class="glean-mrow__st glean-mrow__st--manual">{t(i18n, "migrate.needUrl")}</span>
+                    </div>
+                {/each}
+            </div>
+        {/if}
         <div class="glean-migrate__ops">
-            <button class="b3-button" onclick={() => void closeAndClean()}>{t(i18n, "action.close")}</button>
+            <button class="glean-btn glean-btn--pri" onclick={() => void onClose()}>{t(i18n, "action.close")}</button>
         </div>
     {/if}
 </div>
 
 <style>
-    /* 样式在 src/index.scss 全局维护 */
+    /* 样式集中在 src/index.scss（设计系统） */
 </style>

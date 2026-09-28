@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>小驴拾遗 · UI 原型 Lab</title>
+<style>
+/* ============ 设计令牌（对齐 b3 变量名，明暗双主题） ============ */
+:root {
+    --glean-accent-a: #FFB347; --glean-accent-b: #F97316;
+    --g-accent-grad: linear-gradient(135deg, #FFC15E 0%, #F97316 100%);
+    --st-inbox: #F59E0B; --st-later: #3B82F6; --st-reading: #8B5CF6; --st-done: #10B981; --st-arch: #94A3B8;
+    --ease-spring: cubic-bezier(.34,1.56,.64,1);
+    --ease-out: cubic-bezier(.22,.61,.36,1);
+}
+.theme-light {
+    --b3-theme-background: #F7F8FA;
+    --b3-theme-background-light: #EFF1F4;
+    --b3-theme-surface: #FFFFFF;
+    --b3-theme-on-background: #1C1F26;
+    --b3-theme-on-surface: #5B6472;
+    --b3-border-color: rgba(17,20,28,.08);
+    --glass: rgba(255,255,255,.66);
+    --glass-border: rgba(255,255,255,.85);
+    --shadow-card: 0 1px 2px rgba(16,24,40,.04), 0 8px 24px -12px rgba(16,24,40,.12);
+    --shadow-float: 0 12px 32px -8px rgba(16,24,40,.22), 0 2px 6px rgba(16,24,40,.08);
+    --hover: rgba(17,20,28,.045);
+}
+.theme-dark {
+    --b3-theme-background: #101319;
+    --b3-theme-background-light: #1A1E27;
+    --b3-theme-surface: #171B23;
+    --b3-theme-on-background: #E8EBF0;
+    --b3-theme-on-surface: #8B93A1;
+    --b3-border-color: rgba(232,235,240,.08);
+    --glass: rgba(26,31,40,.62);
+    --glass-border: rgba(232,235,240,.10);
+    --shadow-card: 0 1px 2px rgba(0,0,0,.25), 0 10px 28px -14px rgba(0,0,0,.5);
+    --shadow-float: 0 16px 40px -10px rgba(0,0,0,.6), 0 2px 8px rgba(0,0,0,.4);
+    --hover: rgba(232,235,240,.06);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: var(--hover); border-radius: 4px; border: 2px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-thumb:hover { background: var(--b3-border-color); background-clip: padding-box; }
+::-webkit-scrollbar-track { background: transparent; }
+body {
+    font-family: "MiSans", "HarmonyOS Sans SC", -apple-system, "PingFang SC", "Segoe UI", "Microsoft YaHei", sans-serif;
+    background: radial-gradient(1200px 600px at 20% -10%, rgba(249,115,22,.06), transparent),
+                radial-gradient(1000px 500px at 110% 20%, rgba(139,92,246,.05), transparent),
+                #E8EAEE;
+    padding: 28px; display: flex; flex-wrap: wrap; gap: 28px; align-items: flex-start;
+}
+.theme-dark body { background: #0A0C10; }
+.frame {
+    width: 340px; height: 720px; border-radius: 24px; overflow: hidden; position: relative;
+    background: var(--b3-theme-background); color: var(--b3-theme-on-background);
+    box-shadow: var(--shadow-float); border: 1px solid var(--b3-border-color);
+    display: flex; flex-direction: column;
+}
+.frame-label { position:absolute; top:-20px; left:4px; font-size:12px; color:#666; }
+.frame.wide { width: 620px; height: auto; min-height: 640px; }
+
+/* ============ 通用元件 ============ */
+.pill-seg {
+    display: flex; gap: 2px; padding: 3px; border-radius: 999px;
+    background: var(--b3-theme-background-light); position: relative;
+}
+.pill-seg button {
+    flex: 1; border: none; background: transparent; color: var(--b3-theme-on-surface);
+    font-size: 12px; padding: 5px 12px; border-radius: 999px; cursor: pointer; font-weight: 500;
+    transition: all .25s var(--ease-out); position: relative; z-index: 1;
+}
+.pill-seg button.on {
+    background: var(--b3-theme-surface); color: var(--b3-theme-on-background);
+    box-shadow: 0 1px 4px rgba(16,24,40,.14), 0 0 0 .5px var(--b3-border-color);
+}
+.iconbtn {
+    width: 28px; height: 28px; border-radius: 9px; border: none; background: transparent;
+    color: var(--b3-theme-on-surface); display: grid; place-items: center; cursor: pointer;
+    transition: background .2s, transform .2s var(--ease-spring); font-size: 14px;
+}
+.iconbtn:hover { background: var(--hover); }
+.iconbtn:active { transform: scale(.9); }
+.chip {
+    display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; padding: 2px 8px;
+    border-radius: 999px; background: var(--b3-theme-background-light); color: var(--b3-theme-on-surface);
+}
+
+/* ============ 面板 ============ */
+.panel { display: flex; flex-direction: column; height: 100%; }
+.panel-head {
+    padding: 14px 14px 10px; display: flex; flex-direction: column; gap: 12px;
+    background: linear-gradient(to bottom, color-mix(in srgb, var(--glean-accent-a) 7%, transparent), transparent);
+}
+.brand-row { display: flex; align-items: center; gap: 9px; }
+.brand-mark {
+    width: 30px; height: 30px; border-radius: 10px; background: var(--g-accent-grad);
+    display: grid; place-items: center; color: #fff; font-size: 15px;
+    box-shadow: 0 4px 12px -2px rgba(249,115,22,.45), inset 0 1px 0 rgba(255,255,255,.35);
+}
+.brand-name { font-size: 15px; font-weight: 700; letter-spacing: .2px; }
+.brand-sub { font-size: 10px; color: var(--b3-theme-on-surface); margin-top: 1px; letter-spacing: .3px; }
+.head-actions { margin-left: auto; display: flex; gap: 2px; }
+.search {
+    display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 12px;
+    background: var(--glass); border: 1px solid var(--glass-border);
+    backdrop-filter: blur(16px) saturate(1.4); -webkit-backdrop-filter: blur(16px) saturate(1.4);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.25);
+}
+.search input {
+    flex: 1; border: none; outline: none; background: transparent; font-size: 12.5px;
+    color: var(--b3-theme-on-background);
+}
+.search input::placeholder { color: var(--b3-theme-on-surface); opacity: .7; }
+.search:focus-within { border-color: color-mix(in srgb, var(--glean-accent-b) 40%, transparent); box-shadow: inset 0 1px 0 rgba(255,255,255,.25), 0 0 0 3px color-mix(in srgb, var(--glean-accent-b) 12%, transparent); }
+.search kbd {
+    font-size: 10px; padding: 1px 6px; border-radius: 6px; border: 1px solid var(--b3-border-color);
+    color: var(--b3-theme-on-surface); background: var(--b3-theme-background-light);
+}
+
+/* 队列胶囊 */
+.queues { display: flex; gap: 6px; padding: 2px 14px 10px; overflow-x: auto; scrollbar-width: none; }
+.queues::-webkit-scrollbar { display: none; }
+.q {
+    flex-shrink: 0; display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px;
+    border-radius: 999px; border: 1px solid transparent; background: var(--b3-theme-background-light);
+    color: var(--b3-theme-on-surface); font-size: 12px; cursor: pointer;
+    transition: all .25s var(--ease-out);
+}
+.q .n {
+    font-size: 10px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 999px;
+    display: grid; place-items: center; background: var(--hover); font-weight: 600;
+}
+.q.on {
+    color: #fff; background: var(--g-accent-grad); font-weight: 600;
+    box-shadow: 0 4px 14px -4px rgba(249,115,22,.5);
+}
+.q.on .n { background: rgba(255,255,255,.28); color: #fff; }
+.q:not(.on):hover { border-color: var(--b3-border-color); background: var(--b3-theme-surface); }
+
+/* 待收录横幅 */
+.candidates {
+    margin: 0 12px 8px; padding: 9px 12px; border-radius: 14px; display: flex; align-items: center; gap: 8px;
+    border: 1px dashed color-mix(in srgb, var(--st-inbox) 45%, transparent);
+    background: color-mix(in srgb, var(--st-inbox) 6%, transparent);
+}
+.candidates .txt { flex: 1; font-size: 11.5px; color: var(--b3-theme-on-surface); }
+.candidates .txt b { color: var(--st-inbox); }
+.cap-btn {
+    border: none; font-size: 11px; font-weight: 600; color: #fff; padding: 5px 12px;
+    border-radius: 999px; background: var(--g-accent-grad); cursor: pointer;
+    box-shadow: 0 3px 10px -3px rgba(249,115,22,.55); transition: transform .2s var(--ease-spring);
+}
+.cap-btn:active { transform: scale(.94); }
+
+/* 文章卡 */
+.list { flex: 1; overflow-y: auto; padding: 2px 12px 12px; display: flex; flex-direction: column; gap: 7px; }
+.card {
+    padding: 11px 12px; border-radius: 16px; background: var(--b3-theme-surface);
+    border: 1px solid var(--b3-border-color); cursor: pointer; position: relative;
+    transition: transform .22s var(--ease-spring), box-shadow .22s, border-color .22s;
+}
+.card:hover { transform: translateY(-1px); box-shadow: var(--shadow-card); border-color: transparent; }
+.card:hover .t { color: var(--glean-accent-b); }
+.card .t { transition: color .2s; }
+.card:active { transform: scale(.985); }
+.card .t {
+    font-size: 12.8px; font-weight: 600; line-height: 1.45; letter-spacing: .1px;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.card .meta { display: flex; align-items: center; gap: 6px; margin-top: 6px; font-size: 10.5px; color: var(--b3-theme-on-surface); }
+.dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; box-shadow: 0 0 5px currentColor; }
+.site { display: inline-flex; align-items: center; gap: 4px; font-weight: 500; }
+.min { margin-left: auto; }
+.stale {
+    font-size: 9.5px; padding: 1px 6px; border-radius: 6px;
+    background: color-mix(in srgb, var(--st-inbox) 12%, transparent); color: var(--st-inbox); font-weight: 600;
+}
+.acts {
+    position: absolute; right: 10px; bottom: 10px; display: flex; gap: 4px; opacity: 0;
+    transform: translateY(3px); transition: all .22s var(--ease-out);
+}
+.card:hover .acts { opacity: 1; transform: none; }
+.ab {
+    width: 24px; height: 24px; border-radius: 8px; border: 1px solid var(--b3-border-color);
+    background: var(--b3-theme-surface); color: var(--b3-theme-on-surface); font-size: 11px;
+    display: grid; place-items: center; cursor: pointer; box-shadow: 0 2px 8px rgba(16,24,40,.10);
+    transition: all .18s;
+}
+.ab:hover { color: #fff; background: var(--g-accent-grad); border-color: transparent; }
+
+/* 进度条（阅读中卡片） */
+.prog { margin-top: 8px; height: 3px; border-radius: 2px; background: var(--hover); overflow: hidden; }
+.prog i { display: block; height: 100%; width: 62%; border-radius: 2px; background: var(--g-accent-grad); }
+
+/* 空态 */
+.empty { text-align: center; padding: 56px 24px; }
+.empty .art {
+    width: 76px; height: 76px; margin: 0 auto 16px; border-radius: 26px; display: grid; place-items: center;
+    background: linear-gradient(160deg, color-mix(in srgb, var(--glean-accent-a) 18%, transparent), color-mix(in srgb, var(--glean-accent-b) 10%, transparent));
+    font-size: 30px;
+}
+.empty .h { font-size: 13.5px; font-weight: 600; }
+.empty .p { font-size: 11.5px; color: var(--b3-theme-on-surface); margin-top: 6px; line-height: 1.7; }
+
+/* 批量条 */
+.batchbar {
+    position: absolute; left: 16px; right: 16px; bottom: 14px; padding: 8px 10px 8px 14px;
+    border-radius: 18px; display: flex; align-items: center; gap: 8px;
+    background: var(--glass); border: 1px solid var(--glass-border);
+    backdrop-filter: blur(20px) saturate(1.5); -webkit-backdrop-filter: blur(20px) saturate(1.5);
+    box-shadow: var(--shadow-float); font-size: 11.5px;
+}
+.batchbar .ops { margin-left: auto; display: flex; gap: 4px; }
+.bb {
+    border: none; font-size: 11px; padding: 5px 10px; border-radius: 9px; cursor: pointer;
+    background: var(--hover); color: var(--b3-theme-on-background); transition: all .2s;
+}
+.bb:hover { background: var(--b3-theme-background-light); }
+.bb.pri { background: var(--g-accent-grad); color: #fff; font-weight: 600; }
+
+/* ============ 统计视图 ============ */
+.stats { padding: 14px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; height: 100%; }
+.bento { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.tile {
+    border-radius: 18px; padding: 13px 14px; background: var(--b3-theme-surface);
+    border: 1px solid var(--b3-border-color); position: relative; overflow: hidden;
+}
+.tile .k { font-size: 10.5px; color: var(--b3-theme-on-surface); display: flex; align-items: center; gap: 5px; }
+.tile .v {
+    font-size: 23px; font-weight: 800; margin-top: 6px; letter-spacing: -.5px; font-variant-numeric: tabular-nums;
+    background: linear-gradient(135deg, var(--b3-theme-on-background) 20%, var(--glean-accent-b) 130%);
+    -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+}
+.tile .u { font-size: 10px; color: var(--b3-theme-on-surface); font-weight: 500; margin-left: 2px; }
+.tile .glow {
+    position: absolute; right: -22px; top: -22px; width: 74px; height: 74px; border-radius: 50%;
+    opacity: .8; filter: blur(2px);
+}
+.tile:nth-child(1) .glow { background: radial-gradient(circle, rgba(245,158,11,.35), transparent 70%); }
+.tile:nth-child(2) .glow { background: radial-gradient(circle, rgba(16,185,129,.32), transparent 70%); }
+.tile:nth-child(3) .glow { background: radial-gradient(circle, rgba(139,92,246,.30), transparent 70%); }
+.tile:nth-child(4) .glow { background: radial-gradient(circle, rgba(59,130,246,.30), transparent 70%); }
+.tile .spark { margin-top: 10px; display: flex; align-items: flex-end; gap: 2px; height: 26px; }
+.tile .spark i { flex: 1; border-radius: 2px 2px 0 0; background: var(--hover); }
+.tile .spark i.hot { background: var(--g-accent-grad); opacity: .9; box-shadow: 0 0 6px rgba(249,115,22,.35); }
+
+.sect { font-size: 11px; font-weight: 700; color: var(--b3-theme-on-surface); letter-spacing: .6px; margin-top: 4px; text-transform: uppercase; }
+.panel-block {
+    border-radius: 18px; padding: 13px 14px; background: var(--b3-theme-surface); border: 1px solid var(--b3-border-color);
+}
+.bar-row { display: flex; align-items: center; gap: 8px; font-size: 11.5px; padding: 4px 0; }
+.bar-row .nm { width: 72px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--b3-theme-on-surface); }
+.bar-row .bar { flex: 1; height: 6px; border-radius: 3px; background: var(--hover); overflow: hidden; }
+.bar-row .bar i { display: block; height: 100%; border-radius: 3px; background: var(--g-accent-grad); }
+.bar-row .ct { width: 26px; text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+.tagcloud { display: flex; flex-wrap: wrap; gap: 6px; }
+.tag {
+    font-size: 11px; padding: 4px 10px; border-radius: 999px; cursor: default;
+    background: var(--b3-theme-background-light); border: 1px solid var(--b3-border-color);
+    transition: all .2s;
+}
+.tag:hover { border-color: var(--st-inbox); color: var(--st-inbox); }
+
+/* ============ 高亮视图 ============ */
+.hl {
+    border-radius: 16px; padding: 11px 12px 11px 14px; background: var(--b3-theme-surface);
+    border: 1px solid var(--b3-border-color); position: relative;
+}
+.hl::before {
+    content: ""; position: absolute; left: 0; top: 10px; bottom: 10px; width: 3px; border-radius: 3px;
+    background: var(--g-accent-grad);
+}
+.hl .q { font-size: 12px; line-height: 1.65; }
+.hl .m { margin-top: 6px; font-size: 10px; color: var(--b3-theme-on-surface); display: flex; gap: 8px; }
+
+/* ============ 迁移器弹窗（宽框演示） ============ */
+.dlg { border-radius: 20px; background: var(--b3-theme-background); border: 1px solid var(--b3-border-color); overflow: hidden; box-shadow: var(--shadow-float); }
+.dlg-head {
+    padding: 14px 18px; display: flex; align-items: center; gap: 10px;
+    background: var(--glass); border-bottom: 1px solid var(--b3-border-color);
+    backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+}
+.dlg-head .t { font-size: 13.5px; font-weight: 700; }
+.dlg-head .sub { font-size: 10.5px; color: var(--b3-theme-on-surface); }
+.dlg-body { padding: 16px 18px; }
+.stepper { display: flex; align-items: center; gap: 0; margin-bottom: 16px; }
+.step { display: flex; align-items: center; gap: 7px; }
+.step .ball {
+    width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center;
+    font-size: 10.5px; font-weight: 700; background: var(--b3-theme-background-light); color: var(--b3-theme-on-surface);
+}
+.step.on .ball { background: var(--g-accent-grad); color: #fff; box-shadow: 0 3px 10px -3px rgba(249,115,22,.55); }
+.step.done .ball { background: color-mix(in srgb, var(--st-done) 18%, transparent); color: var(--st-done); }
+.step .lb { font-size: 11px; color: var(--b3-theme-on-surface); }
+.step.on .lb { color: var(--b3-theme-on-background); font-weight: 600; }
+.step-line { flex: 1; height: 1.5px; margin: 0 10px; background: var(--b3-border-color); }
+.step-line.done { background: var(--st-done); }
+.migrate-sum { display: flex; gap: 8px; }
+.mstat {
+    flex: 1; border-radius: 14px; padding: 10px 12px; background: var(--b3-theme-background-light);
+}
+.mstat .n { font-size: 19px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.mstat:nth-child(1) .n { color: var(--st-done); }
+.mstat:nth-child(2) .n { color: var(--b3-theme-on-surface); }
+.mstat:nth-child(3) .n { color: var(--st-inbox); }
+.mstat .l { font-size: 10px; color: var(--b3-theme-on-surface); margin-top: 2px; }
+.mtable { margin-top: 12px; border: 1px solid var(--b3-border-color); border-radius: 14px; overflow: hidden; }
+.mrow { display: flex; align-items: center; gap: 10px; padding: 9px 12px; font-size: 11.5px; border-bottom: 1px solid var(--b3-border-color); }
+.mrow:last-child { border-bottom: none; }
+.mrow .ti { flex: 1; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mrow .st { font-size: 10px; padding: 2px 8px; border-radius: 999px; font-weight: 600; }
+.st-ok { background: color-mix(in srgb, var(--st-done) 14%, transparent); color: var(--st-done); }
+.st-manual { background: color-mix(in srgb, var(--st-inbox) 14%, transparent); color: var(--st-inbox); }
+.st-skip { background: var(--hover); color: var(--b3-theme-on-surface); }
+.prog-wrap { margin-top: 14px; }
+.prog-track { height: 6px; border-radius: 3px; background: var(--hover); overflow: hidden; }
+.prog-fill { height: 100%; width: 68%; border-radius: 3px; background: var(--g-accent-grad); box-shadow: 0 0 8px rgba(249,115,22,.5); }
+.dlg-foot { padding: 12px 18px 16px; display: flex; justify-content: flex-end; gap: 8px; }
+.btn {
+    border: none; font-size: 12px; padding: 7px 16px; border-radius: 11px; cursor: pointer; font-weight: 600;
+    background: var(--b3-theme-background-light); color: var(--b3-theme-on-background); transition: all .2s;
+}
+.btn:hover { filter: brightness(.97); }
+.btn.pri { background: var(--g-accent-grad); color: #fff; box-shadow: 0 4px 14px -4px rgba(249,115,22,.5); }
+.btn.ghost { background: transparent; color: var(--b3-theme-on-surface); }
+
+/* ============ 设置（iOS inset group） ============ */
+.settings { padding: 14px; display: flex; flex-direction: column; gap: 14px; height: 100%; overflow-y: auto; }
+.group { border-radius: 16px; background: var(--b3-theme-surface); border: 1px solid var(--b3-border-color); overflow: hidden; }
+.group .g-title { font-size: 10.5px; font-weight: 700; color: var(--b3-theme-on-surface); letter-spacing: .5px; padding: 0 4px 6px; text-transform: uppercase; }
+.row { display: flex; align-items: center; gap: 10px; padding: 11px 14px; border-bottom: 1px solid var(--b3-border-color); font-size: 12.5px; min-height: 42px; transition: background .2s; }
+.row:hover { background: var(--hover); }
+.row:last-child { border-bottom: none; }
+.row .lb { flex: 1; }
+.row .desc { font-size: 10.5px; color: var(--b3-theme-on-surface); margin-top: 2px; }
+.sw { width: 36px; height: 21px; border-radius: 999px; background: var(--hover); position: relative; cursor: pointer; transition: background .25s; flex-shrink: 0; }
+.sw::after {
+    content: ""; position: absolute; top: 2px; left: 2px; width: 17px; height: 17px; border-radius: 50%;
+    background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.25); transition: transform .25s var(--ease-spring);
+}
+.sw.on { background: var(--g-accent-grad); }
+.sw.on::after { transform: translateX(15px); }
+.nb { font-size: 11px; padding: 3px 10px; border-radius: 999px; background: var(--b3-theme-background-light); border: 1px solid var(--b3-border-color); }
+.nb.on { background: color-mix(in srgb, var(--glean-accent-b) 12%, transparent); border-color: var(--glean-accent-b); color: var(--glean-accent-b); font-weight: 600; }
+select.mini, input.mini {
+    font-size: 11.5px; padding: 5px 8px; border-radius: 9px; border: 1px solid var(--b3-border-color);
+    background: var(--b3-theme-background-light); color: var(--b3-theme-on-background); outline: none;
+}
+input.mini { width: 64px; text-align: center; }
+</style>
+</head>
+<body>
+
+<!-- ============ 亮色 · 库视图 ============ -->
+<div style="position:relative">
+  <div class="frame-label">库 · 亮</div>
+  <div class="frame theme-light">
+    <div class="panel">
+      <div class="panel-head">
+        <div class="brand-row">
+          <div class="brand-mark">🌾</div>
+          <div><div class="brand-name">小驴拾遗</div><div class="brand-sub">GLEAN · 读库 128 篇</div></div>
+          <div class="head-actions">
+            <button class="iconbtn">⚙</button><button class="iconbtn">↻</button>
+          </div>
+        </div>
+        <div class="pill-seg"><button class="on">库</button><button>统计</button><button>高亮</button></div>
+        <div class="search">🔍<input placeholder="搜索标题、站点、标签…"><kbd>⌘K</kbd></div>
+      </div>
+      <div class="queues">
+        <button class="q on">新剪藏 <span class="n">12</span></button>
+        <button class="q">稍后读 <span class="n">31</span></button>
+        <button class="q">阅读中 <span class="n">5</span></button>
+        <button class="q">已读 <span class="n">64</span></button>
+        <button class="q">归档 <span class="n">16</span></button>
+      </div>
+      <div class="candidates">
+        <span>📥</span>
+        <div class="txt">检测到 <b>3 篇</b>未收录的剪藏</div>
+        <button class="cap-btn">全部收录</button>
+      </div>
+      <div class="list">
+        <div class="card">
+          <div class="t">The Bitter Lesson of AI Engineering: Why Context Is All You Need</div>
+          <div class="meta"><span class="dot" style="background:var(--st-inbox)"></span><span class="site">📰 news.example.com</span> · <span>约 18 分钟</span><span class="min stale">吃灰 96 天</span></div>
+          <div class="acts"><button class="ab">▶</button><button class="ab">⤓</button></div>
+        </div>
+        <div class="card">
+          <div class="t">Designing liquid glass interfaces that feel alive without hurting usability</div>
+          <div class="meta"><span class="dot" style="background:var(--st-reading)"></span><span class="site">📰 design.weekly.dev</span> · <span>约 9 分钟</span></div>
+          <div class="prog"><i></i></div>
+          <div class="acts"><button class="ab">✓</button><button class="ab">⤓</button></div>
+        </div>
+        <div class="card">
+          <div class="t">How Linear builds product: small teams, deep context, and a culture of written thinking</div>
+          <div class="meta"><span class="dot" style="background:var(--st-later)"></span><span class="site">📰 linear.app</span> · <span>约 12 分钟</span><span class="min stale">吃灰 41 天</span></div>
+          <div class="acts"><button class="ab">▶</button><button class="ab">⤓</button></div>
+        </div>
+        <div class="card">
+          <div class="t">像堆乐高一样搭后端：事件驱动架构入门</div>
+          <div class="meta"><span class="dot" style="background:var(--st-done)"></span><span class="site">📰 zh.dev.to</span> · <span>已读</span><span class="min">⭐ 4</span></div>
+          <div class="acts"><button class="ab">↩</button></div>
+        </div>
+        <div class="card" style="opacity:.62">
+          <div class="t">A field guide to software maintenance you will actually thank yourself for</div>
+          <div class="meta"><span class="dot" style="background:var(--st-arch)"></span><span class="site">📰 blog.example.org</span> · <span>已归档</span></div>
+          <div class="acts"><button class="ab">↩</button></div>
+        </div>
+      </div>
+      <div class="batchbar">
+        <b>已选 2</b>
+        <div class="ops">
+          <button class="bb">阅读中</button><button class="bb">已读</button><button class="bb pri">归档</button><button class="bb">✕</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 暗色 · 库视图 ============ -->
+<div style="position:relative">
+  <div class="frame-label">库 · 暗</div>
+  <div class="frame theme-dark">
+    <div class="panel">
+      <div class="panel-head">
+        <div class="brand-row">
+          <div class="brand-mark">🌾</div>
+          <div><div class="brand-name">小驴拾遗</div><div class="brand-sub">GLEAN · 读库 128 篇</div></div>
+          <div class="head-actions">
+            <button class="iconbtn">⚙</button><button class="iconbtn">↻</button>
+          </div>
+        </div>
+        <div class="pill-seg"><button class="on">库</button><button>统计</button><button>高亮</button></div>
+        <div class="search">🔍<input placeholder="搜索标题、站点、标签…"><kbd>⌘K</kbd></div>
+      </div>
+      <div class="queues">
+        <button class="q">新剪藏 <span class="n">12</span></button>
+        <button class="q on">稍后读 <span class="n">31</span></button>
+        <button class="q">阅读中 <span class="n">5</span></button>
+        <button class="q">已读 <span class="n">64</span></button>
+        <button class="q">归档 <span class="n">16</span></button>
+      </div>
+      <div class="list">
+        <div class="card">
+          <div class="t">像堆乐高一样搭后端：事件驱动架构入门</div>
+          <div class="meta"><span class="dot" style="background:var(--st-later)"></span><span class="site">📰 zh.dev.to</span> · <span>约 14 分钟</span><span class="min stale">吃灰 8 天</span></div>
+          <div class="acts"><button class="ab">▶</button><button class="ab">⤓</button></div>
+        </div>
+        <div class="card">
+          <div class="t">The rise of local-first software: CRDTs, sync engines, and the end of the loading spinner</div>
+          <div class="meta"><span class="dot" style="background:var(--st-later)"></span><span class="site">📰 inkandswitch.com</span> · <span>约 26 分钟</span><span class="min stale">吃灰 33 天</span></div>
+          <div class="acts"><button class="ab">▶</button><button class="ab">⤓</button></div>
+        </div>
+        <div class="card">
+          <div class="t">理解 CUDA：从显卡 architecture 到 kernel 调度的极简心智模型</div>
+          <div class="meta"><span class="dot" style="background:var(--st-later)"></span><span class="site">📰 gpu.dev</span> · <span>约 21 分钟</span></div>
+          <div class="acts"><button class="ab">▶</button><button class="ab">⤓</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 暗色 · 统计视图 ============ -->
+<div style="position:relative">
+  <div class="frame-label">统计 · 暗</div>
+  <div class="frame theme-dark">
+    <div class="panel">
+      <div class="panel-head">
+        <div class="brand-row">
+          <div class="brand-mark">🌾</div>
+          <div><div class="brand-name">统计</div><div class="brand-sub">近 30 天</div></div>
+          <div class="head-actions"><button class="iconbtn">↻</button></div>
+        </div>
+        <div class="pill-seg"><button>库</button><button class="on">统计</button><button>高亮</button></div>
+      </div>
+      <div class="stats">
+        <div class="bento">
+          <div class="tile"><div class="glow"></div><div class="k">📚 库内文章</div><div class="v">128</div><div class="spark"><i></i><i></i><i class="hot"></i><i class="hot"></i><i class="hot"></i><i></i><i></i></div></div>
+          <div class="tile"><div class="glow"></div><div class="k">✅ 已读</div><div class="v">64</div><div class="u">50%</div><div class="spark"><i></i><i class="hot"></i><i></i><i class="hot"></i><i class="hot"></i><i class="hot"></i><i></i></div></div>
+          <div class="tile"><div class="glow"></div><div class="k">📖 累计字数</div><div class="v">42.6<span class="u">万</span></div></div>
+          <div class="tile"><div class="glow"></div><div class="k">🔥 本周新增</div><div class="v">17</div><div class="u">+4</div></div>
+        </div>
+        <div class="sect">站点分布</div>
+        <div class="panel-block">
+          <div class="bar-row"><span class="nm">dev.to</span><div class="bar"><i style="width:82%"></i></div><span class="ct">32</span></div>
+          <div class="bar-row"><span class="nm">news.ycom…</span><div class="bar"><i style="width:64%"></i></div><span class="ct">25</span></div>
+          <div class="bar-row"><span class="nm">sspai.com</span><div class="bar"><i style="width:41%"></i></div><span class="ct">16</span></div>
+          <div class="bar-row"><span class="nm">github.com</span><div class="bar"><i style="width:28%"></i></div><span class="ct">11</span></div>
+          <div class="bar-row"><span class="nm">其他 14 站</span><div class="bar"><i style="width:33%"></i></div><span class="ct">44</span></div>
+        </div>
+        <div class="sect">标签分布</div>
+        <div class="panel-block"><div class="tagcloud"><span class="tag">架构 ×18</span><span class="tag">AI ×14</span><span class="tag">设计 ×11</span><span class="tag">效率 ×9</span><span class="tag">数据库 ×7</span><span class="tag">前端 ×6</span><span class="tag">产品 ×4</span></div></div>
+        <button class="btn pri" style="border-radius:14px; padding:10px">📝 生成本周阅读周报</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 亮色 · 高亮视图 ============ -->
+<div style="position:relative">
+  <div class="frame-label">高亮 · 亮</div>
+  <div class="frame theme-light">
+    <div class="panel">
+      <div class="panel-head">
+        <div class="brand-row">
+          <div class="brand-mark">🌾</div>
+          <div><div class="brand-name">本文高亮</div><div class="brand-sub">设计液态玻璃的 5 个原则</div></div>
+          <div class="head-actions"><button class="iconbtn">↻</button></div>
+        </div>
+        <div class="pill-seg"><button>库</button><button>统计</button><button class="on">高亮</button></div>
+      </div>
+      <div class="list">
+        <div class="hl"><div class="q">「玻璃质感的关键不是模糊，而是材质对光的响应——高光、折射与景深要作为一个整体来设计。」</div><div class="m"><span>引述 · 14 行</span><span>#设计 #玻璃拟态</span></div></div>
+        <div class="hl"><div class="q">「动效的意义在于解释因果：用户的手指做了什么，界面因此发生了什么变化。」</div><div class="m"><span>引述 · 27 行</span></div></div>
+        <div class="hl"><div class="q">「克制是奢侈的：留白不是没有设计，而是把设计压缩到只剩必要。」</div><div class="m"><span>引述 · 41 行</span><span>#原则</span></div></div>
+        <div class="empty" style="padding:24px">
+          <div class="art">✨</div>
+          <div class="h">AI 动作</div>
+          <div class="p">总结 · 要点 · 反方观点<br>（M3 上线，走思源自带 AI）</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 迁移器弹窗（宽） ============ -->
+<div style="position:relative">
+  <div class="frame-label">迁移器 · 宽</div>
+  <div class="frame wide theme-light">
+    <div class="dlg" style="border:none; box-shadow:none">
+      <div class="dlg-head">
+        <div class="brand-mark" style="width:26px;height:26px;font-size:13px">🌾</div>
+        <div><div class="t">整理剪藏库</div><div class="sub">把历史剪藏回填为文档属性 · 不覆盖手填内容</div></div>
+      </div>
+      <div class="dlg-body">
+        <div class="stepper">
+          <div class="step done"><div class="ball">✓</div><div class="lb">扫描报告</div></div>
+          <div class="step-line done"></div>
+          <div class="step on"><div class="ball">2</div><div class="lb">分批回填</div></div>
+          <div class="step-line"></div>
+          <div class="step"><div class="ball">3</div><div class="lb">完成</div></div>
+        </div>
+        <div class="migrate-sum">
+          <div class="mstat"><div class="n">47</div><div class="l">✓ 已回填</div></div>
+          <div class="mstat"><div class="n">12</div><div class="l">⊘ 已有属性跳过</div></div>
+          <div class="mstat"><div class="n">3</div><div class="l">✋ 待手填链接</div></div>
+          <div class="mstat"><div class="n">18</div><div class="l">… 剩余</div></div>
+        </div>
+        <div class="prog-wrap">
+          <div class="prog-track"><div class="prog-fill"></div></div>
+          <div style="display:flex; justify-content:space-between; font-size:10.5px; color:var(--b3-theme-on-surface); margin-top:6px">
+            <span>回填中… 47 / 65</span><span>每批 25 篇 · 可暂停</span>
+          </div>
+        </div>
+        <div class="mtable">
+          <div class="mrow"><span class="ti">像堆乐高一样搭后端：事件驱动架构入门</span><span style="color:var(--st-done); font-size:10px">zh.dev.to</span><span class="st st-ok">✓</span></div>
+          <div class="mrow"><span class="ti">The rise of local-first software</span><span style="color:var(--st-done); font-size:10px">inkandswitch.com</span><span class="st st-ok">✓</span></div>
+          <div class="mrow"><span class="ti">读书笔记（无链接行，需手填）</span><span style="font-size:10px">—</span><span class="st st-manual">待手填</span></div>
+          <div class="mrow"><span class="ti">已整理过的旧文</span><span style="font-size:10px">—</span><span class="st st-skip">跳过</span></div>
+        </div>
+      </div>
+      <div class="dlg-foot">
+        <button class="btn ghost">暂停</button>
+        <button class="btn pri">后台继续</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 设置（亮） ============ -->
+<div style="position:relative">
+  <div class="frame-label">设置 · 亮</div>
+  <div class="frame theme-light" style="height:640px">
+    <div class="settings">
+      <div class="group">
+        <div style="padding:12px 14px 0; display:flex; align-items:center; gap:8px">
+          <div class="brand-mark">🌾</div>
+          <div><div style="font-size:13.5px; font-weight:700">小驴拾遗设置</div><div style="font-size:10px; color:var(--b3-theme-on-surface)">v0.2.0 · 数据都在你的文档上</div></div>
+        </div>
+      </div>
+      <div>
+        <div class="g-title">读库笔记本</div>
+        <div class="group">
+          <div class="row"><div class="lb">剪藏收藏<div class="desc">32 篇文档</div></div><span class="nb on">✓ 主锚点</span></div>
+          <div class="row"><div class="lb">技术阅读<div class="desc">96 篇文档</div></div><span class="nb on">✓ 主锚点</span></div>
+          <div class="row"><div class="lb">随手记<div class="desc">201 篇文档</div></div><span class="nb">＋ 加入</span></div>
+        </div>
+      </div>
+      <div>
+        <div class="g-title">AI 增强 · 走思源自带 AI</div>
+        <div class="group">
+          <div class="row"><div class="lb">收录时自动摘要与标签</div><div class="sw on"></div></div>
+          <div class="row"><div class="lb">阅读时推荐相关旧文</div><div class="sw on"></div></div>
+          <div class="row"><div class="lb">预置 AI 动作（总结/要点/反方）</div><div class="sw"></div></div>
+        </div>
+      </div>
+      <div>
+        <div class="g-title">每日拾遗</div>
+        <div class="group">
+          <div class="row"><div class="lb">每天重浮篇数</div><select class="mini"><option>3 篇</option></select></div>
+          <div class="row"><div class="lb">收件箱提醒上限</div><input class="mini" value="50"></div>
+          <div class="row"><div class="lb">超龄归档候选</div><select class="mini"><option>90 天</option></select></div>
+        </div>
+      </div>
+      <div>
+        <div class="g-title">维护</div>
+        <div class="group">
+          <div class="row"><div class="lb">重建索引<div class="desc">索引只是缓存，不动文档数据</div></div><button class="btn" style="font-size:11px; padding:5px 12px">重建</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

@@ -86,3 +86,23 @@ V2 闪卡相关功能要求 3.8.6+，相关任务后置到内核功能落地后�
 工程范式：api/ 层是唯一内核交互点，domain/ 纯函数层框架无关（architecture 守门测试）；
 构建/软链/发版脚本从人脉项目移植；zip 产物 mtime 用真实构建时间（speed-switch 回滚事故教训）。
 UI 用 b3 CSS 变量适配主题色，类名前缀 `glean-`。
+
+## D-0011（2026-09-29）UI 设计语言：简约·现代·前沿·科技（作者指示，多轮原型迭代定稿）
+
+作者要求原型 UI 多轮自行优化，参考苹果液态玻璃/HarmonyOS NEXT/Material 3 与 Linear 等现代工具。
+定稿设计系统（design/prototype.html 三轮浏览器截图迭代 → 回 port src/index.scss）：
+①液态玻璃表面（backdrop blur+saturation、内高光、玻璃搜索/浮动批量条）；
+②胶囊分段控件（视图切换滑块、队列 pill，active 态品牌琥珀渐变+投影）；
+③Bento 统计卡（渐变大数字 tabular-nums、径向 glow、迷你 spark 柱）；
+④卡片语言（16px 圆角、hover 浮起+标题 accent、状态点带光环、spring 微动效 cubic-bezier(.34,1.56,.64,1)）；
+⑤iOS inset grouped 设置（chips 选笔记本、滑块开关、行 hover）；
+⑥步进器迁移器（扫描→回填→完成三步球）。颜色只用 b3 变量+品牌渐变，明暗主题自适应，前缀 glean-。
+
+## D-0012（2026-09-29）读库看板（AV）与文档属性双轨，状态以属性为真相
+
+T-1200 挂库向导创建的「读库数据库」是属性的投影视图：select 状态列=五态枚举、number=字数/时长、
+url=来源。同步方向：向导/刷新时属性→看板（对账补绑+列值对齐）；看板拖卡改列由内核侧生效，
+面板打开时 reconcileIndex 以列值回读属性（SQL 已含 ial，属性值优先）。库锚点幂等可续建：
+按标题找回宿主文档 → 从块 markdown 还原 avId → 按列名对账补字段（列名记忆在 fieldMap，
+用户改列名不伤插件）。行绑定 isDetached:false，itemID≠文档 ID（换算只经
+getAttributeViewItemIDsByBoundIDs）。AV 端点形状经 av-spike.mjs 6/6 复验（本仓库 scripts/spike/）。

@@ -26,6 +26,16 @@ function kernelPost<T>(route: string, body: Record<string, unknown> = {}): Promi
 
 export { kernelPost };
 
+/** 生成合法节点 ID（yyyyMMddHHmmss-xxxxxxx，同 Lute.NewNodeID 格式）。 */
+export function newNodeId(now: Date = new Date()): string {
+    const pad = (value: number, width: number) => String(value).padStart(width, "0");
+    const stamp = `${now.getFullYear()}${pad(now.getMonth() + 1, 2)}${pad(now.getDate(), 2)}${pad(now.getHours(), 2)}${pad(now.getMinutes(), 2)}${pad(now.getSeconds(), 2)}`;
+    const charset = "0123456789abcdefghijklmnopqrstuvwxyz";
+    let rand = "";
+    for (let i = 0; i < 7; i += 1) rand += charset[Math.floor(Math.random() * charset.length)];
+    return `${stamp}-${rand}`;
+}
+
 /* ---------- attr：文档属性（根块 IAL） ---------- */
 
 export type Ial = Record<string, string>;
@@ -99,6 +109,35 @@ export async function listNotebooks(): Promise<NotebookMeta[]> {
 /** 导出文档为 markdown（迁移器读正文用；返回 content 已含正文 markdown） */
 export async function exportMdContent(id: string): Promise<{ hPath: string; content: string }> {
     return kernelPost<{ hPath: string; content: string }>("/api/export/exportMdContent", { id });
+}
+
+/** 创建文档（同路径会再建新文档，不幂等——调用方先查重，人脉 D-0007 同款结论）。返回文档 ID。 */
+export async function createDocWithMd(notebookId: string, hPath: string, markdown: string): Promise<string> {
+    return kernelPost<string>("/api/filetree/createDocWithMd", { notebook: notebookId, path: hPath, markdown });
+}
+
+/* ---------- block 子块（高亮聚合） ---------- */
+
+export interface BlockRow {
+    id: string;
+    content: string;
+    markdown: string;
+    type: string;
+    root_id: string;
+    box: string;
+}
+
+/**
+ * 当前文档的引述块（DATA-CONTRACT §4 形态②：普通引述块 type='b'）。
+ * content 为纯文本、markdown 保留行内标记；root_id 圈定文档。
+ */
+export async function listQuoteBlocks(rootDocId: string, limit = 200): Promise<BlockRow[]> {
+    if (!/^(\d{14}-[0-9a-z]{7})$/.test(rootDocId)) return [];
+    const data = await kernelPost<BlockRow[]>("/api/query/sql", {
+        stmt: `SELECT id, content, markdown, type, root_id, box FROM blocks
+               WHERE root_id = '${rootDocId.replace(/'/g, "''")}' AND type = 'b' ORDER BY sort ASC LIMIT ${limit}`,
+    });
+    return Array.isArray(data) ? data : [];
 }
 
 /* ---------- 搜索 ---------- */

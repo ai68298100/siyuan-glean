@@ -1,5 +1,19 @@
 # 进度（PROGRESS）
 
+## M2 — 数据库视图与统计（v0.2.0，功能落地待真机验收）✅（2026-09-29）
+
+- [x] UI 设计系统定稿：design/prototype.html 三轮浏览器截图迭代（玻璃/胶囊/Bento/弹簧）→
+      src/index.scss 全量回 port；面板改版为 库/统计/高亮 三视图（D-0011）
+- [x] T-1200 挂库向导：av-spike 6/6 复验（建库/字段/绑行/itemID/写值/渲染）；
+      ensureLibraryAnchor 幂等续建 + bindAllClipsToLibrary 分批(≤50)补绑 + 状态列对齐（D-0012）
+- [x] T-1201 统计视图：domain/stats.ts 纯函数聚合（7 天收录桶 noon 对齐修正）+ Bento 卡 +
+      站点/标签分布 + Markdown 周报导出（读库周报/）
+- [x] T-1202 高亮视图：当前文档引述块聚合（SQL root_id+type='b'，sort ASC），只消费不编辑
+- [x] 质量门禁：check 0 错误、30/30 测试、构建+发布门禁全绿、spike 7/7 回归（含新 dist 加载 148 i18n 键）
+- [x] 设置面板回 port：iOS inset grouped + chips + 滑块开关 + 挂库入口
+- [x] 迁移器回 port：步进器 + 统计卡 + 状态胶囊表格
+- 真机验收项（作者）：dock/顶栏/三视图/迁移器/设置/挂库 的实机操作（B-0002 扩充）
+
 ## M0 — 尖刺验证 ✅（2026-09-29）
 
 - [x] 仓库骨架：git init、真值文档八件套、AGENTS.md、D-0001~D-0010 落账（含源码定调 D-0010）

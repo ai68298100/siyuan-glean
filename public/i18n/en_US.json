@@ -1,26 +1,21 @@
 {
   "pluginName": "Lv Glean",
   "tagline": "Glean your clippings before they gather dust",
-
   "cmd.openPanel": "Open reading library panel",
   "cmd.addToList": "Add to reading library",
   "cmd.rebuildIndex": "Rebuild glean index",
   "cmd.openMigrate": "Organize clipped articles (migrator)",
-
   "dock.title": "Glean Library",
-
   "queue.inbox": "New clippings",
   "queue.later": "Read later",
   "queue.reading": "Reading",
   "queue.done": "Finished",
   "queue.archived": "Archived",
-
   "status.inbox": "New",
   "status.later": "Read later",
   "status.reading": "Reading",
   "status.done": "Finished",
   "status.archived": "Archived",
-
   "action.addToInbox": "Add to library",
   "action.startReading": "Start reading",
   "action.markDone": "Mark as done",
@@ -41,7 +36,6 @@
   "action.captureAll": "Capture all",
   "action.close": "Done",
   "panel.loading": "Loading…",
-
   "migrate.columnTitle": "Title",
   "migrate.columnUrl": "Source URL",
   "migrate.columnWords": "Words",
@@ -53,7 +47,6 @@
   "migrate.paused": "paused",
   "migrate.discardProgress": "Discard saved progress",
   "migrate.candidatesLabel": "Pending capture",
-
   "panel.empty": "Nothing here yet",
   "panel.emptyHint": "Clipped articles land here waiting for triage",
   "panel.noAnchor": "No library notebook configured",
@@ -68,7 +61,6 @@
   "panel.untitled": "Untitled",
   "panel.unknownSite": "Unknown source",
   "panel.staleDays": "Dusting for ${n} days",
-
   "migrate.title": "Organize clippings",
   "migrate.intro": "Scan the library notebooks and backfill source URL and clip time onto your clippings. Documents that already have attributes are skipped; your manual entries are never overwritten.",
   "migrate.dryRun": "Preview report (no writes)",
@@ -83,7 +75,6 @@
   "migrate.foundUrl": "Source URL found",
   "migrate.skipHasAttrs": "Already has attributes, skipped",
   "migrate.batchSize": "Writes per batch",
-
   "settings.title": "Lv Glean Settings",
   "settings.anchorNotebooks": "Library notebooks",
   "settings.anchorNotebooksDesc": "New docs in these notebooks are treated as clippings; multi-select",
@@ -99,7 +90,6 @@
   "settings.dangerGroup": "Maintenance",
   "settings.rebuildIndex": "Rebuild index",
   "settings.rebuildIndexDesc": "The index is just a cache — rebuilding never touches data on your documents",
-
   "ai.enriching": "AI enriching…",
   "ai.enrichDone": "AI summary & tags written",
   "ai.enrichFailed": "AI unavailable, skipped (article data unaffected)",
@@ -108,7 +98,6 @@
   "ai.actionSummary": "AI summary",
   "ai.actionPoints": "AI key points",
   "ai.actionCounter": "AI counterarguments",
-
   "resurface.title": "Today's gleaning",
   "resurface.subtitle": "${n} picked from the dust pile",
   "resurface.read": "Read",
@@ -116,18 +105,15 @@
   "resurface.archive": "Archive",
   "resurface.allDone": "Nothing to glean today",
   "resurface.allDoneHint": "See you tomorrow — no strings attached",
-
   "msg.added": "Added to library",
   "msg.alreadyIn": "Already in library",
   "msg.statusChanged": "Status updated",
   "msg.indexRebuilt": "Index rebuilt",
   "msg.noSelection": "Place the cursor inside a document first",
   "msg.confirmBatch": "Apply this to ${n} selected articles?",
-
   "highlight.title": "Highlights",
-  "highlight.empty": "No highlights or quotes in this document yet",
+  "highlight.empty": "No quotes in this document",
   "highlight.count": "${n} items",
-
   "stats.title": "Reading stats",
   "stats.total": "In library",
   "stats.read": "Finished",
@@ -135,5 +121,30 @@
   "stats.thisWeek": "New this week",
   "stats.bySite": "By site",
   "stats.byTag": "By tag",
-  "stats.exportWeekly": "Generate weekly report"
+  "stats.exportWeekly": "Generate weekly report",
+  "view.library": "Library",
+  "view.stats": "Stats",
+  "view.highlights": "Highlights",
+  "panel.libraryCount": "${n} in library",
+  "panel.candidatesDetected": "${n} uncaptured clippings detected",
+  "stats.wan": "0k",
+  "stats.doneUnit": "done",
+  "stats.exportDone": "Weekly report created in your library notebook (读库周报)",
+  "migrate.stepScan": "Scan",
+  "migrate.stepRun": "Backfill",
+  "migrate.stepDone": "Done",
+  "migrate.backfillableLabel": "Backfillable",
+  "migrate.okLabel": "Backfilled",
+  "migrate.batchNote": "${n} per batch · pausable",
+  "board.groupTitle": "Library database (board)",
+  "board.mountTitle": "Mount library board",
+  "board.mountDesc": "Creates a 读库数据库 in the first anchor notebook and binds captured articles; board columns mirror the status machine",
+  "board.mountAction": "Mount",
+  "board.mounted": "Board ready: ${n} newly bound",
+  "highlight.noDoc": "No document open",
+  "highlight.noDocHint": "Open a document and its quotes will aggregate here",
+  "highlight.emptyHint": "Quotes (>) and highlights from annotation plugins appear here",
+  "highlight.quoteTag": "Quote",
+  "ai.actionsPreview": "Summary / Key points / Counterarguments (coming in M3)",
+  "settings.sovereigntyNote": "All data lives on your documents — nothing lost on uninstall"
 }

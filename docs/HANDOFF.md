@@ -1,43 +1,51 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
 > 续跑口令（新会话直接粘贴）：
-> **阅读 D:\思源插件\小驴拾遗\docs\HANDOFF.md，按其中"下一步"继续开发；工程纪律见 AGENTS.md 与 docs/DECISIONS.md，先通读 TODO.md 与 docs/DATA-CONTRACT.md 再动手。**
+> **阅读 D:思源插件小驴拾遗docsHANDOFF.md，按其中"下一步"继续开发；工程纪律见 AGENTS.md 与 docs/DECISIONS.md，先通读 TODO.md 与 docs/DATA-CONTRACT.md 再动手。**
 > 如有更具体的口令，以最近一轮更新的"下一步"为准。
 
-## 当前状态（2026-09-29 第一轮开发完成）
+## 当前状态（2026-09-29 第二轮开发完成：UI 设计系统 + M2）
 
-- 仓库：`D:\思源插件\小驴拾遗` = GitHub [ai68298100/siyuan-glean](https://github.com/ai68298100/siyuan-glean)（main 分支已推送）。
-- 定调：**人脉方案**（Vite 8 + Svelte 5 + TS + pnpm，CJS 单文件），内核源码级证据见 D-0010。
-- 质量：`pnpm check` 0 错误；`pnpm test` 25/25；`pnpm build` + 发布门禁 14/14；M0 spike 7/7（隔离内核）。
-- 功能：M0 + M1 全量落地（属性服务/迁移器/Dock 面板五队列/收录三件套/设置/派生索引/README 双语）。
-- 版本：plugin.json=package.json=**0.1.0**（工作版本号；M1 真机验收后发 **v1.0.0**，打 tag 需作者确认）。
-- 推送 GitHub 已获作者授权（本轮已推）；**集市 PR 未授权，禁做**。
+- 仓库：`D:思源插件小驴拾遗` = GitHub [ai68298100/siyuan-glean](https://github.com/ai68298100/siyuan-glean)，main 已推送。
+- **UI 设计系统已定稿**（D-0011）：design/prototype.html（三轮浏览器截图迭代）→ src/index.scss。
+  语言=液态玻璃+胶囊分段+Bento+弹簧微动效，b3 变量自适应明暗。改 UI 先看 prototype.html 与 index.scss 令牌。
+- **M2 功能落地**（v0.2.0 工作版本，未打 tag）：
+  - T-1200 挂库向导：services/library-db.ts（ensureLibraryAnchor 幂等续建 + bindAllClipsToLibrary
+    分批补绑 + 状态列对齐）；AV 端点封装 src/api/av.ts（av-spike.mjs 6/6 复验，D-0012 双轨语义）。
+  - T-1201 统计视图：domain/stats.ts（纯函数，含周报 markdown）+ ui/StatsView.svelte（Bento+分布+导出）。
+  - T-1202 高亮视图：services/highlights.ts + ui/HighlightView.svelte（root_id+type='b' 聚合）。
+  - 面板三视图（库/统计/高亮）+ 设置改版（iOS inset group + 挂库入口）+ 迁移器步进器化。
+- 质量：check 0 错误、30/30 测试、构建+发布门禁全绿、spike 7/7 + av-spike 6/6 回归通过。
+- 推送 GitHub 已授权（照常推）；集市仍禁（未授权）。
 
-## 已实证契约（动手前必读 docs/DATA-CONTRACT.md §5 + docs/spike-report.md）
+## 已实证契约（动手前必读 DATA-CONTRACT §5 + spike-report + av-spike-results.json）
 
-- `batchGetBlockAttrs` 响应是 `{[id]: attrs}` 映射；`batchSetBlockAttrs` 请求 `{blockAttrs:[{id,attrs}]}`；删除属性 null 或空串皆可（插件统一 null）。
-- 千篇库 `ial LIKE` 直查 14~50ms → **不要**给面板加写放大方案，T-1403 已关闭。
-- `semanticSearchBlock`：`types` 是 map（`{d:true}`）、**无 boxes 参数**、嵌入未启用时 code=0 空结果 → 降级判断必须先查 `embeddingStat().enabled`。
-- 隔离内核测试插件前必须 `/api/setting/setBazaar {trust:true}`（spike 脚本已内置）。
-- 内核加载插件：CommonJS 单文件 index.js + 默认导出 extends Plugin；i18n 双名 `zh_CN.json`+`en_US.json` 各自全量。
+- AV：insertBlock 插 NodeAttributeView DOM（客户端预生成 avId）→ renderAttributeView createIfNotExist:true 物化；
+  addAttributeViewKey 的 keyIcon 必传空串；绑行 addAttributeViewBlocks isDetached:false；
+  换算 itemID 只经 getAttributeViewItemIDsByBoundIDs；number 值形状 {number:{content,isNotEmpty:true}}；
+  select 写 content 自动建选项；渲染有异步滞后需重试。
+- 其余（attr/batch 形状、LIKE 性能、语义降级、setBazaar 信任门槛、i18n 双名）见第一轮 HANDOFF 内容
+  （git 历史或 docs/spike-report.md）。
 
-## 架构速记
+## 架构速记（增量）
 
-- `src/index.ts` 薄壳（dock+tab 双挂载、命令、右键菜单）；`types.ts` GleanFacade 门面（组件不反向 import 壳）。
-- `src/api/client.ts` 唯一内核传输层；`src/domain/` 纯函数（schema.ts=属性唯一事实源）；`src/services/`（clip-store=属性单点读写+手填字段保护；index-store=派生索引；migrate-service=dry-run+分批续跑；settings）。
-- `src/ui/`：DockPanel（五队列+待收录区+批量条）/MigrateDialog/SettingsView；样式全局在 `src/index.scss`（glean- 前缀 + b3 变量）。
-- 测试：`tests/`（schema/migrate/i18n/architecture），跑法 `pnpm test`；测试文件 import 要带 `.ts` 扩展名（node --test 直跑）。
-- 网络：GitHub 直连超时，**推送/拉取走代理 `git -c http.proxy=http://127.0.0.1:7897 …`**（凭据在 Windows 凭据管理器，ai68298100）。
+- ui/StatsView/HighlightView 由 DockPanel 内部视图切换承载；跨视图刷新走 facade.notifyDataChanged() 广播。
+- domain 层新文件被 node --test 直接 import 时，相对导入必须带 `.ts` 扩展名（stats.ts 先例）。
+- 网络：git 推拉走代理 `git -c http.proxy=http://127.0.0.1:7897 …`；GitHub API 也可用该代理 + 凭据管理器令牌（ai68298100）。
 
-## 待作者事项（不阻塞开发，勿催）
+## 待作者事项
 
-- B-0001 官方剪藏扩展实剪 3 站核对；B-0002 dock/顶栏真机目视；两者后作者验收 M1 后再发 v1.0.0（tag 逐次请示）。
+- B-0001 剪藏扩展实剪核对；B-0002 真机 UI 验收（现在含：三视图/统计/高亮/设置/挂库/迁移器）。
+- M2 真机验收后发 v0.2.0（或直接 v1.1.0，与作者确认版本策略——D-005 语义化：里程碑发版 v1.y.0，
+  当前 0.x 属预发布工作版本，**建议 M2 验收后直接 v1.1.0**）。
+- preview.png 目前是 logo 拉伸图；集市五张截图等真机 UI 后截（README §7 清单）。
 
-## 下一步（按优先级，即 M2）
+## 下一步（M3 AI 富化，按 D-0004/D-0007 红线）
 
-1. **T-1200 挂库向导**：一键创建"读库数据库"（AV）并把收录文档挂入（`addAttributeViewBlocks isDetached:false`，字段映射 status/rating/words/minutes，看板视图即状态机；拖卡改状态=写文档属性双向同步）。**注意**：AV 端点形状照搬小驴人脉 `docs/DATA-CONTRACT.md`+`src/api/av.ts`（同机可读 `D:\思源插件\小驴人脉\siyuan-contacts\`），但先把要用的端点补进 spike 脚本在本机内核复验。
-2. **T-1201 统计页**：已读/字数/站点/标签分布 + Markdown 周报导出（数据从 index 聚合，纯函数放 domain/stats.ts + 单测）。
-3. **T-1202 高亮列表侧栏 v1**：读当前文档引述块聚合（DATA-CONTRACT §4 形态）。
-4. M2 完成后：记账 PROGRESS/TODO → 提交推送（推送已授权）→ 更新本页。
-
-再往后：M3 AI 富化（T-1300~1303，设计红线见 D-0004/D-0007：官方通道、逐功能开关、静默降级、先查 embeddingStat.enabled）→ M4 抗吃灰（T-1400~1402，平静原则）→ M5 生态（逐项请示作者）。
+1. **T-1300 富化管线**：收录/手动触发 → /api/ai/chatGPT 摘要 + AI 标签（写 custom-clip-summary/ai-tags，
+   永不碰手填字段）+ 语义查重（先查 embeddingStat().enabled，未启用静默跳过）。失败静默降级记 BLOCKERS，
+   绝不阻断收录。设置开关已就位（ai.enrichOnCapture）。
+2. **T-1301 关联推荐**：阅读中侧栏"相关旧文"；semanticSearchBlock（types:{d:true}，无 boxes——客户端按 box 过滤）。
+3. **T-1302 AI 动作**：editor/saveAction 预置 总结/要点/反方观点。
+4. **T-1303 智能体工具**：addAgentCapability 三件（list_unread/archive_stale/weekly_digest）。
+5. M3 完成后记账+推送+更新本页；再进 M4 抗吃灰（重浮算法 domain 纯函数先行）。
