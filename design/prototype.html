@@ -348,6 +348,108 @@ select.mini, input.mini {
     background: var(--b3-theme-background-light); color: var(--b3-theme-on-background); outline: none;
 }
 input.mini { width: 64px; text-align: center; }
+
+/* ============ 桌面端（tab 全宽 / 看板 / 双栏设置） ============ */
+.frame.desktop { width: 1200px; height: 780px; }
+.dtop { display: flex; flex-direction: column; height: 100%; }
+.d-head {
+    display: flex; align-items: center; gap: 14px; padding: 14px 20px 10px;
+    background: linear-gradient(to bottom, color-mix(in srgb, var(--glean-accent-a) 6%, transparent), transparent);
+}
+.d-head .search { width: 380px; }
+.d-head .spacer { flex: 1; }
+.d-tools { display: flex; gap: 6px; align-items: center; }
+.d-seg { display: flex; gap: 2px; padding: 3px; border-radius: 999px; background: var(--b3-theme-background-light); }
+.d-seg button {
+    border: none; background: transparent; color: var(--b3-theme-on-surface); font-size: 12px;
+    padding: 5px 14px; border-radius: 999px; cursor: pointer; display: inline-flex; gap: 6px; align-items: center;
+}
+.d-seg button.on { background: var(--b3-theme-surface); color: var(--b3-theme-on-background); box-shadow: 0 1px 4px rgba(16,24,40,.14); }
+.d-body { flex: 1; min-height: 0; display: flex; }
+.d-rail {
+    width: 216px; flex-shrink: 0; border-right: 1px solid var(--b3-border-color);
+    padding: 12px 10px; display: flex; flex-direction: column; gap: 2px; overflow-y: auto;
+}
+.rail-title { font-size: 10px; font-weight: 700; color: var(--b3-theme-on-surface); letter-spacing: .6px; text-transform: uppercase; padding: 8px 10px 4px; }
+.rail-item {
+    display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 10px;
+    font-size: 12.5px; color: var(--b3-theme-on-surface); cursor: pointer; transition: background .15s;
+}
+.rail-item:hover { background: var(--hover); }
+.rail-item.on { background: var(--glean-grad-soft); color: var(--glean-accent-b); font-weight: 600; }
+.rail-item .n { margin-left: auto; font-size: 10.5px; background: var(--hover); border-radius: 999px; padding: 1px 7px; }
+.d-main { flex: 1; min-width: 0; padding: 14px 18px; overflow-y: auto; }
+
+/* 桌面文章表（密度可切换的行式列表） */
+.d-table { display: flex; flex-direction: column; gap: 6px; }
+.drow {
+    display: flex; align-items: center; gap: 12px; padding: 11px 14px; border-radius: 14px;
+    background: var(--b3-theme-surface); border: 1px solid var(--b3-border-color);
+    transition: transform .2s var(--glean-ease-out), box-shadow .2s;
+}
+.drow:hover { transform: translateY(-1px); box-shadow: var(--shadow-card); }
+.drow .dot { box-shadow: 0 0 6px currentColor; }
+.drow .ti { flex: 1; min-width: 0; font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.drow .site { width: 150px; font-size: 11px; color: var(--b3-theme-on-surface); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.drow .len { width: 116px; white-space: nowrap; font-size: 11px; color: var(--b3-theme-on-surface); font-variant-numeric: tabular-nums; }
+.drow .st { width: 72px; text-align: right; flex-shrink: 0; }
+.st-badge { font-size: 10px; padding: 3px 9px; border-radius: 999px; font-weight: 600; display: inline-block; }
+.st-badge.inbox { background: color-mix(in srgb, var(--st-inbox) 13%, transparent); color: var(--st-inbox); }
+.st-badge.later { background: color-mix(in srgb, var(--st-later) 13%, transparent); color: var(--st-later); }
+.st-badge.reading { background: color-mix(in srgb, var(--st-reading) 13%, transparent); color: var(--st-reading); }
+.st-badge.done { background: color-mix(in srgb, var(--st-done) 13%, transparent); color: var(--st-done); }
+.st-badge.archived { background: var(--hover); color: var(--b3-theme-on-surface); }
+
+/* 看板 */
+.kanban { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; height: 100%; }
+.kcol {
+    background: var(--b3-theme-background-light); border-radius: 16px; padding: 8px;
+    display: flex; flex-direction: column; gap: 8px; min-height: 0; overflow-y: auto;
+}
+.kcol-head { display: flex; align-items: center; gap: 7px; padding: 4px 6px; font-size: 11.5px; font-weight: 700; }
+.kcol-head .n { margin-left: auto; font-size: 10px; background: var(--hover); border-radius: 999px; padding: 1px 7px; color: var(--b3-theme-on-surface); }
+.kcard {
+    background: var(--b3-theme-surface); border-radius: 12px; padding: 10px 12px; font-size: 12px;
+    border: 1px solid var(--b3-border-color); cursor: grab; transition: transform .18s var(--glean-ease-out), box-shadow .18s;
+}
+.kcard:hover { transform: translateY(-1px); box-shadow: var(--shadow-card); }
+.kcard .kt { font-weight: 600; line-height: 1.45; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.kcard .km { margin-top: 5px; font-size: 10px; color: var(--b3-theme-on-surface); display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; }
+.kcard .km .stale { white-space: nowrap; }
+
+/* 桌面统计 */
+.bento-wide { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.stats-two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+.big-chart { display: flex; align-items: flex-end; gap: 6px; height: 110px; padding: 8px 4px 0; }
+.big-chart .col { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 6px; height: 100%; }
+.big-chart .bar { width: 100%; border-radius: 6px 6px 2px 2px; background: var(--g-accent-grad); opacity: .9; min-height: 4px; }
+.big-chart .lb { font-size: 9.5px; color: var(--b3-theme-on-surface); }
+
+/* 桌面设置（双栏） */
+.set-two { display: flex; height: 100%; }
+.set-nav {
+    width: 200px; flex-shrink: 0; border-right: 1px solid var(--b3-border-color); padding: 14px 10px;
+    display: flex; flex-direction: column; gap: 2px;
+}
+.set-content { flex: 1; overflow-y: auto; padding: 18px 22px; }
+.set-content .glean-set-group { margin-bottom: 14px; }
+
+
+/* ===== 插件实现类名对齐（glean-set-* / glean-btn / glean-nb，与 src/index.scss 同词表） ===== */
+.glean-set-group { border-radius: 16px; background: var(--b3-theme-surface); border: 1px solid var(--b3-border-color); overflow: hidden; }
+.glean-set-row { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--b3-border-color); font-size: 13px; min-height: 44px; }
+.glean-set-row:last-child { border-bottom: none; }
+.glean-set-row:hover { background: rgba(128,128,128,.05); }
+.glean-set-row__lb { flex: 1; min-width: 0; }
+.glean-set-row__desc { font-size: 11px; color: var(--b3-theme-on-surface); margin-top: 3px; line-height: 1.55; }
+.glean-nb { font-size: 11.5px; padding: 5px 12px; border-radius: 999px; background: var(--b3-theme-background-light); border: 1px solid var(--b3-border-color); cursor: pointer; }
+.glean-nb.on { background: color-mix(in srgb, var(--glean-accent-b) 10%, transparent); border-color: var(--glean-accent-b); color: var(--glean-accent-b); font-weight: 600; }
+.glean-btn { border: none; font-size: 12.5px; font-weight: 600; padding: 8px 18px; border-radius: 11px; cursor: pointer; background: var(--b3-theme-background-light); color: var(--b3-theme-on-background); }
+.glean-btn--pri { background: var(--g-accent-grad); color: #fff; box-shadow: 0 4px 14px -4px rgba(249,115,22,.5); }
+.glean-btn--ghost { background: transparent; color: var(--b3-theme-on-surface); }
+.glean-progress { height: 6px; border-radius: 3px; background: var(--hover); overflow: hidden; }
+.glean-progress i { display: block; height: 100%; background: var(--g-accent-grad); }
+
 </style>
 </head>
 <body>
@@ -608,6 +710,214 @@ input.mini { width: 64px; text-align: center; }
         <div class="g-title">维护</div>
         <div class="group">
           <div class="row"><div class="lb">重建索引<div class="desc">索引只是缓存，不动文档数据</div></div><button class="btn" style="font-size:11px; padding:5px 12px">重建</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 桌面 · 库（tab 全宽，rail + 表格） ============ -->
+<div style="position:relative">
+  <div class="frame-label">桌面 · 库 tab（rail + 表格）</div>
+  <div class="frame desktop theme-light">
+    <div class="dtop">
+      <div class="d-head">
+        <div class="brand-row" style="gap:9px">
+          <div class="brand-mark">🌾</div>
+          <div><div class="brand-name">小驴拾遗</div><div class="brand-sub">GLEAN · 读库 128 篇</div></div>
+        </div>
+        <div class="search">🔍<input placeholder="搜索标题、站点、标签…"><kbd>⌘K</kbd></div>
+        <div class="spacer"></div>
+        <div class="d-tools">
+          <div class="d-seg">
+            <button class="on">☰ 列表</button><button>▦ 网格</button><button>⇆ 看板</button>
+          </div>
+          <button class="cap-btn">📥 收录</button>
+          <button class="iconbtn">⚙</button><button class="iconbtn">↻</button>
+        </div>
+      </div>
+      <div class="d-body">
+        <div class="d-rail">
+          <div class="rail-title">队列</div>
+          <div class="rail-item on"><span class="dot" style="background:var(--st-inbox)"></span>新剪藏<span class="n">12</span></div>
+          <div class="rail-item"><span class="dot" style="background:var(--st-later)"></span>稍后读<span class="n">31</span></div>
+          <div class="rail-item"><span class="dot" style="background:var(--st-reading)"></span>阅读中<span class="n">5</span></div>
+          <div class="rail-item"><span class="dot" style="background:var(--st-done)"></span>已读<span class="n">64</span></div>
+          <div class="rail-item"><span class="dot" style="background:var(--st-arch)"></span>归档<span class="n">16</span></div>
+          <div class="rail-title">站点</div>
+          <div class="rail-item">dev.to<span class="n">32</span></div>
+          <div class="rail-item">news.ycombinator.com<span class="n">25</span></div>
+          <div class="rail-item">sspai.com<span class="n">16</span></div>
+          <div class="rail-title">标签</div>
+          <div class="rail-item">#架构<span class="n">18</span></div>
+          <div class="rail-item">#AI<span class="n">14</span></div>
+          <div class="rail-item">#设计<span class="n">11</span></div>
+        </div>
+        <div class="d-main">
+          <div class="d-table">
+            <div class="drow"><span class="dot" style="background:var(--st-inbox)"></span><span class="ti">The Bitter Lesson of AI Engineering: Why Context Is All You Need</span><span class="site">news.example.com</span><span class="len">7,240 字 · 18 分</span><span class="st"><span class="st-badge inbox">新剪藏</span></span></div>
+            <div class="drow"><span class="dot" style="background:var(--st-reading)"></span><span class="ti">Designing liquid glass interfaces that feel alive without hurting usability</span><span class="site">design.weekly.dev</span><span class="len">3,610 字 · 9 分</span><span class="st"><span class="st-badge reading">阅读中</span></span></div>
+            <div class="drow"><span class="dot" style="background:var(--st-later)"></span><span class="ti">How Linear builds product: small teams, deep context, and a culture of written thinking</span><span class="site">linear.app</span><span class="len">4,880 字 · 12 分</span><span class="st"><span class="st-badge later">稍后读</span></span></div>
+            <div class="drow"><span class="dot" style="background:var(--st-later)"></span><span class="ti">像堆乐高一样搭后端：事件驱动架构入门</span><span class="site">zh.dev.to</span><span class="len">5,600 字 · 14 分</span><span class="st"><span class="st-badge later">稍后读</span></span></div>
+            <div class="drow"><span class="dot" style="background:var(--st-done)"></span><span class="ti">理解 CUDA：从显卡架构到 kernel 调度的极简心智模型 ⭐4</span><span class="site">gpu.dev</span><span class="len">8,400 字 · 21 分</span><span class="st"><span class="st-badge done">已读</span></span></div>
+            <div class="drow" style="opacity:.6"><span class="dot" style="background:var(--st-arch)"></span><span class="ti">A field guide to software maintenance you will actually thank yourself for</span><span class="site">blog.example.org</span><span class="len">2,980 字 · 8 分</span><span class="st"><span class="st-badge archived">归档</span></span></div>
+          </div>
+          <div style="margin-top:12px; display:flex; gap:8px; align-items:center; font-size:11px; color:var(--b3-theme-on-surface)">
+            <span>已选 2 篇</span>
+            <button class="bb">▶ 开始阅读</button><button class="bb">✓ 已读</button><button class="bb pri">⤓ 归档</button><button class="bb">✕ 取消</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 桌面 · 看板（五列状态机） ============ -->
+<div style="position:relative">
+  <div class="frame-label">桌面 · 看板（五态即五列）</div>
+  <div class="frame desktop theme-dark">
+    <div class="dtop">
+      <div class="d-head">
+        <div class="brand-row" style="gap:9px">
+          <div class="brand-mark">🌾</div>
+          <div><div class="brand-name">读库看板</div><div class="brand-sub">拖卡即改状态 · 状态机五列</div></div>
+        </div>
+        <div class="spacer"></div>
+        <div class="d-seg"><button>☰ 列表</button><button class="on">⇆ 看板</button></div>
+      </div>
+      <div class="d-body">
+        <div class="d-main" style="padding:14px 16px; display:flex">
+          <div class="kanban">
+            <div class="kcol">
+              <div class="kcol-head"><span class="dot" style="background:var(--st-inbox)"></span>新剪藏<span class="n">12</span></div>
+              <div class="kcard"><div class="kt">The Bitter Lesson of AI Engineering</div><div class="km">📰 news.example.com · 18 分 · <span style="color:var(--st-inbox)">吃灰 96 天</span></div></div>
+              <div class="kcard"><div class="kt">Rust 错误处理的设计权衡</div><div class="km">📰 blog.rust-lang.org · 11 分</div></div>
+            </div>
+            <div class="kcol">
+              <div class="kcol-head"><span class="dot" style="background:var(--st-later)"></span>稍后读<span class="n">31</span></div>
+              <div class="kcard"><div class="kt">How Linear builds product</div><div class="km">📰 linear.app · 12 分 · 吃灰 41 天</div></div>
+              <div class="kcard"><div class="kt">The rise of local-first software</div><div class="km">📰 inkandswitch.com · 26 分</div></div>
+              <div class="kcard"><div class="kt">像堆乐高一样搭后端</div><div class="km">📰 zh.dev.to · 14 分</div></div>
+            </div>
+            <div class="kcol">
+              <div class="kcol-head"><span class="dot" style="background:var(--st-reading)"></span>阅读中<span class="n">5</span></div>
+              <div class="kcard"><div class="kt">Designing liquid glass interfaces</div><div class="km">📰 design.weekly.dev · 62%</div><div class="prog" style="margin-top:7px"><i></i></div></div>
+            </div>
+            <div class="kcol">
+              <div class="kcol-head"><span class="dot" style="background:var(--st-done)"></span>已读<span class="n">64</span></div>
+              <div class="kcard"><div class="kt">理解 CUDA：极简心智模型 ⭐4</div><div class="km">📰 gpu.dev · 21 分</div></div>
+              <div class="kcard"><div class="kt">数据库索引的数学之美 ⭐5</div><div class="km">📰 use-the-index-luke.com · 17 分</div></div>
+            </div>
+            <div class="kcol">
+              <div class="kcol-head"><span class="dot" style="background:var(--st-arch)"></span>归档<span class="n">16</span></div>
+              <div class="kcard" style="opacity:.62"><div class="kt">A field guide to software maintenance</div><div class="km">📰 blog.example.org · 8 分</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 桌面 · 统计（全宽 bento + 双列图） ============ -->
+<div style="position:relative">
+  <div class="frame-label">桌面 · 统计</div>
+  <div class="frame desktop theme-light">
+    <div class="dtop">
+      <div class="d-head">
+        <div class="brand-row" style="gap:9px">
+          <div class="brand-mark">🌾</div>
+          <div><div class="brand-name">阅读统计</div><div class="brand-sub">近 30 天</div></div>
+        </div>
+        <div class="spacer"></div>
+        <button class="btn pri">📝 生成本周阅读周报</button>
+      </div>
+      <div class="d-body">
+        <div class="d-main" style="display:flex; flex-direction:column; gap:12px">
+          <div class="bento-wide">
+            <div class="tile"><div class="glow"></div><div class="k">📚 库内文章</div><div class="v">128</div><div class="spark"><i></i><i></i><i class="hot"></i><i class="hot"></i><i class="hot"></i><i></i><i></i></div></div>
+            <div class="tile"><div class="glow"></div><div class="k">✅ 已读</div><div class="v">64</div><div class="u">50%</div></div>
+            <div class="tile"><div class="glow"></div><div class="k">📖 累计字数</div><div class="v">42.6<span class="u">万</span></div></div>
+            <div class="tile"><div class="glow"></div><div class="k">🔥 本周完成</div><div class="v">9</div><div class="u">+3</div></div>
+          </div>
+          <div class="stats-two">
+            <div>
+              <div class="sect">近 7 天收录</div>
+              <div class="panel-block">
+                <div class="big-chart">
+                  <div class="col"><div class="bar" style="height:34%"></div><span class="lb">周三</span></div>
+                  <div class="col"><div class="bar" style="height:58%"></div><span class="lb">周四</span></div>
+                  <div class="col"><div class="bar" style="height:22%"></div><span class="lb">周五</span></div>
+                  <div class="col"><div class="bar" style="height:80%"></div><span class="lb">周六</span></div>
+                  <div class="col"><div class="bar" style="height:64%"></div><span class="lb">周日</span></div>
+                  <div class="col"><div class="bar" style="height:46%"></div><span class="lb">周一</span></div>
+                  <div class="col"><div class="bar" style="height:100%"></div><span class="lb">今天</span></div>
+                </div>
+              </div>
+            </div>
+            <div>
+              <div class="sect">站点分布</div>
+              <div class="panel-block">
+                <div class="bar-row"><span class="nm">dev.to</span><div class="bar"><i style="width:82%"></i></div><span class="ct">32</span></div>
+                <div class="bar-row"><span class="nm">news.ycom…</span><div class="bar"><i style="width:64%"></i></div><span class="ct">25</span></div>
+                <div class="bar-row"><span class="nm">sspai.com</span><div class="bar"><i style="width:41%"></i></div><span class="ct">16</span></div>
+                <div class="bar-row"><span class="nm">github.com</span><div class="bar"><i style="width:28%"></i></div><span class="ct">11</span></div>
+                <div class="bar-row"><span class="nm">其他 14 站</span><div class="bar"><i style="width:33%"></i></div><span class="ct">44</span></div>
+              </div>
+            </div>
+          </div>
+          <div>
+            <div class="sect">标签分布</div>
+            <div class="panel-block"><div class="tagcloud"><span class="tag">架构 ×18</span><span class="tag">AI ×14</span><span class="tag">设计 ×11</span><span class="tag">效率 ×9</span><span class="tag">数据库 ×7</span><span class="tag">前端 ×6</span><span class="tag">产品 ×4</span><span class="tag">工具 ×3</span></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 桌面 · 设置（双栏） ============ -->
+<div style="position:relative">
+  <div class="frame-label">桌面 · 设置（双栏）</div>
+  <div class="frame desktop theme-light" style="height:620px">
+    <div class="set-two">
+      <div class="set-nav">
+        <div style="padding:0 10px 10px; display:flex; align-items:center; gap:8px">
+          <div class="brand-mark" style="width:26px;height:26px;font-size:13px">🌾</div>
+          <div style="font-size:13px; font-weight:700">设置</div>
+        </div>
+        <div class="rail-item on">📇 读库笔记本</div>
+        <div class="rail-item">🤖 AI 增强</div>
+        <div class="rail-item">🔄 每日拾遗</div>
+        <div class="rail-item">🗂 读库数据库</div>
+        <div class="rail-item">🧰 维护</div>
+      </div>
+      <div class="set-content">
+        <div class="glean-set-group">
+          <div class="glean-set-row">
+            <div class="glean-set-row__lb">剪藏收藏<div class="glean-set-row__desc">32 篇文档 · 主锚点</div></div>
+            <span class="nb on">✓ 已选</span>
+          </div>
+          <div class="glean-set-row">
+            <div class="glean-set-row__lb">技术阅读<div class="glean-set-row__desc">96 篇文档 · 主锚点</div></div>
+            <span class="nb on">✓ 已选</span>
+          </div>
+          <div class="glean-set-row">
+            <div class="glean-set-row__lb">随手记<div class="glean-set-row__desc">201 篇文档</div></div>
+            <span class="nb">＋ 加入</span>
+          </div>
+        </div>
+        <div class="glean-set-group">
+          <div class="glean-set-row">
+            <div class="glean-set-row__lb">
+              读库数据库说明
+              <div class="glean-set-row__desc">挂载后会在第一个锚点笔记本创建「读库数据库」，收录文章自动挂入，看板列即状态机。</div>
+            </div>
+            <button class="btn pri" style="flex-shrink:0">挂载看板</button>
+          </div>
+        </div>
+        <div style="font-size:10.5px; color:var(--b3-theme-on-surface); opacity:.7; padding: 4px 6px">
+          所有数据都在你的文档上 · 卸载插件不丢 · v0.2.0
         </div>
       </div>
     </div>

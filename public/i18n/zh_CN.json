@@ -146,5 +146,7 @@
   "highlight.emptyHint": "用 > 引用或批注插件添加的高亮会出现在这里",
   "highlight.quoteTag": "引述",
   "ai.actionsPreview": "总结 / 要点 / 反方观点（M3 上线）",
-  "settings.sovereigntyNote": "所有数据都在你的文档上，卸载不丢"
+  "settings.sovereigntyNote": "所有数据都在你的文档上，卸载不丢",
+  "view.modeList": "列表",
+  "view.modeKanban": "看板"
 }

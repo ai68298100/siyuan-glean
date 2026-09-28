@@ -1,5 +1,17 @@
 # 进度（PROGRESS）
 
+## UI 标准 — 桌面端定稿 + 规范成文 ✅（2026-09-29，第三轮 UI 迭代）
+
+- [x] 桌面原型四帧（design/prototype.html）：库 tab（216px rail + 五列行表）/ 五列看板 / 全宽统计
+      （4 卡 Bento + 周柱图 + 双列分布）/ 双栏设置；浏览器截图迭代三轮
+      （修：drow 列宽换行、kcard 徽章换行、big-chart 百分比高度）
+- [x] **docs/UI-STANDARD.md v1.1 成文**（贯穿开发周期的 UI 契约）：设计原则/令牌表/三档画布
+      （Dock 320 / Tab 全宽 / 对话框）/组件词表（与原型同词表）/场景标准（看板/AI 预留/文案）/实现守门
+- [x] AGENTS.md 铁律 6 升级为"一切 UI 以 UI-STANDARD 为准"
+- [x] 回 port：tab 宽幅响应式（列表网格化 + Bento 4 列）+ 看板 v1（HTML5 拖卡=batchSetStatus，
+      列 hover 橙虚线落点提示，仅桌面画布）+ 150 i18n 键
+- 质量门禁：check 0 错、30/30 测试、构建+门禁全绿、spike 7/7（CSS 21.8KB）
+
 ## M2 — 数据库视图与统计（v0.2.0，功能落地待真机验收）✅（2026-09-29）
 
 - [x] UI 设计系统定稿：design/prototype.html 三轮浏览器截图迭代（玻璃/胶囊/Bento/弹簧）→

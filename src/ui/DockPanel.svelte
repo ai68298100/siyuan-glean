@@ -26,6 +26,10 @@ let keyword = $state("");
 let sortBy = $state<"time" | "words" | "priority">("time");
 let selection = $state<ReadonlySet<string>>(new Set());
 let rootEl = $state<HTMLElement | null>(null);
+let layoutMode = $state<"list" | "kanban">("list");
+let isTabCanvas = $state(false);
+let dragOverCol = $state<ClipStatus | null>(null);
+let dragId = $state("");
 
 type QueueKey = ClipStatus;
 const queues: QueueKey[] = ["inbox", "later", "reading", "done", "archived"];
@@ -82,8 +86,37 @@ function queueLabel(key: QueueKey): string {
     return t(i18n, `status.${key}`);
 }
 
+const kanbanCols = $derived.by(() => {
+    const kw = keyword.trim().toLowerCase();
+    const clips = Object.values(index.clips).filter((entry) =>
+        !kw || [entry.title, entry.hpath, entry.site, entry.url].join(" ").toLowerCase().includes(kw)
+    );
+    return queues.map((status) => ({
+        status,
+        label: queueLabel(status),
+        items: clips.filter((entry) => entry.status === status),
+    }));
+});
+
+async function moveTo(entry: ClipIndexEntry, status: ClipStatus) {
+    if (entry.status === status) return;
+    dragId = "";
+    dragOverCol = null;
+    await setStatus(entry, status);
+}
+
+function draggedEntry(): ClipIndexEntry | null {
+    if (!dragId) return null;
+    return index.clips[dragId] ?? null;
+}
+
 function statusDotClass(status: string): string {
     return `glean-dot glean-dot--${status}`;
+}
+
+function staleText(time: string): string | null {
+    const days = staleDays(time);
+    return days === null ? null : t(i18n, "panel.staleDays", { n: days });
 }
 
 function staleDays(time: string): number | null {
@@ -106,6 +139,10 @@ async function reload() {
 
 $effect(() => {
     void reload();
+});
+
+$effect(() => {
+    if (rootEl?.closest(".glean-tab-root")) isTabCanvas = true;
 });
 
 // 插件壳广播的数据变更（迁移完成、右键收录等）触发面板对账
@@ -218,8 +255,68 @@ function metaLine(entry: Row): string {
             {/each}
         </nav>
 
+        {#if isTabCanvas}
+            <div class="glean-libbar">
+                <div class="glean-seg">
+                    <button
+                        class="glean-seg__btn"
+                        class:glean-seg__btn--on={layoutMode === "list"}
+                        onclick={() => (layoutMode = "list")}
+                    >☰ {t(i18n, "view.modeList")}</button>
+                    <button
+                        class="glean-seg__btn"
+                        class:glean-seg__btn--on={layoutMode === "kanban"}
+                        onclick={() => (layoutMode = "kanban")}
+                    >⇆ {t(i18n, "view.modeKanban")}</button>
+                </div>
+                <div class="glean-libbar__spacer"></div>
+            </div>
+        {/if}
+
         {#if loading}
             <div class="glean-panel__loading">{t(i18n, "panel.loading")}</div>
+        {:else if isTabCanvas && layoutMode === "kanban"}
+            <div class="glean-kanban">
+                {#each kanbanCols as col (col.status)}
+                    <div
+                        class="glean-kcol"
+                        class:glean-kcol--over={dragOverCol === col.status}
+                        ondragover={(e) => { e.preventDefault(); dragOverCol = col.status; }}
+                        ondragleave={() => { if (dragOverCol === col.status) dragOverCol = null; }}
+                        ondrop={(e) => {
+                            e.preventDefault();
+                            const source = draggedEntry();
+                            if (source) void moveTo(source, col.status);
+                        }}
+                    >
+                        <div class="glean-kcol__head">
+                            <span class={statusDotClass(col.status)}></span>
+                            {col.label}
+                            <span class="glean-kcol__n">{col.items.length}</span>
+                        </div>
+                        {#each col.items as entry (entry.id)}
+                            <div
+                                class="glean-kcard"
+                                draggable="true"
+                                ondragstart={(e) => { dragId = entry.id; e.dataTransfer?.setData("text/plain", entry.id); }}
+                                ondragend={() => { dragId = ""; dragOverCol = null; }}
+                                onclick={() => openDoc(entry.id)}
+                                role="button"
+                                tabindex="0"
+                            >
+                                <div class="glean-kcard__t">{entry.title || t(i18n, "panel.untitled")}</div>
+                                <div class="glean-kcard__m">
+                                    {#if entry.site}<span>📰 {entry.site}</span>{/if}
+                                    {#if entry.minutes > 0}<span>· {t(i18n, "panel.minutes", { n: entry.minutes })}</span>{/if}
+                                    {#if (entry.status === "inbox" || entry.status === "later") && staleText(entry.time) !== null}
+                                        <span class="glean-stale">{staleText(entry.time)}</span>
+                                    {/if}
+                                </div>
+                            </div>
+                        {/each}
+                    </div>
+                {/each}
+            </div>
         {:else}
             <div class="glean-list">
                 {#if candidateCount > 0 && activeQueue === "inbox"}

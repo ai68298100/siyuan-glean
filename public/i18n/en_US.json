@@ -146,5 +146,7 @@
   "highlight.emptyHint": "Quotes (>) and highlights from annotation plugins appear here",
   "highlight.quoteTag": "Quote",
   "ai.actionsPreview": "Summary / Key points / Counterarguments (coming in M3)",
-  "settings.sovereigntyNote": "All data lives on your documents — nothing lost on uninstall"
+  "settings.sovereigntyNote": "All data lives on your documents — nothing lost on uninstall",
+  "view.modeList": "List",
+  "view.modeKanban": "Board"
 }

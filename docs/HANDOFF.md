@@ -4,7 +4,7 @@
 > **阅读 D:思源插件小驴拾遗docsHANDOFF.md，按其中"下一步"继续开发；工程纪律见 AGENTS.md 与 docs/DECISIONS.md，先通读 TODO.md 与 docs/DATA-CONTRACT.md 再动手。**
 > 如有更具体的口令，以最近一轮更新的"下一步"为准。
 
-## 当前状态（2026-09-29 第二轮开发完成：UI 设计系统 + M2）
+## 当前状态（2026-09-29 第三轮开发完成：桌面原型 + UI 标准成文）
 
 - 仓库：`D:思源插件小驴拾遗` = GitHub [ai68298100/siyuan-glean](https://github.com/ai68298100/siyuan-glean)，main 已推送。
 - **UI 设计系统已定稿**（D-0011）：design/prototype.html（三轮浏览器截图迭代）→ src/index.scss。
@@ -39,6 +39,12 @@
 - M2 真机验收后发 v0.2.0（或直接 v1.1.0，与作者确认版本策略——D-005 语义化：里程碑发版 v1.y.0，
   当前 0.x 属预发布工作版本，**建议 M2 验收后直接 v1.1.0**）。
 - preview.png 目前是 logo 拉伸图；集市五张截图等真机 UI 后截（README §7 清单）。
+
+## UI 标准速记（第三轮新增）
+
+- **docs/UI-STANDARD.md 是唯一 UI 事实源**：新组件先改 design/prototype.html（截图自审）再回 port，
+  类名词表两处同步；三档画布（Dock 320 / Tab 全宽 / 对话框）；状态五色语义锁死。
+- 看板 v1 已实现（tab 画布 列表/看板 切换，拖卡=batchSetStatus 写属性）；桌面 rail+行表按标准随下轮落地。
 
 ## 下一步（M3 AI 富化，按 D-0004/D-0007 红线）
 
