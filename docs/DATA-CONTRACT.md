@@ -69,7 +69,7 @@ V1 只做"当前文档高亮列表"侧栏（读文档子块：引述块 + 跟随
 | 属性读写 | `/api/attr/setBlockAttrs` `{id, attrs}`；`batchSetBlockAttrs` `{blockAttrs:[{id,attrs}]}`；`getBlockAttrs`；`batchGetBlockAttrs {ids}` → **响应 `{[id]:attrs}` 映射**；删除属性传 `null` 或空串（插件统一 null） |
 | 查询 | `/api/query/sql`（`blocks` 表，文档=`type='d'`，`ial` 仅可 LIKE；千篇库直查 14~50ms，见 spike-report §②） |
 | 语义搜索 | `/api/search/semanticSearchBlock` `{query, types:{d:true}, page, pageSize}` → `data.blocks`；**无 boxes 参数**；嵌入未启用时 code=0+空结果，**降级须先查 `embeddingStat().enabled`** |
-| AI | `/api/ai/chatGPT` `chatGPTWithAction` `/api/ai/editor/chat`(SSE) `editor/lsActions|saveAction|removeAction` |
+| AI | `/api/ai/chatGPT` 请求 **`{msg: string}`**（单字符串，apicontract.AIMessageRequest）→ data 为字符串；`chatGPTWithAction {ids, action}`；`editor/lsActions`（NoBody→{id,name,action}[]）/`saveAction {id?,name,action}`/`removeAction {id}`；无模型配置时非 0 code，调用方静默降级 |
 | 嵌入状态 | `/api/ai/embeddingStat` → `{total, indexed, pending, failed, ignoredByLen, ignoredByConfig, enabled}` |
 | 笔记本/文档 | `notebook/lsNotebooks` `filetree/createDocWithMd`（支持 `tags` 参数，落根块 IAL） `export/exportMdContent {id} → {hPath, content}` |
 | 插件装载 | `/api/petal/loadPetals`；隔离内核测试前需 `/api/setting/setBazaar {trust:true}`（桌面集市信任门槛） |

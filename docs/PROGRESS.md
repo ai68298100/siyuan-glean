@@ -1,5 +1,20 @@
 # 进度（PROGRESS）
 
+## M3 — AI 富化（v0.3.0 工作版本，待真机验收）✅（2026-09-29）
+
+- [x] T-1300 富化管线：services/enrich-service.ts（chatGPT 摘要+AI标签 → 写 ai-tags/summary，
+      永不碰手填字段；语义查重先查 embeddingStat.enabled；失败静默写 ai-log.json 最近 50 条）
+      + domain/enrich.ts（prompt 构造/鲁棒 JSON 解析/bigram 判重，7 项单测）
+- [x] T-1301 相关旧文：高亮视图底部 ✨ 相关旧文（semanticSearchBlock 文档级，嵌入未启用整块隐藏）
+- [x] T-1302 预置 AI 动作：拾遗·总结/要点/反方观点（editor/saveAction 幂等补建，不覆盖用户改过的 prompt）
+- [x] T-1303 智能体工具三件：list_unread / archive_stale / weekly_digest（addAgentCapability）
+- [x] T-1400c 桌面 rail+行表：tab 画布 列表模式升级为 200px rail（队列/站点/标签，点击即筛）
+      + drow 五列行表（状态点/标题/站点/字数时长/徽章+悬浮✨⤓勾选）
+- [x] 面板卡 ✨ 手动富化按钮 + 收录后自动富化（fire-and-forget 不阻塞）
+- [x] 契约修正：/api/ai/chatGPT 请求为 {msg:string}（规划书 msgs 数组说法有误），DATA-CONTRACT 已更
+- [x] 质量门禁：check 0 错、37/37 测试、构建+门禁全绿、spike 7/7（155 i18n 键，CSS 25.1KB）
+- 真机验收项（作者，需配置 AI 模型）：富化/查重/相关旧文/AI 动作/智能体工具的实际效果（B-0004）
+
 ## UI 标准 — 桌面端定稿 + 规范成文 ✅（2026-09-29，第三轮 UI 迭代）
 
 - [x] 桌面原型四帧（design/prototype.html）：库 tab（216px rail + 五列行表）/ 五列看板 / 全宽统计

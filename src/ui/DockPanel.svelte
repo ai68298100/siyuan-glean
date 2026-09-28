@@ -1,10 +1,12 @@
 <script lang="ts">
-/** 读库 Dock 面板 v2（T-1104/T-1201/T-1202）：库 / 统计 / 高亮 三视图，玻璃质感胶囊导航。 */
-import { openTab } from "siyuan";
+/** 读库 Dock 面板 v2（T-1104/T-1201/T-1202/T-1300/T-1400c）：库 / 统计 / 高亮 三视图；tab 画布 rail+行表/看板。 */
+import { openTab, showMessage } from "siyuan";
 import type { GleanFacade } from "../types";
 import { t } from "../libs/i18n";
 import type { ClipStatus } from "../domain/schema";
 import { batchSetStatus, captureClip, reconcileIndex } from "../services/clip-store";
+import { autoEnrich, enrichClip } from "../services/enrich-service";
+import { aggregateStats } from "../domain/stats.ts";
 import type { ClipIndexEntry, CandidateEntry, GleanIndex } from "../services/index-store";
 import StatsView from "./StatsView.svelte";
 import HighlightView from "./HighlightView.svelte";
@@ -30,6 +32,7 @@ let layoutMode = $state<"list" | "kanban">("list");
 let isTabCanvas = $state(false);
 let dragOverCol = $state<ClipStatus | null>(null);
 let dragId = $state("");
+let enrichingId = $state("");
 
 type QueueKey = ClipStatus;
 const queues: QueueKey[] = ["inbox", "later", "reading", "done", "archived"];
@@ -77,13 +80,30 @@ const rows = $derived.by<Row[]>(() => {
 const candidateCount = $derived(Object.keys(index.candidates).length);
 const totalClips = $derived(Object.keys(index.clips).length);
 
+/** tab 画布 rail 数据源：站点/标签聚合（纯函数，来自统计域层） */
+const railStats = $derived.by(() => {
+    const items = Object.values(index.clips).map((clip) => ({
+        id: clip.id,
+        title: clip.title,
+        site: clip.site,
+        status: clip.status,
+        words: clip.words,
+        minutes: clip.minutes,
+        rating: clip.rating,
+        time: clip.time,
+        aiTags: clip.aiTags,
+        updated: clip.updated,
+    }));
+    return aggregateStats(items);
+});
+
 function queueCount(key: QueueKey): number {
     if (key === "inbox") return candidateCount + Object.values(index.clips).filter((entry) => entry.status === "inbox").length;
     return Object.values(index.clips).filter((entry) => entry.status === key).length;
 }
 
-function queueLabel(key: QueueKey): string {
-    return t(i18n, `status.${key}`);
+function queueLabel(key: QueueKey | ""): string {
+    return t(i18n, `status.${key || "inbox"}`);
 }
 
 const kanbanCols = $derived.by(() => {
@@ -156,6 +176,7 @@ $effect(() => {
 
 async function capture(entry: CandidateEntry) {
     await captureClip(facade.pluginInstance, entry.id, {});
+    autoEnrich(facade.pluginInstance, entry.id, facade.settings);
     await reload();
 }
 
@@ -163,11 +184,34 @@ async function captureAll() {
     for (const entry of Object.values(index.candidates)) {
         try {
             await captureClip(facade.pluginInstance, entry.id, {});
+            autoEnrich(facade.pluginInstance, entry.id, facade.settings);
         } catch {
             /* 单篇失败继续 */
         }
     }
     await reload();
+}
+
+/** 手动 AI 富化（卡上 ✨，静默降级） */
+async function enrich(entry: ClipIndexEntry) {
+    if (enrichingId) return;
+    enrichingId = entry.id;
+    try {
+        const outcome = await enrichClip(facade.pluginInstance, entry.id);
+        if (outcome.ok) {
+            showMessage(
+                outcome.duplicates.length > 0
+                    ? t(i18n, "ai.similarFound", { title: outcome.duplicates[0].title })
+                    : t(i18n, "ai.enrichDone"),
+                3500
+            );
+        } else {
+            showMessage(t(i18n, "ai.enrichFailed"), 3000);
+        }
+    } finally {
+        enrichingId = "";
+        await reload();
+    }
 }
 
 async function setStatus(entry: ClipIndexEntry, status: ClipStatus) {
@@ -275,8 +319,7 @@ function metaLine(entry: Row): string {
 
         {#if loading}
             <div class="glean-panel__loading">{t(i18n, "panel.loading")}</div>
-        {:else if isTabCanvas && layoutMode === "kanban"}
-            <div class="glean-kanban">
+        {:else if isTabCanvas && layoutMode === "kanban"}            <div class="glean-kanban">
                 {#each kanbanCols as col (col.status)}
                     <div
                         class="glean-kcol"
@@ -316,6 +359,103 @@ function metaLine(entry: Row): string {
                         {/each}
                     </div>
                 {/each}
+            </div>
+        {:else if isTabCanvas && layoutMode === "list"}
+            <div class="glean-lib">
+                <aside class="glean-rail">
+                    <div class="glean-rail__title">{t(i18n, "rail.queues")}</div>
+                    {#each queues as queue (queue)}
+                        <button
+                            class="glean-rail__item"
+                            class:glean-rail__item--on={activeQueue === queue}
+                            onclick={() => (activeQueue = queue)}
+                        >
+                            <span class={statusDotClass(queue)}></span>{queueLabel(queue)}
+                            <span class="glean-rail__n">{queueCount(queue)}</span>
+                        </button>
+                    {/each}
+                    {#if railStats.bySite.length > 0}
+                        <div class="glean-rail__title">{t(i18n, "rail.sites")}</div>
+                        {#each railStats.bySite as site (site.name)}
+                            <button class="glean-rail__item" onclick={() => (keyword = site.name)}>
+                                {site.name}<span class="glean-rail__n">{site.count}</span>
+                            </button>
+                        {/each}
+                    {/if}
+                    {#if railStats.byTag.length > 0}
+                        <div class="glean-rail__title">{t(i18n, "rail.tags")}</div>
+                        {#each railStats.byTag.slice(0, 8) as tag (tag.name)}
+                            <button class="glean-rail__item" onclick={() => (keyword = tag.name)}>
+                                #{tag.name}<span class="glean-rail__n">{tag.count}</span>
+                            </button>
+                        {/each}
+                    {/if}
+                </aside>
+                <div class="glean-lib__main">
+                    {#if rows.length === 0}
+                        <div class="glean-empty">
+                            <div class="glean-empty__art"><svg><use href="#iconGleanWheat" /></svg></div>
+                            <div class="glean-empty__title">{t(i18n, "panel.empty")}</div>
+                            <div class="glean-empty__hint">{t(i18n, "panel.emptyHint")}</div>
+                        </div>
+                    {:else}
+                        <div class="glean-dtable">
+                            {#each rows as entry (entry.id)}
+                                {#if entry.kind === "clip"}
+                                    <div
+                                        class="glean-drow"
+                                        class:glean-drow--selected={selection.has(entry.id)}
+                                        onclick={() => openDoc(entry.id)}
+                                        role="button"
+                                        tabindex="0"
+                                    >
+                                        <span class={statusDotClass(entry.status)}></span>
+                                        <span class="glean-drow__ti">{entry.title || t(i18n, "panel.untitled")}</span>
+                                        <span class="glean-drow__site">{entry.site || t(i18n, "panel.unknownSite")}</span>
+                                        <span class="glean-drow__len">{t(i18n, "panel.words", { n: entry.words || 0 })} · {t(i18n, "panel.minutes", { n: entry.minutes || 0 })}</span>
+                                        <span class="glean-drow__st">
+                                            <span class="glean-st-badge glean-st-badge--{entry.status}">{queueLabel(entry.status)}</span>
+                                        </span>
+                                        <div class="glean-drow__ops">
+                                            <button
+                                                class="glean-op-btn"
+                                                title={t(i18n, "ai.actionEnrich")}
+                                                disabled={enrichingId === entry.id}
+                                                onclick={(e) => { e.stopPropagation(); void enrich(entry); }}
+                                            >✨</button>
+                                            {#if entry.status !== "archived"}
+                                                <button
+                                                    class="glean-op-btn"
+                                                    title={t(i18n, "action.archive")}
+                                                    onclick={(e) => { e.stopPropagation(); void setStatus(entry, "archived"); }}
+                                                >⤓</button>
+                                            {/if}
+                                            <label onclick={(e) => e.stopPropagation()}>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selection.has(entry.id)}
+                                                    onchange={(e) => toggleSelect(entry.id, e)}
+                                                />
+                                            </label>
+                                        </div>
+                                    </div>
+                                {:else}
+                                    <div class="glean-drow" onclick={() => openDoc(entry.id)} role="button" tabindex="0">
+                                        <span class="glean-dot glean-dot--inbox"></span>
+                                        <span class="glean-drow__ti">{entry.title || t(i18n, "panel.untitled")}</span>
+                                        <span class="glean-drow__site">{entry.hpath}</span>
+                                        <span class="glean-drow__len"></span>
+                                        <span class="glean-drow__st">
+                                            <button class="glean-card__capture" onclick={(e) => void capture(entry).finally(() => e.stopPropagation())}>
+                                                {t(i18n, "action.addToInbox")}
+                                            </button>
+                                        </span>
+                                    </div>
+                                {/if}
+                            {/each}
+                        </div>
+                    {/if}
+                </div>
             </div>
         {:else}
             <div class="glean-list">
@@ -373,6 +513,12 @@ function metaLine(entry: Row): string {
                                 </button>
                             {:else}
                                 <div class="glean-card__ops">
+                                    <button
+                                        class="glean-op-btn"
+                                        title={t(i18n, "ai.actionEnrich")}
+                                        disabled={enrichingId === entry.id}
+                                        onclick={(e) => { e.stopPropagation(); void enrich(entry); }}
+                                    >✨</button>
                                     {#if entry.status === "inbox" || entry.status === "later"}
                                         <button
                                             class="glean-op-btn"

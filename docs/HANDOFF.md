@@ -1,57 +1,44 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
 > 续跑口令（新会话直接粘贴）：
-> **阅读 D:思源插件小驴拾遗docsHANDOFF.md，按其中"下一步"继续开发；工程纪律见 AGENTS.md 与 docs/DECISIONS.md，先通读 TODO.md 与 docs/DATA-CONTRACT.md 再动手。**
-> 如有更具体的口令，以最近一轮更新的"下一步"为准。
+> **阅读 D:\思源插件\小驴拾遗\docs\HANDOFF.md，按其中"下一步"继续开发；工程纪律见 AGENTS.md 与 docs/DECISIONS.md，UI 以 docs/UI-STANDARD.md 为准，先通读 TODO.md 与 docs/DATA-CONTRACT.md 再动手。**
 
-## 当前状态（2026-09-29 第三轮开发完成：桌面原型 + UI 标准成文）
+## 当前状态（2026-09-29 第四轮开发完成：M3 AI 富化 + 桌面 rail/行表）
 
-- 仓库：`D:思源插件小驴拾遗` = GitHub [ai68298100/siyuan-glean](https://github.com/ai68298100/siyuan-glean)，main 已推送。
-- **UI 设计系统已定稿**（D-0011）：design/prototype.html（三轮浏览器截图迭代）→ src/index.scss。
-  语言=液态玻璃+胶囊分段+Bento+弹簧微动效，b3 变量自适应明暗。改 UI 先看 prototype.html 与 index.scss 令牌。
-- **M2 功能落地**（v0.2.0 工作版本，未打 tag）：
-  - T-1200 挂库向导：services/library-db.ts（ensureLibraryAnchor 幂等续建 + bindAllClipsToLibrary
-    分批补绑 + 状态列对齐）；AV 端点封装 src/api/av.ts（av-spike.mjs 6/6 复验，D-0012 双轨语义）。
-  - T-1201 统计视图：domain/stats.ts（纯函数，含周报 markdown）+ ui/StatsView.svelte（Bento+分布+导出）。
-  - T-1202 高亮视图：services/highlights.ts + ui/HighlightView.svelte（root_id+type='b' 聚合）。
-  - 面板三视图（库/统计/高亮）+ 设置改版（iOS inset group + 挂库入口）+ 迁移器步进器化。
-- 质量：check 0 错误、30/30 测试、构建+发布门禁全绿、spike 7/7 + av-spike 6/6 回归通过。
-- 推送 GitHub 已授权（照常推）；集市仍禁（未授权）。
+- 仓库：`D:\思源插件\小驴拾遗` = GitHub [ai68298100/siyuan-glean](https://github.com/ai68298100/siyuan-glean)，main 已推送。
+- **M3 AI 富化全量落地**（v0.3.0 工作版本，未打 tag）：
+  - T-1300 富化管线：`services/enrich-service.ts`——`chatGPT({msg})` 生成一句话摘要+AI标签，
+    只写 `custom-clip-summary/ai-tags`（schema 层手填字段保护兜底）；语义查重先查
+    `embeddingStat().enabled`，未启用/失败静默；失败写 `ai-log.json`（最近 50 条）不阻断收录。
+  - T-1301 相关旧文：高亮视图底部 ✨ 区块（嵌入未启用整块隐藏）。
+  - T-1302 预置 AI 动作：拾遗·总结/要点/反方观点（`services/ai-actions.ts`，lsActions 幂等补建，
+    用户改过的 prompt 不覆盖）。设置开关 `ai.presetActions` 控制。
+  - T-1303 智能体工具：list_unread / archive_stale / weekly_digest（index.ts registerAgentTools）。
+  - 面板卡 ✨ 手动富化 + 收录后 autoEnrich（fire-and-forget）。
+- **桌面画布补全**（T-1400c）：tab 画布列表模式 = 200px rail（队列/站点/标签，点击即筛）+ drow 五列行表
+  （✨/⤓ 悬浮操作+批量勾选）；看板 v1、统计/高亮沿用。
+- 质量门禁：check 0 错误、**37/37 测试**（新增 enrich 域 7 项）、构建+发布门禁全绿、spike 7/7（155 i18n 键）。
+- 契约修正：`/api/ai/chatGPT` 请求是 `{msg: string}` 单字符串（规划书写的 msgs 数组有误），DATA-CONTRACT 已更。
 
-## 已实证契约（动手前必读 DATA-CONTRACT §5 + spike-report + av-spike-results.json）
+## 关键契约速记（本轮新增）
 
-- AV：insertBlock 插 NodeAttributeView DOM（客户端预生成 avId）→ renderAttributeView createIfNotExist:true 物化；
-  addAttributeViewKey 的 keyIcon 必传空串；绑行 addAttributeViewBlocks isDetached:false；
-  换算 itemID 只经 getAttributeViewItemIDsByBoundIDs；number 值形状 {number:{content,isNotEmpty:true}}；
-  select 写 content 自动建选项；渲染有异步滞后需重试。
-- 其余（attr/batch 形状、LIKE 性能、语义降级、setBazaar 信任门槛、i18n 双名）见第一轮 HANDOFF 内容
-  （git 历史或 docs/spike-report.md）。
-
-## 架构速记（增量）
-
-- ui/StatsView/HighlightView 由 DockPanel 内部视图切换承载；跨视图刷新走 facade.notifyDataChanged() 广播。
-- domain 层新文件被 node --test 直接 import 时，相对导入必须带 `.ts` 扩展名（stats.ts 先例）。
-- 网络：git 推拉走代理 `git -c http.proxy=http://127.0.0.1:7897 …`；GitHub API 也可用该代理 + 凭据管理器令牌（ai68298100）。
+- AI：chatGPT `(msg)=>string`；响应要求严格 JSON `{"summary","tags"}`，解析必须鲁棒（domain/enrich.ts
+  extractJson 平衡花括号）；判重用标题 bigram 重叠 ≥60%（词元法对中文失效，踩过）。
+- editor 动作：lsActions NoBody→数组；saveAction {id:"" 新建}；动作以 name 幂等找回。
+- node --test 对 domain 新文件的相对导入要带 `.ts` 扩展名。
+- git 推拉代理：`git -c http.proxy=http://127.0.0.1:7897 …`。
 
 ## 待作者事项
 
-- B-0001 剪藏扩展实剪核对；B-0002 真机 UI 验收（现在含：三视图/统计/高亮/设置/挂库/迁移器）。
-- M2 真机验收后发 v0.2.0（或直接 v1.1.0，与作者确认版本策略——D-005 语义化：里程碑发版 v1.y.0，
-  当前 0.x 属预发布工作版本，**建议 M2 验收后直接 v1.1.0**）。
-- preview.png 目前是 logo 拉伸图；集市五张截图等真机 UI 后截（README §7 清单）。
+- B-0001 实剪核对；B-0002 真机 UI 验收；**B-0004（新）AI 真机验收**：配置思源 AI 模型后验证
+  富化/查重/相关旧文/三个 AI 动作/智能体工具实际效果（需真实模型，隔离内核测不了）。
+- 三轮功能（M1/M2/M3）验收后建议直接发 v1.0.0（或按里程碑 v1.1/v1.2 切分，与作者确认）。
 
-## UI 标准速记（第三轮新增）
+## 下一步（M4 抗吃灰内核，插件灵魂）
 
-- **docs/UI-STANDARD.md 是唯一 UI 事实源**：新组件先改 design/prototype.html（截图自审）再回 port，
-  类名词表两处同步；三档画布（Dock 320 / Tab 全宽 / 对话框）；状态五色语义锁死。
-- 看板 v1 已实现（tab 画布 列表/看板 切换，拖卡=batchSetStatus 写属性）；桌面 rail+行表按标准随下轮落地。
-
-## 下一步（M3 AI 富化，按 D-0004/D-0007 红线）
-
-1. **T-1300 富化管线**：收录/手动触发 → /api/ai/chatGPT 摘要 + AI 标签（写 custom-clip-summary/ai-tags，
-   永不碰手填字段）+ 语义查重（先查 embeddingStat().enabled，未启用静默跳过）。失败静默降级记 BLOCKERS，
-   绝不阻断收录。设置开关已就位（ai.enrichOnCapture）。
-2. **T-1301 关联推荐**：阅读中侧栏"相关旧文"；semanticSearchBlock（types:{d:true}，无 boxes——客户端按 box 过滤）。
-3. **T-1302 AI 动作**：editor/saveAction 预置 总结/要点/反方观点。
-4. **T-1303 智能体工具**：addAgentCapability 三件（list_unread/archive_stale/weekly_digest）。
-5. M3 完成后记账+推送+更新本页；再进 M4 抗吃灰（重浮算法 domain 纯函数先行）。
+1. **T-1400 每日重浮**：domain/resurface.ts 纯函数先行（评分=f(入库天数,priority,与近 7 天已重浮的
+   语义多样性)+确定性挑选跨重启稳定），写 `custom-clip-last-surfaced`（YYYYMMDD 幂等，面板打开时补算，
+   不做后台进程——规划书 §9 第 8 条）；单测覆盖。
+2. **T-1402 重浮视图**：面板第四视图"今日拾遗"（原型先补帧：大卡+摘要+一键 读了/改天/归档，平静文案）。
+3. **T-1401 配额与超龄**：inbox 超上限提示条（已有 candidates 横幅扩展）+ 超龄分组一键归档。
+4. M4 完成后记账+推送+更新本页；然后 M5 生态（逐项请示作者）+ 准备 v1.0.0 发布材料（README GIF/五张截图）。

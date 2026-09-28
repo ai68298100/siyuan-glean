@@ -1365,3 +1365,202 @@
         grid-template-columns: repeat(4, 1fr);
     }
 }
+
+/* ============ tab 画布：rail + 行表（UI-STANDARD §3/§5.2，对齐原型 d-rail/drow） ============ */
+
+.glean-lib {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+}
+
+.glean-rail {
+    width: 200px;
+    flex-shrink: 0;
+    border-right: 1px solid var(--b3-border-color);
+    padding: 10px 8px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.glean-rail__title {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--b3-theme-on-surface);
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    padding: 8px 10px 4px;
+}
+
+.glean-rail__item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: 10px;
+    border: none;
+    background: transparent;
+    font-size: 12.5px;
+    color: var(--b3-theme-on-surface);
+    cursor: pointer;
+    text-align: left;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    transition: background 0.15s;
+
+    &:hover {
+        background: rgba(128, 128, 128, 0.08);
+    }
+
+    &.glean-rail__item--on {
+        background: var(--glean-grad-soft);
+        color: var(--glean-accent-b);
+        font-weight: 600;
+    }
+
+    .glean-rail__n {
+        margin-left: auto;
+        font-size: 10.5px;
+        background: rgba(128, 128, 128, 0.12);
+        border-radius: 999px;
+        padding: 1px 7px;
+    }
+}
+
+.glean-lib__main {
+    flex: 1;
+    min-width: 0;
+    padding: 12px 14px;
+    overflow-y: auto;
+}
+
+.glean-dtable {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.glean-drow {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border-radius: 14px;
+    background: var(--b3-theme-surface);
+    border: 1px solid var(--b3-border-color);
+    cursor: pointer;
+    transition: transform 0.2s var(--glean-ease-out), box-shadow 0.2s;
+
+    &:hover {
+        transform: translateY(-1px);
+        box-shadow: var(--glean-shadow-card);
+
+        .glean-drow__ops {
+            opacity: 1;
+        }
+    }
+
+    &.glean-drow--selected {
+        border-color: var(--glean-accent-b);
+        background: rgba(249, 115, 22, 0.05);
+    }
+
+    .glean-drow__ti {
+        flex: 1;
+        min-width: 0;
+        font-size: 13px;
+        font-weight: 600;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .glean-drow__site {
+        width: 150px;
+        flex-shrink: 0;
+        font-size: 11px;
+        color: var(--b3-theme-on-surface);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .glean-drow__len {
+        width: 128px;
+        flex-shrink: 0;
+        font-size: 11px;
+        color: var(--b3-theme-on-surface);
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+    }
+
+    .glean-drow__st {
+        width: 68px;
+        flex-shrink: 0;
+        text-align: right;
+    }
+
+    .glean-drow__ops {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        opacity: 0;
+        transition: opacity 0.2s;
+    }
+
+    &.glean-drow--selected .glean-drow__ops {
+        opacity: 1;
+    }
+}
+
+.glean-st-badge {
+    font-size: 10px;
+    padding: 3px 9px;
+    border-radius: 999px;
+    font-weight: 600;
+    display: inline-block;
+
+    &.glean-st-badge--inbox { background: rgba(245, 158, 11, 0.13); color: var(--glean-st-inbox); }
+    &.glean-st-badge--later { background: rgba(59, 130, 246, 0.13); color: var(--glean-st-later); }
+    &.glean-st-badge--reading { background: rgba(139, 92, 246, 0.13); color: var(--glean-st-reading); }
+    &.glean-st-badge--done { background: rgba(16, 185, 129, 0.13); color: var(--glean-st-done); }
+    &.glean-st-badge--archived { background: rgba(128, 128, 128, 0.12); color: var(--b3-theme-on-surface); }
+}
+
+/* 相关旧文（T-1301，AI 元素带 ✨ 前缀，UI-STANDARD §5.6） */
+.glean-rel {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 9px 12px;
+    border-radius: 12px;
+    border: 1px solid var(--b3-border-color);
+    background: var(--b3-theme-surface);
+    color: var(--b3-theme-on-background);
+    font-size: 12px;
+    cursor: pointer;
+    text-align: left;
+    transition: border-color 0.2s, transform 0.2s var(--glean-ease-out);
+
+    &:hover {
+        border-color: var(--glean-accent-b);
+        transform: translateX(2px);
+    }
+
+    .glean-rel__t {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .glean-rel__go {
+        color: var(--glean-accent-b);
+        flex-shrink: 0;
+    }
+}

@@ -1,8 +1,10 @@
 <script lang="ts">
-/** 高亮视图（T-1202）：当前文档引述块聚合。只消费批注产出，不提供编辑（D-0008）。 */
+/** 高亮视图（T-1202/T-1301）：当前文档引述块聚合 + ✨相关旧文。只消费批注产出，不提供编辑（D-0008）。 */
+import { openTab } from "siyuan";
 import type { GleanFacade } from "../types";
 import { t } from "../libs/i18n";
 import { listDocHighlights, type HighlightItem } from "../services/highlights";
+import { findRelated } from "../services/enrich-service";
 
 interface Props {
     facade: GleanFacade;
@@ -15,6 +17,7 @@ const i18n = $derived(facade.i18n);
 let items = $state<HighlightItem[]>([]);
 let loading = $state(true);
 let lastDocId = $state("");
+let related = $state<Array<{ id: string; title: string }>>([]);
 
 const currentDocId = $derived(facade.currentDocId());
 
@@ -25,6 +28,7 @@ $effect(() => {
 async function loadHighlights(docId: string) {
     if (!docId) {
         items = [];
+        related = [];
         loading = false;
         return;
     }
@@ -33,11 +37,19 @@ async function loadHighlights(docId: string) {
     try {
         items = await listDocHighlights(docId);
         lastDocId = docId;
+        // T-1301 相关旧文：嵌入未启用时返回空（区块整体隐藏，UI-STANDARD §5.6）
+        const query = items[0]?.text || docId;
+        related = await findRelated(docId, query);
     } catch {
         items = [];
+        related = [];
     } finally {
         loading = false;
     }
+}
+
+function openDoc(docId: string) {
+    void openTab({ app: facade.pluginInstance.app, doc: { id: docId }, keepCursor: false });
 }
 </script>
 
@@ -64,6 +76,15 @@ async function loadHighlights(docId: string) {
                     <div class="glean-hl__m"><span>{t(i18n, "highlight.quoteTag")}</span></div>
                 </div>
             {/each}
+            {#if related.length > 0}
+                <div class="glean-sect" style="margin-top:6px">✨ {t(i18n, "ai.relatedTitle")}</div>
+                {#each related as rel (rel.id)}
+                    <button class="glean-rel" onclick={() => openDoc(rel.id)}>
+                        <span class="glean-rel__t">{rel.title}</span>
+                        <span class="glean-rel__go">→</span>
+                    </button>
+                {/each}
+            {/if}
             <div class="glean-sect" style="margin-top:2px; text-align:center; opacity:.7">AI · {t(i18n, "ai.actionsPreview")}</div>
         {/if}
     </div>

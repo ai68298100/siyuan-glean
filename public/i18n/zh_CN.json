@@ -148,5 +148,10 @@
   "ai.actionsPreview": "总结 / 要点 / 反方观点（M3 上线）",
   "settings.sovereigntyNote": "所有数据都在你的文档上，卸载不丢",
   "view.modeList": "列表",
-  "view.modeKanban": "看板"
+  "view.modeKanban": "看板",
+  "ai.actionEnrich": "AI 摘要与标签",
+  "ai.relatedTitle": "相关旧文",
+  "rail.queues": "队列",
+  "rail.sites": "站点",
+  "rail.tags": "标签"
 }

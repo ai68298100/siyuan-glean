@@ -148,5 +148,10 @@
   "ai.actionsPreview": "Summary / Key points / Counterarguments (coming in M3)",
   "settings.sovereigntyNote": "All data lives on your documents — nothing lost on uninstall",
   "view.modeList": "List",
-  "view.modeKanban": "Board"
+  "view.modeKanban": "Board",
+  "ai.actionEnrich": "AI summary & tags",
+  "ai.relatedTitle": "Related articles",
+  "rail.queues": "Queues",
+  "rail.sites": "Sites",
+  "rail.tags": "Tags"
 }
