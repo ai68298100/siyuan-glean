@@ -31,7 +31,7 @@ Lv Glean's foundation is a **clip attribute spec** (`custom-clip-*` document att
 
 ## Compatibility
 
-SiYuan **v3.8.5+**, desktop / mobile / browser-docked. AI features use the model **you** configured in SiYuan; the plugin ships no API keys and uploads nothing. It does not replace incremental-reading plugins — it manages the library, and offers an integration hook.
+SiYuan **v3.8.5+**, desktop / mobile / browser-docked. AI features use the model **you** configured in SiYuan; the plugin ships no API keys and uploads nothing.
 
 ## Brand
 
