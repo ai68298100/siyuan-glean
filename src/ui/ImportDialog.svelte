@@ -28,6 +28,8 @@ let preview = $state<ImportPreview | null>(null);
 let summary = $state<ImportSummary | null>(null);
 let busy = $state(false);
 let progress = $state(0);
+const PREVIEW_PAGE_SIZE = 50;
+let previewPage = $state(1);
 let fileInput: HTMLInputElement | null = null;
 
 onMount(() => {
@@ -38,6 +40,13 @@ onMount(() => {
 });
 
 const importable = $derived(preview ? preview.rows.filter((row) => !row.duplicate).length : 0);
+
+const previewPageCount = $derived(preview ? Math.max(1, Math.ceil(preview.rows.length / PREVIEW_PAGE_SIZE)) : 1);
+const pagedRows = $derived.by(() => {
+    if (!preview) return [];
+    const start = (previewPage - 1) * PREVIEW_PAGE_SIZE;
+    return preview.rows.slice(start, start + PREVIEW_PAGE_SIZE);
+});
 
 function pickFile() {
     fileInput?.click();
@@ -89,6 +98,7 @@ function resetToPick() {
     phase = "pick";
     preview = null;
     summary = null;
+    previewPage = 1;
 }
 </script>
 
@@ -153,7 +163,7 @@ function resetToPick() {
             <div class="glean-mstat"><div class="glean-mstat__n">{preview.rows.length}</div><div class="glean-mstat__l">{t(i18n, "import.parsedCount")}</div></div>
         </div>
         <div class="glean-mtable">
-            {#each preview.rows.slice(0, 30) as row (row.url)}
+            {#each pagedRows as row (row.url)}
                 <div class="glean-mrow">
                     <span class="glean-mrow__ti">{row.title || row.url}</span>
                     <span class="glean-mrow__url">{row.site || "—"}</span>
@@ -162,10 +172,14 @@ function resetToPick() {
                     </span>
                 </div>
             {/each}
-            {#if preview.rows.length > 30}
-                <div class="glean-mrow"><span class="glean-mrow__ti" style="color:var(--b3-theme-on-surface)">… +{preview.rows.length - 30}</span></div>
-            {/if}
         </div>
+        {#if previewPageCount > 1}
+            <div class="glean-prog-meta" style="margin-top:6px">
+                <button class="glean-btn glean-btn--ghost" style="font-size:11px; padding:4px 10px" disabled={previewPage <= 1} onclick={() => (previewPage -= 1)}>← {t(i18n, "import.prevPage")}</button>
+                <span>{t(i18n, "import.pageInfo", { page: previewPage, total: previewPageCount })}</span>
+                <button class="glean-btn glean-btn--ghost" style="font-size:11px; padding:4px 10px" disabled={previewPage >= previewPageCount} onclick={() => (previewPage += 1)}>{t(i18n, "import.nextPage")} →</button>
+            </div>
+        {/if}
         <div class="glean-migrate__ops">
             <button class="glean-btn glean-btn--ghost" onclick={resetToPick}>{t(i18n, "migrate.rescan")}</button>
             <button class="glean-btn glean-btn--pri" disabled={importable === 0} onclick={() => void startImport()}>

@@ -107,7 +107,7 @@ function staleOf(pick: SurfacePick): number {
     {:else}
         <div class="glean-surf">
             {#each picks as pick, index (pick.item.id)}
-                <article class="glean-surf-card">
+                <article class="glean-surf-card" style="--glean-surf-index: {index}">
                     <div class="glean-surf__tag">✨ {t(i18n, "resurface.cardTag", { n: index + 1 })}</div>
                     <div class="glean-surf__title" onclick={() => openDoc(pick.item.id)} role="button" tabindex="0">
                         {pick.item.title || t(i18n, "panel.untitled")}

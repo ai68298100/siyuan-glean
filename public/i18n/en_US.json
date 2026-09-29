@@ -220,5 +220,10 @@
   "settings.checkinEnableDesc": "Marking a card as read in Today's Gleaning writes a reading event to Lv Checkin (write capability, local only). Requires Lv Checkin installed & enabled",
   "settings.checkinItem": "Reading target item",
   "settings.checkinNoItems": "No checkin items found (requires Lv Checkin installed & enabled)",
-  "settings.checkinItemsFound": "checkin items available"
+  "settings.checkinItemsFound": "checkin items available",
+  "msg.capturing": "Capturing… ${done}/${total}",
+  "msg.captureDone": "Captured ${done}${enqueued > 0 ? `, ${enqueued} queued for AI enrichment` : \"\"}",
+  "import.prevPage": "Prev",
+  "import.nextPage": "Next",
+  "import.pageInfo": "Page ${page} / ${total}"
 }

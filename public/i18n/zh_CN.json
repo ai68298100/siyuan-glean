@@ -220,5 +220,10 @@
   "settings.checkinEnableDesc": "在「今日拾遗」点“✓ 读了”时，向小驴打卡写入一条阅读事件（写能力，仅本机）。需要已安装并启用小驴打卡",
   "settings.checkinItem": "阅读打卡目标",
   "settings.checkinNoItems": "未检测到打卡项目（需安装并启用小驴打卡）",
-  "settings.checkinItemsFound": "个打卡项目可选"
+  "settings.checkinItemsFound": "个打卡项目可选",
+  "msg.capturing": "正在收录… ${done}/${total}",
+  "msg.captureDone": "已收录 ${done} 篇${enqueued > 0 ? `，${enqueued} 篇进入 AI 富化队列` : \"\"}",
+  "import.prevPage": "上一页",
+  "import.nextPage": "下一页",
+  "import.pageInfo": "第 ${page} / ${total} 页"
 }

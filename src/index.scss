@@ -1582,6 +1582,7 @@
     border: 1px solid var(--b3-border-color);
     position: relative;
     overflow: hidden;
+    animation: glean-surf-in 0.24s var(--glean-ease-out) both;
 
     &::before {
         content: "";
@@ -1815,3 +1816,17 @@
 
     &:hover { background: var(--hover); color: #ef4444; }
 }
+
+/* 重浮卡入场（一次性，分卡 60ms 递进；UI-STANDARD 动效预算内） */
+@keyframes glean-surf-in {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+.glean-surf-card { animation-delay: calc(var(--glean-surf-index, 0) * 60ms); }

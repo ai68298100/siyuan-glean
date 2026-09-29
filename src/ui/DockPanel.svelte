@@ -223,14 +223,22 @@ async function capture(entry: CandidateEntry) {
 }
 
 async function captureAll() {
-    for (const entry of Object.values(index.candidates)) {
+    const entries = Object.values(index.candidates);
+    if (entries.length === 0) return;
+    const total = entries.length;
+    let done = 0;
+    showMessage(t(i18n, "msg.capturing", { done: 0, total }), 2000);
+    for (const entry of entries) {
         try {
             await captureClip(facade.pluginInstance, entry.id, {});
             autoEnrich(facade.pluginInstance, entry.id, facade.settings);
         } catch {
             /* 单篇失败继续 */
         }
+        done += 1;
+        showMessage(t(i18n, "msg.capturing", { done, total }), 2000);
     }
+    showMessage(t(i18n, "msg.captureDone", { done, enqueued: facade.settings.ai.enrichMode === "auto" ? done : 0 }), 3500);
     await reload();
 }
 
