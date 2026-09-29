@@ -33,6 +33,11 @@ export interface GleanSettings {
     staleDays: number;
     /** 迁移器每批写入条数（≤50） */
     migrateBatchSize: number;
+    /** 小驴协同（T-1505）：读完重浮文章时向打卡记录事件（写能力，用户显式开启） */
+    integration: {
+        checkinEnabled: boolean;
+        checkinItemId: string;
+    };
 }
 
 export const DEFAULT_SETTINGS: GleanSettings = {
@@ -49,6 +54,7 @@ export const DEFAULT_SETTINGS: GleanSettings = {
     inboxQuota: 50,
     staleDays: 90,
     migrateBatchSize: DEFAULT_MIGRATE_BATCH_SIZE,
+    integration: { checkinEnabled: false, checkinItemId: "" },
 };
 
 const SETTINGS_FILE = "settings.json";
@@ -69,6 +75,7 @@ export function normalizeSettings(raw: unknown): GleanSettings {
     const input = (raw ?? {}) as Partial<GleanSettings> & { ai?: Partial<GleanSettings["ai"]> & { enrichOnCapture?: unknown } };
     const ai = (input.ai ?? {}) as Partial<GleanSettings["ai"]> & { enrichOnCapture?: unknown };
     const resurface = (input.resurface ?? {}) as Partial<GleanSettings["resurface"]>;
+    const integration = (input.integration ?? {}) as Partial<GleanSettings["integration"]>;
     return {
         version: 1,
         anchorNotebooks: Array.isArray(input.anchorNotebooks)
@@ -89,6 +96,11 @@ export function normalizeSettings(raw: unknown): GleanSettings {
         inboxQuota: clampInt(input.inboxQuota, 5, 1000, DEFAULT_SETTINGS.inboxQuota),
         staleDays: clampInt(input.staleDays, 7, 3650, DEFAULT_SETTINGS.staleDays),
         migrateBatchSize: clampInt(input.migrateBatchSize, 1, MAX_MIGRATE_BATCH_SIZE, DEFAULT_MIGRATE_BATCH_SIZE),
+        // 写能力（events.record）：必须用户显式开启（打卡契约准入第 4 条）
+        integration: {
+            checkinEnabled: integration.checkinEnabled ?? DEFAULT_SETTINGS.integration.checkinEnabled,
+            checkinItemId: typeof integration.checkinItemId === "string" ? integration.checkinItemId : "",
+        },
     };
 }
 

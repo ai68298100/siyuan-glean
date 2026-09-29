@@ -214,5 +214,11 @@
   "inbox.migrated": "Migrated to library",
   "inbox.dismiss": "Dismiss (delete in cloud)",
   "inbox.cloudRemoveFailed": "Migrated locally, but cloud deletion failed (it will reappear)",
-  "inbox.menuMigrate": "Migrate to library (${n} selected)"
+  "inbox.menuMigrate": "Migrate to library (${n} selected)",
+  "settings.checkinGroup": "Lv Checkin bridge",
+  "settings.checkinEnable": "Log resurfaced reads to Checkin",
+  "settings.checkinEnableDesc": "Marking a card as read in Today's Gleaning writes a reading event to Lv Checkin (write capability, local only). Requires Lv Checkin installed & enabled",
+  "settings.checkinItem": "Reading target item",
+  "settings.checkinNoItems": "No checkin items found (requires Lv Checkin installed & enabled)",
+  "settings.checkinItemsFound": "checkin items available"
 }

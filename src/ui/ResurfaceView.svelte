@@ -4,6 +4,7 @@ import { openTab, showMessage } from "siyuan";
 import type { GleanFacade } from "../types";
 import { t } from "../libs/i18n";
 import { computeDaily, actOnSurface } from "../services/resurface-service";
+import { recordReadingDone } from "../services/checkin-bridge";
 import { ageDays, type SurfacePick } from "../domain/resurface";
 
 interface Props {
@@ -46,6 +47,10 @@ async function act(pick: SurfacePick, action: "read" | "later" | "archive") {
     actingId = pick.item.id;
     try {
         await actOnSurface(facade.pluginInstance, pick.item.id, action);
+        // T-1505 小驴协同：读完 → 打卡记录（写能力，开关开启才调用；fire-and-forget 失败静默）
+        if (action === "read" && facade.settings.integration.checkinEnabled && facade.settings.integration.checkinItemId) {
+            void recordReadingDone(facade.settings.integration.checkinItemId, pick.item.id, pick.item.title);
+        }
         await reload();
         onMutated();
     } catch (error) {

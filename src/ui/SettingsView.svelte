@@ -6,6 +6,7 @@ import { listNotebooks, type NotebookMeta } from "../api/client";
 import { rebuildIndex } from "../services/clip-store";
 import { bindAllClipsToLibrary } from "../services/library-db";
 import { usageToday, loadAiLog, type AiLogEntry } from "../services/enrich-service";
+import { listCheckinItems, type CheckinItemOption } from "../services/checkin-bridge";
 import { t } from "../libs/i18n";
 import type { GleanFacade } from "../types";
 
@@ -31,10 +32,17 @@ let inboxQuota = $state(facade.settings.inboxQuota);
 let staleDays = $state(facade.settings.staleDays);
 let batchSize = $state(facade.settings.migrateBatchSize);
 let boardBusy = $state(false);
+let checkinEnabled = $state(facade.settings.integration.checkinEnabled);
+let checkinItemId = $state(facade.settings.integration.checkinItemId);
+let checkinItems = $state<CheckinItemOption[]>([]);
+
 let aiLog = $state<AiLogEntry[] | null>(null);
 
 onMount(() => {
     void listNotebooks().then((items) => (notebooks = items));
+    if (facade.settings.integration.checkinEnabled) {
+        void listCheckinItems().then((items) => { checkinItems = items; });
+    }
     void usageToday(facade.pluginInstance).then((n) => (usageCount = n));
 });
 
@@ -78,6 +86,18 @@ async function setMode(mode: "off" | "manual" | "auto") {
 async function doRebuildIndex() {
     await rebuildIndex(facade.pluginInstance, facade.settings);
     showMessage(t(i18n, "msg.indexRebuilt"), 2500);
+}
+
+async function toggleCheckin() {
+    checkinEnabled = !checkinEnabled;
+    if (checkinEnabled && checkinItems.length === 0) {
+        checkinItems = await listCheckinItems();
+    }
+    await save();
+}
+
+async function saveCheckin() {
+    await save();
 }
 
 async function toggleAiLog() {
@@ -238,6 +258,35 @@ async function doMountBoard() {
                 </div>
                 <input class="glean-mini-input" type="number" min="1" max="50" bind:value={batchSize} onchange={() => void save()} />
             </div>
+        </div>
+    </div>
+
+    <div>
+        <div class="glean-set-title">{t(i18n, "settings.checkinGroup")}</div>
+        <div class="glean-set-group">
+            <div class="glean-set-row">
+                <div class="glean-set-row__lb">
+                    {t(i18n, "settings.checkinEnable")}
+                    <div class="glean-set-row__desc">{t(i18n, "settings.checkinEnableDesc")}</div>
+                </div>
+                <button class="glean-sw" class:glean-sw--on={checkinEnabled} onclick={() => void toggleCheckin()}></button>
+            </div>
+            {#if checkinEnabled}
+                <div class="glean-set-row">
+                    <div class="glean-set-row__lb">
+                        {t(i18n, "settings.checkinItem")}
+                        <div class="glean-set-row__desc">
+                            {#if checkinItems.length === 0}{t(i18n, "settings.checkinNoItems")}{:else}{checkinItems.length} {t(i18n, "settings.checkinItemsFound")}{/if}
+                        </div>
+                    </div>
+                    <select class="b3-select" style="font-size:12px" bind:value={checkinItemId} onchange={() => void saveCheckin()}>
+                        <option value="">—</option>
+                        {#each checkinItems as item (item.id)}
+                            <option value={item.id}>{item.name}</option>
+                        {/each}
+                    </select>
+                </div>
+            {/if}
         </div>
     </div>
 
