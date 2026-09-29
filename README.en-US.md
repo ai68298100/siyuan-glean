@@ -29,6 +29,7 @@ The scan range only says where to look. A document becomes a candidate only when
 
 - **Start reading** sets `reading` and opens the document or source according to its carrier. Full-text clippings also show a low-distraction context beside the native editor with title, carrier, source, status, and actions. A link-only item without a source URL is clearly reported rather than presented as opened.
 - **Mark as done** is the only action that sets `done`; the optional check-in bridge also fires on this explicit action.
+- **Reader tab (experimental, off by default)**: when enabled in settings, Start reading opens the SiYuan editor embedded in a plugin tab — body on the left (read-only preview by default, explicit switch to edit, changes save straight to SiYuan) and a companion sidebar on the right with status actions, priority/rating, body diagnostics, source and snapshot. All data stays in the SiYuan kernel; the body is never copied.
 - **Today's gleaning** selects a small set from unfinished items with a factual "why it appeared" note (idle days, your priority, source, an unread topic). Start reading, Skip for today, and Archive are idempotent and only change that day's display; picks project from the reconciled index.
 - **Queue and stale-item hints** show when the inbox is over quota; stale items expand into a checklist first, and only the checked ones are archived, with the real success count reported.
 

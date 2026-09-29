@@ -55,6 +55,11 @@ export interface ReadingClipContext {
     url: string;
     /** 载体诊断只读投影；未记录时保持 undefined，不猜测正文长度。 */
     words?: number;
+    /** 伴生栏（阅读页签）用的只读投影；缺省时给中性默认。 */
+    site?: string;
+    snapshot?: string;
+    priority?: number;
+    rating?: number;
 }
 
 /** 编辑器上下文只读当前根块属性；旧索引不能冒充正在阅读的状态。 */
@@ -69,6 +74,10 @@ export async function readClipContext(docId: string): Promise<ReadingClipContext
         contentType: attrs.contentType,
         url: attrs.url ?? "",
         words: attrs.words,
+        site: attrs.site ?? "",
+        snapshot: attrs.snapshot ?? "",
+        priority: attrs.priority ?? 3,
+        rating: attrs.rating ?? 0,
     };
 }
 

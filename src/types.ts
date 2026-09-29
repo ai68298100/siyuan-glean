@@ -25,6 +25,10 @@ export interface GleanFacade {
     currentDocId(): string;
     /** 用思源原生编辑器打开一篇文章，并记录会话内最近阅读文档。 */
     openReadingDocument(docId: string): void;
+    /** 显式打开内嵌阅读页签（D-0029）；移动端回退原生查看器。 */
+    openReader(docId: string): void;
+    /** 阅读页签消费待打开的文档 ID（会话内存，不落 saveData）。 */
+    consumeReaderFocus(): string;
     /** 从原生正文返回读库并定位到同一篇文章。 */
     openLibraryArticle(docId: string): Promise<void>;
     /** 新挂载工作台消费返回定位请求，避免 tab 异步初始化时丢失事件。 */

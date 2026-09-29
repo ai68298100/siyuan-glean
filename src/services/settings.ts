@@ -46,6 +46,13 @@ export interface GleanSettings {
         checkinEnabled: boolean;
         checkinItemId: string;
     };
+    /** 阅读页签（D-0029/T-1730）：内嵌 Protyle 的插件内阅读视图 */
+    reader: {
+        /** 开始阅读时在内嵌页签打开（默认关，沿用思源原生页签） */
+        openInTab: boolean;
+        /** 页签默认模式：read=preview 只读 / edit=wysiwyg 编辑 */
+        defaultMode: "read" | "edit";
+    };
 }
 
 export const DEFAULT_SETTINGS: GleanSettings = {
@@ -67,6 +74,7 @@ export const DEFAULT_SETTINGS: GleanSettings = {
     staleDays: 90,
     migrateBatchSize: DEFAULT_MIGRATE_BATCH_SIZE,
     integration: { checkinEnabled: false, checkinItemId: "" },
+    reader: { openInTab: false, defaultMode: "read" },
 };
 
 const SETTINGS_FILE = "settings.json";
@@ -81,6 +89,14 @@ function normalizeEnrichMode(value: unknown, legacyOnCapture: unknown): "off" | 
     if (value === "off" || value === "manual" || value === "auto") return value;
     if (typeof legacyOnCapture === "boolean") return legacyOnCapture ? "auto" : "manual";
     return DEFAULT_SETTINGS.ai.enrichMode;
+}
+
+function normalizeReader(value: unknown): GleanSettings["reader"] {
+    const input = (value ?? {}) as Partial<GleanSettings["reader"]>;
+    return {
+        openInTab: typeof input.openInTab === "boolean" ? input.openInTab : DEFAULT_SETTINGS.reader.openInTab,
+        defaultMode: input.defaultMode === "edit" ? "edit" : "read",
+    };
 }
 
 export function normalizeSettings(raw: unknown): GleanSettings {
@@ -119,6 +135,7 @@ export function normalizeSettings(raw: unknown): GleanSettings {
             checkinEnabled: integration.checkinEnabled ?? DEFAULT_SETTINGS.integration.checkinEnabled,
             checkinItemId: typeof integration.checkinItemId === "string" ? integration.checkinItemId : "",
         },
+        reader: normalizeReader(input.reader),
     };
 }
 

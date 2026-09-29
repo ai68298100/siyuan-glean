@@ -1,39 +1,38 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
-## 当前有效交接（2026-09-30 S4 重浮与回顾对账，D-0028 后续）
+## 当前有效交接（2026-09-30 内嵌阅读页签 MVP，D-0029）
 
-S4 核心任务（T-1710、T-1717）已完成代码与隔离验证，门禁全绿，未发布新版本：
+作者拍板 Folo 式插件内阅读（方案 A：内嵌真实 Protyle，不自绘渲染器）后，本轮完成立项文档 + MVP 代码，门禁全绿，未发布新版本：
 
-- **T-1710（对账）**：重浮与超龄归档改为**对账后索引的纯投影**。`resurface-service` 新增
-  `computeDailyFromIndex(index, settings)` / `staleCandidatesFromIndex(index, settings)`；DockPanel 把
-  打开/刷新时 `reconcileIndex` 的结果作为 prop 传给 ResurfaceView（与 StatsView 同模式），
-  重浮挑选、略过判断、超龄清单与文档属性一致，不再直读缓存索引。周报口径上一轮已按 D-0028 改为只认可信完成时间。
-- **T-1710（清单归档）**：超龄横幅从"一键全归"改为**候选清单预览**：点击"查看候选"展开逐篇勾选清单
-  （标题/站点/吃灰天数，默认全选可取消），确认后 `archiveStaleCandidates(plugin, ids)` 按显式 ID 逐篇归档、
-  报告真实成功数；`archiveStale`（先扫后全归）已删除。
-- **T-1717（理由与幂等）**：`domain/resurface.ts` 新增 `surfaceReasons`（stale/priority/site/freshTopic 四类
-  事实理由，≥7 天才提吃灰、优先级≥4 才提优先级，平静口吻不欠账）；重浮卡新增"为什么出现"行；
-  "改天"写 lastSurfaced 幂等、当天不再出现，"开始阅读"只进 reading 均有 E2E 断言。
-- 门禁：`pnpm check` 0 错误/38 既有告警、`pnpm test` **127/127**、`pnpm build` 通过、
-  隔离内核 `scripts/e2e/s1-flow.mjs` **13/13**（新增 2 项 S4 断言）、README 中英同步更新。
+- **契约/设计先行（T-1730a）**：D-0029 决策（修订 D-0027"依附原生编辑器"为"原生或插件内嵌实例均可承载正文"，数据主权不变——编辑走内核事务）；DATA-CONTRACT §3.3（页签是视图不是存储，零新增文档属性；会话级 pendingReaderDocId 不落 saveData）；UI-STANDARD §5.10（左正文右 264px 伴生栏布局、交互裁决、设置口径，伴生栏预留 T-1725 摘录段/T-1726 AI 段）。
+- **设置（T-1730b）**：`settings.reader = { openInTab（默认 false，沿用原生页签）, defaultMode: "read"|"edit"（默认 read=preview） }` + 设置页"阅读页签（实验）"分组 + i18n 双名 + 归一化单测（非法值回退）。
+- **MVP（T-1730c）**：`glean-reader` 自定义页签（addTab 含 resize 派发 `glean:reader-resize`）+ `ui/ReaderTab.svelte`：
+  - SDK `new Protyle(app, host, { blockId, rootId, mode, render:{breadcrumb:false,background:false} })`；
+    模式切换走 `switchMode` 不重建实例；挂载效果只依赖 docId+host（untrack 包住 mode），销毁即 `protyle.destroy()`。
+  - 伴生栏：ClipStatusActions（开始阅读只写 reading，页签内不再导航）、ClipRankControls、检测正文/重新剪藏（复用 measureClipBody/D-0023 裁决）、打开原文、快照 📷/⟐、返回读库；全部与三画布同服务、真实成功数反馈；done 时同样触发打卡桥。
+  - 接线：facade 新增 `openReader/consumeReaderFocus`（内存 pendingReaderDocId + `glean:focus-reader` 事件）；
+    `openReadingDocument` 桌面且 `reader.openInTab` 时路由到页签，否则原生 openTab；移动端一律回退原生。
+  - `readClipContext` 扩展只读投影：site/snapshot/priority/rating。
+- **顺手修复**：SettingsView `save()` 从未把 `integration` 写入 patch——打卡开关持久化实际失效的潜在 bug；现已显式写入 integration 与 reader。
+- 门禁：`pnpm check` 0 错误（42 告警=38 既有+4 条 ReaderTab 有意初始化取值）、`pnpm test` **128/128**、`pnpm build` 通过、隔离 E2E **13/13**。
+- **诚实边界**：Protyle 的运行时行为（挂载、同文档双实例同步、模式切换、销毁内存、快捷键/IME 冲突、大文档性能）无法在隔离内核验证（前端能力，B-0009 限制），**必须作者真机验收（T-1730f，已记 B-0002 扩充）**；SDK 类型层面已核实（Protyle/switchMode/destroy/trackRange）。
 
 **下一轮待办（按序）**：
-1. T-1719（S2–S3）首启扫描引导与候选预览；
-2. T-1729 AI 标签独立展示与筛选；T-1723 "读完并打开下一篇"显式动作；T-1724 命令面板/快捷键阅读动作；T-1725 摘录→批注/制卡最小闭环；
-3. S5 逐项验收（T-1711/T-1712/T-1718/T-1726/T-1727 已提前落地/T-1729）多数需作者真机或真实服务配合，能做的代码侧先行；
-4. **等作者拍板**：Folo 式内嵌阅读页签方向（上一轮评估已给方案：内嵌真实 Protyle + 伴生栏，需 D-0029 决策 + spike，属 D-0008/T-1506 预留）——未拍板前不得自行启动；
-5. 真机验收集中在 B-0002（清单含 S4 的新理由行与超龄清单交互）；不要把代码/隔离验证写成平台验收。
+1. T-1730d 摘录标注闭环进伴生栏（= T-1725 页签落点：选区→摘录/引述块/制卡，块定位失败降级复制）；
+2. T-1730e AI 伴读区进伴生栏（= T-1726 落点：选区/全文/相关旧文三档，手动+额度+来源标记，动作+结果卡）；
+3. T-1729 AI 标签独立筛选；T-1723 读完并下一篇；T-1724 快捷键；T-1719 首启引导；
+4. S5 逐项验收（T-1711/T-1712/T-1718）多需作者真机/真实服务；S6 发布门禁（T-1713/T-1108）最后。
 
 > 续跑口令（新会话直接粘贴）：
-> **阅读 D:\思源插件\小驴拾遗\docs\HANDOFF.md 的"当前有效交接"与 docs/PRODUCT-REPLAN.md，先重跑最后改动后的门禁，再按 T-1719、T-1729 与 T-1723/T-1724/T-1725 推进剩余阅读动作与引导任务；内嵌阅读页签方向等作者拍板（D-0029+spike），不自行启动；工程纪律见 AGENTS.md 与 docs/DECISIONS.md，UI 以 docs/UI-STANDARD.md 为准；真机项记 B-0002 不冒验收。**
+> **阅读 D:\思源插件\小驴拾遗\docs\HANDOFF.md 的"当前有效交接"与 docs/PRODUCT-REPLAN.md，先重跑最后改动后的门禁，再按 T-1730d、T-1730e 把摘录标注与 AI 伴读落进阅读页签伴生栏（遵守 T-1725/T-1726/D-0013 契约）；工程纪律见 AGENTS.md 与 docs/DECISIONS.md，UI 以 docs/UI-STANDARD.md 为准；页签运行时行为只能作者真机验收（B-0002），不冒称平台验证。**
 
 ## 历史交接存档
 
-历史交接（2026-09-30 上一轮，S3 收尾 D-0028）：完成时间契约（`custom-clip-done-time`，D-0028）与正文诊断
-（检测正文测量 / 重新剪藏导航 / 三画布"正文待核"）已落地，E2E 11/11；该轮旧口令已作废。
-更早（D-0027）：S3 主体（统一状态动作、时间线筛选、载体策略、阅读上下文）完成代码与隔离验证；S1/S2 关闭；
-作者 v1.0.4 反馈由 S1–S3 修复覆盖，待真机复核。
-再早（D-0016 S0）：作者试用 v1.0.4 后反馈主链错误，产品重整方案与 S0–S6 路线由此建立。
+历史交接（2026-09-30 上轮，S4 对账 D-0028 后续）：重浮/超龄清单改为对账后索引纯投影（computeDailyFromIndex）、
+超龄归档候选清单勾选（archiveStaleCandidates 按显式 ID）、今日拾遗"为什么出现"理由行（surfaceReasons）、
+改天幂等；E2E 13/13。该轮旧口令已作废（其待办中的"内嵌阅读页签"已由作者拍板并在本轮立项）。
+再早（D-0028）：完成时间契约与正文诊断（E2E 11/11）；D-0027：S3 主体；D-0016 S0：产品重整路线建立。
+D-0016 S0–S4 主线代码全部关闭，作者 v1.0.4 反馈由 S1–S4 覆盖，真机验收统一记 B-0002。
 
 ## 更早历史（原文存档）
 

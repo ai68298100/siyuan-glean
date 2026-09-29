@@ -1,5 +1,13 @@
 # 进度（PROGRESS）
 
+## 内嵌阅读页签 MVP（D-0029 立项；代码/构建完成，运行时行为待真机）◐（2026-09-30）
+
+- [x] T-1730a：作者拍板方案 A 后契约先行——D-0029 决策（正文由思源编辑器承载、实例可在原生或插件页签；不做自绘渲染器）、DATA-CONTRACT §3.3（页签是视图不是存储，无新文档属性）、UI-STANDARD §5.10（左正文右伴生栏布局与交互裁决，伴生栏预留 T-1725 摘录段与 T-1726 AI 段）。
+- [x] T-1730b：`settings.reader` 组（`openInTab` 默认关 + `defaultMode` read/edit）+ 设置页"阅读页签（实验）"分组 + i18n 双名 + 归一化单测。
+- [x] T-1730c：`glean-reader` 自定义页签 + `ui/ReaderTab.svelte`（SDK `Protyle` 实例：preview/wysiwyg，`switchMode` 切换不重建；`destroy` 生命周期；resize 事件自适应）+ 伴生栏（ClipStatusActions/ClipRankControls/检测正文/重新剪藏/打开原文/快照/返回读库，动作与三画布同服务同语义）+ facade 新增 `openReader/consumeReaderFocus`，`openReadingDocument` 按设置路由页签；`readClipContext` 扩展 site/快照/优先级/评分只读投影。
+- [x] **顺手修复潜在 bug**：SettingsView `save()` 此前未把 `integration` 写入 patch，打卡开关的持久化实际失效；现显式写入 integration 与 reader。
+- [x] 门禁：`pnpm check` 0 错误（42 条告警=38 既有 + 4 条 ReaderTab 有意初始化取值）、`pnpm test` **128/128**、`pnpm build` 通过、隔离内核 E2E **13/13**。**页签运行时行为（挂载/双实例同步/模式切换/销毁/快捷键）必须作者真机验收（T-1730f/B-0002 扩充）**，不冒称平台验证。未发布新版本。
+
 ## S4 重浮与回顾对账（代码/隔离验证完成，真机验收进行中）◐（2026-09-30，D-0028 后续）
 
 - [x] T-1710：重浮与超龄归档改为**对账后索引的纯投影**——`computeDailyFromIndex` / `staleCandidatesFromIndex` 不再直读缓存（面板打开/刷新时 reconcileIndex 的结果作为唯一输入）；周报口径此前已按 D-0028 只认可信完成时间。

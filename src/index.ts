@@ -7,6 +7,7 @@ import { mount, unmount } from "svelte";
 import "./index.scss";
 
 import DockPanel from "./ui/DockPanel.svelte";
+import ReaderTab from "./ui/ReaderTab.svelte";
 import { installReadingContext } from "./ui/reading-context-controller";
 import MigrateDialog from "./ui/MigrateDialog.svelte";
 import ImportDialog from "./ui/ImportDialog.svelte";
@@ -26,6 +27,7 @@ import type { GleanFacade } from "./types";
 
 const DOCK_TYPE = "glean-dock";
 const TAB_TYPE = "glean-library";
+const READER_TAB_TYPE = "glean-reader";
 
 export default class LvGleanPlugin extends Plugin implements GleanFacade {
     /** 基类构造器已注入 i18n；declare 只收窄类型，不生成会覆盖基类赋值的运行时字段 */
@@ -38,6 +40,7 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
     private disposeReadingContext: (() => void) | null = null;
     private lastReadingDocId = "";
     private pendingLibraryDocId = "";
+    private pendingReaderDocId = "";
 
     constructor(options: { app: unknown; name: string; displayName: string; i18n: I18nBundle }) {
         super(options as never);
@@ -153,6 +156,26 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
             },
         });
 
+        // 阅读页签（D-0029）：内嵌真实 Protyle + 伴生栏；resize 时让实例自适应。
+        this.addTab({
+            type: READER_TAB_TYPE,
+            init(this: { element: Element; __gleanReaderInstance?: unknown }) {
+                const container = document.createElement("div");
+                container.className = "glean-reader-root fn__flex-1";
+                this.element.appendChild(container);
+                this.__gleanReaderInstance = mount(ReaderTab, { target: container, props: { facade: plugin } });
+            },
+            destroy(this: any) {
+                if (this.__gleanReaderInstance) {
+                    unmount(this.__gleanReaderInstance as ReturnType<typeof mount>);
+                    this.__gleanReaderInstance = null;
+                }
+            },
+            resize() {
+                document.dispatchEvent(new CustomEvent("glean:reader-resize"));
+            },
+        });
+
         // 阅读上下文挂在原生编辑器容器，事件回调按编辑器根块切换和销毁清理。
         this.disposeReadingContext = installReadingContext(this);
     }
@@ -211,7 +234,43 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
             openMobileFileById(this.app, docId);
             return;
         }
+        // D-0029：设置开启且桌面端时，开始阅读进内嵌阅读页签；默认沿用原生页签。
+        if (this.settings.reader.openInTab) {
+            void this.openReaderTab(docId);
+            return;
+        }
         void openTab({ app: this.app, doc: { id: docId }, keepCursor: false });
+    }
+
+    /** 显式打开内嵌阅读页签（不写五态；移动端回退原生查看器）。 */
+    openReader(docId: string): void {
+        if (!docId) return;
+        this.lastReadingDocId = docId;
+        if (this.isMobile) {
+            openMobileFileById(this.app, docId);
+            return;
+        }
+        void this.openReaderTab(docId);
+    }
+
+    private async openReaderTab(docId: string): Promise<void> {
+        this.pendingReaderDocId = docId;
+        await openTab({
+            app: this.app,
+            custom: {
+                id: `${this.name}${READER_TAB_TYPE}`,
+                icon: "iconGleanWheat",
+                title: t(this.i18n, "reader.title"),
+            },
+            keepCursor: false,
+        });
+        document.dispatchEvent(new CustomEvent("glean:focus-reader"));
+    }
+
+    consumeReaderFocus(): string {
+        const id = this.pendingReaderDocId;
+        this.pendingReaderDocId = "";
+        return id;
     }
 
     async openLibraryArticle(docId: string): Promise<void> {

@@ -515,6 +515,114 @@
     cursor: not-allowed;
 }
 
+/* D-0029/T-1730：内嵌阅读页签（左正文右伴生栏，UI-STANDARD §5.10） */
+.glean-reader-root {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.glean-reader {
+    display: flex;
+    align-items: stretch;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    background: var(--b3-theme-background);
+}
+
+.glean-reader__main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.glean-reader__host {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+}
+
+.glean-reader__side {
+    width: 264px;
+    flex-shrink: 0;
+    border-left: 1px solid var(--b3-border-color);
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    overflow-y: auto;
+    background: var(--b3-theme-surface);
+}
+
+.glean-reader__title {
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.4;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+
+.glean-reader__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 8px;
+    align-items: center;
+    font-size: 10px;
+    color: var(--b3-theme-on-surface);
+}
+
+.glean-reader__mode {
+    display: flex;
+    gap: 4px;
+}
+
+.glean-reader__ops {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+}
+
+.glean-reader__issue {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+    font-size: 10.5px;
+    color: var(--b3-theme-on-surface);
+}
+
+.glean-reader__back {
+    border: none;
+    background: transparent;
+    color: var(--b3-theme-primary);
+    font-size: 11.5px;
+    cursor: pointer;
+    text-align: left;
+    padding: 2px 0;
+
+    &:hover { text-decoration: underline; }
+}
+
+.glean-reader__empty {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    color: var(--b3-theme-on-surface);
+}
+
+.glean-reader__empty-art { font-size: 34px; }
+.glean-reader__empty-title { font-size: 13px; font-weight: 600; }
+.glean-reader__empty-hint { font-size: 11px; opacity: 0.72; }
+
 .glean-card__check {
     position: absolute;
     top: 8px;

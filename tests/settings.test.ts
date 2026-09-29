@@ -37,3 +37,15 @@ test("默认富化模式=manual（token 消耗需用户显式开启自动）", (
     assert.equal(DEFAULT_SETTINGS.ai.enrichMode, "manual");
     assert.equal(DEFAULT_SETTINGS.ai.enrichDailyCap > 0, true);
 });
+
+test("normalizeSettings：reader 组默认关且非法模式回退 read（D-0029）", () => {
+    const missing = normalizeSettings({});
+    assert.equal(missing.reader.openInTab, false);
+    assert.equal(missing.reader.defaultMode, "read");
+    const custom = normalizeSettings({ reader: { openInTab: true, defaultMode: "edit" } });
+    assert.equal(custom.reader.openInTab, true);
+    assert.equal(custom.reader.defaultMode, "edit");
+    const invalid = normalizeSettings({ reader: { openInTab: "yes", defaultMode: "wysiwyg" } });
+    assert.equal(invalid.reader.openInTab, DEFAULT_SETTINGS.reader.openInTab);
+    assert.equal(invalid.reader.defaultMode, "read");
+});

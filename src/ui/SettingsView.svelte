@@ -41,6 +41,8 @@ let testBusy = $state(false);
 let checkinEnabled = $state(facade.settings.integration.checkinEnabled);
 let checkinItemId = $state(facade.settings.integration.checkinItemId);
 let checkinItems = $state<CheckinItemOption[]>([]);
+let readerOpenInTab = $state(facade.settings.reader.openInTab);
+let readerMode = $state<"read" | "edit">(facade.settings.reader.defaultMode);
 
 let aiLog = $state<AiLogEntry[] | null>(null);
 
@@ -78,6 +80,9 @@ async function save() {
         inboxQuota,
         staleDays,
         migrateBatchSize: batchSize,
+        // 本地状态显式入 patch；此前漏写 integration，打卡开关实际不持久化（本轮修复）
+        integration: { checkinEnabled, checkinItemId },
+        reader: { openInTab: readerOpenInTab, defaultMode: readerMode },
     });
 }
 
@@ -360,6 +365,42 @@ async function doMountBoard() {
                     </select>
                 </div>
             {/if}
+        </div>
+    </div>
+
+    <div>
+        <div class="glean-set-title">{t(i18n, "settings.readerGroup")}</div>
+        <div class="glean-set-group">
+            <div class="glean-set-row">
+                <div class="glean-set-row__lb">
+                    {t(i18n, "settings.readerOpenInTab")}
+                    <div class="glean-set-row__desc">{t(i18n, "settings.readerOpenInTabHint")}</div>
+                </div>
+                <button
+                    class="glean-sw"
+                    class:glean-sw--on={readerOpenInTab}
+                    title={t(i18n, "settings.readerOpenInTab")}
+                    onclick={() => { readerOpenInTab = !readerOpenInTab; void save(); }}
+                ></button>
+            </div>
+            <div class="glean-set-row glean-seg-row">
+                <div class="glean-set-row__lb">
+                    {t(i18n, "settings.readerMode")}
+                    <div class="glean-set-row__desc">{t(i18n, "settings.readerModeHint")}</div>
+                </div>
+                <div class="glean-seg">
+                    <button
+                        class="glean-seg__btn"
+                        class:glean-seg__btn--on={readerMode === "read"}
+                        onclick={() => { readerMode = "read"; void save(); }}
+                    >{t(i18n, "reader.modeRead")}</button>
+                    <button
+                        class="glean-seg__btn"
+                        class:glean-seg__btn--on={readerMode === "edit"}
+                        onclick={() => { readerMode = "edit"; void save(); }}
+                    >{t(i18n, "reader.modeEdit")}</button>
+                </div>
+            </div>
         </div>
     </div>
 
