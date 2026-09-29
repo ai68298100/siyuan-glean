@@ -15,6 +15,8 @@ export interface GleanFacade {
     openMigrate(): void;
     /** 打开设置弹窗 */
     openSettings(): void;
+    /** 打开迁移导入弹窗 */
+    openImport(): void;
     /** 面板数据变更后的回调（如迁移完成后刷新） */
     notifyDataChanged(): void;
     /** 当前活动文档（右键/命令收录目标、高亮侧栏来源），无则空串 */

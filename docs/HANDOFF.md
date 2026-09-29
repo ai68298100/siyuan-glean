@@ -3,7 +3,7 @@
 > 续跑口令（新会话直接粘贴）：
 > **阅读 D:\思源插件\小驴拾遗\docs\HANDOFF.md，按其中"下一步"继续开发；工程纪律见 AGENTS.md 与 docs/DECISIONS.md，UI 以 docs/UI-STANDARD.md 为准，先通读 TODO.md 与 docs/DATA-CONTRACT.md 再动手。**
 
-## 当前状态（2026-09-29 第七轮开发完成：发布准备 + 技术债清零）
+## 当前状态（2026-09-29 第八轮开发完成：T-1501 迁移导入器，M5 启动）
 
 - 仓库：`D:\思源插件\小驴拾遗` = GitHub [ai68298100/siyuan-glean](https://github.com/ai68298100/siyuan-glean)，main 已推送。
 - **M3 AI 富化全量落地**（v0.3.0 工作版本，未打 tag）：
@@ -56,10 +56,19 @@
   面板视图偏好：services/prefs.ts（ui-prefs.json）；AI 日志：loadAiLog + 设置-维护展开行。
 - 发布材料：docs/CHANGELOG.md（v1.0.0 候选条目已写好）+ docs/RELEASE-MEDIA.md（拍摄手册）。
 
-## 下一步（等待作者验收 + 拍板；无阻塞开发项）
+## 导入器速记（第八轮新增）
 
-1. **作者验收三件**：B-0001 实剪核对 / B-0002 UI 真机目视 / B-0004 AI 效果（含 AI 开关三态+每日上限）。
-2. **作者决策点**：方案 B（拾遗专用 AI 通道）做不做（RESEARCH-ai-providers.md §4）；发版节奏（建议验收后 v1.0.0）。
-3. 验收发现问题 → 按 BLOCKERS 流程修复；无问题则按 RELEASE.md 门禁 + RELEASE-MEDIA.md 拍材料 → 请示打 tag 发 v1.0.0。
-4. M5 生态任务（收集箱/Pocket 导入/制卡/快照/协同/渐进阅读集成）逐项请示后启动；渐进阅读方向已解绑
-   "不做"承诺（README 已清理），作者想做什么随时立项。
+- 解析器 domain/importers.ts（纯函数，11 单测）：格式自动探测；防御式（坏行丢弃计数）；
+  URL 归一去重（小写+去尾斜杠）；状态映射 unread→inbox / read→done / archive→archived；
+  epoch 秒与 ISO 时间都转思源本地墙钟。
+- 导入写位：URL/站点/时间/状态写 custom-clip-*；**外部标签写用户 tags 位**（不用 ai-tags）；
+  src 标记 import-pocket/omnivore/wallabag；文档建在 /导入目录（可改），markdown 含链接行
+  （后续迁移器/启发式可识别）。
+- spike ⑥ 已改为 id+LIKE 精确断言（updated 排序窗口对工作区复用敏感，踩过）。
+
+## 下一步（验收/拍板 + M5 推荐序）
+
+1. **作者验收**：B-0001 实剪 / B-0002 UI / B-0004 AI 开关 / B-0005（新）拿真实 Pocket/Omnivore 导出文件跑导入器。
+2. **作者决策点**：方案 B 专用 AI 通道；发版节奏（v1.0.0）。
+3. **M5 推荐序（按授权逐项启动）**：T-1504 全页快照 → T-1502 摘录制卡（riff/createCards 先 spike）→
+   T-1500 收集箱（需作者订阅账号配合）→ T-1505 小驴协同 → T-1503 渐进阅读集成（作者定方向）。

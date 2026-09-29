@@ -8,6 +8,7 @@ import "./index.scss";
 
 import DockPanel from "./ui/DockPanel.svelte";
 import MigrateDialog from "./ui/MigrateDialog.svelte";
+import ImportDialog from "./ui/ImportDialog.svelte";
 import SettingsView from "./ui/SettingsView.svelte";
 import { svelteDialog } from "./libs/dialog";
 import { t, type I18nBundle } from "./libs/i18n";
@@ -331,6 +332,16 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
         svelteDialog({
             title: t(this.i18n, "migrate.title"),
             component: MigrateDialog,
+            props: { facade: this },
+            width: "720px",
+            height: "560px",
+        });
+    }
+
+    openImport(): void {
+        svelteDialog({
+            title: t(this.i18n, "import.title"),
+            component: ImportDialog,
             props: { facade: this },
             width: "720px",
             height: "560px",

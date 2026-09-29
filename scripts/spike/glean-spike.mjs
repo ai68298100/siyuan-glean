@@ -326,8 +326,9 @@ async function verifyExportMd(notebookID) {
 /* ---------- ⑥ SQL 双锚点 ---------- */
 
 async function verifyAnchorQueries(notebookID, attrDocId) {
+    // 次锚点语义：该文档 IAL 含 clip 键（精确 id + LIKE，免受 updated 排序窗口影响）
     const clips = await apiChecked("/api/query/sql", {
-        stmt: `SELECT id, content, hpath, box, updated FROM blocks WHERE type='d' AND ial LIKE '%custom-clip-status%' ORDER BY updated DESC LIMIT 100`,
+        stmt: `SELECT id, content, hpath, box, updated FROM blocks WHERE type='d' AND id='${attrDocId}' AND ial LIKE '%custom-clip-status%'`,
     });
     const anchors = await apiChecked("/api/query/sql", {
         stmt: `SELECT id, content, hpath, box, updated FROM blocks WHERE type='d' AND box='${notebookID}' ORDER BY updated DESC LIMIT 200`,

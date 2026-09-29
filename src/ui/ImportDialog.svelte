@@ -1,0 +1,194 @@
+<script lang="ts">
+/** 迁移导入弹窗（T-1501）：Pocket HTML/CSV、Omnivore JSON、wallabag JSON → 思源读库。 */
+import { onMount } from "svelte";
+import { showMessage } from "siyuan";
+import { listNotebooks, type NotebookMeta } from "../api/client";
+import { previewImport, runImport, type ImportPreview, type ImportSummary } from "../services/import-service";
+import type { ImportFormat } from "../domain/importers";
+import { t } from "../libs/i18n";
+import type { GleanFacade } from "../types";
+
+interface Props {
+    facade: GleanFacade;
+    onClose: () => void;
+}
+
+let { facade, onClose }: Props = $props();
+
+const i18n = $derived(facade.i18n);
+
+type Phase = "pick" | "preview" | "importing" | "done";
+
+let phase = $state<Phase>("pick");
+let format = $state<ImportFormat | "auto">("auto");
+let notebooks = $state<NotebookMeta[]>([]);
+let notebookId = $state(facade.settings.anchorNotebooks[0] ?? "");
+let folder = $state(t(i18n, "import.defaultFolder"));
+let preview = $state<ImportPreview | null>(null);
+let summary = $state<ImportSummary | null>(null);
+let busy = $state(false);
+let progress = $state(0);
+let fileInput: HTMLInputElement | null = null;
+
+onMount(() => {
+    void listNotebooks().then((items) => {
+        notebooks = items;
+        if (!notebookId) notebookId = items[0]?.id ?? "";
+    });
+});
+
+const importable = $derived(preview ? preview.rows.filter((row) => !row.duplicate).length : 0);
+
+function pickFile() {
+    fileInput?.click();
+}
+
+async function onFileChosen(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+    busy = true;
+    try {
+        const content = await file.text();
+        preview = await previewImport(content, format);
+        phase = "preview";
+    } catch (error) {
+        showMessage(String(error).slice(0, 140), 5000);
+    } finally {
+        busy = false;
+        input.value = "";
+    }
+}
+
+async function startImport() {
+    if (!preview || !notebookId) return;
+    phase = "importing";
+    busy = true;
+    progress = 0;
+    const rows = preview.rows.filter((row) => !row.duplicate);
+    try {
+        summary = await runImport(facade.pluginInstance, rows, {
+            notebookId,
+            folder: folder.trim() || t(i18n, "import.defaultFolder"),
+            format: preview.format ?? "pocket-html",
+            onProgress: (done, total) => {
+                progress = total > 0 ? Math.round((done / total) * 100) : 100;
+            },
+        });
+        phase = "done";
+        facade.notifyDataChanged();
+    } catch (error) {
+        showMessage(String(error).slice(0, 140), 5000);
+        phase = "preview";
+    } finally {
+        busy = false;
+    }
+}
+
+function resetToPick() {
+    phase = "pick";
+    preview = null;
+    summary = null;
+}
+</script>
+
+<div class="glean-migrate">
+    <div class="glean-dlg-head">
+        <div class="glean-brand__mark" style="width:26px;height:26px;border-radius:9px">
+            <svg style="width:13px;height:13px"><use href="#iconGleanWheat" /></svg>
+        </div>
+        <div>
+            <div class="glean-dlg-head__t">{t(i18n, "import.title")}</div>
+            <div class="glean-dlg-head__sub">{t(i18n, "import.intro")}</div>
+        </div>
+    </div>
+
+    {#if phase === "pick" || phase === "preview"}
+        <div class="glean-set-group">
+            <div class="glean-set-row">
+                <div class="glean-set-row__lb">{t(i18n, "import.format")}</div>
+                <select class="b3-select" style="font-size:12px" bind:value={format}>
+                    <option value="auto">{t(i18n, "import.formatAuto")}</option>
+                    <option value="pocket-html">Pocket HTML</option>
+                    <option value="pocket-csv">Pocket CSV</option>
+                    <option value="omnivore-json">Omnivore JSON</option>
+                    <option value="wallabag-json">wallabag JSON</option>
+                </select>
+            </div>
+            <div class="glean-set-row">
+                <div class="glean-set-row__lb">
+                    {t(i18n, "import.notebook")}
+                    <div class="glean-set-row__desc">{t(i18n, "import.notebookDesc")}</div>
+                </div>
+                <select class="b3-select" style="font-size:12px" bind:value={notebookId}>
+                    {#each notebooks as notebook (notebook.id)}
+                        <option value={notebook.id}>{notebook.name}</option>
+                    {/each}
+                </select>
+            </div>
+            <div class="glean-set-row">
+                <div class="glean-set-row__lb">{t(i18n, "import.folder")}</div>
+                <input class="glean-mini-input" style="width:160px" bind:value={folder} />
+            </div>
+            <div class="glean-set-row">
+                <div class="glean-set-row__lb">{t(i18n, "import.file")}</div>
+                <input
+                    bind:this={fileInput}
+                    type="file"
+                    accept=".html,.csv,.json,.txt"
+                    style="display:none"
+                    onchange={(event) => void onFileChosen(event)}
+                />
+                <button class="glean-btn" style="flex-shrink:0" disabled={busy} onclick={() => pickFile()}>
+                    {busy ? t(i18n, "panel.loading") : t(i18n, "import.pickFile")}
+                </button>
+            </div>
+        </div>
+    {/if}
+
+    {#if phase === "preview" && preview}
+        <div class="glean-mstats">
+            <div class="glean-mstat"><div class="glean-mstat__n">{importable}</div><div class="glean-mstat__l">{t(i18n, "import.willImport")}</div></div>
+            <div class="glean-mstat"><div class="glean-mstat__n">{preview.duplicateCount}</div><div class="glean-mstat__l">{t(i18n, "import.dupCount")}</div></div>
+            <div class="glean-mstat"><div class="glean-mstat__n">{preview.rows.length}</div><div class="glean-mstat__l">{t(i18n, "import.parsedCount")}</div></div>
+        </div>
+        <div class="glean-mtable">
+            {#each preview.rows.slice(0, 30) as row (row.url)}
+                <div class="glean-mrow">
+                    <span class="glean-mrow__ti">{row.title || row.url}</span>
+                    <span class="glean-mrow__url">{row.site || "—"}</span>
+                    <span class="glean-mrow__st" class:glean-mrow__st--skip={row.duplicate}>
+                        {row.duplicate ? t(i18n, "import.dupLabel") : row.status}
+                    </span>
+                </div>
+            {/each}
+            {#if preview.rows.length > 30}
+                <div class="glean-mrow"><span class="glean-mrow__ti" style="color:var(--b3-theme-on-surface)">… +{preview.rows.length - 30}</span></div>
+            {/if}
+        </div>
+        <div class="glean-migrate__ops">
+            <button class="glean-btn glean-btn--ghost" onclick={resetToPick}>{t(i18n, "migrate.rescan")}</button>
+            <button class="glean-btn glean-btn--pri" disabled={importable === 0} onclick={() => void startImport()}>
+                {t(i18n, "import.start")}
+            </button>
+        </div>
+    {:else if phase === "importing"}
+        <div>
+            <div class="glean-progress"><div class="glean-progress__bar" style={`width:${progress}%`}></div></div>
+            <div class="glean-prog-meta"><span>{t(i18n, "import.importing")}</span><span>{progress}%</span></div>
+        </div>
+    {:else if phase === "done" && summary}
+        <div class="glean-mstats">
+            <div class="glean-mstat"><div class="glean-mstat__n">{summary.imported}</div><div class="glean-mstat__l">{t(i18n, "import.imported")}</div></div>
+            <div class="glean-mstat"><div class="glean-mstat__n">{summary.skippedDuplicate}</div><div class="glean-mstat__l">{t(i18n, "import.dupCount")}</div></div>
+            <div class="glean-mstat"><div class="glean-mstat__n">{summary.failed}</div><div class="glean-mstat__l">{t(i18n, "import.failed")}</div></div>
+        </div>
+        <div class="glean-migrate__ops">
+            <button class="glean-btn glean-btn--pri" onclick={() => void onClose()}>{t(i18n, "action.close")}</button>
+        </div>
+    {/if}
+</div>
+
+<style>
+    /* 样式集中在 src/index.scss（设计系统） */
+</style>

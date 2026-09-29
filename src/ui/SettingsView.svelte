@@ -255,6 +255,15 @@ async function doMountBoard() {
             </div>
             <div class="glean-set-row">
                 <div class="glean-set-row__lb">
+                    {t(i18n, "import.title")}
+                    <div class="glean-set-row__desc">{t(i18n, "import.entryDesc")}</div>
+                </div>
+                <button class="glean-btn" style="flex-shrink:0" onclick={() => facade.openImport()}>
+                    {t(i18n, "import.entryAction")}
+                </button>
+            </div>
+            <div class="glean-set-row">
+                <div class="glean-set-row__lb">
                     {t(i18n, "settings.aiLog")}
                     <div class="glean-set-row__desc">{t(i18n, "settings.aiLogDesc")}</div>
                 </div>

@@ -1,5 +1,18 @@
 # 进度（PROGRESS）
 
+## M5 启动 — T-1501 迁移导入器 ✅（2026-09-29，第八轮；按作者"继续开发+推荐项先行"授权启动 M5）
+
+- [x] domain/importers.ts：Pocket HTML/CSV、Omnivore JSON、wallabag JSON 四格式解析
+      （防御式解析坏行跳过；URL 去重含尾斜杠归一；状态映射 unread→inbox/read→done/archive→archived）
+- [x] services/import-service.ts：preview（解析+库内 URL 去重标记）+ runImport
+      （建文档 → captureClip 写 URL/站点/时间/src=import-* → 外部标签写用户 tags 位 → 状态映射）
+      时间保留原服务收藏时间（epoch/ISO → 思源本地墙钟）
+- [x] ui/ImportDialog.svelte：文件选择 → 预览表（三统计卡+重复标记）→ 进度 → 完成三类汇总；
+      目标笔记本/目录可选；设置-维护入口 + facade.openImport
+- [x] spike ⑥ 断言修正（id+LIKE 精确断言替代 updated 排序窗口，工作区复用下不再顺序敏感）
+- [x] 质量门禁：check 0 错、62/62 测试（importers 11 项）、构建+门禁全绿、spike 7/7（201 i18n 键）
+- 导入器验收（作者）：拿真实 Pocket/Omnivore 导出文件跑一遍（B-0005 新增）
+
 ## 发布准备 + 技术债 ✅（2026-09-29，第七轮）
 
 - [x] T-1300d 富化队列串行化：批量收录时 auto/manual 富化逐个执行（enqueue promise 链），
