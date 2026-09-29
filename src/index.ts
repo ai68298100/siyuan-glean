@@ -2,11 +2,12 @@
  * 小驴拾遗插件入口（薄壳）：生命周期、UI 挂载、收录入口三件套。
  * 业务编排在 services/，内核交互在 api/，纯函数在 domain/，组件只依赖 types.ts 门面。
  */
-import { Plugin, getFrontend, openTab, showMessage, getAllEditor } from "siyuan";
+import { Plugin, getFrontend, openTab, openMobileFileById, showMessage, getAllEditor } from "siyuan";
 import { mount, unmount } from "svelte";
 import "./index.scss";
 
 import DockPanel from "./ui/DockPanel.svelte";
+import { installReadingContext } from "./ui/reading-context-controller";
 import MigrateDialog from "./ui/MigrateDialog.svelte";
 import ImportDialog from "./ui/ImportDialog.svelte";
 import OnboardingDialog from "./ui/OnboardingDialog.svelte";
@@ -34,6 +35,9 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
     settings: GleanSettings = DEFAULT_SETTINGS;
 
     private dockInstance: ReturnType<typeof mount> | null = null;
+    private disposeReadingContext: (() => void) | null = null;
+    private lastReadingDocId = "";
+    private pendingLibraryDocId = "";
 
     constructor(options: { app: unknown; name: string; displayName: string; i18n: I18nBundle }) {
         super(options as never);
@@ -96,6 +100,14 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
         });
 
         this.addCommand({
+            langKey: "cmd.continueReading",
+            callback: () => {
+                if (this.lastReadingDocId) this.openReadingDocument(this.lastReadingDocId);
+                else showMessage(t(this.i18n, "reading.noRecent"), 3000);
+            },
+        });
+
+        this.addCommand({
             langKey: "cmd.addToList",
             callback: () => void this.addCurrentDocToLibrary(),
         });
@@ -140,6 +152,9 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
                 }
             },
         });
+
+        // 阅读上下文挂在原生编辑器容器，事件回调按编辑器根块切换和销毁清理。
+        this.disposeReadingContext = installReadingContext(this);
     }
 
     onLayoutReady() {
@@ -164,6 +179,8 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
     async onunload() {
         this.eventBus.off("open-menu-content", this.onMenuContent);
         this.eventBus.off("open-menu-inbox", this.onMenuInbox);
+        this.disposeReadingContext?.();
+        this.disposeReadingContext = null;
         if (this.dockInstance) {
             unmount(this.dockInstance);
             this.dockInstance = null;
@@ -187,6 +204,29 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
         return editor?.protyle?.block?.rootID ?? "";
     }
 
+    openReadingDocument(docId: string): void {
+        if (!docId) return;
+        this.lastReadingDocId = docId;
+        if (this.isMobile) {
+            openMobileFileById(this.app, docId);
+            return;
+        }
+        void openTab({ app: this.app, doc: { id: docId }, keepCursor: false });
+    }
+
+    async openLibraryArticle(docId: string): Promise<void> {
+        if (!docId) return;
+        this.pendingLibraryDocId = docId;
+        await this.openLibraryTab();
+        document.dispatchEvent(new CustomEvent("glean:focus-clip", { detail: { id: docId } }));
+    }
+
+    consumeLibraryFocus(): string {
+        const id = this.pendingLibraryDocId;
+        this.pendingLibraryDocId = "";
+        return id;
+    }
+
     /* ---------- 面板 ---------- */
 
     /**
@@ -195,7 +235,7 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
      * - Dock 侧栏图标 = 窄侧栏速览（toggleModel 切换）
      */
     openPanel(): void {
-        this.openLibraryTab();
+        void this.openLibraryTab();
     }
 
     /** 打开/聚焦 Dock 窄侧栏（保留给轻量速览场景）。 */
@@ -219,8 +259,8 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
         this.openLibraryTab();
     }
 
-    private openLibraryTab() {
-        void openTab({
+    private async openLibraryTab(): Promise<void> {
+        await openTab({
             app: this.app,
             custom: {
                 id: `${this.name}${TAB_TYPE}`,

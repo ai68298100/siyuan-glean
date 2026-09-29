@@ -46,6 +46,31 @@ export async function readClip(docId: string): Promise<ClipAttrs> {
     return parseClipAttrs(ial);
 }
 
+export interface ReadingClipContext {
+    id: string;
+    title: string;
+    status: ClipStatus;
+    contentType: ClipAttrs["contentType"];
+    url: string;
+    /** 载体诊断只读投影；未记录时保持 undefined，不猜测正文长度。 */
+    words?: number;
+}
+
+/** 编辑器上下文只读当前根块属性；旧索引不能冒充正在阅读的状态。 */
+export async function readClipContext(docId: string): Promise<ReadingClipContext | null> {
+    const attrs = await readClip(docId);
+    if (!attrs.status) return null;
+    const meta = await fetchDocMeta(docId);
+    return {
+        id: docId,
+        title: meta.title || meta.hpath.split("/").filter(Boolean).at(-1) || "",
+        status: attrs.status,
+        contentType: attrs.contentType,
+        url: attrs.url ?? "",
+        words: attrs.words,
+    };
+}
+
 /** 批量读取原始 IAL，供迁移预检与导入去重使用；属性端点仍只经本服务进入。 */
 export async function batchReadClipAttrs(ids: string[]) {
     const pairs: Awaited<ReturnType<typeof batchGetBlockAttrs>> = [];
@@ -210,17 +235,26 @@ export async function batchSetStatus(
     docIds: string[],
     status: ClipStatus
 ): Promise<number> {
-    let ok = 0;
+    return (await batchSetStatusDetailed(plugin, docIds, status)).ok;
+}
+
+/** 批量状态动作的详细结果；UI 需要知道哪些文档确实写成功，才能触发外部协同。 */
+export async function batchSetStatusDetailed(
+    plugin: Plugin,
+    docIds: string[],
+    status: ClipStatus,
+): Promise<{ ok: number; succeeded: string[] }> {
+    const succeeded: string[] = [];
     for (const docId of docIds) {
         try {
             // 这是用户显式状态动作，不适用自动写入的手填字段保护。
             await writeClip(plugin, docId, { status }, { forceStatus: true });
-            ok += 1;
+            succeeded.push(docId);
         } catch {
             // 单篇失败不阻断批量；UI 通过刷新反映真实状态
         }
     }
-    return ok;
+    return { ok: succeeded.length, succeeded };
 }
 
 /* ---------- 查询 ---------- */

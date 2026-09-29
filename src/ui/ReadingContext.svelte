@@ -1,0 +1,170 @@
+<script lang="ts">
+    /**
+     * 原生思源编辑器上的低干扰阅读上下文（S3/T-1721）。
+     *
+     * 这里只渲染标题、载体、来源和状态，正文始终由思源编辑器承载。
+     * 当前根块属性每次加载都从 clip-store 读取，索引不能覆盖编辑器里的事实。
+     */
+    import { showMessage } from "siyuan";
+    import type { GleanFacade } from "../types";
+    import { t } from "../libs/i18n";
+    import { hasSourceAction, openTargetForCarrier, resolveCarrier, sourceUrlForCarrier } from "../domain/carrier";
+    import { batchSetStatus, readClipContext, type ReadingClipContext } from "../services/clip-store";
+    import type { ClipStatus } from "../domain/schema";
+    import { recordReadingDone } from "../services/checkin-bridge";
+    import ClipStatusActions from "./ClipStatusActions.svelte";
+
+    interface Props {
+        facade: GleanFacade;
+        docId: string;
+    }
+
+    let { facade, docId }: Props = $props();
+    const i18n = $derived(facade.i18n);
+    let context = $state<ReadingClipContext | null>(null);
+    let loading = $state(true);
+    let busy = $state(false);
+    let reloadToken = 0;
+    let mounted = true;
+
+    async function reload(): Promise<void> {
+        const token = ++reloadToken;
+        if (!mounted) return;
+        if (!docId) {
+            if (token !== reloadToken || !mounted) return;
+            context = null;
+            loading = false;
+            return;
+        }
+        loading = true;
+        try {
+            const next = await readClipContext(docId);
+            if (token !== reloadToken || !mounted) return;
+            context = next;
+        } catch (error) {
+            // 编辑器切换期间根块可能已经销毁；上下文退出即可，不打扰正文。
+            console.debug("[glean] 阅读上下文读取失败:", error);
+            if (token !== reloadToken || !mounted) return;
+            context = null;
+        } finally {
+            if (token === reloadToken && mounted) loading = false;
+        }
+    }
+
+    $effect(() => {
+        mounted = true;
+        void reload();
+        const handler = () => void reload();
+        const refreshHandler = (event: Event) => {
+            if ((event as CustomEvent<{ id?: string }>).detail?.id === docId) void reload();
+        };
+        document.addEventListener("glean:data-changed", handler);
+        document.addEventListener("glean:reading-context-refresh", refreshHandler);
+        return () => {
+            mounted = false;
+            reloadToken += 1;
+            document.removeEventListener("glean:data-changed", handler);
+            document.removeEventListener("glean:reading-context-refresh", refreshHandler);
+        };
+    });
+
+    function carrierLabel(value: string | undefined): string {
+        return t(i18n, `clip.type.${resolveCarrier(value)}`);
+    }
+
+    function statusLabel(value: ClipStatus): string {
+        return t(i18n, `status.${value}`);
+    }
+
+    function openContextSource(current: ReadingClipContext): void {
+        const url = sourceUrlForCarrier(current.contentType, current.url);
+        if (!url) {
+            showMessage(t(i18n, "clip.sourceMissing"), 3000);
+            return;
+        }
+        window.open(url, "_blank", "noopener,noreferrer");
+    }
+
+    function openSource(): void {
+        if (context) openContextSource(context);
+    }
+
+    async function writeStatus(status: ClipStatus): Promise<boolean> {
+        if (!context || busy) return false;
+        const current = context;
+        busy = true;
+        try {
+            const changed = await batchSetStatus(facade.pluginInstance, [current.id], status);
+            if (changed !== 1) {
+                showMessage(t(i18n, "msg.statusFailed"), 3000);
+                return false;
+            }
+            if (status === "done" && facade.settings.integration.checkinEnabled && facade.settings.integration.checkinItemId) {
+                void recordReadingDone(facade.settings.integration.checkinItemId, current.id, current.title);
+            }
+            // 对账可能在写入期间完成；保留最新标题/来源，只覆盖刚刚成功的状态。
+            context = { ...(context?.id === current.id ? context : current), status };
+            facade.notifyDataChanged();
+            showMessage(t(i18n, "msg.statusChanged"), 2500);
+            return true;
+        } finally {
+            busy = false;
+        }
+    }
+
+    async function setStatus(status: ClipStatus): Promise<void> {
+        await writeStatus(status);
+    }
+
+    async function startReading(): Promise<void> {
+        if (!context || busy) return;
+        const current = context;
+        if (current.status !== "reading" && !await writeStatus("reading")) return;
+        // link 的主动作是来源；全文即使有来源也继续留在思源正文。
+        if (openTargetForCarrier(current.contentType, current.url) === "source") openContextSource(current);
+        else facade.openReadingDocument(current.id);
+    }
+
+    function backToLibrary(): void {
+        if (context) void facade.openLibraryArticle(context.id);
+    }
+</script>
+
+{#if !loading && context}
+    <aside class="glean-reading-context" aria-label={t(i18n, "reading.contextLabel")}>
+        <div class="glean-reading-context__main">
+            <div class="glean-reading-context__title" title={context.title}>{context.title || t(i18n, "panel.untitled")}</div>
+            <div class="glean-reading-context__meta">
+                <span class={`glean-carrier-badge glean-carrier-badge--${resolveCarrier(context.contentType)}`}>
+                    {carrierLabel(context.contentType)}
+                </span>
+                <span class="glean-reading-context__status">{statusLabel(context.status)}</span>
+                {#if context.url}
+                    <span class="glean-reading-context__source" title={context.url}>{context.url}</span>
+                {/if}
+            </div>
+        </div>
+        <div class="glean-reading-context__actions">
+            {#if hasSourceAction(context.contentType, context.url)}
+                <button class="glean-reading-context__source-btn" title={t(i18n, "reading.sourceHint")} onclick={openSource}>
+                    ↗ {t(i18n, "clip.openSource")}
+                </button>
+            {:else if resolveCarrier(context.contentType) === "link"}
+                <span class="glean-reading-context__missing">{t(i18n, "clip.sourceMissing")}</span>
+            {/if}
+            {#if resolveCarrier(context.contentType) === "fulltext" && (context.words ?? 0) <= 0}
+                <span class="glean-reading-context__missing" title={t(i18n, "clip.bodyMissing")}>{t(i18n, "clip.bodyMissing")}</span>
+            {/if}
+            <button class="glean-reading-context__back" onclick={backToLibrary}>
+                {t(i18n, "reading.backToLibrary")}
+            </button>
+            <ClipStatusActions
+                i18n={i18n}
+                status={context.status}
+                disabled={busy}
+                onStartReading={startReading}
+                onSetStatus={setStatus}
+            />
+        </div>
+    </aside>
+{/if}

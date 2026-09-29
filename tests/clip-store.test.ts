@@ -24,7 +24,7 @@ registerHooks({
     },
 });
 
-const { batchSetStatus, captureClip, captureDocument, findClipUrlConflict, listAnchorDocs, listClipDocs, reconcileIndex, scanDocScopes, writeClip } = await import(
+const { batchSetStatus, batchSetStatusDetailed, captureClip, captureDocument, findClipUrlConflict, listAnchorDocs, listClipDocs, readClipContext, reconcileIndex, scanDocScopes, writeClip } = await import(
     "../src/services/clip-store.ts"
 );
 
@@ -50,6 +50,7 @@ function harness() {
     const writes: { id: string; attrs: Record<string, string | null> }[] = [];
     let failAnchorQuery = false;
     let failPageOffset: number | null = null;
+    const failWriteIds = new Set<string>();
 
     const plugin = {
         async loadData(name: string) { return structuredClone(saved.get(name) ?? null); },
@@ -62,6 +63,7 @@ function harness() {
         },
         async exportMdContent(id: string) { return { content: markdowns.get(id) ?? "" }; },
         async setBlockAttrs(id: string, patch: Record<string, string | null>) {
+            if (failWriteIds.has(id)) throw new Error("write failed");
             writes.push({ id, attrs: { ...patch } });
             const next = { ...(attrs.get(id) ?? {}) };
             for (const [key, value] of Object.entries(patch)) {
@@ -97,7 +99,7 @@ function harness() {
         attrs.set(id, ial);
         markdowns.set(id, markdown);
     };
-    return { plugin, docs, attrs, saved, queries, writes, add, setFailAnchorQuery: (value: boolean) => { failAnchorQuery = value; }, setFailPageOffset: (value: number | null) => { failPageOffset = value; } };
+    return { plugin, docs, attrs, saved, queries, writes, add, failWriteIds, setFailAnchorQuery: (value: boolean) => { failAnchorQuery = value; }, setFailPageOffset: (value: number | null) => { failPageOffset = value; } };
 }
 
 test("锚点笔记本 ID 正确加 SQL 字符串引号，URL-only 文档可被次锚点发现", async () => {
@@ -117,6 +119,38 @@ test("显式批量改状态覆盖旧值，持久索引与文档属性一致", as
     assert.equal(h.attrs.get("clip-1")?.["custom-clip-priority"], "5");
     const index = h.saved.get("glean-index.json") as { clips: Record<string, { status: string }> };
     assert.equal(index.clips["clip-1"].status, "reading");
+});
+
+test("批量状态动作只报告真正写成功的文档 ID，供打卡桥避免误报", async () => {
+    const h = harness();
+    h.add("first", "box-1", { "custom-clip-status": "reading" });
+    h.add("failure", "box-1", { "custom-clip-status": "reading" });
+    h.add("last", "box-1", { "custom-clip-status": "reading" });
+    await reconcileIndex(h.plugin as never, { anchorNotebooks: ["box-1"] } as never);
+    h.failWriteIds.add("failure");
+    const result = await batchSetStatusDetailed(h.plugin as never, ["first", "failure", "last"], "done");
+    assert.deepEqual(result, { ok: 2, succeeded: ["first", "last"] });
+    assert.equal(h.attrs.get("first")?.["custom-clip-status"], "done");
+    assert.equal(h.attrs.get("failure")?.["custom-clip-status"], "reading");
+    assert.equal(h.attrs.get("last")?.["custom-clip-status"], "done");
+    const index = h.saved.get("glean-index.json") as { clips: Record<string, { status: string }> };
+    assert.equal(index.clips.first.status, "done");
+    assert.equal(index.clips.failure.status, "reading");
+    assert.equal(index.clips.last.status, "done");
+});
+
+test("编辑器上下文只显示已收录文档，并在属性被外部修改后读到新状态", async () => {
+    const h = harness();
+    h.add("normal", "box-1", {});
+    h.add("clip", "box-1", { "custom-clip-status": "reading", "custom-clip-content-type": "fulltext", "custom-clip-url": "https://example.com/a" });
+    assert.equal(await readClipContext("normal"), null);
+    const first = await readClipContext("clip");
+    assert.equal(first?.title, "clip");
+    assert.equal(first?.status, "reading");
+    assert.equal(first?.url, "https://example.com/a");
+    h.attrs.get("clip")!["custom-clip-status"] = "done";
+    assert.equal((await readClipContext("clip"))?.status, "done");
+    assert.equal(h.saved.has("glean-index.json"), false);
 });
 
 test("仅授权覆盖状态时仍保护已有 URL 和优先级", async () => {

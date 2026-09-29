@@ -22,12 +22,12 @@ The scan range only says where to look. A document becomes a candidate only when
 - **One capture rule**: candidate review, the editor context menu, the command palette, the SiYuan inbox, and external imports use the same attribute-writing path.
 - **Preview-first migration**: a dry-run report comes before batched backfill. Progress can be saved, paused, and resumed; existing URL, status, priority, and rating values are protected.
 - **Candidate decisions**: add or correct a source URL, explicitly capture as a local document, or exclude a false positive. Candidates do not count toward the inbox, resurfacing, or reading statistics.
-- **Content carriers**: panel cards label full-text clippings, link-only items, and explicitly selected local documents. Unknown word count, duration, or time provenance stays unknown. Consistent labels and source-opening actions across views remain under T-1716.
-- **Reading views**: Dock, Workbench, and Kanban use the same document-attribute state. Title/site search, queue switching, batch status changes, snapshots, and index rebuild are available. Tag filtering, sorting, and cross-canvas consistency are still being completed in S3 (T-1715).
+- **Content carriers**: panel cards label full-text clippings, link-only items, and explicitly selected local documents. Unknown word count, duration, or time provenance stays unknown. A shared carrier badge and navigation policy is in place: full-text opens the SiYuan document first, link-only items open a valid source URL, and local/unknown items show no web action. Mobile acceptance remains in B-0002.
+- **Reading views**: Dock, Workbench, and Kanban use the same document-attribute state. Title/site/user-tag/source/time-provenance/carrier filters, sorting, batch status changes, snapshots, and index rebuild are available. Visual consistency across canvases and mobile actions remain under B-0002.
 
 ### Reading and resurfacing
 
-- **Start reading** sets `reading` and opens the SiYuan document. Link-only items are labeled in the panel; opening the source webpage directly remains under T-1716.
+- **Start reading** sets `reading` and opens the document or source according to its carrier. Full-text clippings also show a low-distraction context beside the native editor with title, carrier, source, status, and actions. A link-only item without a source URL is clearly reported rather than presented as opened.
 - **Mark as done** is the only action that sets `done`; the optional check-in bridge also fires on this explicit action.
 - **Today's gleaning** selects a small set from unfinished items and offers Start reading, Skip for today, or Archive. Skipping only changes that day's display.
 - **Queue and stale-item hints** show when the inbox is over quota and how many items qualify as stale. A click archives them in bulk; an itemized preview is still planned under T-1710.
@@ -54,7 +54,7 @@ New items can also be confirmed from the candidate cards or added from the docum
 - Document attributes are the source of truth for article state and metadata. Plugin `saveData` holds derived indexes, migration progress, preferences, and AI usage/logs; none is the article-state source of truth.
 - Existing user URL, status, priority, and rating values are protected. A status is overwritten only by an explicit user action.
 - AI uses your configured SiYuan model by default, or an optional Glean-specific OpenAI-compatible channel. The plugin ships no API key and requires no account subscription. When the custom channel is enabled, article text is sent in prompts to the endpoint you provide; follow that service's privacy policy. AI failure does not block reading.
-- The plugin does not provide RSS subscriptions, cloud accounts or sync, social collections, paywalls, or automatic reading. A unified timeline, carrier labels, source guidance, and switchable reading assistance are planned interaction improvements informed by Folo/RSS; see [docs/RESEARCH-folo.md](docs/RESEARCH-folo.md).
+- The plugin does not provide RSS subscriptions, cloud accounts or sync, social collections, paywalls, or automatic reading. It now uses Folo/RSS-inspired unified timeline, carrier labels, and source guidance; switchable AI reading assistance is being verified item by item under T-1718. See [docs/RESEARCH-folo.md](docs/RESEARCH-folo.md).
 - SiYuan **v3.8.5+** is supported by the manifest. Desktop, mobile, and browser flows are validated separately. Official-extension clipping, real AI, inbox, external imports, and device UI status are listed in [docs/BLOCKERS.md](docs/BLOCKERS.md).
 
 Code entry points do not mean every platform path has passed acceptance. Full isolated E2E, author desktop review, mobile/browser smoke checks, and the release gate are tracked by T-1713; the README does not claim those checks are complete.

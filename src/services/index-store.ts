@@ -5,7 +5,7 @@
  */
 import type { Plugin } from "siyuan";
 import { inspectCandidate, type CandidateEvidence, type CandidateMissing, type CandidateProbe } from "../domain/candidate-policy.ts";
-import { parseClipAttrs, type ClipStatus } from "../domain/schema.ts";
+import { parseClipAttrs, parseUserTags, type ClipStatus } from "../domain/schema.ts";
 
 const INDEX_FILE = "glean-index.json";
 const INDEX_VERSION = 1;
@@ -18,6 +18,10 @@ export interface ClipIndexEntry {
     status: ClipStatus | "";
     url: string;
     site: string;
+    /** 思源根块 IAL.tags 的只读投影；不是 custom-clip-* 属性。 */
+    tags: string[];
+    /** 收录入口（custom-clip-src），用于来源筛选。 */
+    src: string;
     time: string;
     words: number;
     minutes: number;
@@ -42,6 +46,8 @@ export interface CandidateEntry {
     updated: string;
     url: string;
     site: string;
+    /** 候选根块 IAL.tags 的只读投影。 */
+    tags: string[];
     evidence: CandidateEvidence[];
     missing: CandidateMissing[];
 }
@@ -74,14 +80,44 @@ export async function loadIndex(plugin: Plugin): Promise<GleanIndex> {
                 updated: typeof value.updated === "string" ? value.updated : "",
                 url: typeof value.url === "string" ? value.url : "",
                 site: typeof value.site === "string" ? value.site : "",
+                tags: Array.isArray(value.tags) ? value.tags.filter((tag): tag is string => typeof tag === "string") : [],
                 evidence: Array.isArray(value.evidence) ? value.evidence as CandidateEvidence[] : [],
                 missing: Array.isArray(value.missing) ? value.missing as CandidateMissing[] : ["status"],
+            };
+        }
+        const rawClips = index.clips && typeof index.clips === "object" ? index.clips : {};
+        const clips: Record<string, ClipIndexEntry> = {};
+        for (const [id, value] of Object.entries(rawClips as Record<string, Partial<ClipIndexEntry>>)) {
+            if (!value || typeof value !== "object") continue;
+            clips[id] = {
+                ...(value as ClipIndexEntry),
+                id: typeof value.id === "string" ? value.id : id,
+                title: typeof value.title === "string" ? value.title : "",
+                hpath: typeof value.hpath === "string" ? value.hpath : "",
+                box: typeof value.box === "string" ? value.box : "",
+                status: value.status ?? "",
+                url: typeof value.url === "string" ? value.url : "",
+                site: typeof value.site === "string" ? value.site : "",
+                tags: Array.isArray(value.tags) ? value.tags.filter((tag): tag is string => typeof tag === "string") : [],
+                src: typeof value.src === "string" ? value.src : "",
+                time: typeof value.time === "string" ? value.time : "",
+                words: typeof value.words === "number" ? value.words : 0,
+                minutes: typeof value.minutes === "number" ? value.minutes : 0,
+                priority: typeof value.priority === "number" ? value.priority : 3,
+                rating: typeof value.rating === "number" ? value.rating : 0,
+                surfaced: typeof value.surfaced === "string" ? value.surfaced : "",
+                summary: typeof value.summary === "string" ? value.summary : "",
+                snapshot: typeof value.snapshot === "string" ? value.snapshot : "",
+                aiTags: Array.isArray(value.aiTags) ? value.aiTags.filter((tag): tag is string => typeof tag === "string") : [],
+                contentType: typeof value.contentType === "string" ? value.contentType : "",
+                timeSource: typeof value.timeSource === "string" ? value.timeSource : "",
+                updated: typeof value.updated === "string" ? value.updated : "",
             };
         }
         return {
             version: INDEX_VERSION,
             updatedAt: typeof index.updatedAt === "string" ? index.updatedAt : "",
-            clips: index.clips && typeof index.clips === "object" ? index.clips : {},
+            clips,
             candidates,
         };
     } catch {
@@ -115,6 +151,8 @@ export function applyAttrsToIndex(
             status: attrs.status ?? "",
             url: attrs.url ?? "",
             site: attrs.site ?? "",
+            tags: parseUserTags(ial.tags),
+            src: attrs.src ?? "",
             time: attrs.time ?? "",
             words: attrs.words ?? 0,
             minutes: attrs.minutes ?? 0,
@@ -142,6 +180,7 @@ export function applyAttrsToIndex(
             updated: doc.updated,
             url: probe.url,
             site: probe.site,
+            tags: parseUserTags(ial.tags),
             evidence: probe.evidence,
             missing: probe.missing,
         };

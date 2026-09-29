@@ -1,14 +1,15 @@
 <script lang="ts">
 /** 读库 Dock 面板 v2（T-1104/T-1201/T-1202/T-1300/T-1400c）：库 / 统计 / 高亮 三视图；tab 画布 rail+行表/看板。 */
+import { tick } from "svelte";
 import { openTab, showMessage } from "siyuan";
 import type { GleanFacade } from "../types";
 import { t } from "../libs/i18n";
 import type { ClipStatus } from "../domain/schema";
 import { normalizeUrl } from "../domain/url";
-import { batchSetStatus, captureDocument, findClipUrlConflict, reconcileIndex, writeClip } from "../services/clip-store";
+import { batchSetStatus, batchSetStatusDetailed, captureDocument, findClipUrlConflict, reconcileIndex, writeClip } from "../services/clip-store";
 import { autoEnrich, enrichClip } from "../services/enrich-service";
 import { snapshotClip } from "../services/snapshot-service";
-import { aggregateStats } from "../domain/stats.ts";
+import { filterAndSortLibrary, libraryFacets, type LibraryItem, type LibrarySortDirection, type LibrarySortKey } from "../domain/library-view.ts";
 import { loadIndex, type ClipIndexEntry, type CandidateEntry, type GleanIndex } from "../services/index-store";
 import StatsView from "./StatsView.svelte";
 import HighlightView from "./HighlightView.svelte";
@@ -18,6 +19,9 @@ import { archiveStale } from "../services/resurface-service";
 import { loadUiPrefs, saveUiPrefs } from "../services/prefs";
 import { ageDays } from "../domain/resurface.ts";
 import { recordReadingDone } from "../services/checkin-bridge";
+import { hasSourceAction, openTargetForCarrier, resolveCarrier, sourceUrlForCarrier } from "../domain/carrier";
+import ClipStatusActions from "./ClipStatusActions.svelte";
+import ClipRankControls from "./ClipRankControls.svelte";
 
 interface Props {
     facade: GleanFacade;
@@ -34,7 +38,13 @@ let loadError = $state(false);
 let index = $state<GleanIndex>({ version: 1, updatedAt: "", clips: {}, candidates: {} });
 let activeQueue = $state<ClipStatus>("inbox");
 let keyword = $state("");
-let sortBy = $state<"time" | "words" | "priority">("time");
+let sortBy = $state<LibrarySortKey>("time");
+let sortDirection = $state<LibrarySortDirection>("desc");
+let selectedSite = $state("");
+let selectedTag = $state("");
+let selectedSource = $state("");
+let selectedTimeSource = $state("");
+let selectedContentType = $state("");
 let selection = $state<ReadonlySet<string>>(new Set());
 let rootEl = $state<HTMLElement | null>(null);
 let layoutMode = $state<"list" | "kanban">("list");
@@ -42,6 +52,9 @@ let isTabCanvas = $state(false);
 let dragOverCol = $state<ClipStatus | null>(null);
 let dragId = $state("");
 let enrichingId = $state("");
+let statusActionId = $state("");
+let pendingFocusId = $state("");
+let focusRequested = false;
 let popupOpen = $state(false);
 
 /** 工作台弹出为独立浮窗（全宽画布，独立于 dock/tab）。 */
@@ -70,34 +83,55 @@ type Row =
     | ({ kind: "candidate" } & CandidateEntry)
     | ({ kind: "clip" } & ClipIndexEntry);
 
+const libraryItems = $derived.by<LibraryItem[]>(() => [
+    ...Object.values(index.clips).map((entry) => ({
+        kind: "clip" as const,
+        id: entry.id,
+        title: entry.title,
+        hpath: entry.hpath,
+        updated: entry.updated,
+        status: entry.status || undefined,
+        url: entry.url,
+        site: entry.site,
+        tags: entry.tags,
+        aiTags: entry.aiTags,
+        src: entry.src,
+        contentType: entry.contentType,
+        timeSource: entry.timeSource,
+        time: entry.time,
+        words: entry.words,
+        minutes: entry.minutes,
+        priority: entry.priority,
+        rating: entry.rating,
+    })),
+    ...Object.values(index.candidates).map((entry) => ({ kind: "candidate" as const, ...entry })),
+]);
+
+const facets = $derived.by(() => libraryFacets(libraryItems));
+
+const activeFilter = $derived({
+    status: activeQueue,
+    site: selectedSite,
+    tag: selectedTag,
+    src: selectedSource,
+    timeSource: selectedTimeSource,
+    contentType: selectedContentType,
+    keyword,
+    sortBy,
+    direction: sortDirection,
+    includeCandidates: activeQueue === "inbox",
+});
+
 const rows = $derived.by<Row[]>(() => {
-    const kw = keyword.trim().toLowerCase();
-    const source: Row[] =
-        activeQueue === "inbox"
-            ? [
-                  ...Object.values(index.candidates).map((item) => ({ kind: "candidate" as const, ...item })),
-                  ...Object.values(index.clips)
-                      .filter((entry) => entry.status === "inbox")
-                      .map((entry) => ({ kind: "clip" as const, ...entry })),
-              ]
-            : Object.values(index.clips)
-                  .filter((entry) => entry.status === activeQueue)
-                  .map((entry) => ({ kind: "clip" as const, ...entry }));
-
-    const filtered = kw
-        ? source.filter((item) =>
-              [item.title, item.hpath, "site" in item ? item.site : "", "url" in item ? item.url : ""]
-                  .join(" ")
-                  .toLowerCase()
-                  .includes(kw)
-          )
-        : source;
-
-    return filtered.sort((a, b) => {
-        if (sortBy === "words") return (("words" in b && b.words) || 0) - (("words" in a && a.words) || 0);
-        if (sortBy === "priority")
-            return (("priority" in b && b.priority) || 3) - (("priority" in a && a.priority) || 3);
-        return (b.updated || "") < (a.updated || "") ? 1 : -1;
+    // 筛选/排序只返回轻量投影；渲染时回到索引取完整条目，保留 snapshot 等操作字段。
+    const filtered = filterAndSortLibrary(libraryItems, activeFilter);
+    return filtered.flatMap((item): Row[] => {
+        if (item.kind === "clip") {
+            const entry = index.clips[item.id];
+            return entry ? [{ kind: "clip", ...entry }] : [];
+        }
+        const entry = index.candidates[item.id];
+        return entry ? [{ kind: "candidate", ...entry }] : [];
     });
 });
 
@@ -126,22 +160,8 @@ async function doArchiveStale() {
     }
 }
 
-/** tab 画布 rail 数据源：站点/标签聚合（纯函数，来自统计域层） */
-const railStats = $derived.by(() => {
-    const items = Object.values(index.clips).map((clip) => ({
-        id: clip.id,
-        title: clip.title,
-        site: clip.site,
-        status: clip.status,
-        words: clip.words,
-        minutes: clip.minutes,
-        rating: clip.rating,
-        time: clip.time,
-        aiTags: clip.aiTags,
-        updated: clip.updated,
-    }));
-    return aggregateStats(items);
-});
+/** Dock、工作台与看板共用的真实站点/用户标签分面。 */
+const railStats = $derived(facets);
 
 function queueCount(key: QueueKey): number {
     if (key === "inbox") return Object.values(index.clips).filter((entry) => entry.status === "inbox").length;
@@ -152,15 +172,49 @@ function queueLabel(key: QueueKey | ""): string {
     return t(i18n, `status.${key || "inbox"}`);
 }
 
+function sourceLabel(value: string): string {
+    const translated = t(i18n, `clip.source.${value}`);
+    return translated === `clip.source.${value}` ? value : translated;
+}
+
+function facetLabel(value: string, kind: "timeSource" | "contentType"): string {
+    const i18nKind = kind === "contentType" ? "type" : "timeSource";
+    const key = `clip.${i18nKind}.${value}`;
+    const translated = t(i18n, key);
+    return translated === key ? value : translated;
+}
+
+function selectQueue(queue: QueueKey): void {
+    activeQueue = queue;
+    selectedSite = "";
+    selectedTag = "";
+    selectedSource = "";
+    selectedTimeSource = "";
+    selectedContentType = "";
+    keyword = "";
+}
+
+function clearFilters(): void {
+    selectedSite = "";
+    selectedTag = "";
+    selectedSource = "";
+    selectedTimeSource = "";
+    selectedContentType = "";
+    keyword = "";
+}
+
+const hasFilters = $derived(Boolean(selectedSite || selectedTag || selectedSource || selectedTimeSource || selectedContentType || keyword.trim()));
+
 const kanbanCols = $derived.by(() => {
-    const kw = keyword.trim().toLowerCase();
-    const clips = Object.values(index.clips).filter((entry) =>
-        !kw || [entry.title, entry.hpath, entry.site, entry.url].join(" ").toLowerCase().includes(kw)
-    );
+    const clips = filterAndSortLibrary(libraryItems, {
+        ...activeFilter,
+        status: "all",
+        includeCandidates: false,
+    }).filter((item) => item.kind === "clip").map((item) => item.id);
     return queues.map((status) => ({
         status,
         label: queueLabel(status),
-        items: clips.filter((entry) => entry.status === status),
+        items: clips.map((id) => index.clips[id]).filter((entry): entry is ClipIndexEntry => Boolean(entry && entry.status === status)),
     }));
 });
 
@@ -211,14 +265,19 @@ $effect(() => {
 });
 
 $effect(() => {
-    if (rootEl?.closest(".glean-tab-root")) isTabCanvas = true;
+    if (rootEl?.closest(".glean-tab-root")) {
+        isTabCanvas = true;
+        const pending = facade.consumeLibraryFocus();
+        if (pending) void focusClipById(pending);
+    }
 });
 
 // 视图偏好持久化：挂载恢复 + 切换保存
 $effect(() => {
     void loadUiPrefs(facade.pluginInstance).then((prefs) => {
         const valid = views.some((item) => item.key === prefs.lastView);
-        if (valid) view = prefs.lastView as PanelView;
+        // 返回读库定位优先于异步恢复的上次视图，避免把 library 切回旧视图。
+        if (valid && !focusRequested) view = prefs.lastView as PanelView;
     });
 });
 
@@ -231,6 +290,52 @@ $effect(() => {
     const handler = () => void reload();
     document.addEventListener("glean:data-changed", handler);
     return () => document.removeEventListener("glean:data-changed", handler);
+});
+
+async function focusClipById(id: string): Promise<void> {
+    focusRequested = true;
+    pendingFocusId = id;
+    view = "library";
+    clearFilters();
+    const known = index.clips[id];
+    if (known) {
+        activeQueue = known.status || "inbox";
+        return;
+    }
+    await reload();
+    if (pendingFocusId !== id) return;
+    const refreshed = index.clips[id];
+    if (!refreshed) return;
+    activeQueue = refreshed.status || "inbox";
+}
+
+// 工作台可能仍在对账或等待 Svelte 渲染；保留定位请求直到目标行真正出现。
+$effect(() => {
+    const id = pendingFocusId;
+    if (!id || !isTabCanvas || loading || view !== "library" || !rootEl || !rows.some((row) => row.id === id)) return;
+    void tick().then(() => {
+        if (pendingFocusId !== id) return;
+        const target = rootEl?.querySelector<HTMLElement>(`[data-glean-clip-id="${CSS.escape(id)}"]`);
+        if (!target) return;
+        target.scrollIntoView({ block: "center", behavior: "smooth" });
+        target.classList.add("glean-focus-flash");
+        window.setTimeout(() => target.classList.remove("glean-focus-flash"), 1200);
+        pendingFocusId = "";
+    });
+});
+
+$effect(() => {
+    const handler = (event: Event) => {
+        if (!isTabCanvas) return;
+        const id = (event as CustomEvent<{ id?: string }>).detail?.id;
+        if (id) {
+            // 已存在的工作台由事件处理；同时清掉新建工作台使用的一次性请求。
+            facade.consumeLibraryFocus();
+            void focusClipById(id);
+        }
+    };
+    document.addEventListener("glean:focus-clip", handler);
+    return () => document.removeEventListener("glean:focus-clip", handler);
 });
 
 async function capture(entry: CandidateEntry) {
@@ -314,7 +419,7 @@ function candidateMissing(entry: CandidateEntry): string {
 }
 
 function clipType(entry: ClipIndexEntry): string {
-    return t(i18n, `clip.type.${entry.contentType || "unknown"}`);
+    return t(i18n, `clip.type.${resolveCarrier(entry.contentType)}`);
 }
 
 function timeSource(entry: ClipIndexEntry): string {
@@ -354,17 +459,31 @@ async function enrich(entry: ClipIndexEntry) {
 }
 
 async function setStatus(entry: ClipIndexEntry, status: ClipStatus) {
-    const ok = await batchSetStatus(facade.pluginInstance, [entry.id], status);
-    if (ok === 1 && status === "done" && facade.settings.integration.checkinEnabled && facade.settings.integration.checkinItemId) {
-        void recordReadingDone(facade.settings.integration.checkinItemId, entry.id, entry.title);
+    if (statusActionId === entry.id) return false;
+    statusActionId = entry.id;
+    try {
+        const ok = await batchSetStatus(facade.pluginInstance, [entry.id], status);
+        if (ok === 1 && status === "done" && facade.settings.integration.checkinEnabled && facade.settings.integration.checkinItemId) {
+            void recordReadingDone(facade.settings.integration.checkinItemId, entry.id, entry.title);
+        }
+        showMessage(t(i18n, ok === 1 ? "msg.statusChanged" : "msg.statusFailed"), 3000);
+        await reload();
+        return ok === 1;
+    } catch (error) {
+        console.warn("[glean] 状态变更失败:", error);
+        showMessage(t(i18n, "msg.statusFailed"), 3000);
+        return false;
+    } finally {
+        statusActionId = "";
     }
-    showMessage(t(i18n, ok === 1 ? "msg.statusChanged" : "msg.statusFailed"), 3000);
-    await reload();
-    return ok === 1;
 }
 
 async function startReading(entry: ClipIndexEntry) {
-    if (await setStatus(entry, "reading")) openDoc(entry.id);
+    if (entry.status === "reading") {
+        openReading(entry);
+        return;
+    }
+    if (await setStatus(entry, "reading")) openReading(entry);
 }
 
 function toggleSelect(id: string, event: Event) {
@@ -378,14 +497,88 @@ function toggleSelect(id: string, event: Event) {
 async function batchApply(status: ClipStatus) {
     if (selection.size === 0) return;
     const total = selection.size;
-    const ok = await batchSetStatus(facade.pluginInstance, [...selection], status);
-    showMessage(t(i18n, "msg.statusBatchResult", { ok, total }), 3500);
-    if (ok === total) selection = new Set();
-    await reload();
+    let result: { ok: number; succeeded: string[] };
+    try {
+        result = await batchSetStatusDetailed(facade.pluginInstance, [...selection], status);
+        await reload();
+    } catch (error) {
+        console.warn("[glean] 批量状态变更失败:", error);
+        showMessage(t(i18n, "msg.statusFailed"), 3500);
+        return;
+    }
+    if (status === "done" && result.ok > 0 && facade.settings.integration.checkinEnabled && facade.settings.integration.checkinItemId) {
+        const completed = result.succeeded
+            .map((id) => index.clips[id])
+            .filter((entry): entry is ClipIndexEntry => Boolean(entry && entry.status === "done"));
+        await Promise.allSettled(completed.map((entry) => recordReadingDone(
+            facade.settings.integration.checkinItemId,
+            entry.id,
+            entry.title,
+        )));
+    }
+    showMessage(t(i18n, "msg.statusBatchResult", { ok: result.ok, total }), 3500);
+    if (result.ok === total) selection = new Set();
 }
 
 function openDoc(docId: string) {
-    void openTab({ app: facade.pluginInstance.app, doc: { id: docId }, keepCursor: false });
+    facade.openReadingDocument(docId);
+}
+
+/** 全文/仅链接的有效来源是次级动作；打开来源不会改变文章状态。 */
+function openSource(entry: ClipIndexEntry) {
+    const url = sourceUrlForCarrier(entry.contentType, entry.url);
+    if (!url) {
+        showMessage(t(i18n, "clip.sourceMissing"), 3000);
+        return;
+    }
+    window.open(url, "_blank", "noopener,noreferrer");
+}
+
+/** “开始阅读”按载体选择正文或原文；导航本身不再写状态。 */
+function openReading(entry: ClipIndexEntry) {
+    if (openTargetForCarrier(entry.contentType, entry.url) === "source") openSource(entry);
+    else {
+        if (resolveCarrier(entry.contentType) === "link") showMessage(t(i18n, "clip.sourceMissing"), 3000);
+        openDoc(entry.id);
+    }
+}
+
+async function setPriority(entry: ClipIndexEntry, value: number) {
+    if (statusActionId) return;
+    statusActionId = entry.id;
+    try {
+        await writeClip(facade.pluginInstance, entry.id, { priority: value }, { force: true });
+        showMessage(t(i18n, "msg.rankSaved"), 2500);
+        await reload();
+    } catch (error) {
+        console.warn("[glean] 优先级写入失败:", error);
+        showMessage(t(i18n, "msg.statusFailed"), 3000);
+    } finally {
+        statusActionId = "";
+    }
+}
+
+async function setRating(entry: ClipIndexEntry, value: number) {
+    if (statusActionId) return;
+    statusActionId = entry.id;
+    try {
+        await writeClip(facade.pluginInstance, entry.id, { rating: value }, { force: true });
+        showMessage(t(i18n, "msg.rankSaved"), 2500);
+        await reload();
+    } catch (error) {
+        console.warn("[glean] 评分写入失败:", error);
+        showMessage(t(i18n, "msg.statusFailed"), 3000);
+    } finally {
+        statusActionId = "";
+    }
+}
+
+function carrierClass(entry: ClipIndexEntry): string {
+    return `glean-carrier-badge glean-carrier-badge--${resolveCarrier(entry.contentType)}`;
+}
+
+function carrierLabel(entry: ClipIndexEntry): string {
+    return clipType(entry);
 }
 
 function openAsset(path: string) {
@@ -486,13 +679,48 @@ function metaLine(entry: Row): string {
                 <button
                     class="glean-q"
                     class:glean-q--on={activeQueue === queue}
-                    onclick={() => (activeQueue = queue)}
+                    onclick={() => selectQueue(queue)}
                 >
                     {queueLabel(queue)}
                     <span class="glean-q__n">{queueCount(queue)}</span>
                 </button>
             {/each}
         </nav>
+
+        {#if !isTabCanvas}
+            <div class="glean-filters glean-filters--dock" aria-label={t(i18n, "library.filters")}>
+                <select class="b3-select glean-filter" aria-label={t(i18n, "library.filterSite")} bind:value={selectedSite}>
+                    <option value="">{t(i18n, "library.filterSite")}</option>
+                    {#each facets.sites as facet (facet.value)}<option value={facet.value}>{facet.value} · {facet.count}</option>{/each}
+                </select>
+                <select class="b3-select glean-filter" aria-label={t(i18n, "library.filterTag")} bind:value={selectedTag}>
+                    <option value="">{t(i18n, "library.filterTag")}</option>
+                    {#each facets.tags as facet (facet.value)}<option value={facet.value}>#{facet.value} · {facet.count}</option>{/each}
+                </select>
+                <select class="b3-select glean-filter" aria-label={t(i18n, "library.filterSource")} bind:value={selectedSource}>
+                    <option value="">{t(i18n, "library.filterSource")}</option>
+                    {#each facets.sources as facet (facet.value)}<option value={facet.value}>{sourceLabel(facet.value)} · {facet.count}</option>{/each}
+                </select>
+                <select class="b3-select glean-filter" aria-label={t(i18n, "library.filterTimeSource")} bind:value={selectedTimeSource}>
+                    <option value="">{t(i18n, "library.filterTimeSource")}</option>
+                    {#each facets.timeSources as facet (facet.value)}<option value={facet.value}>{facetLabel(facet.value, "timeSource")} · {facet.count}</option>{/each}
+                </select>
+                <select class="b3-select glean-filter" aria-label={t(i18n, "library.filterContentType")} bind:value={selectedContentType}>
+                    <option value="">{t(i18n, "library.filterContentType")}</option>
+                    {#each facets.contentTypes as facet (facet.value)}<option value={facet.value}>{facetLabel(facet.value, "contentType")} · {facet.count}</option>{/each}
+                </select>
+                <select class="b3-select glean-filter" aria-label={t(i18n, "library.sort")} bind:value={sortBy}>
+                    <option value="time">{t(i18n, "action.sortTime")}</option>
+                    <option value="updated">{t(i18n, "library.sortUpdated")}</option>
+                    <option value="words">{t(i18n, "action.sortWords")}</option>
+                    <option value="priority">{t(i18n, "action.sortPriority")}</option>
+                    <option value="rating">{t(i18n, "library.sortRating")}</option>
+                    <option value="title">{t(i18n, "library.sortTitle")}</option>
+                </select>
+                <button class="glean-filter-dir" aria-label={t(i18n, "library.toggleDirection")} title={t(i18n, "library.toggleDirection")} onclick={() => (sortDirection = sortDirection === "desc" ? "asc" : "desc")}>{sortDirection === "desc" ? "↓" : "↑"}</button>
+                {#if hasFilters}<button class="glean-filter-clear" onclick={clearFilters}>{t(i18n, "library.clearFilters")}</button>{/if}
+            </div>
+        {/if}
 
         {#if isTabCanvas}
             <div class="glean-libbar">
@@ -509,12 +737,45 @@ function metaLine(entry: Row): string {
                     >⇆ {t(i18n, "view.modeKanban")}</button>
                 </div>
                 <div class="glean-libbar__spacer"></div>
+                <div class="glean-filters" aria-label={t(i18n, "library.filters")}>
+                    <select class="b3-select glean-filter" aria-label={t(i18n, "library.filterSite")} bind:value={selectedSite}>
+                        <option value="">{t(i18n, "library.filterSite")}</option>
+                        {#each facets.sites as facet (facet.value)}<option value={facet.value}>{facet.value} · {facet.count}</option>{/each}
+                    </select>
+                    <select class="b3-select glean-filter" aria-label={t(i18n, "library.filterTag")} bind:value={selectedTag}>
+                        <option value="">{t(i18n, "library.filterTag")}</option>
+                        {#each facets.tags as facet (facet.value)}<option value={facet.value}>#{facet.value} · {facet.count}</option>{/each}
+                    </select>
+                    <select class="b3-select glean-filter" aria-label={t(i18n, "library.filterSource")} bind:value={selectedSource}>
+                        <option value="">{t(i18n, "library.filterSource")}</option>
+                        {#each facets.sources as facet (facet.value)}<option value={facet.value}>{sourceLabel(facet.value)} · {facet.count}</option>{/each}
+                    </select>
+                    <select class="b3-select glean-filter" aria-label={t(i18n, "library.filterTimeSource")} bind:value={selectedTimeSource}>
+                        <option value="">{t(i18n, "library.filterTimeSource")}</option>
+                        {#each facets.timeSources as facet (facet.value)}<option value={facet.value}>{facetLabel(facet.value, "timeSource")} · {facet.count}</option>{/each}
+                    </select>
+                    <select class="b3-select glean-filter" aria-label={t(i18n, "library.filterContentType")} bind:value={selectedContentType}>
+                        <option value="">{t(i18n, "library.filterContentType")}</option>
+                        {#each facets.contentTypes as facet (facet.value)}<option value={facet.value}>{facetLabel(facet.value, "contentType")} · {facet.count}</option>{/each}
+                    </select>
+                    <select class="b3-select glean-filter" aria-label={t(i18n, "library.sort")} bind:value={sortBy}>
+                        <option value="time">{t(i18n, "action.sortTime")}</option>
+                        <option value="updated">{t(i18n, "library.sortUpdated")}</option>
+                        <option value="words">{t(i18n, "action.sortWords")}</option>
+                        <option value="priority">{t(i18n, "action.sortPriority")}</option>
+                        <option value="rating">{t(i18n, "library.sortRating")}</option>
+                        <option value="title">{t(i18n, "library.sortTitle")}</option>
+                    </select>
+                    <button class="glean-filter-dir" aria-label={t(i18n, "library.toggleDirection")} title={t(i18n, "library.toggleDirection")} onclick={() => (sortDirection = sortDirection === "desc" ? "asc" : "desc")}>{sortDirection === "desc" ? "↓" : "↑"}</button>
+                    {#if hasFilters}<button class="glean-filter-clear" onclick={clearFilters}>{t(i18n, "library.clearFilters")}</button>{/if}
+                </div>
             </div>
         {/if}
 
         {#if loading}
             <div class="glean-panel__loading">{t(i18n, "panel.loading")}</div>
-        {:else if isTabCanvas && layoutMode === "kanban"}            <div class="glean-kanban">
+        {:else if isTabCanvas && layoutMode === "kanban"}
+            <div class="glean-kanban">
                 {#each kanbanCols as col (col.status)}
                     <div
                         class="glean-kcol"
@@ -535,6 +796,7 @@ function metaLine(entry: Row): string {
                         {#each col.items as entry (entry.id)}
                             <div
                                 class="glean-kcard"
+                                data-glean-clip-id={entry.id}
                                 draggable="true"
                                 ondragstart={(e) => { dragId = entry.id; e.dataTransfer?.setData("text/plain", entry.id); }}
                                 ondragend={() => { dragId = ""; dragOverCol = null; }}
@@ -544,12 +806,33 @@ function metaLine(entry: Row): string {
                             >
                                 <div class="glean-kcard__t">{entry.title || t(i18n, "panel.untitled")}</div>
                                 <div class="glean-kcard__m">
+                                    <span class={carrierClass(entry)}>{carrierLabel(entry)}</span>
                                     {#if entry.site}<span>📰 {entry.site}</span>{/if}
                                     {#if entry.minutes > 0}<span>· {t(i18n, "panel.minutes", { n: entry.minutes })}</span>{/if}
                                     {#if (entry.status === "inbox" || entry.status === "later") && staleText(entry.time) !== null}
                                         <span class="glean-stale">{staleText(entry.time)}</span>
                                     {/if}
+                                    {#if hasSourceAction(entry.contentType, entry.url)}
+                                        <button class="glean-op-btn" title={t(i18n, "clip.openSource")} aria-label={t(i18n, "clip.openSource")} onclick={(e) => { e.stopPropagation(); openSource(entry); }}>↗</button>
+                                    {:else if entry.contentType === "link"}
+                                        <span class="glean-source-missing">{t(i18n, "clip.sourceMissing")}</span>
+                                    {/if}
                                 </div>
+                                <ClipRankControls
+                                    {i18n}
+                                    priority={entry.priority}
+                                    rating={entry.rating}
+                                    disabled={statusActionId === entry.id}
+                                    onPriority={(value) => void setPriority(entry, value)}
+                                    onRating={(value) => void setRating(entry, value)}
+                                />
+                                <ClipStatusActions
+                                    {i18n}
+                                    status={entry.status || "inbox"}
+                                    disabled={statusActionId === entry.id}
+                                    onStartReading={() => void startReading(entry)}
+                                    onSetStatus={(status) => void setStatus(entry, status)}
+                                />
                             </div>
                         {/each}
                     </div>
@@ -563,25 +846,25 @@ function metaLine(entry: Row): string {
                         <button
                             class="glean-rail__item"
                             class:glean-rail__item--on={activeQueue === queue}
-                            onclick={() => (activeQueue = queue)}
+                            onclick={() => selectQueue(queue)}
                         >
                             <span class={statusDotClass(queue)}></span>{queueLabel(queue)}
                             <span class="glean-rail__n">{queueCount(queue)}</span>
                         </button>
                     {/each}
-                    {#if railStats.bySite.length > 0}
+                    {#if railStats.sites.length > 0}
                         <div class="glean-rail__title">{t(i18n, "rail.sites")}</div>
-                        {#each railStats.bySite as site (site.name)}
-                            <button class="glean-rail__item" onclick={() => (keyword = site.name)}>
-                                {site.name}<span class="glean-rail__n">{site.count}</span>
+                        {#each railStats.sites as site (site.value)}
+                            <button class="glean-rail__item" class:glean-rail__item--on={selectedSite === site.value} onclick={() => (selectedSite = selectedSite === site.value ? "" : site.value)}>
+                                {site.value}<span class="glean-rail__n">{site.count}</span>
                             </button>
                         {/each}
                     {/if}
-                    {#if railStats.byTag.length > 0}
+                    {#if railStats.tags.length > 0}
                         <div class="glean-rail__title">{t(i18n, "rail.tags")}</div>
-                        {#each railStats.byTag.slice(0, 8) as tag (tag.name)}
-                            <button class="glean-rail__item" onclick={() => (keyword = tag.name)}>
-                                #{tag.name}<span class="glean-rail__n">{tag.count}</span>
+                        {#each railStats.tags.slice(0, 8) as tag (tag.value)}
+                            <button class="glean-rail__item" class:glean-rail__item--on={selectedTag === tag.value} onclick={() => (selectedTag = selectedTag === tag.value ? "" : tag.value)}>
+                                #{tag.value}<span class="glean-rail__n">{tag.count}</span>
                             </button>
                         {/each}
                     {/if}
@@ -599,6 +882,7 @@ function metaLine(entry: Row): string {
                                 {#if entry.kind === "clip"}
                                     <div
                                         class="glean-drow"
+                                        data-glean-clip-id={entry.id}
                                         class:glean-drow--selected={selection.has(entry.id)}
                                         onclick={() => openDoc(entry.id)}
                                         role="button"
@@ -607,6 +891,10 @@ function metaLine(entry: Row): string {
                                         <span class={statusDotClass(entry.status)}></span>
                                         <span class="glean-drow__ti">{entry.title || t(i18n, "panel.untitled")}</span>
                                         <span class="glean-drow__site">{entry.site || t(i18n, "panel.unknownSite")}</span>
+                                         <span class={carrierClass(entry)} title={entry.contentType === "link" && !hasSourceAction(entry.contentType, entry.url) ? t(i18n, "clip.sourceMissing") : carrierLabel(entry)}>{carrierLabel(entry)}</span>
+                                        {#if entry.contentType === "link" && !hasSourceAction(entry.contentType, entry.url)}
+                                            <span class="glean-source-missing">{t(i18n, "clip.sourceMissing")}</span>
+                                        {/if}
                                         <span class="glean-drow__len" title={timeSource(entry)}>{lengthLabel(entry)}</span>
                                         <span class="glean-drow__st">
                                             <span class="glean-st-badge glean-st-badge--{entry.status}">{queueLabel(entry.status)}</span>
@@ -624,13 +912,29 @@ function metaLine(entry: Row): string {
                                                 disabled={enrichingId === entry.id}
                                                 onclick={(e) => { e.stopPropagation(); void enrich(entry); }}
                                             >✨</button>
-                                            {#if entry.status !== "archived"}
-                                                <button
-                                                    class="glean-op-btn"
-                                                    title={t(i18n, "action.archive")}
-                                                    onclick={(e) => { e.stopPropagation(); void setStatus(entry, "archived"); }}
-                                                >⤓</button>
-                                            {/if}
+                                             {#if hasSourceAction(entry.contentType, entry.url)}
+                                                 <button
+                                                     class="glean-op-btn"
+                                                     title={t(i18n, "clip.openSource")}
+                                                     aria-label={t(i18n, "clip.openSource")}
+                                                     onclick={(e) => { e.stopPropagation(); openSource(entry); }}
+                                                 >↗</button>
+                                             {/if}
+                                             <ClipStatusActions
+                                                 {i18n}
+                                                 status={entry.status || "inbox"}
+                                                 disabled={statusActionId === entry.id}
+                                                 onStartReading={() => void startReading(entry)}
+                                                 onSetStatus={(status) => void setStatus(entry, status)}
+                                             />
+                                             <ClipRankControls
+                                                 {i18n}
+                                                 priority={entry.priority}
+                                                 rating={entry.rating}
+                                                 disabled={statusActionId === entry.id}
+                                                 onPriority={(value) => void setPriority(entry, value)}
+                                                 onRating={(value) => void setRating(entry, value)}
+                                             />
                                             <label onclick={(e) => e.stopPropagation()}>
                                                 <input
                                                     type="checkbox"
@@ -705,6 +1009,7 @@ function metaLine(entry: Row): string {
                     {#each rows as entry (entry.id)}
                         <article
                             class="glean-card"
+                            data-glean-clip-id={entry.kind === "clip" ? entry.id : undefined}
                             class:glean-card--candidate={entry.kind === "candidate"}
                             class:glean-card--selected={selection.has(entry.id)}
                         >
@@ -719,6 +1024,12 @@ function metaLine(entry: Row): string {
                                     {:else if entry.kind === "candidate"}
                                         <span title={entry.url || entry.hpath}>{entry.site || candidateEvidence(entry)}</span>
                                     {/if}
+                                     {#if entry.kind === "clip"}
+                                         <span class={carrierClass(entry)}>{carrierLabel(entry)}</span>
+                                         {#if entry.contentType === "link" && !hasSourceAction(entry.contentType, entry.url)}
+                                             <span class="glean-source-missing">{t(i18n, "clip.sourceMissing")}</span>
+                                         {/if}
+                                     {/if}
                                     {#if metaLine(entry)}
                                         <span>· {metaLine(entry)}</span>
                                     {/if}
@@ -763,33 +1074,32 @@ function metaLine(entry: Row): string {
                                         disabled={enrichingId === entry.id}
                                         onclick={(e) => { e.stopPropagation(); void enrich(entry); }}
                                     >✨</button>
-                                    {#if entry.status === "inbox" || entry.status === "later"}
-                                        <button
-                                            class="glean-op-btn"
-                                            title={t(i18n, "action.startReading")}
-                                            onclick={(e) => { e.stopPropagation(); void startReading(entry); }}
-                                        >▶</button>
-                                    {:else if entry.status === "reading"}
-                                        <button
-                                            class="glean-op-btn"
-                                            title={t(i18n, "action.markDone")}
-                                            onclick={(e) => { e.stopPropagation(); void setStatus(entry, "done"); }}
-                                        >✓</button>
-                                    {/if}
-                                    {#if entry.status !== "archived"}
-                                        <button
-                                            class="glean-op-btn"
-                                            title={t(i18n, "action.archive")}
-                                            onclick={(e) => { e.stopPropagation(); void setStatus(entry, "archived"); }}
-                                        >⤓</button>
-                                    {:else}
-                                        <button
-                                            class="glean-op-btn"
-                                            title={t(i18n, "action.restore")}
-                                            onclick={(e) => { e.stopPropagation(); void setStatus(entry, "later"); }}
-                                        >↩</button>
-                                    {/if}
+                                     {#if hasSourceAction(entry.contentType, entry.url)}
+                                         <button
+                                             class="glean-op-btn"
+                                             title={t(i18n, "clip.openSource")}
+                                             aria-label={t(i18n, "clip.openSource")}
+                                             onclick={(e) => { e.stopPropagation(); openSource(entry); }}
+                                         >↗</button>
+                                     {:else if entry.contentType === "link"}
+                                         <span class="glean-source-missing">{t(i18n, "clip.sourceMissing")}</span>
+                                     {/if}
                                 </div>
+                                <ClipRankControls
+                                    {i18n}
+                                    priority={entry.priority}
+                                    rating={entry.rating}
+                                    disabled={statusActionId === entry.id}
+                                    onPriority={(value) => void setPriority(entry, value)}
+                                    onRating={(value) => void setRating(entry, value)}
+                                />
+                                <ClipStatusActions
+                                    {i18n}
+                                    status={entry.status || "inbox"}
+                                    disabled={statusActionId === entry.id}
+                                    onStartReading={() => void startReading(entry)}
+                                    onSetStatus={(status) => void setStatus(entry, status)}
+                                />
                             {/if}
                             {#if entry.kind === "clip"}
                                 <label class="glean-card__check" onclick={(e) => e.stopPropagation()}>

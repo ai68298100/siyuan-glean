@@ -95,6 +95,8 @@ async function runFlow(client, workspace) {
     const clip = await import("../../src/services/clip-store.ts");
     const migrate = await import("../../src/services/migrate-service.ts");
     const importer = await import("../../src/services/import-service.ts");
+    const carrier = await import("../../src/domain/carrier.ts");
+    const library = await import("../../src/domain/library-view.ts");
     const newPlugin = pluginDataAt(workspace);
     const plugin = newPlugin();
 
@@ -204,7 +206,69 @@ async function runFlow(client, workspace) {
     assert(tags.includes("技术") && tags.includes("历史"));
     pass("Pocket CSV 导入标签、历史收藏时间与已读状态");
 
-    const clipIds = [urlOnly, oldA, oldB, importedId];
+    const fulltext = await makeDoc("S3全文", "- [https://example.org/s3-fulltext](https://example.org/s3-fulltext)\n\n这篇剪藏有可在思源内阅读的完整正文。", "阅读,技术");
+    const link = await makeDoc("S3仅链接", "- [https://example.org/s3-link](https://example.org/s3-link)");
+    const local = await makeDoc("S3本地文", "这是用户明确加入读库的本地笔记，正文保留在思源中。");
+    const unknown = await makeDoc("S3旧数据", "历史文档的载体未确认。");
+    const fulltextCapture = await clip.captureDocument(newPlugin(), fulltext, { src: "web-clipper" });
+    const linkCapture = await clip.captureDocument(newPlugin(), link, { src: "web-clipper" });
+    const localCapture = await clip.captureDocument(newPlugin(), local, { src: "manual" });
+    assert.equal(fulltextCapture.attrs.contentType, "fulltext");
+    assert.equal(fulltextCapture.attrs.url, "https://example.org/s3-fulltext");
+    assert(fulltextCapture.attrs.words > 0);
+    assert.equal(linkCapture.attrs.contentType, "link");
+    assert.equal(linkCapture.attrs.url, "https://example.org/s3-link");
+    assert.equal(linkCapture.attrs.words, undefined);
+    assert.equal(localCapture.attrs.contentType, "local");
+    assert.equal(localCapture.attrs.url, undefined);
+    await clip.writeClip(newPlugin(), unknown, { status: "later", url: "https://example.org/s3-unknown" });
+    assert.equal((await clip.readClip(unknown)).contentType, undefined);
+    assert.equal(carrier.openTargetForCarrier(fulltextCapture.attrs.contentType, fulltextCapture.attrs.url), "document");
+    assert.equal(carrier.sourceUrlForCarrier(fulltextCapture.attrs.contentType, fulltextCapture.attrs.url), fulltextCapture.attrs.url);
+    assert.equal(carrier.openTargetForCarrier(linkCapture.attrs.contentType, linkCapture.attrs.url), "source");
+    assert.equal(carrier.openTargetForCarrier("link", "javascript:alert(1)"), "document");
+    assert.equal(carrier.sourceUrlForCarrier("link", "javascript:alert(1)"), "");
+    assert.equal(carrier.openTargetForCarrier(localCapture.attrs.contentType, localCapture.attrs.url), "document");
+    assert.equal(carrier.sourceUrlForCarrier("local", "https://example.org/incidental"), "");
+    assert.equal(carrier.openTargetForCarrier(undefined, "https://example.org/s3-unknown"), "document");
+    assert.equal(carrier.sourceUrlForCarrier(undefined, "https://example.org/s3-unknown"), "");
+    pass("全文、仅链接、本地与未知载体真实收录；主入口及来源动作遵守载体属性");
+
+    const ranked = await clip.writeClip(newPlugin(), fulltext, { priority: 5, rating: 4 }, { force: true });
+    assert.equal(ranked.attrs.priority, 5);
+    assert.equal(ranked.attrs.rating, 4);
+    const protectedWrite = await clip.writeClip(newPlugin(), fulltext, {
+        url: "https://example.org/should-not-replace", status: "done", priority: 1, rating: 1,
+    });
+    assert.deepEqual(protectedWrite.skippedKeys, [
+        "custom-clip-url", "custom-clip-status", "custom-clip-priority", "custom-clip-rating",
+    ]);
+    assert.equal(protectedWrite.attrs.status, "inbox");
+    assert.equal(protectedWrite.attrs.priority, 5);
+    assert.equal(protectedWrite.attrs.rating, 4);
+    for (const status of ["later", "reading", "done", "archived", "later"]) {
+        assert.equal(await clip.batchSetStatus(newPlugin(), [fulltext], status), 1);
+        const attrs = await client.apiChecked("/api/attr/getBlockAttrs", { id: fulltext });
+        const index = await newPlugin().loadData("glean-index.json");
+        assert.equal(attrs["custom-clip-status"], status);
+        assert.equal(index.clips[fulltext].status, status);
+        assert.equal(attrs["custom-clip-priority"], "5");
+        assert.equal(attrs["custom-clip-rating"], "4");
+    }
+    pass("显式优先级、评分和五态动作持久化；普通补丁保留用户手填字段");
+
+    const beforeFilter = await client.apiChecked("/api/attr/getBlockAttrs", { id: fulltext });
+    const currentIndex = await newPlugin().loadData("glean-index.json");
+    const items = Object.values(currentIndex.clips).map((entry) => ({ ...entry, kind: "clip" }));
+    const filtered = library.filterAndSortLibrary(items, {
+        status: "later", tag: "阅读", src: "web-clipper", contentType: "fulltext", sortBy: "priority",
+    });
+    assert.deepEqual(filtered.map((item) => item.id), [fulltext]);
+    assert(library.libraryFacets(items).tags.some((facet) => facet.value === "阅读"));
+    assert.deepEqual(await client.apiChecked("/api/attr/getBlockAttrs", { id: fulltext }), beforeFilter);
+    pass("真实索引上的组合筛选和排序只改变视图，不改文档属性");
+
+    const clipIds = [urlOnly, oldA, oldB, importedId, fulltext, link, local, unknown];
     await until("新收录文档 SQL 属性索引", async () => {
         const rows = await clip.listClipDocs();
         return clipIds.every((id) => rows.some((row) => row.id === id));
@@ -215,6 +279,16 @@ async function runFlow(client, workspace) {
     assert.equal(rebuilt.clips[oldA].status, "inbox");
     assert.equal(rebuilt.clips[oldB].status, "inbox");
     assert.equal(rebuilt.clips[importedId].status, "done");
+    assert.equal(rebuilt.clips[fulltext].status, "later");
+    assert.equal(rebuilt.clips[fulltext].contentType, "fulltext");
+    assert.equal(rebuilt.clips[fulltext].src, "web-clipper");
+    assert(rebuilt.clips[fulltext].tags.includes("阅读"));
+    assert.equal(rebuilt.clips[fulltext].priority, 5);
+    assert.equal(rebuilt.clips[fulltext].rating, 4);
+    assert.equal(rebuilt.clips[link].contentType, "link");
+    assert.equal(rebuilt.clips[local].contentType, "local");
+    assert.equal(rebuilt.clips[unknown].contentType, "");
+    assert(rebuilt.clips[importedId].tags.includes("技术"));
     assert(rebuilt.candidates[noUrl]);
     assert.equal(rebuilt.candidates[ordinary], undefined);
     assert.equal(rebuilt.candidates[urlOnly], undefined);

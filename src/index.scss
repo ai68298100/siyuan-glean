@@ -343,6 +343,12 @@
     }
 }
 
+.glean-focus-flash {
+    outline: 2px solid var(--glean-accent-b);
+    outline-offset: 2px;
+    transition: outline-color 0.2s;
+}
+
 .glean-card__title {
     font-size: 12.8px;
     font-weight: 600;
@@ -374,6 +380,31 @@
     font-weight: 500;
     flex-shrink: 0;
     max-width: 45%;
+}
+
+.glean-carrier-badge {
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+    padding: 1px 6px;
+    border-radius: 999px;
+    font-size: 9.5px;
+    line-height: 1.45;
+    background: rgba(128, 128, 128, 0.12);
+    color: var(--b3-theme-on-surface);
+    white-space: nowrap;
+
+    &--fulltext { color: var(--glean-st-reading); background: rgba(139, 92, 246, 0.12); }
+    &--link { color: var(--glean-st-inbox); background: rgba(245, 158, 11, 0.12); }
+    &--local { color: var(--glean-st-done); background: rgba(16, 185, 129, 0.12); }
+}
+
+.glean-source-missing,
+.glean-surf-source-missing {
+    color: var(--b3-theme-on-surface);
+    opacity: 0.72;
+    font-size: 9.5px;
+    white-space: nowrap;
 }
 
 .glean-dot {
@@ -432,6 +463,40 @@
     transition: all 0.22s var(--glean-ease-out);
 }
 
+.glean-card:not(.glean-card--candidate) {
+    .glean-card__body {
+        padding-right: 20px;
+    }
+
+    .glean-card__ops {
+        position: static;
+        display: flex;
+        justify-content: flex-end;
+        margin-top: 6px;
+        opacity: 1;
+        transform: none;
+    }
+
+    .glean-rank-controls {
+        margin-top: 7px;
+    }
+
+    .glean-status-actions {
+        display: flex;
+        margin-top: 7px;
+    }
+}
+
+.glean-kcard .glean-rank-controls,
+.glean-kcard .glean-status-actions {
+    display: flex;
+    margin-top: 8px;
+}
+
+.glean-kcard .glean-status-actions__btn {
+    flex: 1 1 auto;
+}
+
 .glean-op-btn {
     width: 24px;
     height: 24px;
@@ -450,6 +515,101 @@
         color: #fff;
         background: var(--glean-grad);
         border-color: transparent;
+    }
+}
+
+/* S3：状态动作是每种画布都可直接操作的语义按钮，不能依赖 hover 才出现。 */
+.glean-status-actions {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 3px;
+    min-width: 0;
+}
+
+.glean-status-actions__btn {
+    min-height: 24px;
+    min-width: 24px;
+    padding: 2px 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    border: 1px solid var(--b3-border-color);
+    border-radius: 8px;
+    background: var(--b3-theme-surface);
+    color: var(--b3-theme-on-surface);
+    font-size: 10px;
+    line-height: 1.2;
+    cursor: pointer;
+    white-space: nowrap;
+
+    &:hover:not(:disabled) {
+        color: var(--b3-theme-on-background);
+        border-color: var(--glean-accent-b);
+    }
+
+    &:disabled {
+        opacity: 0.5;
+        cursor: default;
+    }
+
+    &--primary {
+        border-color: transparent;
+        background: var(--glean-grad);
+        color: #fff;
+    }
+
+    &--restore {
+        color: var(--glean-st-later);
+    }
+
+    &--archive {
+        color: var(--b3-theme-on-surface);
+    }
+}
+
+.glean-rank-controls {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+    color: var(--b3-theme-on-surface);
+    font-size: 10px;
+}
+
+.glean-rank-controls__field {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+
+    .b3-select {
+        min-height: 24px;
+        height: 24px;
+        padding: 1px 18px 1px 5px;
+        font-size: 10px;
+        border-radius: 7px;
+    }
+}
+
+/* 卡片/行表原本只在 hover 显示图标；状态动作和评分在触屏上也必须可见。 */
+.glean-card__ops:has(.glean-status-actions),
+.glean-drow__ops:has(.glean-status-actions) {
+    opacity: 1;
+    transform: none;
+}
+
+.glean-card__ops .glean-status-actions,
+.glean-drow__ops .glean-status-actions {
+    flex-shrink: 0;
+}
+
+@media (hover: none) {
+    .glean-card__ops,
+    .glean-drow__ops,
+    .glean-card__check {
+        opacity: 1;
+        transform: none;
     }
 }
 
@@ -1307,6 +1467,44 @@
     flex: 1;
 }
 
+.glean-filters {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.glean-filters--dock {
+    padding: 0 12px 8px;
+    justify-content: flex-start;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+}
+
+.glean-filter {
+    max-width: 132px;
+    min-width: 82px;
+    font-size: 11px;
+}
+
+.glean-filter-dir,
+.glean-filter-clear {
+    border: 1px solid var(--b3-border-color);
+    border-radius: 8px;
+    background: var(--b3-theme-surface);
+    color: var(--b3-theme-on-background);
+    min-height: 28px;
+    padding: 3px 8px;
+    cursor: pointer;
+    font-size: 11px;
+}
+
+.glean-filter-clear {
+    color: var(--b3-theme-on-surface);
+}
+
 .glean-seg {
     display: flex;
     gap: 2px;
@@ -1514,6 +1712,7 @@
 .glean-drow {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: 12px;
     padding: 10px 14px;
     border-radius: 14px;
@@ -1574,9 +1773,13 @@
     .glean-drow__ops {
         display: flex;
         align-items: center;
+        justify-content: flex-end;
+        flex-wrap: wrap;
         gap: 4px;
-        opacity: 0;
-        transition: opacity 0.2s;
+        opacity: 1;
+        flex-basis: 100%;
+        padding-top: 6px;
+        border-top: 1px solid var(--b3-border-color);
     }
 
     &.glean-drow--selected .glean-drow__ops {
@@ -1924,4 +2127,94 @@
     height: 100%;
     min-height: 0;
     overflow: hidden;
+}
+
+/* 原生编辑器上的低干扰阅读上下文（T-1721）。上下文在正文之外挂载，
+ * 宽度不足时动作可横向滚动，移动端仍保留可见按钮。 */
+.glean-reading-context-host {
+    position: relative;
+    z-index: 2;
+    width: 100%;
+}
+
+.glean-reading-context {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 12px;
+    border-bottom: 1px solid var(--b3-border-color);
+    background: color-mix(in srgb, var(--b3-theme-background) 92%, var(--glean-accent-a));
+    color: var(--b3-theme-on-background);
+    min-width: 0;
+    font-size: 11px;
+}
+
+.glean-reading-context__main {
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+.glean-reading-context__title {
+    font-weight: 650;
+    line-height: 1.35;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.glean-reading-context__meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 3px;
+    min-width: 0;
+    color: var(--b3-theme-on-surface);
+}
+
+.glean-reading-context__status { flex-shrink: 0; }
+
+.glean-reading-context__source {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    opacity: .75;
+}
+
+.glean-reading-context__actions {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex: 0 0 auto;
+    max-width: 58%;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.glean-reading-context__actions::-webkit-scrollbar { display: none; }
+
+.glean-reading-context__source-btn,
+.glean-reading-context__back {
+    flex: 0 0 auto;
+    border: 1px solid var(--b3-border-color);
+    border-radius: 8px;
+    padding: 4px 7px;
+    background: transparent;
+    color: var(--b3-theme-on-surface);
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.glean-reading-context__source-btn:hover,
+.glean-reading-context__back:hover { background: var(--b3-theme-background-light); }
+
+.glean-reading-context__missing {
+    color: var(--b3-theme-on-surface);
+    opacity: .72;
+    white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+    .glean-reading-context { align-items: flex-start; flex-direction: column; gap: 6px; }
+    .glean-reading-context__actions { max-width: 100%; width: 100%; }
 }

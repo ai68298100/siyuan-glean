@@ -1,10 +1,11 @@
 <script lang="ts">
 /** 今日拾遗视图（T-1400/T-1402）：确定性挑选，读了/改天/归档，平静原则文案。 */
-import { openTab, showMessage } from "siyuan";
+import { showMessage } from "siyuan";
 import type { GleanFacade } from "../types";
 import { t } from "../libs/i18n";
 import { computeDaily, actOnSurface } from "../services/resurface-service";
 import { ageDays, type SurfacePick } from "../domain/resurface";
+import { hasSourceAction, openTargetForCarrier, resolveCarrier, sourceUrlForCarrier } from "../domain/carrier";
 
 interface Props {
     facade: GleanFacade;
@@ -38,7 +39,29 @@ $effect(() => {
 });
 
 function openDoc(docId: string) {
-    void openTab({ app: facade.pluginInstance.app, doc: { id: docId }, keepCursor: false });
+    facade.openReadingDocument(docId);
+}
+
+function openSource(pick: SurfacePick) {
+    const url = sourceUrlForCarrier(pick.item.contentType, pick.item.url);
+    if (!url) {
+        showMessage(t(i18n, "clip.sourceMissing"), 3000);
+        return;
+    }
+    window.open(url, "_blank", "noopener,noreferrer");
+}
+
+function openReading(pick: SurfacePick) {
+    if (openTargetForCarrier(pick.item.contentType, pick.item.url) === "source") {
+        openSource(pick);
+        return;
+    }
+    if (resolveCarrier(pick.item.contentType) === "link") showMessage(t(i18n, "clip.sourceMissing"), 3000);
+    openDoc(pick.item.id);
+}
+
+function carrierLabel(pick: SurfacePick): string {
+    return t(i18n, `clip.type.${resolveCarrier(pick.item.contentType)}`);
 }
 
 async function act(pick: SurfacePick, action: "read" | "later" | "archive") {
@@ -46,7 +69,7 @@ async function act(pick: SurfacePick, action: "read" | "later" | "archive") {
     actingId = pick.item.id;
     try {
         await actOnSurface(facade.pluginInstance, pick.item.id, action);
-        if (action === "read") openDoc(pick.item.id);
+        if (action === "read") openReading(pick);
         await reload();
         onMutated();
     } catch (error) {
@@ -110,12 +133,20 @@ function staleOf(pick: SurfacePick): number {
                     </div>
                     <div class="glean-surf__summary">{summaryText(pick)}</div>
                     <div class="glean-surf__meta">
+                        <span class={`glean-carrier-badge glean-carrier-badge--${resolveCarrier(pick.item.contentType)}`}>{carrierLabel(pick)}</span>
                         {#if pick.item.aiTags.length > 0}
                             <span>#{pick.item.aiTags.slice(0, 3).join(" #")}</span>
                         {/if}
                         <span>· {t(i18n, "panel.staleDays", { n: staleOf(pick) })}</span>
                     </div>
                     <div class="glean-surf__acts">
+                        {#if hasSourceAction(pick.item.contentType, pick.item.url)}
+                            <button class="glean-surf-act" disabled={actingId === pick.item.id} onclick={() => openSource(pick)}>
+                                ↗ {t(i18n, "clip.openSource")}
+                            </button>
+                        {:else if pick.item.contentType === "link"}
+                            <span class="glean-surf-source-missing">{t(i18n, "clip.sourceMissing")}</span>
+                        {/if}
                         <button class="glean-surf-act" disabled={actingId === pick.item.id} onclick={() => void act(pick, "later")}>
                             {t(i18n, "resurface.later")}
                         </button>

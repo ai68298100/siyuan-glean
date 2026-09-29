@@ -129,6 +129,26 @@ function parseTags(value: string | undefined): string[] {
         .filter((tag) => tag.length > 0);
 }
 
+/**
+ * 解析思源根块的用户 tags IAL。
+ *
+ * `tags` 是思源/剪藏写入的用户标签位，不属于 custom-clip-* 属性，
+ * 因此只能作为只读投影使用。思源版本和导入来源可能使用逗号、空格，
+ * 或 `#标签#` 包裹，统一在域层拆成可比较的标签名。
+ */
+export function parseUserTags(value: string | undefined): string[] {
+    if (!value) return [];
+    const seen = new Set<string>();
+    const tags: string[] = [];
+    for (const raw of value.split(/[,，\s]+/)) {
+        const tag = raw.trim().replace(/^#+|#+$/g, "");
+        if (!tag || seen.has(tag.toLowerCase())) continue;
+        seen.add(tag.toLowerCase());
+        tags.push(tag);
+    }
+    return tags;
+}
+
 /** 把根块 IAL（getBlockAttrs 的返回）解析成强类型属性视图。非法值一律丢弃，不抛错。 */
 export function parseClipAttrs(ial: Record<string, string | undefined>): ClipAttrs {
     return {

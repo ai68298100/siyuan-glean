@@ -23,4 +23,10 @@ export interface GleanFacade {
     notifyDataChanged(): void;
     /** 当前活动文档（右键/命令收录目标、高亮侧栏来源），无则空串 */
     currentDocId(): string;
+    /** 用思源原生编辑器打开一篇文章，并记录会话内最近阅读文档。 */
+    openReadingDocument(docId: string): void;
+    /** 从原生正文返回读库并定位到同一篇文章。 */
+    openLibraryArticle(docId: string): Promise<void>;
+    /** 新挂载工作台消费返回定位请求，避免 tab 异步初始化时丢失事件。 */
+    consumeLibraryFocus(): string;
 }

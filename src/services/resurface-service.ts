@@ -29,6 +29,8 @@ function indexToSurfaceItems(index: GleanIndex): SurfaceItem[] {
         aiTags: clip.aiTags,
         lastSurfaced: clip.surfaced,
         summary: clip.summary,
+        contentType: clip.contentType,
+        url: clip.url,
     }));
 }
 
@@ -91,6 +93,8 @@ export function surfaceItemsFromAttrs(pairs: Array<{ id: string; attrs: Record<s
             aiTags: attrs.aiTags,
             lastSurfaced: attrs.lastSurfaced ?? "",
             summary: attrs.summary ?? "",
+            contentType: attrs.contentType,
+            url: attrs.url,
         };
     });
 }

@@ -20,6 +20,9 @@ export interface SurfaceItem {
     lastSurfaced: string;
     /** AI 一句话摘要（重浮卡展示）；无则空串 */
     summary: string;
+    /** 阅读载体与来源 URL；仅用于导航提示，不参与重浮评分。 */
+    contentType?: string;
+    url?: string;
 }
 
 export interface SurfacePick {
