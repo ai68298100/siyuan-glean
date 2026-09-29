@@ -163,5 +163,17 @@
   "panel.staleCandidates": "${n} stale articles are archive candidates",
   "panel.archiveStale": "Archive all",
   "panel.staleArchived": "Archived ${n} stale articles",
-  "resurface.date": "${m}/${d}"
+  "resurface.date": "${m}/${d}",
+  "settings.aiEnrichMode": "AI enrichment trigger",
+  "settings.aiEnrichModeDesc": "Auto = spend tokens on capture; Manual = only via ✨ on a card; Off = never call. Semantic dedup uses the embedding model, no LLM tokens",
+  "settings.modeOff": "Off",
+  "settings.modeManual": "Manual",
+  "settings.modeAuto": "On capture",
+  "settings.aiDailyCap": "Daily enrichment cap",
+  "settings.aiDailyCapDesc": "Shared by auto & manual; reached means no more calls today (0 = unlimited)",
+  "settings.aiTodayUsage": "Enriched today",
+  "settings.aiTodayUsageDesc": "Resets daily, counts this device only",
+  "settings.aiDedup": "Semantic dedup on enrich",
+  "settings.aiDedupDesc": "Embedding search warns about near-duplicates; no LLM tokens",
+  "ai.capReached": "Daily enrichment cap reached ({n}) — adjust it in settings"
 }

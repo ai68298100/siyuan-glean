@@ -3,7 +3,7 @@
 > 续跑口令（新会话直接粘贴）：
 > **阅读 D:\思源插件\小驴拾遗\docs\HANDOFF.md，按其中"下一步"继续开发；工程纪律见 AGENTS.md 与 docs/DECISIONS.md，UI 以 docs/UI-STANDARD.md 为准，先通读 TODO.md 与 docs/DATA-CONTRACT.md 再动手。**
 
-## 当前状态（2026-09-29 第五轮开发完成：M4 抗吃灰内核）
+## 当前状态（2026-09-29 第六轮开发完成：AI 消耗控制 + 专用通道研究）
 
 - 仓库：`D:\思源插件\小驴拾遗` = GitHub [ai68298100/siyuan-glean](https://github.com/ai68298100/siyuan-glean)，main 已推送。
 - **M3 AI 富化全量落地**（v0.3.0 工作版本，未打 tag）：
@@ -43,13 +43,16 @@
 - 配额/超龄：库视图 inbox/later 顶部横幅（overQuota / stalePool ≥ staleDays 一键归档）。
 - node --test：tests/*.test.ts 直接 import domain（带 .ts 扩展名）。
 
-## 下一步（M5 生态 + 发布准备）
+## AI 通道速记（第六轮新增）
 
-1. **v1.0.0 发布材料**（作者真机验收 M1-M4 后）：README 头图 GIF 脚本（剪藏→面板→收录→看板→重浮）、
-   集市五张截图（收件池/看板/重浮卡/关联推荐/迁移报告——按 UI-STANDARD 从真机截）、
-   集市描述关键词复查、CHANGELOG.md 建立。打 tag/发 Release 逐次请示作者（D-0005）。
-2. **M5 生态任务逐项请示后再启动**（规划书口径）：T-1500 收集箱 / T-1501 Pocket/Omnivore/wallabag 导入 /
-   T-1502 摘录制卡（等内核 V2）/ T-1503 推入渐进阅读（D-0008 延后项，作者发话才立项）/ T-1504 快照 /
-   T-1505 小驴协同。
-3. B-0004 AI 真机验收（作者配置模型后）+ B-0002 UI 真机验收，验收问题记 BLOCKERS 修复。
-4. 技术债小项：面板视图偏好持久化（记住上次视图）、ai-log 查看入口（设置-维护）。
+- 富化三态 enrichMode(off/manual/auto，默认 manual) + enrichDailyCap 每日上限 + usageToday 用量计数
+  （ai-usage.json 按日重置）+ dedupOnEnrich 独立开关；旧 enrichOnCapture 布尔自动归一化。
+- **方案 B（拾遗专用 AI 通道）已研究可行但未实施**——getSecret 存 key + 桌面直连 + 浏览器降级，
+  等作者拍板（docs/RESEARCH-ai-providers.md）；方案 A（思源原生多 Provider 绑「AI 编辑器」）零开发已加引导。
+
+## 下一步（发布准备 + 作者决策点）
+
+1. **作者决策点**：方案 B（拾遗专用 AI 通道）是否实施（RESEARCH-ai-providers.md §4）；三里程碑验收节奏。
+2. **v1.0.0 发布材料**：README 头图 GIF 脚本、集市五张截图清单、CHANGELOG.md、集市描述关键词复查。
+3. **AI 开关真机验收**（并入 B-0004）：三态切换/每日上限截断/今日用量/查重开关的实际效果。
+4. 技术债小项：面板视图偏好持久化、ai-log 查看入口（设置-维护）、富化队列串行化（批量收录时避免并发打满）。

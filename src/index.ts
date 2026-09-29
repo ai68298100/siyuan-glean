@@ -230,7 +230,7 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
             return;
         }
         showMessage(t(this.i18n, "ai.enriching"), 3000);
-        const outcome = await enrichClip(this, docId);
+        const outcome = await enrichClip(this, docId, this.settings);
         if (outcome.ok) {
             showMessage(
                 outcome.duplicates.length > 0
@@ -238,6 +238,8 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
                     : t(this.i18n, "ai.enrichDone"),
                 3500
             );
+        } else if (outcome.skipped === "cap") {
+            showMessage(t(this.i18n, "ai.capReached", { n: this.settings.ai.enrichDailyCap }), 4000);
         } else {
             showMessage(t(this.i18n, "ai.enrichFailed"), 3000);
         }

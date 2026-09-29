@@ -163,5 +163,17 @@
   "panel.quotaOver": "新剪藏 ${total} 篇，超过了提醒上限 ${quota}——建议先清一清",
   "panel.staleCandidates": "${n} 篇超龄未读，成了归档候选",
   "panel.archiveStale": "一键归档",
-  "panel.staleArchived": "已归档 ${n} 篇超龄文章"
+  "panel.staleArchived": "已归档 ${n} 篇超龄文章",
+  "settings.aiEnrichMode": "AI 富化触发",
+  "settings.aiEnrichModeDesc": "自动=收录时消耗 token 生成摘要与标签；手动=只在卡片点 ✨ 时；关闭=完全不调用。语义查重走嵌入模型，不耗 LLM token",
+  "settings.modeOff": "关闭",
+  "settings.modeManual": "仅手动",
+  "settings.modeAuto": "收录时自动",
+  "settings.aiDailyCap": "每日富化上限",
+  "settings.aiDailyCapDesc": "自动与手动共享额度，超出后今天不再调用（0 = 不限）",
+  "settings.aiTodayUsage": "今日已富化",
+  "settings.aiTodayUsageDesc": "按天重置，只统计本机操作",
+  "settings.aiDedup": "富化时语义查重",
+  "settings.aiDedupDesc": "嵌入检索近义文章并提醒，不消耗 LLM token",
+  "ai.capReached": "今日富化次数已达上限（{n}），可在设置中调整"
 }

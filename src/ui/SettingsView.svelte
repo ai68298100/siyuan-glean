@@ -5,6 +5,7 @@ import { showMessage } from "siyuan";
 import { listNotebooks, type NotebookMeta } from "../api/client";
 import { rebuildIndex } from "../services/clip-store";
 import { bindAllClipsToLibrary } from "../services/library-db";
+import { usageToday } from "../services/enrich-service";
 import { t } from "../libs/i18n";
 import type { GleanFacade } from "../types";
 
@@ -18,9 +19,12 @@ const i18n = $derived(facade.i18n);
 
 let notebooks = $state<NotebookMeta[]>([]);
 let anchorNotebooks = $state<string[]>(facade.settings.anchorNotebooks);
-let aiEnrich = $state(facade.settings.ai.enrichOnCapture);
+let aiEnrichMode = $state<"off" | "manual" | "auto">(facade.settings.ai.enrichMode);
+let aiDailyCap = $state(facade.settings.ai.enrichDailyCap);
+let aiDedup = $state(facade.settings.ai.dedupOnEnrich);
 let aiRelated = $state(facade.settings.ai.relatedWhileReading);
 let aiActions = $state(facade.settings.ai.presetActions);
+let usageCount = $state(0);
 let dailyCount = $state(facade.settings.resurface.dailyCount);
 let includeDone = $state(facade.settings.resurface.includeDoneHighlights);
 let inboxQuota = $state(facade.settings.inboxQuota);
@@ -30,6 +34,7 @@ let boardBusy = $state(false);
 
 onMount(() => {
     void listNotebooks().then((items) => (notebooks = items));
+    void usageToday(facade.pluginInstance).then((n) => (usageCount = n));
 });
 
 function toggleNotebook(id: string) {
@@ -43,7 +48,13 @@ async function save() {
     await facade.updateSettings({
         ...facade.settings,
         anchorNotebooks: [...anchorNotebooks],
-        ai: { enrichOnCapture: aiEnrich, relatedWhileReading: aiRelated, presetActions: aiActions },
+        ai: {
+            enrichMode: aiEnrichMode,
+            enrichDailyCap: aiDailyCap,
+            dedupOnEnrich: aiDedup,
+            relatedWhileReading: aiRelated,
+            presetActions: aiActions,
+        },
         resurface: { dailyCount, includeDoneHighlights: includeDone },
         inboxQuota,
         staleDays,
@@ -51,10 +62,15 @@ async function save() {
     });
 }
 
-async function toggleAi(key: "enrich" | "related" | "actions") {
-    if (key === "enrich") aiEnrich = !aiEnrich;
+async function toggleAi(key: "dedup" | "related" | "actions") {
+    if (key === "dedup") aiDedup = !aiDedup;
     else if (key === "related") aiRelated = !aiRelated;
     else aiActions = !aiActions;
+    await save();
+}
+
+async function setMode(mode: "off" | "manual" | "auto") {
+    aiEnrichMode = mode;
     await save();
 }
 
@@ -117,8 +133,50 @@ async function doMountBoard() {
         <div class="glean-set-title">{t(i18n, "settings.aiGroup")}</div>
         <div class="glean-set-group">
             <div class="glean-set-row">
-                <div class="glean-set-row__lb">{t(i18n, "settings.aiEnrichOnCapture")}</div>
-                <button class="glean-sw" class:glean-sw--on={aiEnrich} onclick={() => void toggleAi("enrich")}></button>
+                <div class="glean-set-row__lb">
+                    {t(i18n, "settings.aiEnrichMode")}
+                    <div class="glean-set-row__desc">{t(i18n, "settings.aiEnrichModeDesc")}</div>
+                </div>
+            </div>
+            <div class="glean-set-row glean-seg-row">
+                <div class="glean-seg">
+                    <button
+                        class="glean-seg__btn"
+                        class:glean-seg__btn--on={aiEnrichMode === "off"}
+                        onclick={() => void setMode("off")}
+                    >{t(i18n, "settings.modeOff")}</button>
+                    <button
+                        class="glean-seg__btn"
+                        class:glean-seg__btn--on={aiEnrichMode === "manual"}
+                        onclick={() => void setMode("manual")}
+                    >{t(i18n, "settings.modeManual")}</button>
+                    <button
+                        class="glean-seg__btn"
+                        class:glean-seg__btn--on={aiEnrichMode === "auto"}
+                        onclick={() => void setMode("auto")}
+                    >{t(i18n, "settings.modeAuto")}</button>
+                </div>
+            </div>
+            <div class="glean-set-row">
+                <div class="glean-set-row__lb">
+                    {t(i18n, "settings.aiDailyCap")}
+                    <div class="glean-set-row__desc">{t(i18n, "settings.aiDailyCapDesc")}</div>
+                </div>
+                <input class="glean-mini-input" type="number" min="0" max="500" bind:value={aiDailyCap} onchange={() => void save()} />
+            </div>
+            <div class="glean-set-row">
+                <div class="glean-set-row__lb">
+                    {t(i18n, "settings.aiTodayUsage")}
+                    <div class="glean-set-row__desc">{t(i18n, "settings.aiTodayUsageDesc")}</div>
+                </div>
+                <span class="chip glean-chip">{usageCount}{aiDailyCap > 0 ? " / " + aiDailyCap : ""}</span>
+            </div>
+            <div class="glean-set-row">
+                <div class="glean-set-row__lb">
+                    {t(i18n, "settings.aiDedup")}
+                    <div class="glean-set-row__desc">{t(i18n, "settings.aiDedupDesc")}</div>
+                </div>
+                <button class="glean-sw" class:glean-sw--on={aiDedup} onclick={() => void toggleAi("dedup")}></button>
             </div>
             <div class="glean-set-row">
                 <div class="glean-set-row__lb">{t(i18n, "settings.aiRelated")}</div>

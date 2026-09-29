@@ -8,12 +8,41 @@ import type { Plugin } from "siyuan";
 import { chatGPT } from "../api/ai";
 import { embeddingStat, exportMdContent, semanticSearchBlock } from "../api/client";
 import { stripMarkdown } from "../domain/migrate";
+import { todayStamp } from "../domain/resurface";
 import { buildEnrichPrompt, isLikelyDuplicate, parseEnrichResponse, type EnrichResult } from "../domain/enrich";
 import { writeClip } from "./clip-store";
 import type { GleanSettings } from "./settings";
 
 const LOG_FILE = "ai-log.json";
 const LOG_LIMIT = 50;
+const USAGE_FILE = "ai-usage.json";
+
+export interface AiUsage {
+    date: string;
+    count: number;
+}
+
+/** 今日富化次数（自动+手动合计，按日重置）。 */
+export async function usageToday(plugin: Plugin): Promise<number> {
+    const usage = await loadUsage(plugin);
+    return usage.date === todayStamp() ? usage.count : 0;
+}
+
+async function loadUsage(plugin: Plugin): Promise<AiUsage> {
+    try {
+        const raw = await plugin.loadData(USAGE_FILE);
+        if (raw && typeof raw === "object" && typeof (raw as AiUsage).date === "string") return raw as AiUsage;
+    } catch { /* 忽略 */ }
+    return { date: "", count: 0 };
+}
+
+async function incUsage(plugin: Plugin): Promise<number> {
+    const usage = await loadUsage(plugin);
+    const today = todayStamp();
+    const count = usage.date === today ? usage.count + 1 : 1;
+    await plugin.saveData(USAGE_FILE, { date: today, count });
+    return count;
+}
 
 interface LogEntry {
     at: string;
@@ -47,8 +76,11 @@ export interface EnrichOutcome {
     skipped?: string;
 }
 
-/** 单篇富化。任何失败静默返回 ok:false，不抛错。 */
-export async function enrichClip(plugin: Plugin, docId: string): Promise<EnrichOutcome> {
+/** 单篇富化。任何失败静默返回 ok:false，不抛错；每日上限超限返回 skipped:"cap"。 */
+export async function enrichClip(plugin: Plugin, docId: string, settings: GleanSettings): Promise<EnrichOutcome> {
+    if (settings.ai.enrichDailyCap > 0 && (await usageToday(plugin)) >= settings.ai.enrichDailyCap) {
+        return { ok: false, duplicates: [], skipped: "cap" };
+    }
     try {
         const exported = await exportMdContent(docId);
         const markdown = exported?.content ?? "";
@@ -63,7 +95,10 @@ export async function enrichClip(plugin: Plugin, docId: string): Promise<EnrichO
             return { ok: false, duplicates: [], skipped: "parse" };
         }
         await writeClip(plugin, docId, { summary: parsed.summary, aiTags: parsed.tags });
-        const duplicates = await findDuplicates(plugin, docId, title || parsed.summary);
+        await incUsage(plugin);
+        const duplicates = settings.ai.dedupOnEnrich
+            ? await findDuplicates(plugin, docId, title || parsed.summary)
+            : [];
         return { ok: true, duplicates };
     } catch (error) {
         await appendLog(plugin, docId, "enrich", String((error as Error)?.message ?? error));
@@ -88,11 +123,12 @@ export async function findDuplicates(plugin: Plugin, docId: string, query: strin
 }
 
 /**
- * 收录自动富化入口（fire-and-forget）：开关开启才执行；绝不阻塞收录主流程。
+ * 收录自动富化入口（fire-and-forget）：仅在 enrichMode==="auto" 时执行；绝不阻塞收录主流程。
+ * 上限在 enrichClip 内统一把守（auto 与 manual 共享额度）。
  */
 export function autoEnrich(plugin: Plugin, docId: string, settings: GleanSettings): void {
-    if (!settings.ai.enrichOnCapture) return;
-    void enrichClip(plugin, docId);
+    if (settings.ai.enrichMode !== "auto") return;
+    void enrichClip(plugin, docId, settings);
 }
 
 /** 相关旧文（T-1301）：嵌入未启用返回空数组（UI 整块隐藏）。 */

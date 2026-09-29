@@ -3,18 +3,22 @@
  * 这份只是偏好；文章数据永远在文档属性上（D-0001），删了设置也不伤库。
  */
 import type { Plugin } from "siyuan";
-import { DEFAULT_MIGRATE_BATCH_SIZE, MAX_MIGRATE_BATCH_SIZE } from "../domain/migrate-consts";
+import { DEFAULT_MIGRATE_BATCH_SIZE, MAX_MIGRATE_BATCH_SIZE } from "../domain/migrate-consts.ts";
 
 export interface GleanSettings {
     version: 1;
     /** 读库笔记本（主锚点），notebook id 列表 */
     anchorNotebooks: string[];
     ai: {
-        /** 收录时自动摘要+AI标签（M3 生效） */
-        enrichOnCapture: boolean;
-        /** 阅读时推荐相关旧文（M3 生效） */
+        /** 富化触发模式：off=关闭 / manual=仅手动(✨) / auto=收录时自动。token 消耗的主开关。 */
+        enrichMode: "off" | "manual" | "auto";
+        /** 每日富化次数上限（自动+手动合计），0=不限；超限静默跳过并提示 */
+        enrichDailyCap: number;
+        /** 富化时做语义查重（走嵌入模型，不耗 LLM token） */
+        dedupOnEnrich: boolean;
+        /** 阅读时推荐相关旧文（走嵌入模型，不耗 LLM token） */
         relatedWhileReading: boolean;
-        /** 预置 AI 动作（总结/要点/反方观点）（M3 生效） */
+        /** 预置 AI 动作（总结/要点/反方观点，不自动消耗 token） */
         presetActions: boolean;
     };
     resurface: {
@@ -34,7 +38,13 @@ export interface GleanSettings {
 export const DEFAULT_SETTINGS: GleanSettings = {
     version: 1,
     anchorNotebooks: [],
-    ai: { enrichOnCapture: true, relatedWhileReading: true, presetActions: true },
+    ai: {
+        enrichMode: "manual",
+        enrichDailyCap: 20,
+        dedupOnEnrich: true,
+        relatedWhileReading: true,
+        presetActions: true,
+    },
     resurface: { dailyCount: 3, includeDoneHighlights: false },
     inboxQuota: 50,
     staleDays: 90,
@@ -49,9 +59,15 @@ function clampInt(value: unknown, min: number, max: number, fallback: number): n
     return Math.min(max, Math.max(min, parsed));
 }
 
+function normalizeEnrichMode(value: unknown, legacyOnCapture: unknown): "off" | "manual" | "auto" {
+    if (value === "off" || value === "manual" || value === "auto") return value;
+    if (typeof legacyOnCapture === "boolean") return legacyOnCapture ? "auto" : "manual";
+    return DEFAULT_SETTINGS.ai.enrichMode;
+}
+
 export function normalizeSettings(raw: unknown): GleanSettings {
-    const input = (raw ?? {}) as Partial<GleanSettings>;
-    const ai = (input.ai ?? {}) as Partial<GleanSettings["ai"]>;
+    const input = (raw ?? {}) as Partial<GleanSettings> & { ai?: Partial<GleanSettings["ai"]> & { enrichOnCapture?: unknown } };
+    const ai = (input.ai ?? {}) as Partial<GleanSettings["ai"]> & { enrichOnCapture?: unknown };
     const resurface = (input.resurface ?? {}) as Partial<GleanSettings["resurface"]>;
     return {
         version: 1,
@@ -59,7 +75,10 @@ export function normalizeSettings(raw: unknown): GleanSettings {
             ? input.anchorNotebooks.filter((id): id is string => typeof id === "string" && id.length > 0)
             : [],
         ai: {
-            enrichOnCapture: ai.enrichOnCapture ?? DEFAULT_SETTINGS.ai.enrichOnCapture,
+            // 兼容旧版布尔 enrichOnCapture：true→auto，false→manual
+            enrichMode: normalizeEnrichMode(ai.enrichMode, ai.enrichOnCapture),
+            enrichDailyCap: clampInt(ai.enrichDailyCap, 0, 500, DEFAULT_SETTINGS.ai.enrichDailyCap),
+            dedupOnEnrich: ai.dedupOnEnrich ?? DEFAULT_SETTINGS.ai.dedupOnEnrich,
             relatedWhileReading: ai.relatedWhileReading ?? DEFAULT_SETTINGS.ai.relatedWhileReading,
             presetActions: ai.presetActions ?? DEFAULT_SETTINGS.ai.presetActions,
         },

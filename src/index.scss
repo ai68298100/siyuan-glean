@@ -1684,3 +1684,18 @@
         color: var(--glean-accent-b);
     }
 }
+
+/* 设置内分段选择（富化模式三态） */
+.glean-seg-row {
+    border-bottom: 1px solid var(--b3-border-color);
+    padding: 8px 14px;
+}
+
+.glean-chip {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: rgba(249, 115, 22, 0.1);
+    color: var(--glean-accent-b);
+}

@@ -223,7 +223,7 @@ async function enrich(entry: ClipIndexEntry) {
     if (enrichingId) return;
     enrichingId = entry.id;
     try {
-        const outcome = await enrichClip(facade.pluginInstance, entry.id);
+        const outcome = await enrichClip(facade.pluginInstance, entry.id, facade.settings);
         if (outcome.ok) {
             showMessage(
                 outcome.duplicates.length > 0
@@ -231,6 +231,8 @@ async function enrich(entry: ClipIndexEntry) {
                     : t(i18n, "ai.enrichDone"),
                 3500
             );
+        } else if (outcome.skipped === "cap") {
+            showMessage(t(i18n, "ai.capReached", { n: facade.settings.ai.enrichDailyCap }), 4000);
         } else {
             showMessage(t(i18n, "ai.enrichFailed"), 3000);
         }

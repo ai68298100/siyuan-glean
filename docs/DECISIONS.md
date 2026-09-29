@@ -106,3 +106,16 @@ url=来源。同步方向：向导/刷新时属性→看板（对账补绑+列�
 按标题找回宿主文档 → 从块 markdown 还原 avId → 按列名对账补字段（列名记忆在 fieldMap，
 用户改列名不伤插件）。行绑定 isDetached:false，itemID≠文档 ID（换算只经
 getAttributeViewItemIDsByBoundIDs）。AV 端点形状经 av-spike.mjs 6/6 复验（本仓库 scripts/spike/）。
+
+## D-0013（2026-09-29）AI 消耗控制三态化 + 专用通道研究结论（作者命题）
+
+作者要求：AI 消耗 token，全自动消耗过大，需细化开关；并研究"拾遗单独设置 AI API"的可行性。
+1. **消耗控制（本轮已实现）**：富化触发改三态 `enrichMode: off/manual/auto`（默认 **manual**，
+   token 消耗需用户显式开自动）；每日上限 `enrichDailyCap`（自动+手动共享额度，超限静默跳过+提示）；
+   设置页显示今日用量；语义查重独立开关（dedupOnEnrich——走嵌入不耗 LLM token，与相关旧文同级对待）。
+   旧版布尔 enrichOnCapture 归一化兼容（true→auto/false→manual）。旧决策 D-0007 的"收录即富化是默认推荐路径"
+   修订为"默认仅手动，用户显式开自动"。
+2. **专用通道研究结论（docs/RESEARCH-ai-providers.md）**：思源 v3.8.5 原生多 Provider + 分场景绑模型
+   ——用户把「AI 编辑器」绑到免费模型即零开发生效（方案 A，已加引导文案）；"拾遗独立通道"（方案 B：
+   getSecret 存 key + 桌面直连 + 浏览器降级）技术可行，但涉及 D-0004 修订与密钥流程设计，
+   **待作者拍板后实施**，本轮不实现。

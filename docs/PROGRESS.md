@@ -1,5 +1,14 @@
 # 进度（PROGRESS）
 
+## AI 消耗控制 + 专用通道研究 ✅（2026-09-29，作者命题）
+
+- [x] 富化三态触发 off/manual/auto（默认 manual，token 需显式开自动）+ 每日上限 + 今日用量显示
+- [x] 语义查重独立开关（嵌入通道，不耗 LLM token）；旧 enrichOnCapture 布尔归一化兼容
+- [x] 每日上限门卫进 enrichClip（auto/manual 共享额度，超限 skipped:"cap" + 提示）；用量 ai-usage.json 按日重置
+- [x] 研究：思源原生多 Provider+场景绑定（方案 A 零开发可用，已加引导）；拾遗专用通道方案 B 可行待拍板
+      （docs/RESEARCH-ai-providers.md + D-0013）
+- [x] 质量门禁：check 0 错、53/53 测试（settings 兼容 5 项）、构建+门禁全绿、spike 7/7（177 i18n 键）
+
 ## M4 — 抗吃灰内核（v0.4.0 工作版本，待真机验收）✅（2026-09-29）
 
 - [x] T-1400 每日重浮：domain/resurface.ts 纯函数——确定性挑选（stableHash(id+日期) tiebreak，
