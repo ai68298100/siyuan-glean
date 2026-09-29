@@ -225,5 +225,16 @@
   "msg.captureDone": "已收录 ${done} 篇${enqueued > 0 ? `，${enqueued} 篇进入 AI 富化队列` : \"\"}",
   "import.prevPage": "上一页",
   "import.nextPage": "下一页",
-  "import.pageInfo": "第 ${page} / ${total} 页"
+  "import.pageInfo": "第 ${page} / ${total} 页",
+  "settings.aiChannel": "AI 通道",
+  "settings.aiChannelDesc": "思源内置=设置→AI 里「AI 编辑器」绑定的模型；拾遗专用=单独配置 OpenAI 兼容 API（适合免费/低价模型，密钥加密存于思源密钥库）",
+  "settings.channelSiyuan": "思源内置",
+  "settings.channelCustom": "拾遗专用",
+  "settings.customBaseUrl": "API 地址",
+  "settings.customModel": "模型名",
+  "settings.customSecretName": "密钥名",
+  "settings.customSecretDesc": "在思源 设置→密钥和变量 里创建密钥并填入 API Key，此处填该密钥的名字（内核加密存储，不落插件文件）",
+  "settings.testConnection": "测试连接",
+  "ai.testOk": "连接正常：${message}",
+  "ai.testFail": "连接失败：${message}"
 }

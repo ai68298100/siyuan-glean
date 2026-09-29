@@ -20,6 +20,14 @@ export interface GleanSettings {
         relatedWhileReading: boolean;
         /** 预置 AI 动作（总结/要点/反方观点，不自动消耗 token） */
         presetActions: boolean;
+        /** LLM 通道：siyuan=思源内置（默认）；custom=拾遗专用 OpenAI 兼容 API（D-0015） */
+        channel: "siyuan" | "custom";
+        /** 自定义通道：baseURL（OpenAI 兼容，如 https://api.free.example.com/v1） */
+        customBaseUrl: string;
+        /** 自定义通道：模型名 */
+        customModel: string;
+        /** 自定义通道：密钥在思源「密钥和变量」库中的名字（内核加密存储，经 getSecret 读取） */
+        customSecretName: string;
     };
     resurface: {
         /** 每日重浮篇数（M4 生效） */
@@ -49,6 +57,10 @@ export const DEFAULT_SETTINGS: GleanSettings = {
         dedupOnEnrich: true,
         relatedWhileReading: true,
         presetActions: true,
+        channel: "siyuan",
+        customBaseUrl: "",
+        customModel: "",
+        customSecretName: "glean",
     },
     resurface: { dailyCount: 3, includeDoneHighlights: false },
     inboxQuota: 50,
@@ -88,6 +100,12 @@ export function normalizeSettings(raw: unknown): GleanSettings {
             dedupOnEnrich: ai.dedupOnEnrich ?? DEFAULT_SETTINGS.ai.dedupOnEnrich,
             relatedWhileReading: ai.relatedWhileReading ?? DEFAULT_SETTINGS.ai.relatedWhileReading,
             presetActions: ai.presetActions ?? DEFAULT_SETTINGS.ai.presetActions,
+            channel: ai.channel === "custom" ? "custom" : "siyuan",
+            customBaseUrl: typeof ai.customBaseUrl === "string" ? ai.customBaseUrl : "",
+            customModel: typeof ai.customModel === "string" ? ai.customModel : "",
+            customSecretName: typeof ai.customSecretName === "string" && ai.customSecretName
+                ? ai.customSecretName
+                : DEFAULT_SETTINGS.ai.customSecretName,
         },
         resurface: {
             dailyCount: clampInt(resurface.dailyCount, 1, 10, DEFAULT_SETTINGS.resurface.dailyCount),

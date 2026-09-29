@@ -1,5 +1,15 @@
 # 进度（PROGRESS）
 
+## 方案 B — 拾遗专用 AI 通道实施 ✅（2026-09-29，第十五轮；T-1300c）
+
+- [x] domain/ai-direct.ts（URL 拼接/载荷/响应解析/前端降级判定，纯函数）
+- [x] api/ai-direct.ts（直连 chat/completions：getSecret 读密钥→60s 超时→防御式解析；
+      browser-* CORS 明确报错）+ testDirectChannel（设置页测试连接）
+- [x] enrich-service callLLM 通道路由（custom 直连 / siyuan 官方，token 治理不变）
+- [x] 设置 AI 组改版：通道二选一分段 + 自定义三字段 + 测试连接；238 i18n 键
+- [x] 质量门禁：check 0 错、71/71 测试、构建+门禁全绿、spike 9/9
+- 联调（作者）：真实免费 API 测试连接与富化（并入 B-0004）
+
 ## E2E 启动器 + 纯浏览器限制调查 ✅（2026-09-29，第十三轮）
 
 - [x] scripts/e2e/launch-e2e.mjs：隔离工作区+真实 dist+信任启用+演示数据（4 篇各状态剪藏），

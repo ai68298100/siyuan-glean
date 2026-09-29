@@ -6,6 +6,7 @@
  */
 import type { Plugin } from "siyuan";
 import { chatGPT } from "../api/ai";
+import { chatCompletionDirect } from "../api/ai-direct";
 import { embeddingStat, exportMdContent, semanticSearchBlock } from "../api/client";
 import { stripMarkdown } from "../domain/migrate";
 import { todayStamp } from "../domain/resurface";
@@ -94,6 +95,22 @@ export interface EnrichOutcome {
     skipped?: string;
 }
 
+/** LLM 通道路由：custom=拾遗专用直连（失败转 reason）；siyuan=官方通道。 */
+async function callLLM(
+    plugin: Plugin,
+    settings: GleanSettings,
+    msg: string
+): Promise<{ ok: boolean; text?: string; reason?: string }> {
+    if (settings.ai.channel === "custom") {
+        return chatCompletionDirect(plugin, settings, msg);
+    }
+    try {
+        return { ok: true, text: await chatGPT(msg) };
+    } catch (error) {
+        return { ok: false, reason: String((error as Error)?.message ?? error).slice(0, 160) };
+    }
+}
+
 /** 单篇富化（串行队列执行）。任何失败静默返回 ok:false，不抛错；每日上限超限返回 skipped:"cap"。 */
 export function enrichClip(plugin: Plugin, docId: string, settings: GleanSettings): Promise<EnrichOutcome> {
     return enqueueEnrich(() => enrichClipInner(plugin, docId, settings));
@@ -110,8 +127,12 @@ async function enrichClipInner(plugin: Plugin, docId: string, settings: GleanSet
         const title = titleMatch ? titleMatch[1].trim() : "";
         const plain = stripMarkdown(markdown);
         const prompt = buildEnrichPrompt(title, plain);
-        const raw = await chatGPT(prompt);
-        const parsed: EnrichResult | null = parseEnrichResponse(raw);
+        const llm = await callLLM(plugin, settings, prompt);
+        if (!llm.ok) {
+            await appendLog(plugin, docId, "llm", llm.reason || "调用失败");
+            return { ok: false, duplicates: [], skipped: "error" };
+        }
+        const parsed: EnrichResult | null = parseEnrichResponse(llm.text ?? "");
         if (!parsed) {
             await appendLog(plugin, docId, "parse", "模型响应无法解析为 JSON，已跳过");
             return { ok: false, duplicates: [], skipped: "parse" };

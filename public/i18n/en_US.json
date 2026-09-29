@@ -225,5 +225,16 @@
   "msg.captureDone": "Captured ${done}${enqueued > 0 ? `, ${enqueued} queued for AI enrichment` : \"\"}",
   "import.prevPage": "Prev",
   "import.nextPage": "Next",
-  "import.pageInfo": "Page ${page} / ${total}"
+  "import.pageInfo": "Page ${page} / ${total}",
+  "settings.aiChannel": "AI channel",
+  "settings.aiChannelDesc": "SiYuan built-in = the model bound to \"AI Editor\" in Settings→AI; Glean-specific = a separate OpenAI-compatible API (great for free/cheap models; key encrypted in SiYuan secrets)",
+  "settings.channelSiyuan": "SiYuan built-in",
+  "settings.channelCustom": "Glean-specific",
+  "settings.customBaseUrl": "API base URL",
+  "settings.customModel": "Model name",
+  "settings.customSecretName": "Secret name",
+  "settings.customSecretDesc": "Create a secret with your API key in SiYuan Settings→Secrets & variables, then enter its name here (kernel-encrypted, never stored in plugin files)",
+  "settings.testConnection": "Test connection",
+  "ai.testOk": "Connection OK: ${message}",
+  "ai.testFail": "Connection failed: ${message}"
 }

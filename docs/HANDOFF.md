@@ -3,7 +3,7 @@
 > 续跑口令（新会话直接粘贴）：
 > **阅读 D:\思源插件\小驴拾遗\docs\HANDOFF.md，按其中"下一步"继续开发；工程纪律见 AGENTS.md 与 docs/DECISIONS.md，UI 以 docs/UI-STANDARD.md 为准，先通读 TODO.md 与 docs/DATA-CONTRACT.md 再动手。**
 
-## 当前状态（2026-09-29 第十四轮开发完成：小项池清空，开发侧全部完成）
+## 当前状态（2026-09-29 第十五轮开发完成：方案 B 拾遗专用 AI 通道实施）
 
 - 仓库：`D:\思源插件\小驴拾遗` = GitHub [ai68298100/siyuan-glean](https://github.com/ai68298100/siyuan-glean)，main 已推送。
 - **M3 AI 富化全量落地**（v0.3.0 工作版本，未打 tag）：
@@ -81,6 +81,14 @@
    B-0006 快照 / B-0007 收集箱（需订阅）/ B-0008 双插件联调。
 3. 决策点：方案 B 专用 AI 通道；v1.0.0 发版节奏。
 4. 发版执行时：按 RELEASE.md 门禁 + RELEASE-MEDIA.md 拍材料 → README 嵌 GIF → 请示打 tag。
+
+## 专用通道速记（第十五轮新增）
+
+- 通道二选一 settings.ai.channel（siyuan 默认 / custom）；custom = baseUrl+model+secretName
+  （密钥按名经 getSecret 从思源密钥库读取，内核加密，不落插件文件）。
+- 直连客户端 api/ai-direct.ts：joinApiUrl 容忍尾斜杠、60s AbortSignal 超时、防御式解析、
+  browser-* 前端 CORS 明确报错；enrich-service callLLM 统一路由（token 治理不变）。
+- 设置 AI 组：通道分段 → custom 展开三字段 + 测试连接（ping 出人类可读成败原因）。
 
 ## 历史速记索引
 
