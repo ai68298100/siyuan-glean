@@ -236,5 +236,17 @@
   "settings.customSecretDesc": "在思源 设置→密钥和变量 里创建密钥并填入 API Key，此处填该密钥的名字（内核加密存储，不落插件文件）",
   "settings.testConnection": "测试连接",
   "ai.testOk": "连接正常：${message}",
-  "ai.testFail": "连接失败：${message}"
+  "ai.testFail": "连接失败：${message}",
+  "workbench.title": "拾遗工作台",
+  "onboarding.title": "欢迎使用小驴拾遗",
+  "onboarding.welcomeTitle": "三步开始你的阅读库",
+  "onboarding.welcomeBody": "把思源里剪藏/导入后吃灰的文章捡回来：状态分拣、AI 摘要标签、每日重浮。全部数据存在你的文档上，卸载不丢。",
+  "onboarding.next": "下一步",
+  "onboarding.back": "上一步",
+  "onboarding.skip": "跳过引导",
+  "onboarding.cap1": "收录剪藏，自动算字数与阅读时长",
+  "onboarding.cap2": "每日重浮，把吃灰的收藏捡回来",
+  "onboarding.cap3": "AI 摘要与标签（走思源自带 AI）",
+  "onboarding.doneHint": "都设置好了。之后随时可以在 设置 → 小驴拾遗 调整；工作台在顶栏麦穗图标，轻量速览在右下角 Dock。",
+  "onboarding.finish": "完成"
 }

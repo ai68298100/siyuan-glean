@@ -236,5 +236,17 @@
   "settings.customSecretDesc": "Create a secret with your API key in SiYuan Settings→Secrets & variables, then enter its name here (kernel-encrypted, never stored in plugin files)",
   "settings.testConnection": "Test connection",
   "ai.testOk": "Connection OK: ${message}",
-  "ai.testFail": "Connection failed: ${message}"
+  "ai.testFail": "Connection failed: ${message}",
+  "workbench.title": "Glean Workbench",
+  "onboarding.title": "Welcome to Lv Glean",
+  "onboarding.welcomeTitle": "Three steps to your reading library",
+  "onboarding.welcomeBody": "Pick up dusty clippings in SiYuan: status triage, AI summaries & tags, daily resurfacing. All data lives on your documents — nothing lost on uninstall.",
+  "onboarding.next": "Next",
+  "onboarding.back": "Back",
+  "onboarding.skip": "Skip guide",
+  "onboarding.cap1": "Capture clippings with word count & reading time",
+  "onboarding.cap2": "Daily resurfacing picks up dusty items",
+  "onboarding.cap3": "AI summaries & tags (via SiYuan built-in AI)",
+  "onboarding.doneHint": "All set. Adjust anytime in Settings → Lv Glean. Workbench: top-bar wheat icon. Quick view: bottom-right Dock.",
+  "onboarding.finish": "Finish"
 }

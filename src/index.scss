@@ -1830,3 +1830,12 @@
 }
 
 .glean-surf-card { animation-delay: calc(var(--glean-surf-index, 0) * 60ms); }
+
+/* 首启引导（T-1602，平静原则：可跳过） */
+.glean-onb-hero {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 18px 12px 6px;
+}

@@ -9,6 +9,8 @@ import "./index.scss";
 import DockPanel from "./ui/DockPanel.svelte";
 import MigrateDialog from "./ui/MigrateDialog.svelte";
 import ImportDialog from "./ui/ImportDialog.svelte";
+import OnboardingDialog from "./ui/OnboardingDialog.svelte";
+import { loadUiPrefs } from "./services/prefs";
 import SettingsView from "./ui/SettingsView.svelte";
 import { svelteDialog } from "./libs/dialog";
 import { t, type I18nBundle } from "./libs/i18n";
@@ -137,6 +139,15 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
     }
 
     onLayoutReady() {
+        // 首启引导：尚无锚点笔记本且未完成过引导 → 自动弹出（平静原则：可一键跳过）
+        if (!this.isMobile) {
+            void (async () => {
+                const prefs = await loadUiPrefs(this);
+                if (prefs.onboardingDone || this.settings.anchorNotebooks.length > 0) return;
+                window.setTimeout(() => this.openOnboarding(), 800);
+            })();
+        }
+
         if (this.isMobile) return;
         this.addTopBar({
             icon: "iconGleanWheat",
@@ -177,21 +188,22 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
     /* ---------- 面板 ---------- */
 
     /**
-     * 打开面板：优先经思源 Dock 实例的 toggleModel(dockId, true) 直接展开
-     * （dock 图标的点击由 document 级委托监听器处理，合成不冒泡的 click 事件无效——
-     * boot/globalEvent/click.ts:74）；移动端退化为 tab。
+     * 入口分工（UI-STANDARD §3 三档画布）：
+     * - 顶栏图标/命令 = 工作台 tab（桌面画布：rail+表格/看板，全宽完整功能）
+     * - Dock 侧栏图标 = 窄侧栏速览（toggleModel 切换）
      */
     openPanel(): void {
-        if (this.isMobile) {
-            this.openLibraryTab();
-            return;
-        }
+        this.openLibraryTab();
+    }
+
+    /** 打开/聚焦 Dock 窄侧栏（保留给轻量速览场景）。 */
+    toggleDockSidebar(): void {
         const dockId = `${this.name}${DOCK_TYPE}`;
         const dockHost = (window as unknown as { siyuan?: { layout?: Record<string, { toggleModel?: (type: string, show?: boolean) => void }> } }).siyuan?.layout;
         for (const dock of [dockHost?.rightDock, dockHost?.bottomDock, dockHost?.leftDock]) {
             if (dock && typeof dock.toggleModel === "function") {
                 try {
-                    dock.toggleModel(dockId, true);
+                    dock.toggleModel(dockId);
                     return;
                 } catch { /* 换下一个容器 */ }
             }
@@ -211,7 +223,7 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
             custom: {
                 id: `${this.name}${TAB_TYPE}`,
                 icon: "iconGleanWheat",
-                title: t(this.i18n, "dock.title"),
+                title: t(this.i18n, "workbench.title"),
             },
             keepCursor: false,
         });
@@ -433,6 +445,16 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
                 ];
                 return { structuredContent: { stats }, result: lines.filter(Boolean).join("\n") };
             },
+        });
+    }
+
+    openOnboarding(): void {
+        svelteDialog({
+            title: t(this.i18n, "onboarding.title"),
+            component: OnboardingDialog,
+            props: { facade: this },
+            width: "600px",
+            height: "480px",
         });
     }
 

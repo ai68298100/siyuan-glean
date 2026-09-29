@@ -1,0 +1,128 @@
+<script lang="ts">
+/** 首启引导向导（平静原则：三步走完，可随时跳过，不催促不羞辱）。 */
+import { onMount } from "svelte";
+import { listNotebooks, type NotebookMeta } from "../api/client";
+import { t } from "../libs/i18n";
+import type { GleanFacade } from "../types";
+import { saveUiPrefs } from "../services/prefs";
+
+interface Props {
+    facade: GleanFacade;
+    onClose: () => void;
+}
+
+let { facade, onClose }: Props = $props();
+
+const i18n = $derived(facade.i18n);
+
+let step = $state(1);
+let notebooks = $state<NotebookMeta[]>([]);
+let anchorNotebooks = $state<string[]>(facade.settings.anchorNotebooks);
+/** 引导里的 AI 开关 = 是否开启"收录时自动富化"（写回 enrichMode: auto/manual） */
+let aiEnrich = $state(facade.settings.ai.enrichMode === "auto");
+
+onMount(() => {
+    void listNotebooks().then((items) => (notebooks = items));
+});
+
+function toggleNotebook(id: string) {
+    anchorNotebooks = anchorNotebooks.includes(id)
+        ? anchorNotebooks.filter((item) => item !== id)
+        : [...anchorNotebooks, id];
+}
+
+async function persist(): Promise<void> {
+    await facade.updateSettings({
+        ...facade.settings,
+        anchorNotebooks: [...anchorNotebooks],
+        ai: { ...facade.settings.ai, enrichMode: aiEnrich ? "auto" : "manual" },
+    });
+}
+
+async function markDone(): Promise<void> {
+    await saveUiPrefs(facade.pluginInstance, { onboardingDone: true });
+}
+
+async function next(): Promise<void> {
+    await persist();
+    step = 3;
+}
+
+async function finish(openMigrate: boolean): Promise<void> {
+    await markDone();
+    await persist();
+    onClose();
+    if (openMigrate) facade.openMigrate();
+}
+
+async function skip(): Promise<void> {
+    await markDone();
+    onClose();
+}
+</script>
+
+<div class="glean-migrate">
+    <div class="glean-dlg-head">
+        <div class="glean-brand__mark" style="width:28px;height:28px;border-radius:9px">
+            <svg style="width:14px;height:14px"><use href="#iconGleanWheat" /></svg>
+        </div>
+        <div>
+            <div class="glean-dlg-head__t">{t(i18n, "onboarding.title")}</div>
+            <div class="glean-dlg-head__sub">{t(i18n, "tagline")}</div>
+        </div>
+    </div>
+
+    {#if step === 1}
+        <div class="glean-onb-hero">
+            <div class="glean-empty__art">🌾</div>
+            <div class="glean-empty__title">{t(i18n, "onboarding.welcomeTitle")}</div>
+            <div class="glean-empty__hint">{t(i18n, "onboarding.welcomeBody")}</div>
+        </div>
+        <div class="glean-migrate__ops">
+            <button class="glean-btn glean-btn--ghost" onclick={() => void skip()}>
+                {t(i18n, "onboarding.skip")}
+            </button>
+            <button class="glean-btn glean-btn--pri" onclick={() => (step = 2)}>{t(i18n, "onboarding.next")}</button>
+        </div>
+    {:else if step === 2}
+        <div class="glean-sect">{t(i18n, "settings.anchorNotebooks")}</div>
+        <div class="glean-set-group">
+            <div class="glean-nb-wrap">
+                {#each notebooks as notebook (notebook.id)}
+                    <button
+                        class="glean-nb"
+                        class:glean-nb--on={anchorNotebooks.includes(notebook.id)}
+                        onclick={() => toggleNotebook(notebook.id)}
+                    >{anchorNotebooks.includes(notebook.id) ? "✓ " : ""}{notebook.name}</button>
+                {/each}
+                {#if notebooks.length === 0}
+                    <span style="font-size:11.5px; color:var(--b3-theme-on-surface)">—</span>
+                {/if}
+            </div>
+            <div class="glean-set-row">
+                <div class="glean-set-row__lb">
+                    {t(i18n, "settings.aiEnrichMode")}
+                    <div class="glean-set-row__desc">{t(i18n, "settings.aiEnrichModeDesc")}</div>
+                </div>
+                <button class="glean-sw" class:glean-sw--on={aiEnrich} onclick={() => (aiEnrich = !aiEnrich)}></button>
+            </div>
+        </div>
+        <div class="glean-migrate__ops">
+            <button class="glean-btn glean-btn--ghost" onclick={() => (step = 1)}>{t(i18n, "onboarding.back")}</button>
+            <button class="glean-btn glean-btn--pri" onclick={() => void next()}>{t(i18n, "onboarding.next")}</button>
+        </div>
+    {:else}
+        <div class="glean-mstats">
+            <div class="glean-mstat"><div class="glean-mstat__n">📥</div><div class="glean-mstat__l">{t(i18n, "onboarding.cap1")}</div></div>
+            <div class="glean-mstat"><div class="glean-mstat__n">🔄</div><div class="glean-mstat__l">{t(i18n, "onboarding.cap2")}</div></div>
+            <div class="glean-mstat"><div class="glean-mstat__n">✨</div><div class="glean-mstat__l">{t(i18n, "onboarding.cap3")}</div></div>
+        </div>
+        <div class="glean-empty" style="padding: 16px 12px">
+            <div class="glean-empty__hint">{t(i18n, "onboarding.doneHint")}</div>
+        </div>
+        <div class="glean-migrate__ops">
+            <button class="glean-btn glean-btn--ghost" onclick={() => void finish(true)}>{t(i18n, "import.title")}</button>
+            <button class="glean-btn glean-btn--pri" onclick={() => void finish(false)}>{t(i18n, "onboarding.finish")}</button>
+        </div>
+    {/if}
+</div>
