@@ -1,5 +1,15 @@
 # 进度（PROGRESS）
 
+## 发布准备 + 技术债 ✅（2026-09-29，第七轮）
+
+- [x] T-1300d 富化队列串行化：批量收录时 auto/manual 富化逐个执行（enqueue promise 链），
+      防并发打满模型；手动与自动共享同一队列防重复
+- [x] 面板视图偏好持久化（services/prefs.ts ui-prefs.json，只存界面偏好不碰文章数据）
+- [x] AI 日志查看入口：设置-维护"AI 日志"展开最近 20 条失败记录（loadAiLog，新的在前）
+- [x] 发布材料：docs/CHANGELOG.md 建立（v1.0.0 候选全量条目）+ docs/RELEASE-MEDIA.md
+      （头图 GIF 六步脚本 / 集市五张截图 shot list / 关键词自查 / 上架检查单）
+- [x] 质量门禁：check 0 错、53/53 测试、构建+门禁全绿、spike 7/7（181 i18n 键）
+
 ## AI 消耗控制 + 专用通道研究 ✅（2026-09-29，作者命题）
 
 - [x] 富化三态触发 off/manual/auto（默认 manual，token 需显式开自动）+ 每日上限 + 今日用量显示

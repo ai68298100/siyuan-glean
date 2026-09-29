@@ -12,6 +12,7 @@ import StatsView from "./StatsView.svelte";
 import HighlightView from "./HighlightView.svelte";
 import ResurfaceView from "./ResurfaceView.svelte";
 import { archiveStale } from "../services/resurface-service";
+import { loadUiPrefs, saveUiPrefs } from "../services/prefs";
 import { ageDays } from "../domain/resurface.ts";
 
 interface Props {
@@ -189,6 +190,18 @@ $effect(() => {
 
 $effect(() => {
     if (rootEl?.closest(".glean-tab-root")) isTabCanvas = true;
+});
+
+// 视图偏好持久化：挂载恢复 + 切换保存
+$effect(() => {
+    void loadUiPrefs(facade.pluginInstance).then((prefs) => {
+        const valid = views.some((item) => item.key === prefs.lastView);
+        if (valid) view = prefs.lastView as PanelView;
+    });
+});
+
+$effect(() => {
+    void saveUiPrefs(facade.pluginInstance, { lastView: view });
 });
 
 // 插件壳广播的数据变更（迁移完成、右键收录等）触发面板对账

@@ -3,7 +3,7 @@
 > 续跑口令（新会话直接粘贴）：
 > **阅读 D:\思源插件\小驴拾遗\docs\HANDOFF.md，按其中"下一步"继续开发；工程纪律见 AGENTS.md 与 docs/DECISIONS.md，UI 以 docs/UI-STANDARD.md 为准，先通读 TODO.md 与 docs/DATA-CONTRACT.md 再动手。**
 
-## 当前状态（2026-09-29 第六轮开发完成：AI 消耗控制 + 专用通道研究）
+## 当前状态（2026-09-29 第七轮开发完成：发布准备 + 技术债清零）
 
 - 仓库：`D:\思源插件\小驴拾遗` = GitHub [ai68298100/siyuan-glean](https://github.com/ai68298100/siyuan-glean)，main 已推送。
 - **M3 AI 富化全量落地**（v0.3.0 工作版本，未打 tag）：
@@ -50,9 +50,16 @@
 - **方案 B（拾遗专用 AI 通道）已研究可行但未实施**——getSecret 存 key + 桌面直连 + 浏览器降级，
   等作者拍板（docs/RESEARCH-ai-providers.md）；方案 A（思源原生多 Provider 绑「AI 编辑器」）零开发已加引导。
 
-## 下一步（发布准备 + 作者决策点）
+## 技术债速记（第七轮新增）
 
-1. **作者决策点**：方案 B（拾遗专用 AI 通道）是否实施（RESEARCH-ai-providers.md §4）；三里程碑验收节奏。
-2. **v1.0.0 发布材料**：README 头图 GIF 脚本、集市五张截图清单、CHANGELOG.md、集市描述关键词复查。
-3. **AI 开关真机验收**（并入 B-0004）：三态切换/每日上限截断/今日用量/查重开关的实际效果。
-4. 技术债小项：面板视图偏好持久化、ai-log 查看入口（设置-维护）、富化队列串行化（批量收录时避免并发打满）。
+- 富化串行队列：enrich-service enqueueEnrich（promise 链），auto/manual 共享，防批量并发；
+  面板视图偏好：services/prefs.ts（ui-prefs.json）；AI 日志：loadAiLog + 设置-维护展开行。
+- 发布材料：docs/CHANGELOG.md（v1.0.0 候选条目已写好）+ docs/RELEASE-MEDIA.md（拍摄手册）。
+
+## 下一步（等待作者验收 + 拍板；无阻塞开发项）
+
+1. **作者验收三件**：B-0001 实剪核对 / B-0002 UI 真机目视 / B-0004 AI 效果（含 AI 开关三态+每日上限）。
+2. **作者决策点**：方案 B（拾遗专用 AI 通道）做不做（RESEARCH-ai-providers.md §4）；发版节奏（建议验收后 v1.0.0）。
+3. 验收发现问题 → 按 BLOCKERS 流程修复；无问题则按 RELEASE.md 门禁 + RELEASE-MEDIA.md 拍材料 → 请示打 tag 发 v1.0.0。
+4. M5 生态任务（收集箱/Pocket 导入/制卡/快照/协同/渐进阅读集成）逐项请示后启动；渐进阅读方向已解绑
+   "不做"承诺（README 已清理），作者想做什么随时立项。

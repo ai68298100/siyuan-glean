@@ -175,5 +175,9 @@
   "settings.aiTodayUsageDesc": "Resets daily, counts this device only",
   "settings.aiDedup": "Semantic dedup on enrich",
   "settings.aiDedupDesc": "Embedding search warns about near-duplicates; no LLM tokens",
-  "ai.capReached": "Daily enrichment cap reached ({n}) — adjust it in settings"
+  "ai.capReached": "Daily enrichment cap reached ({n}) — adjust it in settings",
+  "settings.aiLog": "AI log",
+  "settings.aiLogDesc": "Last 20 AI call failures (silent degradations are logged)",
+  "settings.aiLogView": "View",
+  "settings.aiLogEmpty": "No failures — all clear"
 }

@@ -1699,3 +1699,20 @@
     background: rgba(249, 115, 22, 0.1);
     color: var(--glean-accent-b);
 }
+
+/* AI 日志行（设置-维护） */
+.glean-logrow {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    font-size: 11px;
+    padding: 4px 0;
+    border-bottom: 1px dashed var(--b3-border-color);
+    min-width: 0;
+
+    &:last-child { border-bottom: none; }
+
+    .glean-logrow__time { color: var(--b3-theme-on-surface); opacity: 0.7; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+    .glean-logrow__stage { color: var(--glean-accent-b); font-weight: 600; flex-shrink: 0; }
+    .glean-logrow__msg { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}

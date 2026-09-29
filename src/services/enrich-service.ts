@@ -17,6 +17,24 @@ const LOG_FILE = "ai-log.json";
 const LOG_LIMIT = 50;
 const USAGE_FILE = "ai-usage.json";
 
+export interface AiLogEntry {
+    at: string;
+    docId: string;
+    stage: string;
+    message: string;
+}
+
+/** 读取最近 AI 失败日志（设置-维护查看用），新的在前。 */
+export async function loadAiLog(plugin: Plugin): Promise<AiLogEntry[]> {
+    try {
+        const raw = await plugin.loadData(LOG_FILE);
+        const entries = Array.isArray(raw) ? (raw as AiLogEntry[]) : [];
+        return entries.slice(-20).reverse();
+    } catch {
+        return [];
+    }
+}
+
 export interface AiUsage {
     date: string;
     count: number;
@@ -76,8 +94,12 @@ export interface EnrichOutcome {
     skipped?: string;
 }
 
-/** 单篇富化。任何失败静默返回 ok:false，不抛错；每日上限超限返回 skipped:"cap"。 */
-export async function enrichClip(plugin: Plugin, docId: string, settings: GleanSettings): Promise<EnrichOutcome> {
+/** 单篇富化（串行队列执行）。任何失败静默返回 ok:false，不抛错；每日上限超限返回 skipped:"cap"。 */
+export function enrichClip(plugin: Plugin, docId: string, settings: GleanSettings): Promise<EnrichOutcome> {
+    return enqueueEnrich(() => enrichClipInner(plugin, docId, settings));
+}
+
+async function enrichClipInner(plugin: Plugin, docId: string, settings: GleanSettings): Promise<EnrichOutcome> {
     if (settings.ai.enrichDailyCap > 0 && (await usageToday(plugin)) >= settings.ai.enrichDailyCap) {
         return { ok: false, duplicates: [], skipped: "cap" };
     }
@@ -123,12 +145,24 @@ export async function findDuplicates(plugin: Plugin, docId: string, query: strin
 }
 
 /**
+ * 富化串行队列：批量收录时任务逐个执行（T-1300d），避免并发打满模型/触发限流。
+ * 手动富化也走同一队列，防止对同一篇并发调用。
+ */
+let enrichQueue: Promise<unknown> = Promise.resolve();
+
+function enqueueEnrich<T>(task: () => Promise<T>): Promise<T> {
+    const run = enrichQueue.then(task, task);
+    enrichQueue = run.catch(() => undefined);
+    return run;
+}
+
+/**
  * 收录自动富化入口（fire-and-forget）：仅在 enrichMode==="auto" 时执行；绝不阻塞收录主流程。
  * 上限在 enrichClip 内统一把守（auto 与 manual 共享额度）。
  */
 export function autoEnrich(plugin: Plugin, docId: string, settings: GleanSettings): void {
     if (settings.ai.enrichMode !== "auto") return;
-    void enrichClip(plugin, docId, settings);
+    void enqueueEnrich(() => enrichClip(plugin, docId, settings));
 }
 
 /** 相关旧文（T-1301）：嵌入未启用返回空数组（UI 整块隐藏）。 */

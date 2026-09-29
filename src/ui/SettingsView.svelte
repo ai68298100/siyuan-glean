@@ -5,7 +5,7 @@ import { showMessage } from "siyuan";
 import { listNotebooks, type NotebookMeta } from "../api/client";
 import { rebuildIndex } from "../services/clip-store";
 import { bindAllClipsToLibrary } from "../services/library-db";
-import { usageToday } from "../services/enrich-service";
+import { usageToday, loadAiLog, type AiLogEntry } from "../services/enrich-service";
 import { t } from "../libs/i18n";
 import type { GleanFacade } from "../types";
 
@@ -31,6 +31,7 @@ let inboxQuota = $state(facade.settings.inboxQuota);
 let staleDays = $state(facade.settings.staleDays);
 let batchSize = $state(facade.settings.migrateBatchSize);
 let boardBusy = $state(false);
+let aiLog = $state<AiLogEntry[] | null>(null);
 
 onMount(() => {
     void listNotebooks().then((items) => (notebooks = items));
@@ -77,6 +78,14 @@ async function setMode(mode: "off" | "manual" | "auto") {
 async function doRebuildIndex() {
     await rebuildIndex(facade.pluginInstance, facade.settings);
     showMessage(t(i18n, "msg.indexRebuilt"), 2500);
+}
+
+async function toggleAiLog() {
+    if (aiLog !== null) {
+        aiLog = null;
+        return;
+    }
+    aiLog = await loadAiLog(facade.pluginInstance);
 }
 
 async function doMountBoard() {
@@ -244,6 +253,30 @@ async function doMountBoard() {
                     {t(i18n, "settings.rebuildIndex")}
                 </button>
             </div>
+            <div class="glean-set-row">
+                <div class="glean-set-row__lb">
+                    {t(i18n, "settings.aiLog")}
+                    <div class="glean-set-row__desc">{t(i18n, "settings.aiLogDesc")}</div>
+                </div>
+                <button class="glean-btn" style="flex-shrink:0" onclick={() => void toggleAiLog()}>
+                    {aiLog === null ? t(i18n, "settings.aiLogView") : t(i18n, "action.close")}
+                </button>
+            </div>
+            {#if aiLog !== null && aiLog.length > 0}
+                <div class="glean-set-row" style="flex-direction:column; align-items:stretch; gap:6px">
+                    {#each aiLog as entry (entry.at + entry.docId)}
+                        <div class="glean-logrow">
+                            <span class="glean-logrow__time">{entry.at.slice(5, 16).replace("T", " ")}</span>
+                            <span class="glean-logrow__stage">{entry.stage}</span>
+                            <span class="glean-logrow__msg">{entry.message}</span>
+                        </div>
+                    {/each}
+                </div>
+            {:else if aiLog !== null}
+                <div class="glean-set-row" style="font-size:11.5px; color:var(--b3-theme-on-surface)">
+                    {t(i18n, "settings.aiLogEmpty")}
+                </div>
+            {/if}
         </div>
     </div>
 </div>
