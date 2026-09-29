@@ -67,9 +67,18 @@ pnpm spike      # 隔离内核 M0 spike（绝不触碰真实工作区）
 
 工程文档：[docs/DATA-CONTRACT.md](docs/DATA-CONTRACT.md)（数据契约）、[docs/ROADMAP.md](docs/ROADMAP.md)（里程碑）、[docs/DECISIONS.md](docs/DECISIONS.md)（决策记录）。
 
-## 品牌
+## 小驴系列插件
 
-「小驴拾遗」是**小驴系列**思源插件的第四个成员：[小驴打卡](https://github.com/ai68298100/siyuan-checkin) · [小驴雷切](https://github.com/ai68298100/siyuan-quickcut) · [小驴人脉](https://github.com/ai68298100/siyuan-contacts)。
+目前已开发四款小驴系列思源插件：
+
+- [小驴雷切](https://github.com/ai68298100/siyuan-quickcut)：快速剪藏与处理网页内容
+- [小驴打卡](https://github.com/ai68298100/siyuan-checkin)：阅读与习惯打卡
+- [小驴人脉](https://github.com/ai68298100/siyuan-contacts)：联系人和人脉管理
+- **小驴拾遗**：剪藏文章整理、阅读分拣和每日重浮
+
+## 交流与反馈
+
+交流 QQ 群：**871707735**
 
 glean，拾穗——收割后把遗落的麦穗一颗颗捡回来。你的收藏也一样。
 

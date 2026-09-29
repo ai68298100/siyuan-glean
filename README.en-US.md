@@ -33,9 +33,18 @@ Lv Glean's foundation is a **clip attribute spec** (`custom-clip-*` document att
 
 SiYuan **v3.8.5+**, desktop / mobile / browser-docked. AI features use the model **you** configured in SiYuan; the plugin ships no API keys and uploads nothing.
 
-## Brand
+## The Lv plugin family
 
-Lv Glean is the fourth member of the **Lv (小驴)** SiYuan plugin family: [Lv Checkin](https://github.com/ai68298100/siyuan-checkin) · [Lv Quickcut](https://github.com/ai68298100/siyuan-quickcut) · [Lv Contacts](https://github.com/ai68298100/siyuan-contacts).
+Four Lv (小驴) SiYuan plugins are currently developed:
+
+- [Lv Quickcut / 小驴雷切](https://github.com/ai68298100/siyuan-quickcut): quick web clipping and processing
+- [Lv Checkin / 小驴打卡](https://github.com/ai68298100/siyuan-checkin): reading and habit check-ins
+- [Lv Contacts / 小驴人脉](https://github.com/ai68298100/siyuan-contacts): contact and relationship management
+- **Lv Glean / 小驴拾遗**: clipping organization, reading triage and daily resurfacing
+
+## Community
+
+QQ group for discussion: **871707735**
 
 *Glean*: to pick up the grain left behind after the harvest. Your clippings deserve the same.
 
