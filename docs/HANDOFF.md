@@ -3,7 +3,7 @@
 > 续跑口令（新会话直接粘贴）：
 > **阅读 D:\思源插件\小驴拾遗\docs\HANDOFF.md，按其中"下一步"继续开发；工程纪律见 AGENTS.md 与 docs/DECISIONS.md，UI 以 docs/UI-STANDARD.md 为准，先通读 TODO.md 与 docs/DATA-CONTRACT.md 再动手。**
 
-## 当前状态（2026-09-29 第二十轮：入口分工 + 首启引导，v1.0.2 待发布）
+## 当前状态（2026-09-29 第二十一轮：**v1.0.3 已发布**——设置不生效修复 + 标签锚点）
 
 - 仓库：`D:\思源插件\小驴拾遗` = GitHub [ai68298100/siyuan-glean](https://github.com/ai68298100/siyuan-glean)，main 已推送。
 - **M3 AI 富化全量落地**（v0.3.0 工作版本，未打 tag）：
