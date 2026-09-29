@@ -1,5 +1,16 @@
 # 进度（PROGRESS）
 
+## M5 — T-1505 小驴协同（打卡桥）✅（2026-09-29，第十二轮）
+
+- [x] 研究：打卡 v5 契约完整可消费（探测/whenReady/20 项能力/recordEvent 幂等语义）；
+      雷切无公开 API，方向待其文档就绪（B-0008 附注）
+- [x] services/checkin-bridge.ts：探测+whenReady+能力协商（items.query/events.range.read/events.record）
+      + recordReadingDone（externalRef=glean:<docId>:<localDate>，失败隔离留痕重试语义）
+- [x] 设置协同组：开关（默认关）+ 阅读打卡目标下拉（queryItems 拉取）；
+      重浮"✓ 读了"钩子 fire-and-forget
+- [x] 质量门禁：check 0 错、71/71 测试（checkin 4 项）、构建+门禁全绿、spike 9/9（222 i18n 键）
+- 联调（作者）：双插件真机验证（B-0008）
+
 ## M5 — T-1500 收集箱 ✅（2026-09-29，第十一轮；联调待作者订阅账号 B-0007）
 
 - [x] 契约核实：getShorthands {page} → **双层包裹**（response.data.data.shorthands，云收件箱特有形状）；

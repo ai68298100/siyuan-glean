@@ -119,3 +119,13 @@ getAttributeViewItemIDsByBoundIDs）。AV 端点形状经 av-spike.mjs 6/6 复�
    ——用户把「AI 编辑器」绑到免费模型即零开发生效（方案 A，已加引导文案）；"拾遗独立通道"（方案 B：
    getSecret 存 key + 桌面直连 + 浏览器降级）技术可行，但涉及 D-0004 修订与密钥流程设计，
    **待作者拍板后实施**，本轮不实现。
+
+## D-0014（2026-09-29）小驴协同：打卡桥默认关闭，写能力用户显式开启；雷切待文档
+
+T-1505 落地口径（打卡 v5 契约：docs/api-v5.md + contracts/siyuan-checkin-contract）：
+1. **打卡桥**：今日拾遗"✓ 读了"→ events.record（source:"api"，externalRef=glean:<docId>:<localDate>
+   幂等，宿主去重兜底）。遵守准入五项：探测→whenReady→能力协商→**写能力默认关闭、用户显式开启**
+   （settings.integration.checkinEnabled + checkinItemId 从 queryItems 下拉选择）→失败隔离
+   （console 留痕保留 externalRef 待重试，绝不抛裸异常进宿主）。前缀 glean: 待向打卡仓库登记。
+2. **雷切**：当前无公开 API 文档（源码仅内部引用），协同方向**待雷切文档就绪**，不在本侧臆造。
+3. 验收：双插件真机联调（打卡项目选择→重浮"读了"→打卡侧出现事件）登记为 B-0008。

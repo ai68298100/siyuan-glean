@@ -3,7 +3,7 @@
 > 续跑口令（新会话直接粘贴）：
 > **阅读 D:\思源插件\小驴拾遗\docs\HANDOFF.md，按其中"下一步"继续开发；工程纪律见 AGENTS.md 与 docs/DECISIONS.md，UI 以 docs/UI-STANDARD.md 为准，先通读 TODO.md 与 docs/DATA-CONTRACT.md 再动手。**
 
-## 当前状态（2026-09-29 第十一轮开发完成：T-1500 收集箱）
+## 当前状态（2026-09-29 第十二轮开发完成：T-1505 打卡桥）
 
 - 仓库：`D:\思源插件\小驴拾遗` = GitHub [ai68298100/siyuan-glean](https://github.com/ai68298100/siyuan-glean)，main 已推送。
 - **M3 AI 富化全量落地**（v0.3.0 工作版本，未打 tag）：
@@ -56,18 +56,20 @@
   面板视图偏好：services/prefs.ts（ui-prefs.json）；AI 日志：loadAiLog + 设置-维护展开行。
 - 发布材料：docs/CHANGELOG.md（v1.0.0 候选条目已写好）+ docs/RELEASE-MEDIA.md（拍摄手册）。
 
-## 收集箱速记（第十一轮新增）
+## 打卡桥速记（第十二轮新增）
 
-- getShorthands 响应**双层包裹**（response.data.data.shorthands），防御式剥包；未登录/无订阅 → code!=0
-  → available:false 面板整块隐藏。Shorthand.shorthandURL 官方前端丢弃、本插件保留写入 custom-clip-url。
-- 迁入：shorthandMd 直接落正文（比导入器完整）→ captureClip(src=inbox) → 云端时间覆盖 → removeShorthands
-  （删除失败不阻塞，条目会再出现由 URL 去重兜底）。open-menu-inbox {ids, element} 注入批量迁入菜单。
-- **B-0007（新）**：收集箱联调需作者订阅账号在真机验证（列表/迁入/删除/隐藏降级）。
+- services/checkin-bridge.ts 消费 window.siyuanCheckin v5：探测(protocol==="siyuan-checkin")→whenReady→
+  hasCapability→调用；recordReadingDone externalRef=glean:<docId>:<localDate>（同日重复被宿主去重）；
+  失败 console 留痕不抛裸异常。settings.integration.{checkinEnabled,checkinItemId}，**默认关**（写能力纪律）。
+- 入口：今日拾遗"✓ 读了"→ fire-and-forget 记录；设置"小驴协同·打卡"组开关+项目下拉（queryItems）。
+- 雷切无公开 API，待其文档；glean: externalRef 前缀待向打卡仓库登记（identity-and-merge.md 规则）。
 
-## 下一步（M5 剩余 + 作者验收/决策）
+## 下一步（收尾态：作者验收/决策主导）
 
-1. **M5 剩余**：T-1505 小驴协同（打卡 window.siyuanCheckin v5 契约在兄弟仓 contracts/；雷切待查）→
-   T-1503 渐进阅读集成（作者定方向）。
-2. **作者验收**：B-0001 实剪 / B-0002 UI（含制卡渲染）/ B-0004 AI 开关 / B-0005 导入器 / B-0006 快照 /
-   B-0007 收集箱（需订阅）。
-3. **决策点**：方案 B 专用 AI 通道；发版节奏（v1.0.0）。全部 M1-M5 核心任务已完成，剩余均为生态联动。
+1. **M5 已全部启动完毕**：T-1500 收集箱 ✅ / T-1501 导入器 ✅ / T-1502 制卡 ✅ / T-1504 快照 ✅ /
+   T-1505 打卡桥 ✅（雷切 T-1505b、渐进阅读 T-1503 等作者定方向）。
+2. **作者验收清单**：B-0001 实剪 / B-0002 UI 全景 / B-0004 AI 开关 / B-0005 导入器 /
+   B-0006 快照 / B-0007 收集箱（需订阅）/ B-0008 双插件联调。
+3. **决策点**：方案 B 专用 AI 通道；v1.0.0 发版节奏（CHANGELOG/RELEASE-MEDIA 已备）。
+4. 下一轮可选开发小项池：重浮卡片摘要渐显、导入器大文件分页预览、
+   面板批量收录的富化进度 toast、README GIF 占位与截图目录 docs/media/ 建立。
