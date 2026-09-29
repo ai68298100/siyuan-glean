@@ -534,6 +534,21 @@
     font-size: 12px;
 }
 
+.glean-load-error {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 8px 12px;
+    padding: 8px 10px;
+    border: 1px solid var(--b3-theme-primary);
+    border-radius: 8px;
+    background: var(--b3-theme-surface);
+    color: var(--b3-theme-on-surface);
+    font-size: 12px;
+}
+
+.glean-load-error span { flex: 1; }
+
 .glean-section-label {
     display: flex;
     align-items: center;

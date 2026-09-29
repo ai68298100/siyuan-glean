@@ -2,7 +2,7 @@
  * 属性服务层（T-1100）：读库文章属性的单点读写封装。
  * 全插件只有这里允许写 custom-clip-* 键（schema.ts 定义键名，这里执行纪律）：
  * - schema 校验 + 序列化（domain/schema.ts）
- * - 幂等：captureClip 对已是读库文章的文档不重复写时间戳
+ * - 幂等：captureClip 对已有有效状态的文档不重复写时间戳；URL-only 文档补齐缺失字段
  * - 用户手填字段保护：captureClip/updateClip 对"已有值的手填字段"拒绝静默覆盖（除非显式 force）
  * - 每次写成功后增量同步派生索引
  */
@@ -19,7 +19,6 @@ import {
     ATTR,
     parseClipAttrs,
     captureDefaults,
-    isClipDoc,
     serializePatch,
     siteFromUrl,
     type ClipAttrs,
@@ -42,12 +41,19 @@ export async function readClip(docId: string): Promise<ClipAttrs> {
     return parseClipAttrs(ial);
 }
 
+/** 批量读取原始 IAL，供迁移预检与导入去重使用；属性端点仍只经本服务进入。 */
+export async function batchReadClipAttrs(ids: string[]) {
+    return batchGetBlockAttrs(ids);
+}
+
 export interface WriteClipOptions {
     /**
      * 手填字段保护：patch 里包含 url/status/priority/rating 且文档已有非空值时，
      * 默认跳过该键（返回 skippedKeys）；force=true 才允许覆盖（UI 显式操作）。
      */
     force?: boolean;
+    /** 仅覆盖已有状态，用于显式收录或状态动作；其余手填字段继续保护。 */
+    forceStatus?: boolean;
 }
 
 export interface WriteClipResult {
@@ -70,6 +76,7 @@ export async function writeClip(
     const skippedKeys: string[] = [];
     if (!options.force) {
         for (const key of USER_GUARDED_KEYS) {
+            if (key === ATTR.status && options.forceStatus) continue;
             if (key in serialized && serialized[key] !== null && ial[key]) {
                 delete serialized[key];
                 skippedKeys.push(key);
@@ -93,26 +100,28 @@ export async function writeClip(
     return { attrs: parseClipAttrs(merged), skippedKeys };
 }
 
-/** 收录（三入口共用）：给文档盖全套 clip 属性。已是读库文章时幂等跳过。 */
+/** 收录（三入口共用）：首次收录补缺失字段；已带有效状态时幂等跳过。 */
 export async function captureClip(
     plugin: Plugin,
     docId: string,
-    options: { url?: string; site?: string; src?: ClipAttrs["src"] } = {}
+    options: { url?: string; site?: string; src?: ClipAttrs["src"]; time?: string; status?: ClipStatus } = {}
 ): Promise<{ captured: boolean; attrs: ClipAttrs }> {
     const ial = await getBlockAttrs(docId);
-    if (isClipDoc(ial)) {
-        return { captured: false, attrs: parseClipAttrs(ial) };
+    const current = parseClipAttrs(ial);
+    if (current.status) {
+        return { captured: false, attrs: current };
     }
     const defaults = captureDefaults();
-    const patch: Partial<ClipAttrs> = { ...defaults };
-    if (options.url) {
-        patch.url = options.url;
-        patch.site = options.site || siteFromUrl(options.url) || undefined;
-    } else if (options.site) {
-        patch.site = options.site;
-    }
-    if (options.src) patch.src = options.src;
-    const result = await writeClip(plugin, docId, patch, { force: false });
+    const patch: Partial<ClipAttrs> = {};
+    // 显式收录可修复无效状态；其余已有属性均保留，尤其是来源 URL 和原时间。
+    patch.status = options.status ?? defaults.status;
+    if (!ial[ATTR.time]) patch.time = options.time ?? defaults.time;
+    if (!ial[ATTR.priority]) patch.priority = defaults.priority;
+    if (!ial[ATTR.src]) patch.src = options.src ?? defaults.src;
+    if (!ial[ATTR.url] && options.url) patch.url = options.url;
+    const url = ial[ATTR.url] || options.url;
+    if (!ial[ATTR.site]) patch.site = options.site || (url ? siteFromUrl(url) : "") || undefined;
+    const result = await writeClip(plugin, docId, patch, { forceStatus: true });
     return { captured: true, attrs: result.attrs };
 }
 
@@ -125,7 +134,8 @@ export async function batchSetStatus(
     let ok = 0;
     for (const docId of docIds) {
         try {
-            await writeClip(plugin, docId, { status });
+            // 这是用户显式状态动作，不适用自动写入的手填字段保护。
+            await writeClip(plugin, docId, { status }, { forceStatus: true });
             ok += 1;
         } catch {
             // 单篇失败不阻断批量；UI 通过刷新反映真实状态
@@ -149,11 +159,11 @@ function sqlQuote(value: string): string {
     return value.replace(/'/g, "''");
 }
 
-/** 全库读库文章（次锚点：任意笔记本带 clip 状态的文档），按更新时间倒序。 */
+/** 全库读库文章/半成品（状态或 URL 次锚点），按更新时间倒序。 */
 export async function listClipDocs(limit = 2000): Promise<DocRow[]> {
     return querySql<DocRow>(
         `SELECT id, content, hpath, box, updated FROM blocks
-         WHERE type = 'd' AND ial LIKE '%${ATTR.status}%'
+         WHERE type = 'd' AND (ial LIKE '%${ATTR.status}%' OR ial LIKE '%${ATTR.url}%')
          ORDER BY updated DESC LIMIT ${limit}`
     );
 }
@@ -171,7 +181,7 @@ export async function listTaggedDocs(tag: string, limit = 500): Promise<DocRow[]
 /** 锚点笔记本内的文档（主锚点圈定，含未收录候选）。 */
 export async function listAnchorDocs(notebookIds: string[], limit = 500): Promise<DocRow[]> {
     if (notebookIds.length === 0) return [];
-    const boxes = notebookIds.map(sqlQuote).join(",");
+    const boxes = notebookIds.map((id) => `'${sqlQuote(id)}'`).join(",");
     return querySql<DocRow>(
         `SELECT id, content, hpath, box, updated FROM blocks
          WHERE type = 'd' AND box IN (${boxes})
@@ -188,18 +198,12 @@ export async function listAnchorDocs(notebookIds: string[], limit = 500): Promis
  */
 export async function reconcileIndex(plugin: Plugin, settings: GleanSettings): Promise<GleanIndex> {
     const index = await loadIndex(plugin);
-    // 单条查询失败不拖垮整个对账（部分结果仍可用），错误暴露给调用方展示
-    const settled = await Promise.allSettled([
+    // 任一范围查询失败都不能将不完整结果伪装为“没有候选”。
+    const [clipRows, anchorRows, taggedRows] = await Promise.all([
         listClipDocs(),
         listAnchorDocs(settings.anchorNotebooks),
         listTaggedDocs("剪藏"),
     ]);
-    const clipRows = settled[0].status === "fulfilled" ? settled[0].value : [];
-    const anchorRows = settled[1].status === "fulfilled" ? settled[1].value : [];
-    const taggedRows = settled[2].status === "fulfilled" ? settled[2].value : [];
-    for (const item of settled) {
-        if (item.status === "rejected") console.warn("[glean] reconcile 查询失败:", String(item.reason).slice(0, 160));
-    }
     const ids = [...new Set([...clipRows.map((row) => row.id), ...anchorRows.map((row) => row.id), ...taggedRows.map((row) => row.id)])];
     const attrPairs = await batchGetBlockAttrs(ids);
     const attrsById = new Map(attrPairs.map((pair) => [pair.id, pair.attrs]));

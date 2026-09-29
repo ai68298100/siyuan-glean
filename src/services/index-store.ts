@@ -30,7 +30,7 @@ export interface ClipIndexEntry {
     updated: string;
 }
 
-/** 未收录的锚点笔记本文档（"新剪藏"候选，尚无 clip 属性） */
+/** 未收录候选：无有效状态；可能已有来源 URL，显式收录时补齐缺失字段。 */
 export interface CandidateEntry {
     id: string;
     title: string;
@@ -80,7 +80,7 @@ export function applyAttrsToIndex(
     ial: Record<string, string>
 ): void {
     const attrs = parseClipAttrs(ial);
-    const isClip = Boolean(attrs.status || attrs.url);
+    const isClip = Boolean(attrs.status);
     if (isClip) {
         delete index.candidates[doc.id];
         index.clips[doc.id] = {

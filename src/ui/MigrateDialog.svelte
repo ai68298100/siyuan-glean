@@ -8,7 +8,9 @@ import {
     buildDryRunReport,
     clearMigrateProgress,
     loadMigrateProgress,
+    retryMigrateErrors,
     runBackfillBatch,
+    startMigrateProgress,
     type MigrateRow,
 } from "../services/migrate-service";
 
@@ -27,16 +29,16 @@ type Step = 1 | 2 | 3;
 let phase = $state<Phase>("intro");
 let rows = $state<MigrateRow[]>([]);
 let cursor = $state(0);
-let filter = $state<"all" | "pending" | "ok" | "skipped" | "manual">("all");
+let filter = $state<"all" | "pending" | "ok" | "skipped" | "manual" | "error">("all");
 let aborted = $state(false);
 let resumeAvailable = $state(false);
 
-const step = $derived<Step>(phase === "intro" || phase === "scanning" ? 1 : phase === "report" ? 2 : 3);
+const step = $derived<Step>(phase === "intro" || phase === "scanning" ? 1 : phase === "done" ? 3 : 2);
 
 onMount(async () => {
     const progress = await loadMigrateProgress(facade.pluginInstance);
-    if (progress && !progress.finished && progress.rows.length > 0) {
-        resumeAvailable = true;
+    if (phase === "intro" && progress && progress.rows.length > 0) {
+        resumeAvailable = !progress.finished || progress.rows.some((row) => row.state === "error" && !!row.url);
         rows = progress.rows;
         cursor = progress.cursor;
     }
@@ -63,6 +65,15 @@ const visibleRows = $derived(
 );
 
 const progressPct = $derived(rows.length === 0 ? 0 : Math.round((cursor / rows.length) * 100));
+const retryableErrors = $derived(rows.some((row) => row.state === "error" && !!row.url));
+
+async function refreshProgress() {
+    const progress = await loadMigrateProgress(facade.pluginInstance);
+    if (!progress) return;
+    rows = progress.rows;
+    cursor = progress.cursor;
+    resumeAvailable = !progress.finished || progress.rows.some((row) => row.state === "error" && !!row.url);
+}
 
 async function startScan() {
     phase = "scanning";
@@ -70,9 +81,11 @@ async function startScan() {
     try {
         rows = await buildDryRunReport(facade.settings);
         cursor = 0;
+        filter = "all";
         phase = "report";
     } catch (error) {
         showMessage(String(error), 5000);
+        await refreshProgress();
         phase = "intro";
     }
 }
@@ -82,30 +95,37 @@ async function resume() {
     if (!progress) return;
     rows = progress.rows;
     cursor = progress.cursor;
-    phase = "report";
-    await startRun();
+    await startRun(false);
 }
 
-async function startRun() {
+async function startRun(startNew: boolean) {
     phase = "running";
     aborted = false;
     const signal = { get aborted() { return aborted; } };
     let last: Awaited<ReturnType<typeof runBackfillBatch>> | null = null;
+    let taskReady = !startNew;
     try {
+        if (startNew) {
+            await startMigrateProgress(facade.pluginInstance, rows);
+            taskReady = true;
+        }
+        else if (cursor >= rows.length && retryableErrors) await retryMigrateErrors(facade.pluginInstance);
+        await refreshProgress();
         while (true) {
             last = await runBackfillBatch(facade.pluginInstance, facade.settings, { signal });
-            cursor = last.processed;
+            await refreshProgress();
             if (last.finished || aborted) break;
         }
-        phase = last.finished ? "done" : "paused";
-        if (last.finished) {
+        phase = last?.finished ? "done" : "paused";
+        if (last?.finished && last.errors === 0) {
             await clearMigrateProgress(facade.pluginInstance);
             resumeAvailable = false;
-            facade.notifyDataChanged();
         }
+        if (last && last.ok > 0) facade.notifyDataChanged();
     } catch (error) {
         showMessage(String(error), 5000);
-        phase = "paused";
+        if (taskReady) await refreshProgress();
+        phase = taskReady ? "paused" : "report";
     }
 }
 
@@ -124,7 +144,7 @@ function rowStateLabel(row: MigrateRow): string {
         case "ok": return "✓";
         case "skipped": return t(i18n, "migrate.skipHasAttrs");
         case "manual": return t(i18n, "migrate.needUrl");
-        case "error": return "!";
+        case "error": return t(i18n, "import.failed");
         default: return t(i18n, "migrate.foundUrl");
     }
 }
@@ -183,13 +203,14 @@ function rowStateLabel(row: MigrateRow): string {
             <div class="glean-mstat"><div class="glean-mstat__n">{counts.pending}</div><div class="glean-mstat__l">{t(i18n, "migrate.backfillableLabel")}</div></div>
             <div class="glean-mstat"><div class="glean-mstat__n">{counts.skipped}</div><div class="glean-mstat__l">{t(i18n, "migrate.skipHasAttrs")}</div></div>
             <div class="glean-mstat"><div class="glean-mstat__n">{counts.manual}</div><div class="glean-mstat__l">{t(i18n, "migrate.needUrl")}</div></div>
+            <div class="glean-mstat"><div class="glean-mstat__n">{counts.errors}</div><div class="glean-mstat__l">{t(i18n, "import.failed")}</div></div>
         </div>
         <div class="glean-mtable">
             {#each visibleRows as row (row.id)}
                 <div class="glean-mrow">
                     <span class="glean-mrow__ti">{row.title || row.hpath}</span>
                     <span class="glean-mrow__url">{row.url || "—"}</span>
-                    <span class={rowStateClass(row)}>{rowStateLabel(row)}</span>
+                    <span class={rowStateClass(row)} title={row.detail || ""}>{rowStateLabel(row)}</span>
                 </div>
             {/each}
         </div>
@@ -199,9 +220,10 @@ function rowStateLabel(row: MigrateRow): string {
                 <option value="pending">{t(i18n, "migrate.filterPending")}</option>
                 <option value="manual">{t(i18n, "migrate.needUrl")}</option>
                 <option value="skipped">{t(i18n, "migrate.skipHasAttrs")}</option>
+                <option value="error">{t(i18n, "import.failed")}</option>
             </select>
             <button class="glean-btn glean-btn--ghost" onclick={() => void startScan()}>{t(i18n, "migrate.rescan")}</button>
-            <button class="glean-btn glean-btn--pri" onclick={() => void startRun()} disabled={counts.pending === 0}>
+            <button class="glean-btn glean-btn--pri" onclick={() => void startRun(true)} disabled={counts.pending === 0}>
                 {t(i18n, "migrate.run")}
             </button>
         </div>
@@ -213,11 +235,25 @@ function rowStateLabel(row: MigrateRow): string {
                 <span>{t(i18n, "migrate.batchNote", { n: facade.settings.migrateBatchSize })}</span>
             </div>
         </div>
+        <div class="glean-mstats">
+            <div class="glean-mstat"><div class="glean-mstat__n">{counts.ok}</div><div class="glean-mstat__l">{t(i18n, "migrate.okLabel")}</div></div>
+            <div class="glean-mstat"><div class="glean-mstat__n">{counts.skipped}</div><div class="glean-mstat__l">{t(i18n, "migrate.skipHasAttrs")}</div></div>
+            <div class="glean-mstat"><div class="glean-mstat__n">{counts.errors}</div><div class="glean-mstat__l">{t(i18n, "import.failed")}</div></div>
+        </div>
+        <div class="glean-mtable">
+            {#each rows as row (row.id)}
+                <div class="glean-mrow">
+                    <span class="glean-mrow__ti" title={row.hpath}>{row.title || row.hpath}</span>
+                    <span class="glean-mrow__url">{row.url || "—"}</span>
+                    <span class={rowStateClass(row)} title={row.detail || ""}>{rowStateLabel(row)}</span>
+                </div>
+            {/each}
+        </div>
         <div class="glean-migrate__ops">
             {#if phase === "running"}
                 <button class="glean-btn" onclick={() => (aborted = true)}>{t(i18n, "migrate.pause")}</button>
             {:else}
-                <button class="glean-btn glean-btn--pri" onclick={() => void startRun()}>{t(i18n, "migrate.continue")}</button>
+                <button class="glean-btn glean-btn--pri" onclick={() => void startRun(false)}>{t(i18n, "migrate.continue")}</button>
             {/if}
         </div>
     {:else if phase === "done"}
@@ -225,18 +261,22 @@ function rowStateLabel(row: MigrateRow): string {
             <div class="glean-mstat"><div class="glean-mstat__n">{counts.ok}</div><div class="glean-mstat__l">{t(i18n, "migrate.okLabel")}</div></div>
             <div class="glean-mstat"><div class="glean-mstat__n">{counts.skipped}</div><div class="glean-mstat__l">{t(i18n, "migrate.skipHasAttrs")}</div></div>
             <div class="glean-mstat"><div class="glean-mstat__n">{counts.manual}</div><div class="glean-mstat__l">{t(i18n, "migrate.needUrl")}</div></div>
+            <div class="glean-mstat"><div class="glean-mstat__n">{counts.errors}</div><div class="glean-mstat__l">{t(i18n, "import.failed")}</div></div>
         </div>
-        {#if counts.manual > 0}
+        {#if counts.manual > 0 || counts.errors > 0}
             <div class="glean-mtable">
-                {#each rows.filter((row) => row.state === "manual") as row (row.id)}
+                {#each rows.filter((row) => row.state === "manual" || row.state === "error") as row (row.id)}
                     <div class="glean-mrow">
                         <span class="glean-mrow__ti" title={row.hpath}>{row.title || row.hpath}</span>
-                        <span class="glean-mrow__st glean-mrow__st--manual">{t(i18n, "migrate.needUrl")}</span>
+                        <span class={rowStateClass(row)} title={row.detail || ""}>{rowStateLabel(row)}</span>
                     </div>
                 {/each}
             </div>
         {/if}
         <div class="glean-migrate__ops">
+            {#if retryableErrors}
+                <button class="glean-btn glean-btn--ghost" onclick={() => void startRun(false)}>{t(i18n, "action.retry")}</button>
+            {/if}
             <button class="glean-btn glean-btn--pri" onclick={() => void onClose()}>{t(i18n, "action.close")}</button>
         </div>
     {/if}

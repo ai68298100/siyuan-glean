@@ -1,15 +1,15 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
-## 当前有效交接（2026-09-29 产品复盘，D-0016）
+## 当前有效交接（2026-09-29 S1 完成，D-0017）
 
 作者试用 v1.0.4 后反馈主流程错误多、用途和步骤不清。本轮已完成静态代码/文档复盘，重整方案见 [PRODUCT-REPLAN.md](PRODUCT-REPLAN.md)，执行顺序见 [ROADMAP.md](ROADMAP.md) S0–S6 与 [TODO.md](../TODO.md) T-1700 起。下面原有“下一步”“方案 B 待实施”“待发 v1.0.0”等段落为历史记录，不再是当前指令；实际 v1.0.4 已发布、自定义 AI 通道已实现。
 
-**下一轮先做 S1**：隔离工作区复现并修正锚点 SQL、迁移任务初始化、显式状态写入和自动富化队列；随后把迁移/导入的 `custom-clip-*` 写入统一收束到 clip-store。保持契约先行、决策和任务记账，完成一条真实收录→流转→重启/重建索引用例。不要再按 M5 清单继续叠加新功能。
+**S1 已完成**：锚点 SQL、查询失败提示、URL-only 收录补全、迁移任务持久化/暂停恢复/失败重试、显式状态写入、自动富化队列和迁移/导入统一属性写入均已修复。服务回归与隔离内核 E2E 已通过；未发布新版本。**下一轮做 S2**：收紧候选资格与插件内部文档排除，补 URL 规范化查重、全文/链接类型、时间语义和分页对账；不要按旧 M5 清单叠加能力。
 
-本轮只改了规划文档，没有修改插件代码或发布新版本。基线 `pnpm check` 0 错误（38 告警），`pnpm test` 71/71，但不能代表完整流程可用。
+本轮修改了主链代码、服务回归测试和隔离 E2E 脚本，没有发布新版本。当前 `pnpm check` 0 错误（38 告警），`pnpm test` 87/87，`pnpm build` 通过；隔离内核 3.8.6 的 `scripts/e2e/s1-flow.mjs` 6 项通过。真实扩展实剪、真机 UI、真实 AI 仍见 BLOCKERS。
 
 > 续跑口令（新会话直接粘贴）：
-> **阅读 D:\思源插件\小驴拾遗\docs\HANDOFF.md 的“当前有效交接”与 docs/PRODUCT-REPLAN.md，按 S1 起的当前任务继续；工程纪律见 AGENTS.md 与 docs/DECISIONS.md，UI 以 docs/UI-STANDARD.md 为准，先通读 TODO.md 与 docs/DATA-CONTRACT.md 再动手。**
+> **阅读 D:\思源插件\小驴拾遗\docs\HANDOFF.md 的“当前有效交接”与 docs/PRODUCT-REPLAN.md，按 S2 起的当前任务继续；工程纪律见 AGENTS.md 与 docs/DECISIONS.md，UI 以 docs/UI-STANDARD.md 为准，先通读 TODO.md 与 docs/DATA-CONTRACT.md 再动手。**
 
 ## 当前状态（2026-09-29 第二十二轮：**v1.0.4 已发布**——工作台独立浮窗 + SQL 容错）
 

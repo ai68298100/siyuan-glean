@@ -112,8 +112,8 @@ export async function exportMdContent(id: string): Promise<{ hPath: string; cont
 }
 
 /** 创建文档（同路径会再建新文档，不幂等——调用方先查重，人脉 D-0007 同款结论）。返回文档 ID。 */
-export async function createDocWithMd(notebookId: string, hPath: string, markdown: string): Promise<string> {
-    return kernelPost<string>("/api/filetree/createDocWithMd", { notebook: notebookId, path: hPath, markdown });
+export async function createDocWithMd(notebookId: string, hPath: string, markdown: string, tags?: string): Promise<string> {
+    return kernelPost<string>("/api/filetree/createDocWithMd", { notebook: notebookId, path: hPath, markdown, ...(tags ? { tags } : {}) });
 }
 
 /* ---------- block 子块（高亮聚合） ---------- */

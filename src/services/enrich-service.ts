@@ -91,7 +91,7 @@ export interface EnrichOutcome {
     ok: boolean;
     /** 语义查重告警（可能已有相似文章），供 UI 提示 */
     duplicates: DuplicateWarning[];
-    /** 未富化的原因（供测试与日志）：parse / error；成功为空串 */
+    /** 未富化的原因：off / cap / parse / error；成功为空串 */
     skipped?: string;
 }
 
@@ -111,8 +111,11 @@ async function callLLM(
     }
 }
 
-/** 单篇富化（串行队列执行）。任何失败静默返回 ok:false，不抛错；每日上限超限返回 skipped:"cap"。 */
+/** 单篇富化（串行队列执行）。关闭模式不调用模型；每日上限由队列内统一把守。 */
 export function enrichClip(plugin: Plugin, docId: string, settings: GleanSettings): Promise<EnrichOutcome> {
+    if (settings.ai.enrichMode === "off") {
+        return Promise.resolve({ ok: false, duplicates: [], skipped: "off" });
+    }
     return enqueueEnrich(() => enrichClipInner(plugin, docId, settings));
 }
 
@@ -183,7 +186,8 @@ function enqueueEnrich<T>(task: () => Promise<T>): Promise<T> {
  */
 export function autoEnrich(plugin: Plugin, docId: string, settings: GleanSettings): void {
     if (settings.ai.enrichMode !== "auto") return;
-    void enqueueEnrich(() => enrichClip(plugin, docId, settings));
+    // enrichClip 已负责入队；这里再次 enqueue 会让当前任务等待排在自己后面的任务，永远无法结束。
+    void enrichClip(plugin, docId, settings);
 }
 
 /** 相关旧文（T-1301）：嵌入未启用返回空数组（UI 整块隐藏）。 */

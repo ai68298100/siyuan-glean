@@ -8,7 +8,7 @@ import { batchSetStatus, captureClip, reconcileIndex } from "../services/clip-st
 import { autoEnrich, enrichClip } from "../services/enrich-service";
 import { snapshotClip } from "../services/snapshot-service";
 import { aggregateStats } from "../domain/stats.ts";
-import type { ClipIndexEntry, CandidateEntry, GleanIndex } from "../services/index-store";
+import { loadIndex, type ClipIndexEntry, type CandidateEntry, type GleanIndex } from "../services/index-store";
 import StatsView from "./StatsView.svelte";
 import HighlightView from "./HighlightView.svelte";
 import InboxSection from "./InboxSection.svelte";
@@ -28,6 +28,7 @@ const i18n = $derived(facade.i18n);
 type PanelView = "resurface" | "library" | "stats" | "highlights";
 let view = $state<PanelView>("resurface");
 let loading = $state(true);
+let loadError = $state(false);
 let index = $state<GleanIndex>({ version: 1, updatedAt: "", clips: {}, candidates: {} });
 let activeQueue = $state<ClipStatus>("inbox");
 let keyword = $state("");
@@ -99,7 +100,8 @@ const rows = $derived.by<Row[]>(() => {
 const candidateCount = $derived(Object.keys(index.candidates).length);
 const totalClips = $derived(Object.keys(index.clips).length);
 
-const inboxTotal = $derived(Object.values(index.clips).filter((entry) => entry.status === "inbox").length + candidateCount);
+// 待确认候选单独展示，不占 inbox 配额；只有已收录条目进入五态计数。
+const inboxTotal = $derived(Object.values(index.clips).filter((entry) => entry.status === "inbox").length);
 const overQuota = $derived(inboxTotal > facade.settings.inboxQuota);
 const stalePool = $derived.by(() => {
     const limit = facade.settings.staleDays;
@@ -138,7 +140,7 @@ const railStats = $derived.by(() => {
 });
 
 function queueCount(key: QueueKey): number {
-    if (key === "inbox") return candidateCount + Object.values(index.clips).filter((entry) => entry.status === "inbox").length;
+    if (key === "inbox") return Object.values(index.clips).filter((entry) => entry.status === "inbox").length;
     return Object.values(index.clips).filter((entry) => entry.status === key).length;
 }
 
@@ -190,8 +192,11 @@ async function reload() {
     loading = true;
     try {
         index = await reconcileIndex(facade.pluginInstance, facade.settings);
-    } catch {
-        index = { version: 1, updatedAt: "", clips: {}, candidates: {} };
+        loadError = false;
+    } catch (error) {
+        console.warn("[glean] 读库对账失败:", error);
+        if (!index.updatedAt) index = await loadIndex(facade.pluginInstance);
+        loadError = true;
     } finally {
         loading = false;
     }
@@ -225,9 +230,19 @@ $effect(() => {
 });
 
 async function capture(entry: CandidateEntry) {
-    await captureClip(facade.pluginInstance, entry.id, {});
-    autoEnrich(facade.pluginInstance, entry.id, facade.settings);
-    await reload();
+    try {
+        const result = await captureClip(facade.pluginInstance, entry.id, {});
+        if (result.captured) {
+            showMessage(t(i18n, "msg.added"), 2500);
+            autoEnrich(facade.pluginInstance, entry.id, facade.settings);
+        } else {
+            showMessage(t(i18n, "msg.alreadyIn"), 2500);
+        }
+        await reload();
+    } catch (error) {
+        console.warn("[glean] 收录失败:", error);
+        showMessage(t(i18n, "msg.captureFailed"), 3500);
+    }
 }
 
 async function captureAll() {
@@ -235,18 +250,25 @@ async function captureAll() {
     if (entries.length === 0) return;
     const total = entries.length;
     let done = 0;
+    let capturedCount = 0;
+    let failed = 0;
     showMessage(t(i18n, "msg.capturing", { done: 0, total }), 2000);
     for (const entry of entries) {
         try {
-            await captureClip(facade.pluginInstance, entry.id, {});
-            autoEnrich(facade.pluginInstance, entry.id, facade.settings);
+            const result = await captureClip(facade.pluginInstance, entry.id, {});
+            if (result.captured) {
+                capturedCount += 1;
+                autoEnrich(facade.pluginInstance, entry.id, facade.settings);
+            } else {
+                failed += 1;
+            }
         } catch {
-            /* 单篇失败继续 */
+            failed += 1;
         }
         done += 1;
         showMessage(t(i18n, "msg.capturing", { done, total }), 2000);
     }
-    showMessage(t(i18n, "msg.captureDone", { done, enqueued: facade.settings.ai.enrichMode === "auto" ? done : 0 }), 3500);
+    showMessage(t(i18n, "msg.captureDone", { done: capturedCount, failed }), 3500);
     await reload();
 }
 
@@ -265,6 +287,8 @@ async function enrich(entry: ClipIndexEntry) {
             );
         } else if (outcome.skipped === "cap") {
             showMessage(t(i18n, "ai.capReached", { n: facade.settings.ai.enrichDailyCap }), 4000);
+        } else if (outcome.skipped === "off") {
+            showMessage(t(i18n, "ai.disabled"), 3000);
         } else {
             showMessage(t(i18n, "ai.enrichFailed"), 3000);
         }
@@ -275,8 +299,14 @@ async function enrich(entry: ClipIndexEntry) {
 }
 
 async function setStatus(entry: ClipIndexEntry, status: ClipStatus) {
-    await batchSetStatus(facade.pluginInstance, [entry.id], status);
+    const ok = await batchSetStatus(facade.pluginInstance, [entry.id], status);
+    showMessage(t(i18n, ok === 1 ? "msg.statusChanged" : "msg.statusFailed"), 3000);
     await reload();
+    return ok === 1;
+}
+
+async function startReading(entry: ClipIndexEntry) {
+    if (await setStatus(entry, "reading")) openDoc(entry.id);
 }
 
 function toggleSelect(id: string, event: Event) {
@@ -289,8 +319,10 @@ function toggleSelect(id: string, event: Event) {
 
 async function batchApply(status: ClipStatus) {
     if (selection.size === 0) return;
-    await batchSetStatus(facade.pluginInstance, [...selection], status);
-    selection = new Set();
+    const total = selection.size;
+    const ok = await batchSetStatus(facade.pluginInstance, [...selection], status);
+    showMessage(t(i18n, "msg.statusBatchResult", { ok, total }), 3500);
+    if (ok === total) selection = new Set();
     await reload();
 }
 
@@ -374,6 +406,13 @@ function metaLine(entry: Row): string {
             </div>
         {/if}
     </header>
+
+    {#if loadError}
+        <div class="glean-load-error" role="alert">
+            <span>{t(i18n, "panel.reloadFailed")}</span>
+            <button class="glean-btn" onclick={() => void reload()}>{t(i18n, "action.retry")}</button>
+        </div>
+    {/if}
 
     {#if view === "library" && !loading}
         <InboxSection {facade} onMutated={() => void reload()} />
@@ -644,7 +683,7 @@ function metaLine(entry: Row): string {
                                         <button
                                             class="glean-op-btn"
                                             title={t(i18n, "action.startReading")}
-                                            onclick={(e) => { e.stopPropagation(); void setStatus(entry, "reading"); }}
+                                            onclick={(e) => { e.stopPropagation(); void startReading(entry); }}
                                         >▶</button>
                                     {:else if entry.status === "reading"}
                                         <button
@@ -668,13 +707,15 @@ function metaLine(entry: Row): string {
                                     {/if}
                                 </div>
                             {/if}
-                            <label class="glean-card__check" onclick={(e) => e.stopPropagation()}>
-                                <input
-                                    type="checkbox"
-                                    checked={selection.has(entry.id)}
-                                    onchange={(e) => toggleSelect(entry.id, e)}
-                                />
-                            </label>
+                            {#if entry.kind === "clip"}
+                                <label class="glean-card__check" onclick={(e) => e.stopPropagation()}>
+                                    <input
+                                        type="checkbox"
+                                        checked={selection.has(entry.id)}
+                                        onchange={(e) => toggleSelect(entry.id, e)}
+                                    />
+                                </label>
+                            {/if}
                         </article>
                     {/each}
                 {/if}

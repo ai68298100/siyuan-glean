@@ -122,7 +122,7 @@ function optionalString(value: string | undefined): string | undefined {
     return value && value.length > 0 ? value : undefined;
 }
 
-/** 是否已是"读库文章"：带状态或带来源 URL 即认（与迁移幂等跳过条件一致）。 */
+/** 是否已有读库线索：状态属性或来源 URL 均算；URL-only 仍待用户确认收录。 */
 export function isClipDoc(ial: Record<string, string | undefined>): boolean {
     return Boolean(ial[ATTR.status] || ial[ATTR.url]);
 }
