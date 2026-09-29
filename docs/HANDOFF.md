@@ -3,7 +3,7 @@
 > 续跑口令（新会话直接粘贴）：
 > **阅读 D:\思源插件\小驴拾遗\docs\HANDOFF.md，按其中"下一步"继续开发；工程纪律见 AGENTS.md 与 docs/DECISIONS.md，UI 以 docs/UI-STANDARD.md 为准，先通读 TODO.md 与 docs/DATA-CONTRACT.md 再动手。**
 
-## 当前状态（2026-09-29 第十五轮开发完成：方案 B 拾遗专用 AI 通道实施）
+## 当前状态（2026-09-29 第十六轮：UI 冒烟尝试安全收尾——结论：交由作者真机执行）
 
 - 仓库：`D:\思源插件\小驴拾遗` = GitHub [ai68298100/siyuan-glean](https://github.com/ai68298100/siyuan-glean)，main 已推送。
 - **M3 AI 富化全量落地**（v0.3.0 工作版本，未打 tag）：
@@ -81,6 +81,12 @@
    B-0006 快照 / B-0007 收集箱（需订阅）/ B-0008 双插件联调。
 3. 决策点：方案 B 专用 AI 通道；v1.0.0 发版节奏。
 4. 发版执行时：按 RELEASE.md 门禁 + RELEASE-MEDIA.md 拍材料 → README 嵌 GIF → 请示打 tag。
+
+## UI 冒烟结论（第十六轮新增）
+
+- **不要用 computer-use 驱动真机思源做冒烟**：单实例转发 + 误绑作者真实实例的风险
+  （详见 BLOCKERS B-0010 与 RESEARCH-browser-e2e.md 附加结论）。作者窗口零操作确认。
+- UI 验收交由作者真机执行；launch-e2e.mjs 环境可作者自行启动走查。
 
 ## 专用通道速记（第十五轮新增）
 
