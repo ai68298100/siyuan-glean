@@ -176,16 +176,30 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
 
     /* ---------- 面板 ---------- */
 
-    /** 打开面板：dock 已注册则切到该 dock；移动端退化为 tab */
+    /**
+     * 打开面板：优先经思源 Dock 实例的 toggleModel(dockId, true) 直接展开
+     * （dock 图标的点击由 document 级委托监听器处理，合成不冒泡的 click 事件无效——
+     * boot/globalEvent/click.ts:74）；移动端退化为 tab。
+     */
     openPanel(): void {
         if (this.isMobile) {
             this.openLibraryTab();
             return;
         }
         const dockId = `${this.name}${DOCK_TYPE}`;
+        const dockHost = (window as unknown as { siyuan?: { layout?: Record<string, { toggleModel?: (type: string, show?: boolean) => void }> } }).siyuan?.layout;
+        for (const dock of [dockHost?.rightDock, dockHost?.bottomDock, dockHost?.leftDock]) {
+            if (dock && typeof dock.toggleModel === "function") {
+                try {
+                    dock.toggleModel(dockId, true);
+                    return;
+                } catch { /* 换下一个容器 */ }
+            }
+        }
+        // 兜底：HTMLElement.click() 产生的点击会冒泡，可被委托监听器捕获
         const dockItem = document.querySelector(`.dock__item[data-type="${dockId}"]`);
         if (dockItem) {
-            (dockItem as HTMLElement).dispatchEvent(new MouseEvent("click", { bubbles: false }));
+            (dockItem as HTMLElement).click();
             return;
         }
         this.openLibraryTab();

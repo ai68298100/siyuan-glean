@@ -3,7 +3,7 @@
 > 续跑口令（新会话直接粘贴）：
 > **阅读 D:\思源插件\小驴拾遗\docs\HANDOFF.md，按其中"下一步"继续开发；工程纪律见 AGENTS.md 与 docs/DECISIONS.md，UI 以 docs/UI-STANDARD.md 为准，先通读 TODO.md 与 docs/DATA-CONTRACT.md 再动手。**
 
-## 当前状态（2026-09-29 第十七轮：**v1.0.0 已发布**）
+## 当前状态（2026-09-29 第十八轮：**v1.0.1 补丁已发布**——修复点击图标无反应）
 
 - 仓库：`D:\思源插件\小驴拾遗` = GitHub [ai68298100/siyuan-glean](https://github.com/ai68298100/siyuan-glean)，main 已推送。
 - **M3 AI 富化全量落地**（v0.3.0 工作版本，未打 tag）：
@@ -102,6 +102,15 @@
   只加载 index.js → 运行时缺 chunk 崩溃。修复：rollupOptions.output.inlineDynamicImports=true
   （vite.config.ts，注意曾出现重复 output 块覆盖配置的编辑事故，已去重）。
 - dist 旧产物需手动清理（emptyOutDir:false），发版前务必 rm -rf dist 再构建。
+
+# v1.0.1 修复记录（2026-09-29，作者反馈：点击图标无反应）
+
+- 根因：openPanel 用 dispatchEvent(new MouseEvent(..., {bubbles:false})) 合成点击，
+  而 dock 图标的点击由 document 级委托监听器处理（boot/globalEvent/click.ts:74）——
+  不冒泡=委托收不到=空操作。dock 图标本身的原生点击不受影响（思源自管），顶栏图标必现。
+- 修复：openPanel 改走 window.siyuan.layout.rightDock/bottomDock/leftDock.toggleModel(dockId, true)，
+  兜底 HTMLElement.click()（会冒泡）。app 源码依据：layout/dock/index.ts:666 toggleModel 签名。
+- 教训：思源 UI 的程序化交互优先走 window.siyuan.layout 内部 API，勿合成 DOM 事件。
 
 # v1.0.0 发布记录（2026-09-29）
 
