@@ -209,11 +209,9 @@ $effect(() => {
 
 // 插件壳广播的数据变更（迁移完成、右键收录等）触发面板对账
 $effect(() => {
-    const el = rootEl;
-    if (!el) return;
     const handler = () => void reload();
-    el.addEventListener("glean:data-changed", handler);
-    return () => el.removeEventListener("glean:data-changed", handler);
+    document.addEventListener("glean:data-changed", handler);
+    return () => document.removeEventListener("glean:data-changed", handler);
 });
 
 async function capture(entry: CandidateEntry) {

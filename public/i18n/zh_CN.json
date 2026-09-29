@@ -77,7 +77,7 @@
   "migrate.batchSize": "每批写入条数",
   "settings.title": "小驴拾遗设置",
   "settings.anchorNotebooks": "读库笔记本",
-  "settings.anchorNotebooksDesc": "这些笔记本里的新文档会被当作剪藏文章管理；可多选",
+  "settings.anchorNotebooksDesc": "这些笔记本里的文档全部纳入读库管理；此外任意笔记本里带 #剪藏 标签的老文档也会自动算作候选，可多选",
   "settings.aiGroup": "AI 增强（走思源自带 AI，不额外付费）",
   "settings.aiEnrichOnCapture": "收录时自动生成摘要与标签",
   "settings.aiRelated": "阅读时推荐相关旧文",

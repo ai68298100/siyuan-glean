@@ -96,7 +96,15 @@
   browser-* 前端 CORS 明确报错；enrich-service callLLM 统一路由（token 治理不变）。
 - 设置 AI 组：通道分段 → custom 展开三字段 + 测试连接（ping 出人类可读成败原因）。
 
-## 关键修复：vite 单文件输出（发版前抓到，2026-09-29）
+## 关键修复：数据变更事件方向（作者反馈：设置后侧栏无动静，2026-09-29）
+
+- 根因：notifyDataChanged 把 glean:data-changed 派发到 .glean-dock-root（父容器），
+  而 DockPanel 监听在子元素 .glean-panel 上——DOM 事件只向上冒泡不向下传播。
+- 修复：改在 document 上派发，面板监听 document。
+- 同轮新增：标签锚点（任意笔记本 #剪藏 标签老文档纳入候选，listTaggedDocs +
+  reconcile/rebuild 纳入；设置描述去掉"新文档"措辞——作者反馈采纳）。
+
+# 关键修复：vite 单文件输出（发版前抓到，2026-09-29）
 
 - 动态 import 在 vite lib 构建里被代码分片（schema-*.cjs / client-*.cjs），而思源装载器
   只加载 index.js → 运行时缺 chunk 崩溃。修复：rollupOptions.output.inlineDynamicImports=true

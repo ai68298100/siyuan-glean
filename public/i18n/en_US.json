@@ -77,7 +77,7 @@
   "migrate.batchSize": "Writes per batch",
   "settings.title": "Lv Glean Settings",
   "settings.anchorNotebooks": "Library notebooks",
-  "settings.anchorNotebooksDesc": "New docs in these notebooks are treated as clippings; multi-select",
+  "settings.anchorNotebooksDesc": "All docs in these notebooks are managed; plus old docs tagged #剪藏 from any notebook join as candidates. Multi-select",
   "settings.aiGroup": "AI enrichment (uses SiYuan's built-in AI, no extra cost)",
   "settings.aiEnrichOnCapture": "Auto summary & tags on capture",
   "settings.aiRelated": "Recommend related articles while reading",

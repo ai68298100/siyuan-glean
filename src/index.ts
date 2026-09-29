@@ -174,10 +174,8 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
     }
 
     notifyDataChanged(): void {
-        // Dock/Tab 共用 DockPanel 组件；数据变更后面板下一次 reload 拉取
-        document.querySelectorAll(".glean-dock-root, .glean-tab-root").forEach((root) => {
-            root.dispatchEvent(new CustomEvent("glean:data-changed"));
-        });
+        // 在 document 上派发（事件只向上冒泡，不能从父容器传到子面板）
+        document.dispatchEvent(new CustomEvent("glean:data-changed"));
     }
 
     currentDocId(): string {

@@ -158,6 +158,16 @@ export async function listClipDocs(limit = 2000): Promise<DocRow[]> {
     );
 }
 
+/** 标签锚点（DATA-CONTRACT §2 补充）：任意笔记本里带指定标签的老文档也算候选。 */
+export async function listTaggedDocs(tag: string, limit = 500): Promise<DocRow[]> {
+    const safe = tag.replace(/'/g, "''");
+    return querySql<DocRow>(
+        `SELECT id, content, hpath, box, updated FROM blocks
+         WHERE type = 'd' AND (tag LIKE '%${safe}%' OR ial LIKE '%"tags":"%${safe}%')
+         ORDER BY updated DESC LIMIT ${limit}`
+    );
+}
+
 /** 锚点笔记本内的文档（主锚点圈定，含未收录候选）。 */
 export async function listAnchorDocs(notebookIds: string[], limit = 500): Promise<DocRow[]> {
     if (notebookIds.length === 0) return [];
@@ -178,11 +188,12 @@ export async function listAnchorDocs(notebookIds: string[], limit = 500): Promis
  */
 export async function reconcileIndex(plugin: Plugin, settings: GleanSettings): Promise<GleanIndex> {
     const index = await loadIndex(plugin);
-    const [clipRows, anchorRows] = await Promise.all([
+    const [clipRows, anchorRows, taggedRows] = await Promise.all([
         listClipDocs(),
         listAnchorDocs(settings.anchorNotebooks),
+        listTaggedDocs("剪藏"),
     ]);
-    const ids = [...new Set([...clipRows.map((row) => row.id), ...anchorRows.map((row) => row.id)])];
+    const ids = [...new Set([...clipRows.map((row) => row.id), ...anchorRows.map((row) => row.id), ...taggedRows.map((row) => row.id)])];
     const attrPairs = await batchGetBlockAttrs(ids);
     const attrsById = new Map(attrPairs.map((pair) => [pair.id, pair.attrs]));
     for (const row of clipRows) {
@@ -190,7 +201,7 @@ export async function reconcileIndex(plugin: Plugin, settings: GleanSettings): P
         if (!ial) continue;
         applyAttrsToIndex(index, rowToMeta(row), ial);
     }
-    for (const row of anchorRows) {
+    for (const row of [...anchorRows, ...taggedRows]) {
         if (index.clips[row.id]) continue;
         const ial = attrsById.get(row.id);
         if (!ial) continue;
@@ -206,14 +217,15 @@ function rowToMeta(row: DocRow): DocMeta {
 /** 全量重建：清空索引 → 重扫全库。不动文档属性。 */
 export async function rebuildIndex(plugin: Plugin, settings: GleanSettings): Promise<GleanIndex> {
     const index = emptyIndex();
-    const [clipRows, anchorRows] = await Promise.all([
+    const [clipRows, anchorRows, taggedRows] = await Promise.all([
         listClipDocs(),
         listAnchorDocs(settings.anchorNotebooks),
+        listTaggedDocs("剪藏"),
     ]);
-    const ids = [...new Set([...clipRows.map((row) => row.id), ...anchorRows.map((row) => row.id)])];
+    const ids = [...new Set([...clipRows.map((row) => row.id), ...anchorRows.map((row) => row.id), ...taggedRows.map((row) => row.id)])];
     const attrPairs = await batchGetBlockAttrs(ids);
     const attrsById = new Map(attrPairs.map((pair) => [pair.id, pair.attrs]));
-    for (const row of [...clipRows, ...anchorRows]) {
+    for (const row of [...clipRows, ...anchorRows, ...taggedRows]) {
         const ial = attrsById.get(row.id);
         if (!ial) continue;
         applyAttrsToIndex(index, rowToMeta(row), ial);
