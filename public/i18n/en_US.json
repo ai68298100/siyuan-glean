@@ -248,5 +248,7 @@
   "onboarding.cap2": "Daily resurfacing picks up dusty items",
   "onboarding.cap3": "AI summaries & tags (via SiYuan built-in AI)",
   "onboarding.doneHint": "All set. Adjust anytime in Settings → Lv Glean. Workbench: top-bar wheat icon. Quick view: bottom-right Dock.",
-  "onboarding.finish": "Finish"
+  "onboarding.finish": "Finish",
+  "panel.popup": "Pop out as floating window",
+  "workbench.popupTitle": "Glean Workbench"
 }

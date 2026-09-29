@@ -248,5 +248,7 @@
   "onboarding.cap2": "每日重浮，把吃灰的收藏捡回来",
   "onboarding.cap3": "AI 摘要与标签（走思源自带 AI）",
   "onboarding.doneHint": "都设置好了。之后随时可以在 设置 → 小驴拾遗 调整；工作台在顶栏麦穗图标，轻量速览在右下角 Dock。",
-  "onboarding.finish": "完成"
+  "onboarding.finish": "完成",
+  "panel.popup": "弹出为独立浮窗",
+  "workbench.popupTitle": "拾遗工作台"
 }

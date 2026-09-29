@@ -30,10 +30,12 @@ export const svelteDialog = (args: {
     props?: Record<string, any>,
     width?: string,
     height?: string,
+    /** 附加到挂载容器的类（如工作台宽画布 glean-tab-root） */
+    containerClass?: string,
     callback?: () => void;
 }) => {
     let container = document.createElement("div");
-    container.className = "glean-dialog-root";
+    container.className = ["glean-dialog-root", args.containerClass ?? ""].filter(Boolean).join(" ");
     container.style.display = "contents";
 
     let closeDialog: (() => void) | undefined;

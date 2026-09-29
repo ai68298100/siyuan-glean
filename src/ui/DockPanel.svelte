@@ -39,6 +39,16 @@ let isTabCanvas = $state(false);
 let dragOverCol = $state<ClipStatus | null>(null);
 let dragId = $state("");
 let enrichingId = $state("");
+let popupOpen = $state(false);
+
+/** 工作台弹出为独立浮窗（全宽画布，独立于 dock/tab）。 */
+function openPopup() {
+    if (popupOpen) return;
+    popupOpen = true;
+    facade.openWorkbenchPopup();
+    // 弹窗关闭时机未知，保守复位
+    window.setTimeout(() => (popupOpen = false), 1500);
+}
 let snappingId = $state("");
 let archivingStale = $state(false);
 
@@ -331,6 +341,9 @@ function metaLine(entry: Row): string {
                 <div class="glean-brand__sub">{t(i18n, "panel.libraryCount", { n: totalClips })}</div>
             </div>
             <div class="glean-head-actions">
+                <button class="glean-icon-btn" title={t(i18n, "panel.popup")} onclick={() => openPopup()}>
+                    <svg><use href="#iconGleanPopup" /></svg>
+                </button>
                 <button class="glean-icon-btn" title={t(i18n, "panel.migrate")} onclick={() => facade.openMigrate()}>
                     <svg><use href="#iconGleanWheat" /></svg>
                 </button>

@@ -52,6 +52,10 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
 <symbol id="iconGleanGear" viewBox="0 0 32 32">
 <path d="M16 11.5a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9zm0 2.2a2.3 2.3 0 1 1 0 4.6 2.3 2.3 0 0 1 0-4.6z"/>
 <path d="M14 3h4l.7 3.4c.9.3 1.7.7 2.5 1.3l3.3-1.2 2 3.5-2.6 2.3c.1.5.1 1.1.1 1.7s0 1.2-.1 1.7l2.6 2.3-2 3.5-3.3-1.2c-.8.6-1.6 1-2.5 1.3L18 25h-4l-.7-3.4c-.9-.3-1.7-.7-2.5-1.3l-3.3 1.2-2-3.5 2.6-2.3a10 10 0 0 1 0-3.4L5.5 10l2-3.5 3.3 1.2c.8-.6 1.6-1 2.5-1.3L14 3zm1.2 2.2-.6 3-.9.3c-.7.2-1.3.6-1.9 1l-.8.6-2.9-1-1 1.7 2.3 2-.2 1a7.7 7.7 0 0 0 0 2.4l.2 1-2.3 2 1 1.7 2.9-1 .8.6c.6.4 1.2.8 1.9 1l.9.3.6 3h2l.6-3 .9-.3c.7-.2 1.3-.6 1.9-1l.8-.6 2.9 1 1-1.7-2.3-2 .2-1a7.7 7.7 0 0 0 0-2.4l-.2-1 2.3-2-1-1.7-2.9 1-.8-.6c-.6-.4-1.2-.8-1.9-1l-.9-.3-.6-3h-2z"/></symbol>
+<symbol id="iconGleanPopup" viewBox="0 0 32 32">
+<path d="M6 5h11a2 2 0 0 1 2 2v3h-2.2V7.2H8.2v16.6h8.8V21H19v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z"/>
+<path d="M17 4h10a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1h-3.2v-2.2h1V6.2H19v3.6H17V5z" transform="translate(0 0)"/>
+<path d="M15.2 12.8H29v13.6H15.2zM17.4 15v9.2h9.4V15z"/></symbol>
 <symbol id="iconGleanRefresh" viewBox="0 0 32 32">
 <path d="M16 6a10 10 0 0 1 8.6 4.9l-2.4 1.4A7.4 7.4 0 0 0 16 8.6 7.4 7.4 0 1 0 23.4 16h2.6A10 10 0 1 1 16 6z"/>
 <path d="M22 4h6v6h-2.4V6.4H22z"/></symbol>`);
@@ -453,6 +457,18 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
             props: { facade: this },
             width: "600px",
             height: "480px",
+        });
+    }
+
+    /** 工作台弹出为独立浮窗（全宽画布第三形态） */
+    openWorkbenchPopup(): void {
+        svelteDialog({
+            title: t(this.i18n, "workbench.popupTitle"),
+            component: DockPanel,
+            props: { facade: this },
+            width: "1020px",
+            height: "680px",
+            containerClass: "glean-tab-root",
         });
     }
 

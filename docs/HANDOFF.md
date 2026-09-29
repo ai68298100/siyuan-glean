@@ -3,7 +3,7 @@
 > 续跑口令（新会话直接粘贴）：
 > **阅读 D:\思源插件\小驴拾遗\docs\HANDOFF.md，按其中"下一步"继续开发；工程纪律见 AGENTS.md 与 docs/DECISIONS.md，UI 以 docs/UI-STANDARD.md 为准，先通读 TODO.md 与 docs/DATA-CONTRACT.md 再动手。**
 
-## 当前状态（2026-09-29 第二十一轮：**v1.0.3 已发布**——设置不生效修复 + 标签锚点）
+## 当前状态（2026-09-29 第二十二轮：**v1.0.4 已发布**——工作台独立浮窗 + SQL 容错）
 
 - 仓库：`D:\思源插件\小驴拾遗` = GitHub [ai68298100/siyuan-glean](https://github.com/ai68298100/siyuan-glean)，main 已推送。
 - **M3 AI 富化全量落地**（v0.3.0 工作版本，未打 tag）：
@@ -96,7 +96,14 @@
   browser-* 前端 CORS 明确报错；enrich-service callLLM 统一路由（token 治理不变）。
 - 设置 AI 组：通道分段 → custom 展开三字段 + 测试连接（ping 出人类可读成败原因）。
 
-## 关键修复：数据变更事件方向（作者反馈：设置后侧栏无动静，2026-09-29）
+## 工作台浮窗 + SQL 容错（2026-09-29，作者问题：没有独立弹出的窗口吗）
+
+- 面板头部新增 ⧉ 按钮：完整工作台弹出为独立浮窗（svelteDialog 1020×680，容器挂 glean-tab-root 宽画布类）。
+  至此三形态并存：顶栏=工作台 tab / Dock=侧栏 / ⧉=独立浮窗。
+- reconcileIndex 改 Promise.allSettled：单条查询失败保留部分结果 + console 留痕，不再整面板空白。
+- 教训：svelteDialog 支持 containerClass（宽画布容器类透传）。
+
+# 关键修复：数据变更事件方向（作者反馈：设置后侧栏无动静，2026-09-29）
 
 - 根因：notifyDataChanged 把 glean:data-changed 派发到 .glean-dock-root（父容器），
   而 DockPanel 监听在子元素 .glean-panel 上——DOM 事件只向上冒泡不向下传播。

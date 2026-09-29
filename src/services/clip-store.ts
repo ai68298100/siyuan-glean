@@ -188,11 +188,18 @@ export async function listAnchorDocs(notebookIds: string[], limit = 500): Promis
  */
 export async function reconcileIndex(plugin: Plugin, settings: GleanSettings): Promise<GleanIndex> {
     const index = await loadIndex(plugin);
-    const [clipRows, anchorRows, taggedRows] = await Promise.all([
+    // 单条查询失败不拖垮整个对账（部分结果仍可用），错误暴露给调用方展示
+    const settled = await Promise.allSettled([
         listClipDocs(),
         listAnchorDocs(settings.anchorNotebooks),
         listTaggedDocs("剪藏"),
     ]);
+    const clipRows = settled[0].status === "fulfilled" ? settled[0].value : [];
+    const anchorRows = settled[1].status === "fulfilled" ? settled[1].value : [];
+    const taggedRows = settled[2].status === "fulfilled" ? settled[2].value : [];
+    for (const item of settled) {
+        if (item.status === "rejected") console.warn("[glean] reconcile 查询失败:", String(item.reason).slice(0, 160));
+    }
     const ids = [...new Set([...clipRows.map((row) => row.id), ...anchorRows.map((row) => row.id), ...taggedRows.map((row) => row.id)])];
     const attrPairs = await batchGetBlockAttrs(ids);
     const attrsById = new Map(attrPairs.map((pair) => [pair.id, pair.attrs]));

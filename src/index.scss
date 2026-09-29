@@ -1839,3 +1839,12 @@
     text-align: center;
     padding: 18px 12px 6px;
 }
+
+/* 工作台弹出浮窗容器（独立于 dock/tab 的第三画布，UI-STANDARD §3） */
+.glean-dialog-tab {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+}
