@@ -15,14 +15,16 @@
 6. **版本语义化**（D-0005）：每里程碑一版不跳号；打 tag/发 Release/提交集市逐次请示作者。
 7. **i18n 双名**：`public/i18n/zh_CN.json + en_US.json`，键集合必须一致（tests/i18n.test.ts 守门）；
    新增 UI 文案先补两份键再引用。
-8. **UI 纪律**：颜色一律 b3 CSS 变量，类名前缀 `glean-`；不做通用聊天窗、不自带 LLM key（AI 走 `/api/ai/*`，
-   逐功能开关默认关，失败静默降级）。
+8. **UI 纪律**：颜色一律 b3 CSS 变量，类名前缀 `glean-`；不做通用聊天窗、不自带 LLM key。
+   AI 默认走 `/api/ai/*`；用户自选通道按 D-0015 从思源密钥库读密钥。逐功能开关默认关
+   （富化依 D-0013 默认仅手动），失败静默降级。
 9. **zip 产物 mtime 用真实构建时间**；发版走仓库 Latest Release 的 package.zip。
 10. 移动端判定用 `getFrontend()`，禁 UA 嗅探。
 
 ## 工作流
 
-- 里程碑：M0 spike ✅ → M1 地基 ✅ → M2 数据库视图与统计 → M3 AI 富化 → M4 抗吃灰内核 → M5 生态（详见 docs/ROADMAP.md）。
+- 当前工作顺序：D-0016 的 S0–S6 产品重整与验收（详见 docs/PRODUCT-REPLAN.md、docs/ROADMAP.md）；
+  M0–M5 为历史代码实现顺序，旧任务勾选不代表完整用户流程已验收。
 - 每个里程碑结束：更新 `docs/PROGRESS.md`、有决策写 `docs/DECISIONS.md`、跑 `pnpm check && pnpm test`、git 提交。
 - 测试：`pnpm test`（域层纯函数 + i18n + 架构守门）；隔离内核 spike/E2E 参照 `scripts/spike/glean-spike.mjs`
   （**测试前必须 `/api/setting/setBazaar {trust:true}`**，见 spike 脚本注释）。
@@ -32,6 +34,6 @@
 
 新会话续跑本插件开发时，直接对 agent 说：
 
-> 阅读 D:\思源插件\小驴拾遗\docs\HANDOFF.md，按其中"下一步"继续开发；工程纪律见 AGENTS.md 与 docs/DECISIONS.md，不许违反复述。
+> 阅读 D:\思源插件\小驴拾遗\docs\HANDOFF.md 的“当前有效交接”和 docs/PRODUCT-REPLAN.md，按 S1 起的当前任务继续；工程纪律见 AGENTS.md 与 docs/DECISIONS.md，不许违反复述。
 
 HANDOFF.md 由每轮开发结束时更新（当前状态 / 已验证契约 / 下一步任务 / 注意事项）。
