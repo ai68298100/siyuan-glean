@@ -63,6 +63,15 @@ async function incUsage(plugin: Plugin): Promise<number> {
     return count;
 }
 
+/** 伴读等场景共享每日额度（D-0030）：false=今日已满。调用成功后须 recordAiUsage 计数（失败不扣，与富化同语义）。 */
+export async function aiQuotaAvailable(plugin: Plugin, settings: GleanSettings): Promise<boolean> {
+    return !(settings.ai.enrichDailyCap > 0 && (await usageToday(plugin)) >= settings.ai.enrichDailyCap);
+}
+
+export async function recordAiUsage(plugin: Plugin): Promise<void> {
+    await incUsage(plugin);
+}
+
 interface LogEntry {
     at: string;
     docId: string;
@@ -82,6 +91,11 @@ async function appendLog(plugin: Plugin, docId: string, stage: string, message: 
     console.warn(`[glean-ai] ${stage} ${docId}: ${message}`);
 }
 
+/** 伴读动作的失败留痕（D-0030）：与富化共写 ai-log.json。 */
+export async function logAiEvent(plugin: Plugin, docId: string, stage: string, message: string): Promise<void> {
+    await appendLog(plugin, docId, stage, message);
+}
+
 export interface DuplicateWarning {
     id: string;
     title: string;
@@ -95,8 +109,8 @@ export interface EnrichOutcome {
     skipped?: string;
 }
 
-/** LLM 通道路由：custom=拾遗专用直连（失败转 reason）；siyuan=官方通道。 */
-async function callLLM(
+/** LLM 通道路由：custom=拾遗专用直连（失败转 reason）；siyuan=官方通道。伴读动作复用（D-0030）。 */
+export async function callLLM(
     plugin: Plugin,
     settings: GleanSettings,
     msg: string

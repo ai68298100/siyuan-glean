@@ -202,3 +202,18 @@ export async function insertBlockDom(parentBlockId: string, dom: string): Promis
     }
     throw new Error('insertBlock 未返回节点 ID');
 }
+
+/** 在指定块之后插入同级 DOM 块（D-0030 摘录落点；与 insertBlockDom 同端点，previousID 参数变体）。 */
+export async function insertBlockAfter(previousBlockId: string, dom: string): Promise<string> {
+    const data = await kernelPost<Array<{ doOperations?: Array<{ id?: string }> }>>('/api/block/insertBlock', {
+        dataType: 'dom',
+        previousID: previousBlockId,
+        data: dom,
+    });
+    const results = Array.isArray(data) ? data : data ? [data] : [];
+    for (const result of results) {
+        const id = result?.doOperations?.[0]?.id;
+        if (id) return id;
+    }
+    throw new Error('insertBlock 未返回节点 ID');
+}

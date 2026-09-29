@@ -1,5 +1,13 @@
 # 进度（PROGRESS）
 
+## 阅读页签伴生栏：摘录与 AI 伴读（D-0030；代码/隔离验证完成，真机验收进行中）◐（2026-09-30）
+
+- [x] 契约先行：D-0030 决策——**摘录=引述块插入原文档**（插所选块之后，不新增属性、不写用户标签，§4 高亮视图自动聚合；定位失败明示降级为仅复制）；**AI 伴读=动作+结果卡**（临时显示可复制，仅显式"保存为 AI 摘要"写既有 custom-clip-summary；额度与富化共享，不做聊天窗）。DATA-CONTRACT §3.3 与 UI-STANDARD §5.10 同步激活摘录段/AI 段。
+- [x] T-1730d：`domain/reader.ts`（clampExcerpt/引述块 DOM/两个 prompt 构造，3 项单测）+ `services/excerpt-service.ts`（选区提取限定正文宿主；`insertQuoteExcerpt`）+ api `insertBlockAfter`（previousID 变体，**隔离内核 E2E 实证**引述块插入与高亮聚合可见）；ReaderTab 摘录段（选区预览/摘录为引述/制卡/复制）。
+- [x] T-1730e：`services/reader-ai.ts`（总结全文/翻译选区，显式动作；失败不扣额度，与富化同语义）+ enrich-service 导出 callLLM/aiQuotaAvailable/recordAiUsage/logAiEvent 共享通道与额度 + ReaderTab AI 段（结果卡带「AI · 通道 · 动作」来源标记、复制、保存为 AI 摘要、相关旧文列表点击页签内跳转；AI 关闭显示提示而非按钮）。
+- [x] 架构守门立功：domain 注释含端点字符串被 architecture 测试拦截，已改写。
+- [x] 门禁：`pnpm check` 0 错误（42 条既有类告警）、`pnpm test` **131/131**、`pnpm build` 通过、隔离内核 E2E **14/14**（新增摘录断言）。真实 AI 模型的总结/翻译/相关旧文效果待 B-0004 真机；选区交互待 B-0002。未发布新版本。
+
 ## 内嵌阅读页签 MVP（D-0029 立项；代码/构建完成，运行时行为待真机）◐（2026-09-30）
 
 - [x] T-1730a：作者拍板方案 A 后契约先行——D-0029 决策（正文由思源编辑器承载、实例可在原生或插件页签；不做自绘渲染器）、DATA-CONTRACT §3.3（页签是视图不是存储，无新文档属性）、UI-STANDARD §5.10（左正文右伴生栏布局与交互裁决，伴生栏预留 T-1725 摘录段与 T-1726 AI 段）。

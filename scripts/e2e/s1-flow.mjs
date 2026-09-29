@@ -287,6 +287,24 @@ async function runFlow(client, workspace) {
     assert.equal((await client.apiChecked("/api/attr/getBlockAttrs", { id: hollow }))["custom-clip-words"], "0");
     pass("全文待核与空正文显式测量真实写回属性，不改用户正文");
 
+    // D-0030 摘录：引述块插在所选块之后，落入原文档并进高亮聚合（T-1730d）。
+    const excerptMod = await import("../../src/services/excerpt-service.ts");
+    const apiClient = await import("../../src/api/client.ts");
+    const paraRows = await client.apiChecked("/api/query/sql", {
+        stmt: `SELECT id FROM blocks WHERE root_id = '${fulltext}' AND type = 'p' ORDER BY sort ASC LIMIT 1`,
+    });
+    const firstPara = paraRows[0]?.id ?? "";
+    assert.match(firstPara, /^[0-9]{14}-[0-9a-z]{7}$/);
+    const quoteId = await excerptMod.insertQuoteExcerpt(firstPara, '这是 <选中> 的 "摘录" 文本\n第二段');
+    assert.match(quoteId, /^[0-9]{14}-[0-9a-z]{7}$/);
+    // blocks SQL 索引异步刷新（spike 已知坑），轮询等待入索引
+    const quoteRow = await until("引述块入 SQL 索引", async () => {
+        const quotes = await apiClient.listQuoteBlocks(fulltext);
+        return quotes.find((row) => row.id === quoteId) ?? null;
+    });
+    assert.ok(String(quoteRow.content).includes("摘录"));
+    pass("选区摘录以引述块插入所选块之后，高亮聚合可查");
+
     // S4/T-1710/T-1717：重浮与超龄归档在对账后的索引上投影，略过幂等，归档按显式清单。
     const resurface = await import("../../src/services/resurface-service.ts");
     const surfaceIndex = await clip.reconcileIndex(newPlugin(), settings);

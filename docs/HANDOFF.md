@@ -1,37 +1,30 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
-## 当前有效交接（2026-09-30 内嵌阅读页签 MVP，D-0029）
+## 当前有效交接（2026-09-30 阅读页签伴生栏：摘录与 AI 伴读，D-0030）
 
-作者拍板 Folo 式插件内阅读（方案 A：内嵌真实 Protyle，不自绘渲染器）后，本轮完成立项文档 + MVP 代码，门禁全绿，未发布新版本：
+续跑口令指向的 T-1730d/T-1730e 已完成，门禁全绿，未发布新版本：
 
-- **契约/设计先行（T-1730a）**：D-0029 决策（修订 D-0027"依附原生编辑器"为"原生或插件内嵌实例均可承载正文"，数据主权不变——编辑走内核事务）；DATA-CONTRACT §3.3（页签是视图不是存储，零新增文档属性；会话级 pendingReaderDocId 不落 saveData）；UI-STANDARD §5.10（左正文右 264px 伴生栏布局、交互裁决、设置口径，伴生栏预留 T-1725 摘录段/T-1726 AI 段）。
-- **设置（T-1730b）**：`settings.reader = { openInTab（默认 false，沿用原生页签）, defaultMode: "read"|"edit"（默认 read=preview） }` + 设置页"阅读页签（实验）"分组 + i18n 双名 + 归一化单测（非法值回退）。
-- **MVP（T-1730c）**：`glean-reader` 自定义页签（addTab 含 resize 派发 `glean:reader-resize`）+ `ui/ReaderTab.svelte`：
-  - SDK `new Protyle(app, host, { blockId, rootId, mode, render:{breadcrumb:false,background:false} })`；
-    模式切换走 `switchMode` 不重建实例；挂载效果只依赖 docId+host（untrack 包住 mode），销毁即 `protyle.destroy()`。
-  - 伴生栏：ClipStatusActions（开始阅读只写 reading，页签内不再导航）、ClipRankControls、检测正文/重新剪藏（复用 measureClipBody/D-0023 裁决）、打开原文、快照 📷/⟐、返回读库；全部与三画布同服务、真实成功数反馈；done 时同样触发打卡桥。
-  - 接线：facade 新增 `openReader/consumeReaderFocus`（内存 pendingReaderDocId + `glean:focus-reader` 事件）；
-    `openReadingDocument` 桌面且 `reader.openInTab` 时路由到页签，否则原生 openTab；移动端一律回退原生。
-  - `readClipContext` 扩展只读投影：site/snapshot/priority/rating。
-- **顺手修复**：SettingsView `save()` 从未把 `integration` 写入 patch——打卡开关持久化实际失效的潜在 bug；现已显式写入 integration 与 reader。
-- 门禁：`pnpm check` 0 错误（42 告警=38 既有+4 条 ReaderTab 有意初始化取值）、`pnpm test` **128/128**、`pnpm build` 通过、隔离 E2E **13/13**。
-- **诚实边界**：Protyle 的运行时行为（挂载、同文档双实例同步、模式切换、销毁内存、快捷键/IME 冲突、大文档性能）无法在隔离内核验证（前端能力，B-0009 限制），**必须作者真机验收（T-1730f，已记 B-0002 扩充）**；SDK 类型层面已核实（Protyle/switchMode/destroy/trackRange）。
+- **契约（D-0030）**：摘录=引述块插入原文档（插所选块之后；不新增属性、不写用户标签、§4 高亮自动聚合；定位失败明示降级仅复制）；AI 伴读=动作+结果卡（临时显示可复制；仅显式保存写 custom-clip-summary；额度与富化共享；不做聊天窗）。
+- **T-1730d 摘录**：`domain/reader.ts`（clampExcerpt/引述块 DOM/总结与翻译 prompt，3 单测）+ `services/excerpt-service.ts`（excerptFromSelection 限定正文宿主、insertQuoteExcerpt）+ api `insertBlockAfter`（previousID 变体）+ ReaderTab 摘录段。**隔离内核 E2E 实证**：引述块插入所选块之后、listQuoteBlocks 聚合可见（blocks SQL 索引滞后需轮询——已知坑复现）。
+- **T-1730e AI 伴读**：`services/reader-ai.ts`（readerSummarize/readerTranslate/saveReaderSummary）+ enrich-service 导出 callLLM/aiQuotaAvailable/recordAiUsage/logAiEvent（额度共享：失败不扣，与富化同语义）+ ReaderTab AI 段（✨总结全文 / 文A 翻译选区（需选区）/ 🔗相关旧文（relatedWhileReading+嵌入）；结果卡带「AI·通道·动作」来源标记；总结可显式保存为 AI 摘要；相关旧文点击页签内跳转；AI off 时显示提示而非按钮）。
+- 架构守门立功：domain 注释含端点字符串被 architecture 测试拦截——**注释也不许写端点字面量**。
+- 门禁：`pnpm check` 0 错误/42 告警、`pnpm test` **131/131**、`pnpm build` 通过、隔离 E2E **14/14**。
+- **诚实边界**：真实模型下总结/翻译/相关旧文效果待 B-0004；页签运行时行为与选区交互待 B-0002 真机（清单已含）。
 
 **下一轮待办（按序）**：
-1. T-1730d 摘录标注闭环进伴生栏（= T-1725 页签落点：选区→摘录/引述块/制卡，块定位失败降级复制）；
-2. T-1730e AI 伴读区进伴生栏（= T-1726 落点：选区/全文/相关旧文三档，手动+额度+来源标记，动作+结果卡）；
-3. T-1729 AI 标签独立筛选；T-1723 读完并下一篇；T-1724 快捷键；T-1719 首启引导；
-4. S5 逐项验收（T-1711/T-1712/T-1718）多需作者真机/真实服务；S6 发布门禁（T-1713/T-1108）最后。
+1. T-1729 AI 标签独立展示与筛选（S3 欠账）；
+2. T-1723 "读完并打开下一篇"显式动作（伴生栏/阅读条落点）；T-1724 命令面板与快捷键阅读动作；T-1719 首启引导与候选预览；
+3. S5 逐项验收（T-1711/T-1712/T-1718）多需作者真机/真实服务；S6 发布门禁（T-1713/T-1108）最后。
+4. 阅读页签若真机发现交互问题：当日修复、补丁版流程（反馈→根因→修复→发版）。
 
 > 续跑口令（新会话直接粘贴）：
-> **阅读 D:\思源插件\小驴拾遗\docs\HANDOFF.md 的"当前有效交接"与 docs/PRODUCT-REPLAN.md，先重跑最后改动后的门禁，再按 T-1730d、T-1730e 把摘录标注与 AI 伴读落进阅读页签伴生栏（遵守 T-1725/T-1726/D-0013 契约）；工程纪律见 AGENTS.md 与 docs/DECISIONS.md，UI 以 docs/UI-STANDARD.md 为准；页签运行时行为只能作者真机验收（B-0002），不冒称平台验证。**
+> **阅读 D:\思源插件\小驴拾遗\docs\HANDOFF.md 的"当前有效交接"与 docs/PRODUCT-REPLAN.md，先重跑最后改动后的门禁，再按 T-1729、T-1723/T-1724 与 T-1719 推进；工程纪律见 AGENTS.md 与 docs/DECISIONS.md，UI 以 docs/UI-STANDARD.md 为准；页签与 AI 伴读的运行时/真实模型行为只能作者真机验收（B-0002/B-0004），不冒称平台验证。**
 
 ## 历史交接存档
 
-历史交接（2026-09-30 上轮，S4 对账 D-0028 后续）：重浮/超龄清单改为对账后索引纯投影（computeDailyFromIndex）、
-超龄归档候选清单勾选（archiveStaleCandidates 按显式 ID）、今日拾遗"为什么出现"理由行（surfaceReasons）、
-改天幂等；E2E 13/13。该轮旧口令已作废（其待办中的"内嵌阅读页签"已由作者拍板并在本轮立项）。
-再早（D-0028）：完成时间契约与正文诊断（E2E 11/11）；D-0027：S3 主体；D-0016 S0：产品重整路线建立。
+历史交接（2026-09-30 上轮，阅读页签 MVP D-0029）：`glean-reader` 页签内嵌真实 Protyle + 伴生栏骨架、settings.reader 组、facade.openReader 接线（E2E 13/13）；顺手修复 SettingsView save() 漏写 integration 的打卡持久化 bug。
+再早（S4 对账）：重浮/超龄清单对账后索引纯投影（computeDailyFromIndex）、超龄归档候选清单勾选（archiveStaleCandidates 按显式 ID）、今日拾遗"为什么出现"理由行（surfaceReasons）、改天幂等（4291bba）。
+再早（D-0028）：完成时间契约与正文诊断（253afdc，E2E 11/11）；（D-0027）：S3 主体（统一状态动作/时间线筛选/载体策略/阅读上下文）；（D-0016 S0）：产品重整路线建立。
 D-0016 S0–S4 主线代码全部关闭，作者 v1.0.4 反馈由 S1–S4 覆盖，真机验收统一记 B-0002。
 
 ## 更早历史（原文存档）

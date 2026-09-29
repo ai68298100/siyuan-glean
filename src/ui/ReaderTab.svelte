@@ -21,6 +21,10 @@
     } from "../services/clip-store";
     import { snapshotClip } from "../services/snapshot-service";
     import { recordReadingDone } from "../services/checkin-bridge";
+    import { excerptFromSelection, insertQuoteExcerpt } from "../services/excerpt-service";
+    import { makeQuoteCard } from "../services/flashcard-service";
+    import { findRelated } from "../services/enrich-service";
+    import { readerAiEnabled, readerSummarize, readerTranslate, saveReaderSummary } from "../services/reader-ai";
     import ClipStatusActions from "./ClipStatusActions.svelte";
     import ClipRankControls from "./ClipRankControls.svelte";
 
@@ -41,6 +45,22 @@
     let protyle: Protyle | null = null;
 
     const bodyState = $derived(context ? fulltextBodyState(context.contentType, context.words) : "na");
+
+    // 摘录段（D-0030）：selectionchange 限定正文宿主内；blockId 空=定位失败，仅可复制。
+    let excerpt = $state<{ text: string; blockId: string } | null>(null);
+
+    // AI 伴读段（D-0030）：显式动作 + 结果卡；额度与富化共享。
+    const aiOn = $derived(readerAiEnabled(facade.settings));
+    const relatedOn = $derived(aiOn && facade.settings.ai.relatedWhileReading);
+    const channelLabel = $derived(
+        facade.settings.ai.channel === "custom"
+            ? facade.settings.ai.customModel || "custom"
+            : t(i18n, "reader.aiChannelSiyuan")
+    );
+    let aiBusy = $state("");
+    let aiResult = $state<{ kind: "summarize" | "translate"; action: string; text: string } | null>(null);
+    let relatedItems = $state<Array<{ id: string; title: string }>>([]);
+    let relatedShown = $state(false);
 
     function modeValue(value: "read" | "edit"): "preview" | "wysiwyg" {
         return value === "edit" ? "wysiwyg" : "preview";
@@ -87,15 +107,127 @@
         const onData = () => {
             if (docId) void loadContext(docId);
         };
+        const onSelect = () => {
+            excerpt = excerptFromSelection(protyleHost, window.getSelection());
+        };
         document.addEventListener("glean:focus-reader", onFocus);
         document.addEventListener("glean:reader-resize", onResize);
         document.addEventListener("glean:data-changed", onData);
+        document.addEventListener("selectionchange", onSelect);
         return () => {
             document.removeEventListener("glean:focus-reader", onFocus);
             document.removeEventListener("glean:reader-resize", onResize);
             document.removeEventListener("glean:data-changed", onData);
+            document.removeEventListener("selectionchange", onSelect);
         };
     });
+
+    function openRelatedDoc(id: string): void {
+        docId = id;
+        aiResult = null;
+        relatedShown = false;
+        relatedItems = [];
+        excerpt = null;
+    }
+
+    async function quoteExcerpt(): Promise<void> {
+        if (!excerpt?.blockId || !context) return;
+        try {
+            await insertQuoteExcerpt(excerpt.blockId, excerpt.text);
+            showMessage(t(i18n, "reader.excerptDone"), 2500);
+            facade.notifyDataChanged();
+        } catch (error) {
+            console.warn("[glean] 摘录插入失败:", error);
+            showMessage(t(i18n, "reader.actionFailed"), 3000);
+        }
+    }
+
+    async function cardFromExcerpt(): Promise<void> {
+        if (!excerpt?.text || !context) return;
+        try {
+            await makeQuoteCard(facade.settings, context.title, excerpt.text, facade.pluginInstance);
+            showMessage(t(i18n, "flashcard.done"), 3000);
+        } catch (error) {
+            console.warn("[glean] 摘录制卡失败:", error);
+            showMessage(t(i18n, "reader.actionFailed"), 3000);
+        }
+    }
+
+    async function copyText(text: string): Promise<void> {
+        try {
+            await navigator.clipboard.writeText(text);
+            showMessage(t(i18n, "reader.copied"), 2000);
+        } catch {
+            showMessage(t(i18n, "reader.actionFailed"), 2500);
+        }
+    }
+
+    async function runSummarize(): Promise<void> {
+        if (!context || aiBusy) return;
+        aiBusy = "summarize";
+        try {
+            const outcome = await readerSummarize(facade.pluginInstance, context.id, facade.settings);
+            if (outcome.ok && outcome.text) {
+                aiResult = { kind: "summarize", action: t(i18n, "reader.aiSummarize"), text: outcome.text };
+            } else if (outcome.skipped === "cap") {
+                showMessage(t(i18n, "ai.capReached", { n: facade.settings.ai.enrichDailyCap }), 4000);
+            } else if (outcome.skipped !== "off") {
+                showMessage(t(i18n, "ai.enrichFailed"), 3000);
+            }
+        } finally {
+            aiBusy = "";
+        }
+    }
+
+    async function runTranslate(): Promise<void> {
+        if (!context || aiBusy || !excerpt?.text) return;
+        aiBusy = "translate";
+        try {
+            const outcome = await readerTranslate(facade.pluginInstance, context.id, excerpt.text, facade.settings);
+            if (outcome.ok && outcome.text) {
+                aiResult = { kind: "translate", action: t(i18n, "reader.aiTranslate"), text: outcome.text };
+            } else if (outcome.skipped === "cap") {
+                showMessage(t(i18n, "ai.capReached", { n: facade.settings.ai.enrichDailyCap }), 4000);
+            } else if (outcome.skipped !== "off") {
+                showMessage(t(i18n, "ai.enrichFailed"), 3000);
+            }
+        } finally {
+            aiBusy = "";
+        }
+    }
+
+    async function runRelated(): Promise<void> {
+        if (!context || aiBusy) return;
+        aiBusy = "related";
+        try {
+            relatedItems = await findRelated(context.id, context.title);
+            relatedShown = true;
+            if (relatedItems.length === 0) showMessage(t(i18n, "reader.relatedNone"), 3000);
+        } finally {
+            aiBusy = "";
+        }
+    }
+
+    async function copyExcerpt(): Promise<void> {
+        if (!excerpt) return;
+        await copyText(excerpt.text);
+    }
+
+    async function copyAiResult(): Promise<void> {
+        if (!aiResult) return;
+        await copyText(aiResult.text);
+    }
+
+    async function keepSummary(): Promise<void> {
+        if (!aiResult || !context) return;
+        try {
+            await saveReaderSummary(facade.pluginInstance, context.id, aiResult.text);
+            showMessage(t(i18n, "reader.aiSummarySaved"), 2500);
+            facade.notifyDataChanged();
+        } catch {
+            showMessage(t(i18n, "reader.actionFailed"), 3000);
+        }
+    }
 
     function setMode(next: "read" | "edit"): void {
         if (mode === next || !protyle) return;
@@ -282,6 +414,85 @@
                     onPriority={(value) => void setPriority(value)}
                     onRating={(value) => void setRating(value)}
                 />
+                {#if docId}
+                    <div class="glean-reader__section">
+                        <div class="glean-reader__section-title">{t(i18n, "reader.excerptTitle")}</div>
+                        {#if excerpt}
+                            <div class="glean-reader__excerpt" title={excerpt.text}>
+                                {excerpt.text.slice(0, 80)}{excerpt.text.length > 80 ? "…" : ""}
+                            </div>
+                            {#if !excerpt.blockId}
+                                <div class="glean-reader__issue"><span>{t(i18n, "reader.excerptNoBlock")}</span></div>
+                            {/if}
+                            <div class="glean-reader__ops">
+                                <button
+                                    class="glean-btn glean-btn--ghost"
+                                    disabled={!excerpt.blockId}
+                                    title={excerpt.blockId ? "" : t(i18n, "reader.excerptNoBlock")}
+                                    onclick={() => void quoteExcerpt()}
+                                >{t(i18n, "reader.excerptQuote")}</button>
+                                <button class="glean-btn glean-btn--ghost" onclick={() => void cardFromExcerpt()}>
+                                    {t(i18n, "flashcard.make")}
+                                </button>
+                                <button class="glean-btn glean-btn--ghost" onclick={() => void copyExcerpt()}>
+                                    {t(i18n, "reader.copy")}
+                                </button>
+                            </div>
+                        {:else}
+                            <div class="glean-reader__hint">{t(i18n, "reader.excerptHint")}</div>
+                        {/if}
+                    </div>
+                    <div class="glean-reader__section">
+                        <div class="glean-reader__section-title">{t(i18n, "reader.aiTitle")}</div>
+                        {#if !aiOn}
+                            <div class="glean-reader__hint">{t(i18n, "reader.aiOff")}</div>
+                        {:else}
+                            <div class="glean-reader__ops">
+                                <button class="glean-btn glean-btn--ghost" disabled={Boolean(aiBusy)} onclick={() => void runSummarize()}>
+                                    ✨ {t(i18n, "reader.aiSummarize")}
+                                </button>
+                                <button
+                                    class="glean-btn glean-btn--ghost"
+                                    disabled={Boolean(aiBusy) || !excerpt?.text}
+                                    title={excerpt?.text ? "" : t(i18n, "reader.excerptHint")}
+                                    onclick={() => void runTranslate()}
+                                >文A {t(i18n, "reader.aiTranslate")}</button>
+                                {#if relatedOn}
+                                    <button class="glean-btn glean-btn--ghost" disabled={Boolean(aiBusy)} onclick={() => void runRelated()}>
+                                        🔗 {t(i18n, "reader.aiRelated")}
+                                    </button>
+                                {/if}
+                            </div>
+                            {#if aiResult}
+                                <div class="glean-reader__ai-card">
+                                    <div class="glean-reader__ai-src">
+                                        {t(i18n, "reader.aiSource", { channel: channelLabel, action: aiResult.action })}
+                                    </div>
+                                    <div class="glean-reader__ai-text">{aiResult.text}</div>
+                                    <div class="glean-reader__ops">
+                                        <button class="glean-btn glean-btn--ghost" onclick={() => void copyAiResult()}>
+                                            {t(i18n, "reader.copy")}
+                                        </button>
+                                        {#if aiResult.kind === "summarize"}
+                                            <button class="glean-btn glean-btn--ghost" onclick={() => void keepSummary()}>
+                                                {t(i18n, "reader.aiSaveSummary")}
+                                            </button>
+                                        {/if}
+                                    </div>
+                                </div>
+                            {/if}
+                            {#if relatedShown && relatedItems.length > 0}
+                                <div class="glean-reader__related">
+                                    {#each relatedItems as item (item.id)}
+                                        <button class="glean-reader__related-item" title={item.title} onclick={() => openRelatedDoc(item.id)}>
+                                            {item.title}
+                                        </button>
+                                    {/each}
+                                </div>
+                            {/if}
+                        {/if}
+                    </div>
+                {/if}
                 <div class="glean-reader__ops">
                     {#if hasSourceAction(context.contentType, context.url)}
                         <button class="glean-btn glean-btn--ghost" onclick={openSource}>↗ {t(i18n, "clip.openSource")}</button>

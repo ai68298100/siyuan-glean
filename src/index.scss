@@ -623,6 +623,73 @@
 .glean-reader__empty-title { font-size: 13px; font-weight: 600; }
 .glean-reader__empty-hint { font-size: 11px; opacity: 0.72; }
 
+/* D-0030：伴生栏摘录段与 AI 段 */
+.glean-reader__section {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding-top: 8px;
+    border-top: 1px solid var(--b3-border-color);
+}
+
+.glean-reader__section-title {
+    font-size: 10.5px;
+    font-weight: 700;
+    opacity: 0.72;
+    letter-spacing: 0.04em;
+}
+
+.glean-reader__excerpt,
+.glean-reader__hint {
+    font-size: 10.5px;
+    line-height: 1.5;
+    color: var(--b3-theme-on-surface);
+    opacity: 0.85;
+}
+
+.glean-reader__ai-card {
+    border: 1px solid var(--b3-border-color);
+    border-radius: 8px;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    background: var(--b3-theme-background);
+}
+
+.glean-reader__ai-src {
+    font-size: 9.5px;
+    opacity: 0.72;
+}
+
+.glean-reader__ai-text {
+    font-size: 11.5px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.glean-reader__related {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.glean-reader__related-item {
+    border: none;
+    background: transparent;
+    text-align: left;
+    font-size: 11px;
+    color: var(--b3-theme-primary);
+    cursor: pointer;
+    padding: 3px 2px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    &:hover { text-decoration: underline; }
+}
+
 .glean-card__check {
     position: absolute;
     top: 8px;
