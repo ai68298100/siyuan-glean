@@ -32,6 +32,8 @@ export const ATTR = {
     site: "custom-clip-site",
     time: "custom-clip-time",
     status: "custom-clip-status",
+    /** 最近一次显式标记读完的时刻；缺键 = 完成时间未知（D-0028）。 */
+    doneTime: "custom-clip-done-time",
     words: "custom-clip-words",
     minutes: "custom-clip-minutes",
     priority: "custom-clip-priority",
@@ -58,6 +60,7 @@ export interface ClipAttrs {
     site?: string;
     time?: string;
     status?: ClipStatus;
+    doneTime?: string;
     words?: number;
     minutes?: number;
     priority?: number;
@@ -156,6 +159,7 @@ export function parseClipAttrs(ial: Record<string, string | undefined>): ClipAtt
         site: optionalString(ial[ATTR.site]),
         time: optionalString(ial[ATTR.time]),
         status: parseStatus(ial[ATTR.status]),
+        doneTime: optionalString(ial[ATTR.doneTime]),
         words: parseNumber(ial[ATTR.words]),
         minutes: parseNumber(ial[ATTR.minutes]),
         priority: parseClamped(ial[ATTR.priority], 1, 5),
@@ -204,6 +208,7 @@ export function serializePatch(patch: Partial<ClipAttrs> & { aiTags?: string[] |
     if (patch.site !== undefined) put(ATTR.site, patch.site || null);
     if (patch.time !== undefined) put(ATTR.time, patch.time || null);
     if (patch.status !== undefined) put(ATTR.status, patch.status ?? null);
+    if (patch.doneTime !== undefined) put(ATTR.doneTime, patch.doneTime || null);
     if (patch.words !== undefined) put(ATTR.words, patch.words === null ? null : String(Math.max(0, Math.round(patch.words))));
     if (patch.minutes !== undefined) put(ATTR.minutes, patch.minutes === null ? null : String(Math.max(0, Math.round(patch.minutes))));
     if (patch.priority !== undefined) put(ATTR.priority, patch.priority === null ? null : String(clampInt(patch.priority, 1, 5)));

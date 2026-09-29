@@ -9,7 +9,8 @@
     import type { GleanFacade } from "../types";
     import { t } from "../libs/i18n";
     import { hasSourceAction, openTargetForCarrier, resolveCarrier, sourceUrlForCarrier } from "../domain/carrier";
-    import { batchSetStatus, readClipContext, type ReadingClipContext } from "../services/clip-store";
+    import { fulltextBodyState, type FulltextBodyState } from "../domain/content";
+    import { batchSetStatus, measureClipBody, readClipContext, type ReadingClipContext } from "../services/clip-store";
     import type { ClipStatus } from "../domain/schema";
     import { recordReadingDone } from "../services/checkin-bridge";
     import ClipStatusActions from "./ClipStatusActions.svelte";
@@ -74,6 +75,43 @@
 
     function statusLabel(value: ClipStatus): string {
         return t(i18n, `status.${value}`);
+    }
+
+    let bodyState = $derived<FulltextBodyState>(context ? fulltextBodyState(context.contentType, context.words) : "na");
+    let measuring = $state(false);
+
+    /** 显式"检测正文"（T-1727）：导出重算字数并写回；不修改正文，不触碰快照。 */
+    async function checkBody(): Promise<void> {
+        if (!context || measuring) return;
+        measuring = true;
+        try {
+            const measured = await measureClipBody(facade.pluginInstance, context.id);
+            if (context) context = { ...context, words: measured.words };
+            showMessage(
+                measured.missing
+                    ? t(i18n, "clip.bodyMissingConfirm")
+                    : t(i18n, "clip.bodyOk", { n: measured.words }),
+                3500
+            );
+            facade.notifyDataChanged();
+        } catch (error) {
+            console.warn("[glean] 正文检测失败:", error);
+            showMessage(t(i18n, "clip.bodyCheckFailed"), 3000);
+        } finally {
+            measuring = false;
+        }
+    }
+
+    /** "重新剪藏"是打开原文的显式导航：官方剪藏扩展产出新文档，本文不被覆盖。 */
+    function recapture(): void {
+        if (!context) return;
+        const url = sourceUrlForCarrier(context.contentType, context.url);
+        if (!url) {
+            showMessage(t(i18n, "clip.sourceMissing"), 3000);
+            return;
+        }
+        window.open(url, "_blank", "noopener,noreferrer");
+        showMessage(t(i18n, "clip.reclipHint"), 4500);
     }
 
     function openContextSource(current: ReadingClipContext): void {
@@ -152,8 +190,24 @@
             {:else if resolveCarrier(context.contentType) === "link"}
                 <span class="glean-reading-context__missing">{t(i18n, "clip.sourceMissing")}</span>
             {/if}
-            {#if resolveCarrier(context.contentType) === "fulltext" && (context.words ?? 0) <= 0}
-                <span class="glean-reading-context__missing" title={t(i18n, "clip.bodyMissing")}>{t(i18n, "clip.bodyMissing")}</span>
+            {#if bodyState === "unmeasured"}
+                <button
+                    class="glean-reading-context__source-btn"
+                    disabled={measuring}
+                    title={t(i18n, "clip.bodyCheckHint")}
+                    onclick={checkBody}
+                >⌕ {t(i18n, "clip.bodyCheck")}</button>
+            {:else if bodyState === "missing"}
+                <span class="glean-reading-context__missing" title={t(i18n, "clip.bodyMissingHint")}>
+                    {t(i18n, "clip.bodyMissing")}
+                </span>
+                {#if hasSourceAction(context.contentType, context.url)}
+                    <button
+                        class="glean-reading-context__source-btn glean-reading-context__reclip"
+                        title={t(i18n, "clip.bodyMissingHint")}
+                        onclick={recapture}
+                    >↻ {t(i18n, "clip.reclip")}</button>
+                {/if}
             {/if}
             <button class="glean-reading-context__back" onclick={backToLibrary}>
                 {t(i18n, "reading.backToLibrary")}

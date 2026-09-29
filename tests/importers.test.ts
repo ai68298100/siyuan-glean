@@ -91,6 +91,27 @@ test("parsePocketCsv：引号包裹与状态映射", () => {
     assert.deepEqual(result.items[2].tags, ["tools"]);
 });
 
+test("time_read：Pocket HTML/CSV 的已读时间进 doneTime，其余格式为空（D-0028）", () => {
+    const html = parsePocketHtml(POCKET_HTML.replace(
+        "time_added=\"1484250667\" tags=\"ai, 架构\"",
+        "time_added=\"1484250667\" time_read=\"1484300000\" tags=\"ai, 架构\""
+    ));
+    assert.equal(html.items[0].doneTime, toSiyuanTime(1484300000));
+    assert.equal(html.items[1].doneTime, "");
+    const csv = parsePocketCsv(POCKET_CSV.replace(
+        '"title","url","time_added","status","favorite","tags"',
+        '"title","url","time_added","time_read","status","favorite","tags"'
+    ).replace(
+        '"Already Read","https://deep.example.com/2","1484250667","read","0",""',
+        '"Already Read","https://deep.example.com/2","1484250667","1484300000","read","0",""'
+    ));
+    assert.equal(csv.items[1].doneTime, toSiyuanTime(1484300000));
+    assert.equal(csv.items[1].status, "done");
+    assert.equal(csv.items[0].doneTime, "");
+    assert.equal(parseOmnivoreJson(OMNIVORE_JSON).items[0].doneTime, "");
+    assert.equal(parseWallabagJson(WALLABAG_JSON).items[0].doneTime, "");
+});
+
 test("parseCsv：转义引号与逗号", () => {
     const rows = parseCsv('"a","x,y""z"\nb,c');
     assert.deepEqual(rows[0], ["a", "x,y\"z"]);

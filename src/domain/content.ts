@@ -42,7 +42,7 @@ function articleBody(markdown: string): string {
         if (/^(?:[-*+]\s*)?\[[^\]]*\]\(https?:\/\/[^)\s]+(?:\s+"[^"]*")?\)\s*$/i.test(trimmed)) continue;
         if (/^https?:\/\/\S+$/i.test(trimmed)) continue;
         // Common generated metadata lines; they are not article content.
-        if (/^(?:[-*+]\s*)?(?:来源|收藏于|标签|由迁移导入器带入)\s*[：:]/.test(trimmed)) continue;
+        if (/^(?:[-*+]\s*)?(?:来源|收藏于|已读于|标签|由迁移导入器带入)\s*[：:]/.test(trimmed)) continue;
         if (/^>\s*由迁移导入器带入/.test(trimmed)) continue;
         body.push(line);
     }
@@ -67,4 +67,17 @@ export function inspectClipMarkdown(markdown: string, options: InspectMarkdownOp
 }
 
 export { articleBody };
+
+export type FulltextBodyState = "ok" | "missing" | "unmeasured" | "na";
+
+/**
+ * 全文载体的正文诊断（T-1727）。只基于已记录的测量值判断：
+ * words > 0 = 正常；words = 0 = 已测量为空（剪入失败或正文被清空）；
+ * 缺测量键 = 未检测。绝不猜测：非全文载体返回 na。
+ */
+export function fulltextBodyState(contentType: string | undefined, words: number | undefined): FulltextBodyState {
+    if (contentType !== "fulltext") return "na";
+    if (words === undefined) return "unmeasured";
+    return words > 0 ? "ok" : "missing";
+}
 

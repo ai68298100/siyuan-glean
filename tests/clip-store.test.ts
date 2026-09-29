@@ -24,7 +24,7 @@ registerHooks({
     },
 });
 
-const { batchSetStatus, batchSetStatusDetailed, captureClip, captureDocument, findClipUrlConflict, listAnchorDocs, listClipDocs, readClipContext, reconcileIndex, scanDocScopes, writeClip } = await import(
+const { batchSetStatus, batchSetStatusDetailed, captureClip, captureDocument, findClipUrlConflict, listAnchorDocs, listClipDocs, measureClipBody, readClipContext, reconcileIndex, scanDocScopes, writeClip } = await import(
     "../src/services/clip-store.ts"
 );
 
@@ -308,4 +308,60 @@ test("后续分页失败会保留旧索引", async () => {
     h.setFailPageOffset(500);
     await assert.rejects(reconcileIndex(h.plugin as never, { anchorNotebooks: ["box-1"] } as never), /page failed/);
     assert.deepEqual(h.saved.get("glean-index.json"), before);
+});
+
+test("显式标记读完写入完成时间；归档与恢复不抹除（D-0028）", async () => {
+    const h = harness();
+    h.add("clip-1", "box-1", { "custom-clip-status": "reading" });
+    await batchSetStatusDetailed(h.plugin as never, ["clip-1"], "done");
+    const doneAt = h.attrs.get("clip-1")?.["custom-clip-done-time"];
+    assert.match(doneAt ?? "", /^\d{14}$/);
+    const index = h.saved.get("glean-index.json") as { clips: Record<string, { doneTime: string }> };
+    assert.equal(index.clips["clip-1"].doneTime, doneAt);
+    await batchSetStatus(h.plugin as never, ["clip-1"], "archived");
+    assert.equal(h.attrs.get("clip-1")?.["custom-clip-done-time"], doneAt);
+    await batchSetStatus(h.plugin as never, ["clip-1"], "later");
+    assert.equal(h.attrs.get("clip-1")?.["custom-clip-done-time"], doneAt);
+    await batchSetStatus(h.plugin as never, ["clip-1"], "done");
+    assert.notEqual(h.attrs.get("clip-1")?.["custom-clip-done-time"], undefined);
+});
+
+test("正文测量显式触发：重算字数写回属性，空正文报告 missing（T-1727）", async () => {
+    const h = harness();
+    h.add("empty-body", "box-1", {
+        "custom-clip-status": "inbox", "custom-clip-content-type": "fulltext",
+        "custom-clip-url": "https://example.com/empty",
+    }, "# 空正文\n- [https://example.com/empty](https://example.com/empty)");
+    h.add("good-body", "box-1", {
+        "custom-clip-status": "later", "custom-clip-content-type": "fulltext",
+        "custom-clip-url": "https://example.com/good", "custom-clip-words": "7",
+    }, "# 好正文\n- [https://example.com/good](https://example.com/good)\n正文内容 Hello world。");
+    const empty = await measureClipBody(h.plugin as never, "empty-body");
+    assert.equal(empty.missing, true);
+    assert.equal(empty.words, 0);
+    assert.equal(h.attrs.get("empty-body")?.["custom-clip-words"], "0");
+    const good = await measureClipBody(h.plugin as never, "good-body");
+    assert.equal(good.missing, false);
+    assert.equal(good.words, 6);
+    assert.equal(h.attrs.get("good-body")?.["custom-clip-words"], "6");
+    const writesAfter = h.writes.filter((write) => write.id === "good-body").length;
+    const rerun = await measureClipBody(h.plugin as never, "good-body");
+    assert.equal(rerun.words, 6);
+    assert.equal(h.writes.filter((write) => write.id === "good-body").length, writesAfter);
+});
+
+test("首次导入收录写入导出文件的可靠已读时间，无时间不伪造（D-0028）", async () => {
+    const h = harness();
+    h.add("with-read", "box-1");
+    h.add("without-read", "box-1");
+    const read = await captureClip(h.plugin as never, "with-read", {
+        url: "https://example.com/read", status: "done", src: "import-pocket",
+        time: "20200102030405", doneTime: "20200103040506", contentType: "link",
+    });
+    assert.equal(read.attrs.doneTime, "20200103040506");
+    const unknown = await captureClip(h.plugin as never, "without-read", {
+        url: "https://example.com/unknown", status: "done", src: "import-pocket",
+        time: "20200102030405", contentType: "link",
+    });
+    assert.equal(unknown.attrs.doneTime, undefined);
 });

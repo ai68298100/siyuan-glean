@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { normalizeUrl } from "../src/domain/url.ts";
-import { inspectClipMarkdown } from "../src/domain/content.ts";
+import { fulltextBodyState, inspectClipMarkdown } from "../src/domain/content.ts";
 import { documentTimeFromId, parseClipAttrs, serializePatch, ATTR } from "../src/domain/schema.ts";
 
 test("URL 查重键只规范协议/主机、默认端口、fragment 和非根路径尾斜杠", () => {
@@ -34,4 +34,21 @@ test("旧时间来源呈 legacy，新时间来源与内容类型可序列化；�
     assert.equal(documentTimeFromId("20240102030405-abcd123"), "20240102030405");
     assert.equal(documentTimeFromId("20240230030405-abcd123"), null);
     assert.equal(documentTimeFromId("invalid"), null);
+});
+
+test("fulltextBodyState：只按已记录测量判断，不猜测（T-1727）", () => {
+    assert.equal(fulltextBodyState("fulltext", 120), "ok");
+    assert.equal(fulltextBodyState("fulltext", 0), "missing");
+    assert.equal(fulltextBodyState("fulltext", undefined), "unmeasured");
+    assert.equal(fulltextBodyState("link", 0), "na");
+    assert.equal(fulltextBodyState("local", 50), "na");
+    assert.equal(fulltextBodyState(undefined, 0), "na");
+});
+
+test("done-time 属性可解析与序列化；删除传 null（D-0028）", () => {
+    assert.deepEqual(serializePatch({ doneTime: "20260930120000" }), { [ATTR.doneTime]: "20260930120000" });
+    assert.deepEqual(serializePatch({ doneTime: null }), { [ATTR.doneTime]: null });
+    const attrs = parseClipAttrs({ [ATTR.doneTime]: "20260930120000" });
+    assert.equal(attrs.doneTime, "20260930120000");
+    assert.equal(parseClipAttrs({}).doneTime, undefined);
 });

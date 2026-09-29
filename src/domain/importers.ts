@@ -13,6 +13,8 @@ export interface ImportedItem {
     site: string;
     /** 原服务收藏时间（思源格式 YYYYMMDDHHmmss）；解析不出为空串 */
     time: string;
+    /** 原服务标记已读时间（仅 Pocket time_read 提供）；空串 = 未知（D-0028） */
+    doneTime: string;
     tags: string[];
     status: "inbox" | "done" | "archived";
 }
@@ -114,6 +116,7 @@ export function parsePocketHtml(raw: string): ParseResult {
         const attrs = match[1];
         const href = /href="([^"]+)"/i.exec(attrs)?.[1] ?? "";
         const timeAdded = /time_added="([^"]*)"/i.exec(attrs)?.[1] ?? "";
+        const timeRead = /time_read="([^"]*)"/i.exec(attrs)?.[1] ?? "";
         const tags = /tags="([^"]*)"/i.exec(attrs)?.[1] ?? "";
         const title = match[2].replace(/<[^>]+>/g, "").trim();
         if (!href) continue;
@@ -122,6 +125,7 @@ export function parsePocketHtml(raw: string): ParseResult {
             url: href,
             site: siteFromUrl(href),
             time: toSiyuanTime(timeAdded),
+            doneTime: toSiyuanTime(timeRead),
             tags: tags.split(",").map((tag) => tag.trim()).filter(Boolean),
             status: "inbox",
         });
@@ -140,23 +144,27 @@ export function parsePocketCsv(raw: string): ParseResult {
     const iTitle = idx("title");
     const iUrl = idx("url");
     const iTime = idx("time_added");
+    const iRead = idx("time_read");
     const iStatus = idx("status");
     const iTags = idx("tags");
     const items: ImportedItem[] = [];
     for (let i = 1; i < rows.length; i += 1) {
         const row = rows[i];
-        const url = (iUrl >= 0 ? row[iUrl] : "").trim();
+        // 外部导出的行可能比表头短（缺列）；防御性取值，缺字段按空串处理。
+        const cell = (index: number) => (index >= 0 ? row[index] ?? "" : "");
+        const url = cell(iUrl).trim();
         if (!url) continue;
         items.push({
-            title: (iTitle >= 0 ? row[iTitle] : "").trim(),
+            title: cell(iTitle).trim(),
             url,
             site: siteFromUrl(url),
-            time: toSiyuanTime(iTime >= 0 ? row[iTime] : ""),
-            tags: (iTags >= 0 ? row[iTags] : "")
+            time: toSiyuanTime(cell(iTime)),
+            doneTime: toSiyuanTime(cell(iRead)),
+            tags: cell(iTags)
                 .split(",")
                 .map((tag) => tag.trim().replace(/^#/, ""))
                 .filter(Boolean),
-            status: normalizeStatus(iStatus >= 0 ? row[iStatus] : ""),
+            status: normalizeStatus(cell(iStatus)),
         });
     }
     const deduped = dedupe(items);
@@ -240,6 +248,7 @@ export function parseOmnivoreJson(raw: string): ParseResult {
             url,
             site: String(page.siteName ?? "") || siteFromUrl(url),
             time: toSiyuanTime(page.savedAt),
+            doneTime: "",
             tags: labels,
             status: archived ? "archived" : "inbox",
         });
@@ -287,6 +296,7 @@ export function parseWallabagJson(raw: string): ParseResult {
             url,
             site: String(entry.domain_name ?? "") || siteFromUrl(url),
             time: toSiyuanTime(entry.created_at),
+            doneTime: "",
             tags,
             status: archived ? "archived" : read ? "done" : "inbox",
         });

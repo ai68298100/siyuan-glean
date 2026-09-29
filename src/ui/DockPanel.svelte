@@ -577,6 +577,11 @@ function carrierClass(entry: ClipIndexEntry): string {
     return `glean-carrier-badge glean-carrier-badge--${resolveCarrier(entry.contentType)}`;
 }
 
+/** 全文已收录但正文长度未记录或记录为 0：提示"待核"，不在这里断言缺失（T-1727）。 */
+function bodyPending(entry: ClipIndexEntry): boolean {
+    return resolveCarrier(entry.contentType) === "fulltext" && entry.words <= 0;
+}
+
 function carrierLabel(entry: ClipIndexEntry): string {
     return clipType(entry);
 }
@@ -807,6 +812,9 @@ function metaLine(entry: Row): string {
                                 <div class="glean-kcard__t">{entry.title || t(i18n, "panel.untitled")}</div>
                                 <div class="glean-kcard__m">
                                     <span class={carrierClass(entry)}>{carrierLabel(entry)}</span>
+                                    {#if bodyPending(entry)}
+                                        <span class="glean-body-pending" title={t(i18n, "clip.bodyPendingHint")}>{t(i18n, "clip.bodyPending")}</span>
+                                    {/if}
                                     {#if entry.site}<span>📰 {entry.site}</span>{/if}
                                     {#if entry.minutes > 0}<span>· {t(i18n, "panel.minutes", { n: entry.minutes })}</span>{/if}
                                     {#if (entry.status === "inbox" || entry.status === "later") && staleText(entry.time) !== null}
@@ -894,6 +902,9 @@ function metaLine(entry: Row): string {
                                          <span class={carrierClass(entry)} title={entry.contentType === "link" && !hasSourceAction(entry.contentType, entry.url) ? t(i18n, "clip.sourceMissing") : carrierLabel(entry)}>{carrierLabel(entry)}</span>
                                         {#if entry.contentType === "link" && !hasSourceAction(entry.contentType, entry.url)}
                                             <span class="glean-source-missing">{t(i18n, "clip.sourceMissing")}</span>
+                                        {/if}
+                                        {#if bodyPending(entry)}
+                                            <span class="glean-body-pending" title={t(i18n, "clip.bodyPendingHint")}>{t(i18n, "clip.bodyPending")}</span>
                                         {/if}
                                         <span class="glean-drow__len" title={timeSource(entry)}>{lengthLabel(entry)}</span>
                                         <span class="glean-drow__st">
@@ -1028,6 +1039,9 @@ function metaLine(entry: Row): string {
                                          <span class={carrierClass(entry)}>{carrierLabel(entry)}</span>
                                          {#if entry.contentType === "link" && !hasSourceAction(entry.contentType, entry.url)}
                                              <span class="glean-source-missing">{t(i18n, "clip.sourceMissing")}</span>
+                                         {/if}
+                                         {#if bodyPending(entry)}
+                                             <span class="glean-body-pending" title={t(i18n, "clip.bodyPendingHint")}>{t(i18n, "clip.bodyPending")}</span>
                                          {/if}
                                      {/if}
                                     {#if metaLine(entry)}

@@ -23,6 +23,8 @@ export interface ClipIndexEntry {
     /** 收录入口（custom-clip-src），用于来源筛选。 */
     src: string;
     time: string;
+    /** 最近一次显式完成的时刻；空串 = 完成时间未知（D-0028）。 */
+    doneTime: string;
     words: number;
     minutes: number;
     priority: number;
@@ -101,6 +103,7 @@ export async function loadIndex(plugin: Plugin): Promise<GleanIndex> {
                 tags: Array.isArray(value.tags) ? value.tags.filter((tag): tag is string => typeof tag === "string") : [],
                 src: typeof value.src === "string" ? value.src : "",
                 time: typeof value.time === "string" ? value.time : "",
+                doneTime: typeof value.doneTime === "string" ? value.doneTime : "",
                 words: typeof value.words === "number" ? value.words : 0,
                 minutes: typeof value.minutes === "number" ? value.minutes : 0,
                 priority: typeof value.priority === "number" ? value.priority : 3,
@@ -154,6 +157,7 @@ export function applyAttrsToIndex(
             tags: parseUserTags(ial.tags),
             src: attrs.src ?? "",
             time: attrs.time ?? "",
+            doneTime: attrs.doneTime ?? "",
             words: attrs.words ?? 0,
             minutes: attrs.minutes ?? 0,
             priority: attrs.priority ?? 3,

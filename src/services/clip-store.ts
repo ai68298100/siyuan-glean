@@ -24,6 +24,7 @@ import {
     captureDefaults,
     serializePatch,
     siteFromUrl,
+    siyuanTimestamp,
     type ClipAttrs,
     type ClipStatus,
 } from "../domain/schema";
@@ -180,6 +181,8 @@ export async function captureClip(
         clearExcluded?: boolean;
         /** 用户明确选择保留一篇同来源的第二份副本。 */
         allowDuplicate?: boolean;
+        /** 导入时导出文件提供的可靠已读时间（Pocket time_read）；仅首次收录写入。 */
+        doneTime?: string;
     } = {}
 ): Promise<{ captured: boolean; attrs: ClipAttrs; conflict?: DocMeta }> {
     const ial = await getBlockAttrs(docId);
@@ -214,6 +217,7 @@ export async function captureClip(
     if (!ial[ATTR.contentType]) patch.contentType = options.contentType ?? metadata.contentType;
     if (!ial[ATTR.words] && metadata.words > 0) patch.words = metadata.words;
     if (!ial[ATTR.minutes] && metadata.minutes > 0) patch.minutes = metadata.minutes;
+    if (options.doneTime && !ial[ATTR.doneTime]) patch.doneTime = options.doneTime;
     if (options.clearExcluded && current.excluded) patch.excluded = false;
     const result = await writeClip(plugin, docId, patch, { forceStatus: true });
     return { captured: true, attrs: result.attrs };
@@ -248,13 +252,45 @@ export async function batchSetStatusDetailed(
     for (const docId of docIds) {
         try {
             // 这是用户显式状态动作，不适用自动写入的手填字段保护。
-            await writeClip(plugin, docId, { status }, { forceStatus: true });
+            // 标记读完同时记录完成时间（D-0028）：归档/恢复不抹除，再次标记读完覆盖。
+            const patch: Partial<ClipAttrs> = { status };
+            if (status === "done") patch.doneTime = siyuanTimestamp();
+            await writeClip(plugin, docId, patch, { forceStatus: true });
             succeeded.push(docId);
         } catch {
             // 单篇失败不阻断批量；UI 通过刷新反映真实状态
         }
     }
     return { ok: succeeded.length, succeeded };
+}
+
+export interface ClipBodyMeasurement {
+    /** 按收录正文规则重算的字数（模板链接与元信息不计入）。 */
+    words: number;
+    minutes: number;
+    /** 全文载体下正文为空（0 字）= 剪入失败/被清空的诊断结论。 */
+    missing: boolean;
+}
+
+/**
+ * 正文测量（T-1727）：仅由用户显式"检测正文"动作调用。
+ * 导出当前 Markdown 后按统一规则重算字数与时长并写回属性；
+ * 不修改用户正文，不触碰快照。返回测量结果供界面给出"正文为空"反馈。
+ */
+export async function measureClipBody(plugin: Plugin, docId: string): Promise<ClipBodyMeasurement> {
+    const ial = await getBlockAttrs(docId);
+    const attrs = parseClipAttrs(ial);
+    const markdown = (await exportMdContent(docId))?.content ?? "";
+    const metadata = inspectClipMarkdown(markdown, { url: attrs.url, contentType: attrs.contentType ?? "fulltext" });
+    const measurement: ClipBodyMeasurement = {
+        words: metadata.words,
+        minutes: metadata.minutes,
+        missing: metadata.words <= 0,
+    };
+    if (attrs.words !== measurement.words || attrs.minutes !== measurement.minutes) {
+        await writeClip(plugin, docId, { words: measurement.words, minutes: measurement.minutes });
+    }
+    return measurement;
 }
 
 /* ---------- 查询 ---------- */

@@ -1,5 +1,14 @@
 # 进度（PROGRESS）
 
+## S3 收尾：完成时间与正文诊断（代码/隔离验证完成，真机验收进行中）◐（2026-09-30，D-0028）
+
+- [x] T-1709（契约先行）：DATA-CONTRACT 新增 `custom-clip-done-time`（D-0028）：仅由显式"标记读完"写入/覆盖，归档与恢复不抹除；导入只采信导出文件的可靠已读时间（Pocket `time_read`，Omnivore/wallabag 无此字段不伪造）；缺键 = 完成时间未知。
+- [x] schema/clip-store/索引：doneTime 全链路（解析、序列化、显式状态动作写入、索引投影与重建）。
+- [x] 统计与周报改口径：`doneThisWeek` 与周报"本周读完"只按完成时间计；无完成时间的已读只进状态总数，不再用文档 `updated` 伪造。
+- [x] T-1722/T-1727：阅读条新增显式"检测正文"（导出重算 `words/minutes` 写回，不修改正文、不删快照）与"重新剪藏"导航（打开原文，官方剪藏扩展产出新文档，同 URL 冲突按 D-0023 裁决）；`domain/content.ts` 新增 `fulltextBodyState`（ok/missing/unmeasured/na），Dock/工作台/看板三画布对全文无字数条目显示"正文待核"。
+- [x] 导入器防御性修复：Pocket CSV 行短于表头时缺字段按空串处理，不再崩溃。
+- [x] 门禁：`pnpm check` 0 错误（38 条既有 Svelte 告警）、`pnpm test` 125/125、`pnpm build` 通过、隔离内核 `scripts/e2e/s1-flow.mjs` **11/11**（新增完成时间与正文测量两项断言）、`git diff --check` 通过。未发布新版本。
+
 ## S1 主链救火 ✅（2026-09-29，D-0017）
 
 - [x] 修正锚点笔记本 SQL 字符串引用；对账任一查询失败向 Dock 报告并保留上次缓存；URL-only 半成品列为候选，显式收录后补齐状态并进入 `inbox`。

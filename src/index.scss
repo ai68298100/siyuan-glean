@@ -407,6 +407,18 @@
     white-space: nowrap;
 }
 
+/* T-1727：全文正文长度未记录/为 0 的"待核"提示；muted，不用错误红 */
+.glean-body-pending {
+    color: var(--b3-theme-on-surface);
+    opacity: 0.72;
+    font-size: 9.5px;
+    white-space: nowrap;
+}
+
+.glean-reading-context__reclip {
+    color: var(--glean-accent-b);
+}
+
 .glean-dot {
     width: 6px;
     height: 6px;

@@ -36,7 +36,7 @@ The scan range only says where to look. A document becomes a candidate only when
 
 - **AI enrichment** can be manual or explicitly enabled for automatic use: one-line summaries, AI tags, and semantic similarity hints. The default mode is manual and does not spend tokens automatically. AI tags are separate from user tags.
 - **Reading assistance** exposes SiYuan AI actions for summaries, key points, and counterarguments. Related articles, translation, cost hints, and failure behavior remain under the T-1718 acceptance work.
-- **Stats and reports** include article, word, site, and tag statistics plus Markdown weekly reports. Complete completion-time and archive-history semantics remain under T-1709/T-1710.
+- **Stats and reports** include article, word, site, and tag statistics plus Markdown weekly reports. "Done this week" counts only articles with a trusted completion time (explicit mark-done or a read time from the import file); legacy entries without one are never fabricated. Resurface and stale-archive reconciliation continues under T-1710.
 - **Optional integrations** have code entry points for an attribute-view library, the SiYuan inbox, Pocket/Omnivore/wallabag imports, HTML snapshots of clipped documents, quote cards, agent tools, and the Lv Checkin bridge. Real exports, devices, and external-service checks are tracked in [docs/BLOCKERS.md](docs/BLOCKERS.md).
 
 ## First run

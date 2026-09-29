@@ -14,6 +14,7 @@ function item(partial: Partial<StatsInput>): StatsInput {
         minutes: 0,
         rating: 0,
         time: "20260929000000",
+        doneTime: "",
         aiTags: [],
         updated: "20260929000000",
         ...partial,
@@ -22,13 +23,13 @@ function item(partial: Partial<StatsInput>): StatsInput {
 
 const NOW = new Date(2026, 8, 29, 12, 0, 0); // 2026-09-29
 
-test("aggregateStats：状态计数/字数/本周完成", () => {
+test("aggregateStats：状态计数/字数/本周完成只按完成时间（D-0028）", () => {
     const stats = aggregateStats(
         [
             item({ status: "inbox", words: 100 }),
-            item({ status: "done", words: 200, updated: "20260928000000" }),
+            item({ status: "done", words: 200, doneTime: "20260928000000" }),
             item({ status: "reading", words: 300 }),
-            item({ status: "archived" }),
+            item({ status: "archived", doneTime: "20260927000000" }),
         ],
         NOW
     );
@@ -37,6 +38,19 @@ test("aggregateStats：状态计数/字数/本周完成", () => {
     assert.equal(stats.reading, 1);
     assert.equal(stats.inbox, 1);
     assert.equal(stats.totalWords, 600);
+    assert.equal(stats.doneThisWeek, 1);
+});
+
+test("aggregateStats：无完成时间或超一周的已读不计入本周（不用 updated 伪造）", () => {
+    const stats = aggregateStats(
+        [
+            item({ status: "done", updated: "20260928000000" }), // 只有 updated，无 done-time
+            item({ status: "done", doneTime: "20260920000000" }), // 超出 7 天
+            item({ status: "done", doneTime: "20260929080000" }), // 本周
+        ],
+        NOW
+    );
+    assert.equal(stats.done, 3);
     assert.equal(stats.doneThisWeek, 1);
 });
 

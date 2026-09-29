@@ -4,7 +4,7 @@
  */
 import type { Plugin } from "siyuan";
 import { createDocWithMd } from "../api/client";
-import { buildWeeklyReportMarkdown, aggregateStats, weeklyReportDocPath, type StatsInput } from "../domain/stats";
+import { buildWeeklyReportMarkdown, aggregateStats, weeklyReportDocPath, withinWeek, type StatsInput } from "../domain/stats";
 import type { GleanIndex } from "./index-store";
 import { writeClip } from "./clip-store";
 import type { GleanSettings } from "./settings";
@@ -19,6 +19,7 @@ export function buildStats(index: GleanIndex) {
         minutes: clip.minutes,
         rating: clip.rating,
         time: clip.time,
+        doneTime: clip.doneTime,
         aiTags: clip.aiTags,
         updated: clip.updated,
     }));
@@ -31,9 +32,11 @@ export async function exportWeeklyReport(index: GleanIndex, settings: GleanSetti
     if (!notebookId) throw new Error("请先设置读库笔记本");
     const stats = await buildStats(index);
     const { title, rangeLabel } = weeklyReportDocPath();
+    const todayNoon = new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate(), 12).getTime();
 
+    // 周报"本周读完"只列有可信完成时间的条目（D-0028）；无 done-time 的已读不进列表。
     const doneItems: StatsInput[] = Object.values(index.clips)
-        .filter((clip) => clip.status === "done")
+        .filter((clip) => clip.status === "done" && withinWeek(clip.doneTime, todayNoon))
         .map((clip) => ({
             id: clip.id,
             title: clip.title,
@@ -43,6 +46,7 @@ export async function exportWeeklyReport(index: GleanIndex, settings: GleanSetti
             minutes: clip.minutes,
             rating: clip.rating,
             time: clip.time,
+            doneTime: clip.doneTime,
             aiTags: clip.aiTags,
             updated: clip.updated,
         }));

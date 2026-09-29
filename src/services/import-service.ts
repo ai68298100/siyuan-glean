@@ -18,6 +18,8 @@ export interface ImportPreviewRow {
     url: string;
     site: string;
     time: string;
+    /** 导出文件里的可靠已读时间；空串 = 未知，导入后完成时间待用户显式标记（D-0028） */
+    doneTime: string;
     tags: string[];
     status: ImportedItem["status"];
     /** 库内已有同 URL，导入时将跳过 */
@@ -39,6 +41,7 @@ export async function previewImport(content: string, format: ImportFormat | "aut
         url: item.url,
         site: item.site,
         time: item.time,
+        doneTime: item.doneTime,
         tags: item.tags,
         status: item.status,
         duplicate: existingUrls.has(normalizeUrl(item.url)),
@@ -122,7 +125,7 @@ export async function runImport(
             try {
                 const title = row.title || row.url;
                 const hPath = `/${options.folder}/${sanitizeTitle(title)}`;
-                const markdown = buildImportMarkdown(title, row.url, row.site, row.time, row.tags);
+                const markdown = buildImportMarkdown(title, row.url, row.site, row.time, row.tags, row.doneTime);
                 // createDocWithMd 的 tags 参数已在隔离内核 spike 验证会落到新文档根块。
                 const docId = await createDocWithMd(options.notebookId, hPath, markdown, row.tags.join(","));
                 if (!docId) {
@@ -137,6 +140,8 @@ export async function runImport(
                     time: row.time || siyuanTimestamp(),
                     timeSource: row.time ? "source" : "capture",
                     status: row.status,
+                    // 只有导出文件确有已读时间才写完成时间；否则保持"未知"（D-0028）。
+                    doneTime: row.status === "done" ? row.doneTime : "",
                     contentType: "link",
                     markdown,
                 });
@@ -168,13 +173,14 @@ function sanitizeTitle(title: string): string {
     return (cleaned || "未命名").slice(0, 80);
 }
 
-function buildImportMarkdown(title: string, url: string, site: string, time: string, tags: string[]): string {
+function buildImportMarkdown(title: string, url: string, site: string, time: string, tags: string[], doneTime = ""): string {
     const lines: string[] = [];
     lines.push(`# ${title}`);
     lines.push("");
     lines.push(`- [${url}](${url})`);
     lines.push(`- 来源：${site || siteFromUrl(url)}`);
     if (time) lines.push(`- 收藏于：${formatTime(time)}`);
+    if (doneTime) lines.push(`- 已读于：${formatTime(doneTime)}`);
     if (tags.length > 0) lines.push(`- 标签：${tags.map((tag) => `#${tag}`).join(" ")}`);
     lines.push("");
     lines.push(`> 由迁移导入器带入。原文内容请访问来源链接，或使用剪藏扩展重新剪藏全文。`);

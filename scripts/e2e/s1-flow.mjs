@@ -183,8 +183,8 @@ async function runFlow(client, workspace) {
     pass("显式改状态真实落在文档属性及派生索引");
 
     const csv = [
-        "title,url,time_added,status,tags",
-        '导入旧文,https://example.org/s1-import,1577934245,read,"技术,历史"',
+        "title,url,time_added,time_read,status,tags",
+        '导入旧文,https://example.org/s1-import,1577934245,1578020645,read,"技术,历史"',
     ].join("\n");
     const preview = await importer.previewImport(csv, "pocket-csv");
     assert.equal(preview.rows.length, 1);
@@ -202,9 +202,10 @@ async function runFlow(client, workspace) {
     assert.equal(importedAttrs["custom-clip-time"], preview.rows[0].time);
     assert.equal(importedAttrs["custom-clip-status"], "done");
     assert.equal(importedAttrs["custom-clip-src"], "import-pocket");
+    assert.match(importedAttrs["custom-clip-done-time"], /^\d{14}$/);
     const tags = Array.isArray(importedAttrs.tags) ? importedAttrs.tags.join(",") : String(importedAttrs.tags ?? "");
     assert(tags.includes("技术") && tags.includes("历史"));
-    pass("Pocket CSV 导入标签、历史收藏时间与已读状态");
+    pass("Pocket CSV 导入标签、历史收藏时间、已读状态与可靠完成时间");
 
     const fulltext = await makeDoc("S3全文", "- [https://example.org/s3-fulltext](https://example.org/s3-fulltext)\n\n这篇剪藏有可在思源内阅读的完整正文。", "阅读,技术");
     const link = await makeDoc("S3仅链接", "- [https://example.org/s3-link](https://example.org/s3-link)");
@@ -257,6 +258,30 @@ async function runFlow(client, workspace) {
     }
     pass("显式优先级、评分和五态动作持久化；普通补丁保留用户手填字段");
 
+    // D-0028 完成时间：显式标记读完写入，归档/恢复保留"读过"事实。
+    assert.equal(await clip.batchSetStatus(newPlugin(), [urlOnly], "done"), 1);
+    const doneAt = (await client.apiChecked("/api/attr/getBlockAttrs", { id: urlOnly }))["custom-clip-done-time"];
+    assert.match(doneAt ?? "", /^\d{14}$/);
+    await clip.batchSetStatus(newPlugin(), [urlOnly], "archived");
+    assert.equal((await client.apiChecked("/api/attr/getBlockAttrs", { id: urlOnly }))["custom-clip-done-time"], doneAt);
+    pass("显式标记读完写入完成时间；归档保留读过事实");
+
+    // T-1727 正文诊断：显式测量导出重算字数并写回；空正文给出 missing 结论。
+    const content = await import("../../src/domain/content.ts");
+    assert.equal(content.fulltextBodyState("fulltext", 120), "ok");
+    assert.equal(content.fulltextBodyState("fulltext", 0), "missing");
+    assert.equal(content.fulltextBodyState("fulltext", undefined), "unmeasured");
+    assert.equal(content.fulltextBodyState("link", 0), "na");
+    const hollow = await makeDoc("S3待检正文", "- [https://example.org/s3-hollow](https://example.org/s3-hollow)");
+    const hollowCapture = await clip.captureClip(plugin, hollow, { src: "web-clipper", contentType: "fulltext" });
+    assert.equal(hollowCapture.attrs.contentType, "fulltext");
+    assert.equal(hollowCapture.attrs.words, undefined);
+    const measured = await clip.measureClipBody(newPlugin(), hollow);
+    assert.equal(measured.missing, true);
+    assert.equal(measured.words, 0);
+    assert.equal((await client.apiChecked("/api/attr/getBlockAttrs", { id: hollow }))["custom-clip-words"], "0");
+    pass("全文待核与空正文显式测量真实写回属性，不改用户正文");
+
     const beforeFilter = await client.apiChecked("/api/attr/getBlockAttrs", { id: fulltext });
     const currentIndex = await newPlugin().loadData("glean-index.json");
     const items = Object.values(currentIndex.clips).map((entry) => ({ ...entry, kind: "clip" }));
@@ -268,23 +293,27 @@ async function runFlow(client, workspace) {
     assert.deepEqual(await client.apiChecked("/api/attr/getBlockAttrs", { id: fulltext }), beforeFilter);
     pass("真实索引上的组合筛选和排序只改变视图，不改文档属性");
 
-    const clipIds = [urlOnly, oldA, oldB, importedId, fulltext, link, local, unknown];
+    const clipIds = [urlOnly, oldA, oldB, importedId, fulltext, link, local, unknown, hollow];
     await until("新收录文档 SQL 属性索引", async () => {
         const rows = await clip.listClipDocs();
         return clipIds.every((id) => rows.some((row) => row.id === id));
     });
     await plugin.removeData("glean-index.json");
     const rebuilt = await clip.rebuildIndex(newPlugin(), settings);
-    assert.equal(rebuilt.clips[urlOnly].status, "reading");
+    assert.equal(rebuilt.clips[urlOnly].status, "archived");
+    assert.equal(rebuilt.clips[urlOnly].doneTime, doneAt);
     assert.equal(rebuilt.clips[oldA].status, "inbox");
     assert.equal(rebuilt.clips[oldB].status, "inbox");
     assert.equal(rebuilt.clips[importedId].status, "done");
+    assert.match(rebuilt.clips[importedId].doneTime, /^\d{14}$/);
     assert.equal(rebuilt.clips[fulltext].status, "later");
     assert.equal(rebuilt.clips[fulltext].contentType, "fulltext");
     assert.equal(rebuilt.clips[fulltext].src, "web-clipper");
     assert(rebuilt.clips[fulltext].tags.includes("阅读"));
     assert.equal(rebuilt.clips[fulltext].priority, 5);
     assert.equal(rebuilt.clips[fulltext].rating, 4);
+    assert.equal(rebuilt.clips[hollow].contentType, "fulltext");
+    assert.equal(rebuilt.clips[hollow].words, 0);
     assert.equal(rebuilt.clips[link].contentType, "link");
     assert.equal(rebuilt.clips[local].contentType, "local");
     assert.equal(rebuilt.clips[unknown].contentType, "");

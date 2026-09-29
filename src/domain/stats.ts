@@ -13,6 +13,8 @@ export interface StatsInput {
     minutes: number;
     rating: number;
     time: string;
+    /** 最近一次显式完成时刻；空串 = 完成时间未知（D-0028）。 */
+    doneTime: string;
     aiTags: string[];
     updated: string;
 }
@@ -66,16 +68,9 @@ export function aggregateStats(items: StatsInput[], now: Date = new Date()): Rea
             const daysAgo = Math.round((todayNoon - t) / DAY_MS);
             if (daysAgo >= 0 && daysAgo < 7) dailyCaptured[6 - daysAgo] += 1;
         }
-        // 本周完成（用 updated 近似，属性无完成时间——M4 可补 custom-clip-done-time）
-        if (/^\d{14}$/.test(item.updated)) {
-            const u = new Date(
-                Number(item.updated.slice(0, 4)),
-                Number(item.updated.slice(4, 6)) - 1,
-                Number(item.updated.slice(6, 8)),
-                12
-            ).getTime();
-            if (item.status === "done" && todayNoon - u < 7 * DAY_MS) doneThisWeek += 1;
-        }
+        // 本周完成只按可信完成时间（D-0028）；无 done-time 的已读是"完成时间未知"，
+        // 不用 updated 伪造，只计入上面的状态总数。
+        if (item.status === "done" && withinWeek(item.doneTime, todayNoon)) doneThisWeek += 1;
 
         const site = (item.site || "").trim().toLowerCase();
         if (site) siteCounts.set(site, (siteCounts.get(site) ?? 0) + 1);
@@ -103,6 +98,18 @@ function topNameCounts(map: Map<string, number>, limit: number): NameCount[] {
         .map(([name, count]) => ({ name, count }))
         .sort((a, b) => b.count - a.count)
         .slice(0, limit);
+}
+
+/** 完成时间戳（YYYYMMDDHHmmss）是否落在以 todayNoon 结尾的 7 天窗口内。 */
+export function withinWeek(stamp: string, todayNoon: number): boolean {
+    if (!/^\d{14}$/.test(stamp)) return false;
+    const t = new Date(
+        Number(stamp.slice(0, 4)),
+        Number(stamp.slice(4, 6)) - 1,
+        Number(stamp.slice(6, 8)),
+        12
+    ).getTime();
+    return Number.isFinite(t) && todayNoon - t >= 0 && todayNoon - t < 7 * DAY_MS;
 }
 
 /* ---------- 周报 ---------- */
