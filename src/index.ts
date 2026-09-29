@@ -15,6 +15,7 @@ import { t, type I18nBundle } from "./libs/i18n";
 import { captureClip } from "./services/clip-store";
 import { autoEnrich, enrichClip } from "./services/enrich-service";
 import { ensurePresetActions } from "./services/ai-actions";
+import { makeQuoteCard } from "./services/flashcard-service";
 import { DEFAULT_SETTINGS, loadSettings, saveSettings, type GleanSettings } from "./services/settings";
 import type { GleanFacade } from "./types";
 
@@ -94,6 +95,11 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
         this.addCommand({
             langKey: "cmd.openMigrate",
             callback: () => this.openMigrate(),
+        });
+
+        this.addCommand({
+            langKey: "cmd.makeCard",
+            callback: () => void this.makeCardFromSelection(),
         });
 
         // 右键菜单"加入读库"（收录入口三件套之一）
@@ -191,6 +197,38 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
         });
     }
 
+    /** 读当前编辑器内的选区文本（无选区返回空串；FAST-01.3 范式） */
+    private readSelection(): string {
+        const selection = window.getSelection();
+        if (!selection || selection.isCollapsed) return "";
+        const editor = getAllEditor().find((item) => item?.protyle?.element?.contains(selection.anchorNode ?? null));
+        if (editor?.protyle?.element && !editor.protyle.element.contains(selection.anchorNode)) return "";
+        return selection.toString();
+    }
+
+    /** 摘录制卡：选中文本 → 问句卡入「拾遗卡片」牌组 */
+    async makeCardFromSelection(): Promise<void> {
+        const quote = this.readSelection().trim();
+        if (!quote) {
+            showMessage(t(this.i18n, "flashcard.noSelection"), 3000);
+            return;
+        }
+        const editor = getAllEditor().find((item) => item?.protyle?.block?.rootID);
+        const docId = editor?.protyle?.block?.rootID ?? "";
+        let docTitle = "";
+        try {
+            const { querySql } = await import("./api/client");
+            const rows = await querySql<{ content: string }>("SELECT content FROM blocks WHERE id = '" + docId.replace(/'/g, "''") + "' LIMIT 1");
+            docTitle = rows[0]?.content ?? "";
+        } catch { /* 标题取不到就用无来源卡面 */ }
+        try {
+            await makeQuoteCard(this.settings, docTitle, quote);
+            showMessage(t(this.i18n, "flashcard.done"), 3000);
+        } catch (error) {
+            showMessage(String(error).slice(0, 140), 5000);
+        }
+    }
+
     /* ---------- 收录 ---------- */
 
     async addCurrentDocToLibrary(): Promise<void> {
@@ -210,6 +248,24 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
     }): void => {
         const rootId = event.detail.protyle?.block?.rootID;
         if (!rootId) return;
+        const selectionText = this.readSelection().trim();
+        if (selectionText) {
+            event.detail.menu.addItem({
+                id: "glean-make-card",
+                iconHTML: "",
+                label: t(this.i18n, "flashcard.menuMake", { n: [...selectionText.trim()].length }),
+                click: async () => {
+                    try {
+                        const { querySql } = await import("./api/client");
+                        const rows = await querySql<{ content: string }>("SELECT content FROM blocks WHERE id = '" + rootId.replace(/'/g, "''") + "' LIMIT 1");
+                        await makeQuoteCard(this.settings, rows[0]?.content ?? "", selectionText);
+                        showMessage(t(this.i18n, "flashcard.done"), 3000);
+                    } catch (error) {
+                        showMessage(String(error).slice(0, 140), 5000);
+                    }
+                },
+            });
+        }
         event.detail.menu.addItem({
             id: "glean-add-to-library",
             iconHTML: "",

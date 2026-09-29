@@ -1,0 +1,57 @@
+/**
+ * 摘录制卡服务（T-1502）：引文/选中文本 → 列表项闪卡 → "拾遗卡片"牌组。
+ * 牌组与宿主文档幂等续建（按名找回，复用 library-db 的续建范式）。
+ * v1 不消耗 token（卡面文案本地构造）；AI 问句化留待后续（动作钩子已留，D-0007）。
+ */
+import { insertBlockDom, createDocWithMd, querySql } from "../api/client";
+import { addRiffCards, createRiffDeck, getRiffDecks } from "../api/riff";
+import { buildFlashcardDom, buildQuoteCard } from "../domain/flashcard";
+import type { GleanSettings } from "./settings";
+
+const DECK_NAME = "拾遗卡片";
+const DECK_DOC_TITLE = "拾遗卡片";
+
+export interface DeckContext {
+    deckId: string;
+    hostDocId: string;
+}
+
+/** 找回/创建"拾遗卡片"牌组与宿主文档（幂等）。 */
+export async function ensureFlashcardDeck(settings: GleanSettings): Promise<DeckContext> {
+    const notebookId = settings.anchorNotebooks[0];
+    if (!notebookId) throw new Error("请先设置读库笔记本");
+
+    const decks = await getRiffDecks();
+    let deck = decks.find((item) => item.name === DECK_NAME);
+    if (!deck) deck = await createRiffDeck(DECK_NAME);
+
+    const existing = await querySql<{ id: string }>(`SELECT id FROM blocks WHERE type='d' AND box='${notebookId.replace(/'/g, "'" + "'")}' AND content='${DECK_DOC_TITLE}' LIMIT 1`);
+    let hostDocId = existing[0]?.id ?? "";
+    if (!hostDocId) {
+        hostDocId = await createDocWithMd(notebookId, `/${DECK_DOC_TITLE}`, `# ${DECK_DOC_TITLE}\n\n`);
+    }
+    return { deckId: deck.id, hostDocId };
+}
+
+/** 制作一张回顾卡：正面=引文提示句，背面=完整引文+来源。返回卡片块 ID。 */
+export async function makeQuoteCard(
+    settings: GleanSettings,
+    docTitle: string,
+    quote: string
+): Promise<{ cardBlockId: string }> {
+    const { deckId, hostDocId } = await ensureFlashcardDeck(settings);
+    const content = buildQuoteCard(docTitle, quote);
+    const dom = buildFlashcardDom(content.front, content.back);
+    await insertBlockDom(hostDocId, dom);
+    // 列表项 id 经 SQL 找回（最新插入的一枚）
+    let cardBlockId = "";
+    for (let attempt = 0; attempt < 6; attempt += 1) {
+        const itemRows = await querySql<{ id: string }>(`SELECT id FROM blocks WHERE root_id='${hostDocId.replace(/'/g, "'" + "'")}' AND type='i' ORDER BY sort DESC LIMIT 1`);
+        cardBlockId = itemRows[0]?.id ?? "";
+        if (cardBlockId) break;
+        await new Promise((resolve) => setTimeout(resolve, 500));
+    }
+    if (!cardBlockId) throw new Error("卡片块未在索引中出现");
+    await addRiffCards(deckId, [cardBlockId]);
+    return { cardBlockId };
+}

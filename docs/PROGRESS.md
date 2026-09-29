@@ -1,5 +1,16 @@
 # 进度（PROGRESS）
 
+## M5 — T-1502 摘录制卡 ✅（2026-09-29，第十轮）
+
+- [x] spike ⑧ 制卡闭环（createDeck→insertBlock→addRiffCards，**9/9**）：
+      卡块范式=列表项（父内容=正面，嵌套子列表=背面，官方闪卡标准）——段落嵌套 DOM 被内核拒（踩坑已记）
+- [x] api/riff.ts + domain/flashcard.ts（卡面构造/DOM 转义，5 单测）+ services/flashcard-service.ts
+      （牌组+宿主文档幂等续建；v1 不耗 token，AI 问句化留动作钩子）
+- [x] UI 入口三件：高亮卡 🎴 制卡按钮 / 命令"摘录制卡(选中文本)" / 编辑器右键菜单（显示选中字数）
+- [x] 架构守门测试立功：flashcard-service 裸调端点被抓 → 重构走 api 层（insertBlockDom 入 client.ts）
+- [x] 质量门禁：check 0 错、67/67 测试、构建+门禁全绿、spike 9/9（209 i18n 键）
+- 制卡验收（作者）：真实闪卡复习流程里确认卡片正背面渲染（B-0002 扩充）
+
 ## M5 — T-1504 全页快照 ✅（2026-09-29，第九轮）
 
 - [x] 契约核实：`/api/export/exportHTML {id,pdf}` → data{name,content}（单文件 HTML）；

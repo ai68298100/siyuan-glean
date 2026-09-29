@@ -422,6 +422,57 @@ async function verifySnapshot(notebookID, docId) {
     return { ok, detail: `contentLen=${html.length} put=${putPayload.code} 读回=${back.length}B 含正文=${ok}`, path };
 }
 
+
+/* ---------- ⑧ 摘录制卡闭环（T-1502） ---------- */
+
+async function verifyFlashcard(notebookID) {
+    // 1) 找/建牌组
+    const decksBefore = await api("/api/riff/getRiffDecks", {});
+    let deck = (decksBefore.data || []).find((d) => d.name === "拾遗卡片");
+    if (!deck) {
+        const created = await api("/api/riff/createRiffDeck", { name: "拾遗卡片" });
+        if (created.code !== 0) return { ok: false, detail: `createRiffDeck code=${created.code} msg=${created.msg}` };
+        deck = created.data;
+    }
+    // 2) 宿主文档建卡块：列表项制卡（思源官方闪卡范式——列表项内容=正面，嵌套子列表=背面）
+    const hostDoc = await apiChecked("/api/filetree/createDocWithMd", {
+        notebook: notebookID, path: "/拾遗卡片", markdown: "# 拾遗卡片\n\n",
+    });
+    const id1 = newNodeID(), id2 = newNodeID(), id3 = newNodeID(), id4 = newNodeID(), id5 = newNodeID();
+    const listDom = '<div data-node-id="' + id1 + '" data-type="NodeList" data-subtype="u">'
+        + '<div data-node-id="' + id2 + '" data-type="NodeListItem" data-subtype="bullet">'
+        + '<div data-node-id="' + id3 + '" data-type="NodeParagraph" class="p">「测试引文…」出自哪篇文章？</div>'
+        + '<div data-node-id="' + id4 + '" data-type="NodeList" data-subtype="u">'
+        + '<div data-node-id="' + id5 + '" data-type="NodeListItem" data-subtype="bullet">'
+        + '<div data-node-id="' + newNodeID() + '" data-type="NodeParagraph" class="p">答案：快照测试文档</div>'
+        + '</div></div></div></div>';
+    const inserted = await api("/api/block/insertBlock", { dataType: "dom", parentID: hostDoc, data: listDom });
+    if (inserted.code !== 0) return { ok: false, detail: "insertBlock code=" + inserted.code + " msg=" + inserted.msg };
+    // 列表项 id 经 SQL 找回（type='i'，root 圈定）
+    let cardBlockId = "";
+    for (let attempt = 0; attempt < 6; attempt += 1) {
+        const rows = await apiChecked("/api/query/sql", {
+            stmt: "SELECT id FROM blocks WHERE root_id = '" + hostDoc + "' AND type = 'i' ORDER BY sort ASC LIMIT 1",
+        });
+        if (rows[0]?.id) { cardBlockId = rows[0].id; break; }
+        await new Promise((r) => setTimeout(r, 500));
+    }
+    if (!cardBlockId) return { ok: false, detail: "列表项 id 未在索引中出现" };
+    // 3) addRiffCards 入组
+    const added = await api("/api/riff/addRiffCards", { deckID: deck.id, blockIDs: [cardBlockId] });
+    if (added.code !== 0) return { ok: false, detail: `addRiffCards code=${added.code} msg=${added.msg}` };
+    // 4) 校验卡数（重试等索引）
+    for (let attempt = 0; attempt < 6; attempt += 1) {
+        const decks = await api("/api/riff/getRiffDecks", {});
+        const after = (decks.data || []).find((d) => d.id === deck.id);
+        if (after && Number(after.size) >= 1) {
+            return { ok: true, detail: `deck=${deck.id} size=${after.size} cardBlock=${cardBlockId}` };
+        }
+        await new Promise((r) => setTimeout(r, 500));
+    }
+    return { ok: false, detail: "addRiffCards 后 deck.size 未增长" };
+}
+
 async function main() {
     assertLoopback();
     const { kernel, appDir } = resolveKernel();
@@ -469,6 +520,9 @@ async function main() {
 
         const step6 = await verifyAnchorQueries(notebookID, step1.docId);
         record("⑥ SQL 双锚点查询", step6.ok, step6.detail);
+
+        const step8 = await verifyFlashcard(notebookID);
+        record("⑧ 摘录制卡闭环 createDeck→insertBlock→addRiffCards", step8.ok, step8.detail);
 
         let step7 = { ok: false, detail: "跳过（步骤①未产生文档）" };
         if (step1.ok && step1.docId) {

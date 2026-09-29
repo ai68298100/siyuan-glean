@@ -185,3 +185,18 @@ export interface EmbeddingStat {
 export async function embeddingStat(): Promise<EmbeddingStat> {
     return kernelPost<EmbeddingStat>("/api/ai/embeddingStat", {});
 }
+
+/** 向父块插入 DOM 块（返回事务里首个节点 id；人脉 av 同款范式）。 */
+export async function insertBlockDom(parentBlockId: string, dom: string): Promise<string> {
+    const data = await kernelPost<Array<{ doOperations?: Array<{ id?: string }> }>>('/api/block/insertBlock', {
+        dataType: 'dom',
+        parentID: parentBlockId,
+        data: dom,
+    });
+    const results = Array.isArray(data) ? data : data ? [data] : [];
+    for (const result of results) {
+        const id = result?.doOperations?.[0]?.id;
+        if (id) return id;
+    }
+    throw new Error('insertBlock 未返回节点 ID');
+}

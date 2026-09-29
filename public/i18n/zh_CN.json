@@ -202,5 +202,10 @@
   "import.entryAction": "导入",
   "snapshot.take": "生成快照（单文件 HTML 存入资产）",
   "snapshot.open": "打开快照",
-  "snapshot.done": "快照已生成，写入本文档资产"
+  "snapshot.done": "快照已生成，写入本文档资产",
+  "flashcard.make": "制卡",
+  "flashcard.done": "已制卡，进「拾遗卡片」牌组",
+  "flashcard.noSelection": "请先在编辑器里选中要制卡的文本",
+  "flashcard.menuMake": "摘录制卡（选中 ${n} 字）",
+  "cmd.makeCard": "摘录制卡（选中文本）"
 }

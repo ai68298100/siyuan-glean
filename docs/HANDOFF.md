@@ -3,7 +3,7 @@
 > 续跑口令（新会话直接粘贴）：
 > **阅读 D:\思源插件\小驴拾遗\docs\HANDOFF.md，按其中"下一步"继续开发；工程纪律见 AGENTS.md 与 docs/DECISIONS.md，UI 以 docs/UI-STANDARD.md 为准，先通读 TODO.md 与 docs/DATA-CONTRACT.md 再动手。**
 
-## 当前状态（2026-09-29 第九轮开发完成：T-1504 全页快照）
+## 当前状态（2026-09-29 第十轮开发完成：T-1502 摘录制卡）
 
 - 仓库：`D:\思源插件\小驴拾遗` = GitHub [ai68298100/siyuan-glean](https://github.com/ai68298100/siyuan-glean)，main 已推送。
 - **M3 AI 富化全量落地**（v0.3.0 工作版本，未打 tag）：
@@ -56,18 +56,17 @@
   面板视图偏好：services/prefs.ts（ui-prefs.json）；AI 日志：loadAiLog + 设置-维护展开行。
 - 发布材料：docs/CHANGELOG.md（v1.0.0 候选条目已写好）+ docs/RELEASE-MEDIA.md（拍摄手册）。
 
-## 快照速记（第九轮新增）
+## 制卡速记（第十轮新增）
 
-- 快照口径：快照的是**剪藏文档本身**（exportHTML 单文件 HTML），不是原始网页——插件前端直连外部站有
-  CORS 限制，内核无通用 URL 抓取端点；文档快照已满足"防内容腐烂"（收录时原貌留档）。
-- 链路：exportHTML {id,pdf:false} → putFile multipart 写 /<box>/assets/glean-<id>-<ts>.html →
-  写 custom-clip-snapshot → 面板 📷 拍摄 / ⟐ 打开（openTab asset）。
-- 宿主 fetchPost 原生透传 FormData（fetch.ts:35），multipart 端点（putFile）可直接用。
-- spike 现 8 项（含快照闭环）；SQL 精确查新写属性要带索引滞后重试（SQLite ial 异步刷新）。
+- 制卡范式=列表项闪卡（父内容=正面，嵌套子列表=背面，官方标准）——段落嵌段落 DOM 内核拒收（spike 踩坑）；
+  卡块插入后列表项 id 经 SQL type='i' 找回（索引异步重试）。
+- "拾遗卡片"牌组+宿主文档按名幂等续建；入口：高亮卡 🎴 / 命令 cmd.makeCard（选区）/ 编辑器右键（带字数）。
+- 架构守门测试会抓 services 层裸调端点——新增内核调用必须先进 api/ 层。
 
-## 下一步（M5 推荐序 + 作者验收/决策）
+## 下一步（M5 剩余 + 作者验收/决策）
 
-1. **M5 推荐序**：T-1502 摘录制卡（先 spike riff/createCards 端点形状）→ T-1500 收集箱（需作者订阅账号）→
-   T-1505 小驴协同（打卡 window.siyuanCheckin / 雷切 quick action 文档）→ T-1503 渐进阅读集成（作者定方向）。
-2. **作者验收**：B-0001 实剪 / B-0002 UI / B-0004 AI 开关 / B-0005 导入器实测 / B-0006（新）快照拍摄与打开。
+1. **M5 剩余推荐序**：T-1500 收集箱（需作者订阅账号配合）→ T-1505 小驴协同（打卡 window.siyuanCheckin
+   v5 契约在兄弟仓 contracts/；雷切 quick action 文档就绪度待查）→ T-1503 渐进阅读集成（作者定方向）。
+2. **作者验收**：B-0001 实剪 / B-0002 UI（含制卡正背面渲染）/ B-0004 AI 开关 / B-0005 导入器 / B-0006 快照。
 3. **决策点**：方案 B 专用 AI 通道；发版节奏（v1.0.0）。
+4. 小项池：面板批量收录接富化进度提示、导入器大文件分页预览、重浮卡片 AI 摘要渐显。
