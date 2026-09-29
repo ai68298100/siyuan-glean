@@ -1,7 +1,7 @@
 <script lang="ts">
 /** 存量迁移器弹窗（T-1102）：步进器（扫描报告→分批回填→完成）+ 统计卡 + 可暂停续跑。 */
 import { onMount } from "svelte";
-import { showMessage } from "siyuan";
+import { openTab, showMessage } from "siyuan";
 import type { GleanFacade } from "../types";
 import { t } from "../libs/i18n";
 import {
@@ -9,6 +9,8 @@ import {
     clearMigrateProgress,
     loadMigrateProgress,
     retryMigrateErrors,
+    resolveMigrateRow,
+    planMigrateRow,
     runBackfillBatch,
     startMigrateProgress,
     type MigrateRow,
@@ -32,15 +34,17 @@ let cursor = $state(0);
 let filter = $state<"all" | "pending" | "ok" | "skipped" | "manual" | "error">("all");
 let aborted = $state(false);
 let resumeAvailable = $state(false);
+let editingRowId = $state("");
+let manualUrl = $state("");
 
 const step = $derived<Step>(phase === "intro" || phase === "scanning" ? 1 : phase === "done" ? 3 : 2);
 
 onMount(async () => {
     const progress = await loadMigrateProgress(facade.pluginInstance);
     if (phase === "intro" && progress && progress.rows.length > 0) {
-        resumeAvailable = !progress.finished || progress.rows.some((row) => row.state === "error" && !!row.url);
         rows = progress.rows;
         cursor = progress.cursor;
+        resumeAvailable = hasOutstanding(progress.rows, progress.finished);
     }
 });
 
@@ -65,14 +69,18 @@ const visibleRows = $derived(
 );
 
 const progressPct = $derived(rows.length === 0 ? 0 : Math.round((cursor / rows.length) * 100));
-const retryableErrors = $derived(rows.some((row) => row.state === "error" && !!row.url));
+const retryableErrors = $derived(rows.some((row) => row.state === "error" && (!!row.url || !!row.resolution)));
+
+function hasOutstanding(items: MigrateRow[], finished: boolean): boolean {
+    return !finished || items.some((row) => row.state === "manual" || row.state === "error" || row.state === "pending");
+}
 
 async function refreshProgress() {
     const progress = await loadMigrateProgress(facade.pluginInstance);
     if (!progress) return;
     rows = progress.rows;
     cursor = progress.cursor;
-    resumeAvailable = !progress.finished || progress.rows.some((row) => row.state === "error" && !!row.url);
+    resumeAvailable = hasOutstanding(progress.rows, progress.finished);
 }
 
 async function startScan() {
@@ -117,7 +125,7 @@ async function startRun(startNew: boolean) {
             if (last.finished || aborted) break;
         }
         phase = last?.finished ? "done" : "paused";
-        if (last?.finished && last.errors === 0) {
+        if (last?.finished && last.errors === 0 && counts.manual === 0) {
             await clearMigrateProgress(facade.pluginInstance);
             resumeAvailable = false;
         }
@@ -126,6 +134,42 @@ async function startRun(startNew: boolean) {
         showMessage(String(error), 5000);
         if (taskReady) await refreshProgress();
         phase = taskReady ? "paused" : "report";
+    }
+}
+
+function editManual(row: MigrateRow) {
+    editingRowId = row.id;
+    manualUrl = row.url || "";
+}
+
+function openExisting(row: MigrateRow) {
+    if (!row.conflictDocId) return;
+    void openTab({ app: facade.pluginInstance.app, doc: { id: row.conflictDocId }, keepCursor: false });
+}
+
+async function resolveManual(row: MigrateRow, decision: "url" | "local" | "exclude", allowDuplicate = false) {
+    try {
+        if (phase === "running") return;
+        const decisionUrl = allowDuplicate ? row.url : manualUrl.trim() || row.url;
+        if (phase === "report") {
+            const planned = planMigrateRow(row, decision === "url" ? { kind: "url", url: decisionUrl, allowDuplicate } : { kind: decision });
+            rows = rows.map((item) => item.id === planned.id ? planned : item);
+            editingRowId = "";
+            return;
+        }
+        const updated = await resolveMigrateRow(
+            facade.pluginInstance,
+            row,
+            decision === "url" ? { kind: "url", url: decisionUrl, allowDuplicate } : { kind: decision },
+        );
+        rows = rows.map((item) => item.id === updated.id ? updated : item);
+        editingRowId = "";
+        const saved = await loadMigrateProgress(facade.pluginInstance);
+        resumeAvailable = saved ? hasOutstanding(saved.rows, saved.finished) : false;
+        if (saved && saved.finished && !hasOutstanding(saved.rows, saved.finished)) await clearMigrateProgress(facade.pluginInstance);
+        facade.notifyDataChanged();
+    } catch (error) {
+        showMessage(String(error), 4000);
     }
 }
 
@@ -140,6 +184,8 @@ function rowStateClass(row: MigrateRow): string {
 }
 
 function rowStateLabel(row: MigrateRow): string {
+    if (row.state === "pending" && row.resolution === "local") return t(i18n, "migrate.plannedLocal");
+    if (row.state === "pending" && row.resolution === "exclude") return t(i18n, "migrate.plannedExclude");
     switch (row.state) {
         case "ok": return "✓";
         case "skipped": return t(i18n, "migrate.skipHasAttrs");
@@ -209,9 +255,38 @@ function rowStateLabel(row: MigrateRow): string {
             {#each visibleRows as row (row.id)}
                 <div class="glean-mrow">
                     <span class="glean-mrow__ti">{row.title || row.hpath}</span>
-                    <span class="glean-mrow__url">{row.url || "—"}</span>
+                        <span class="glean-mrow__url" title={row.detail || ""}>{row.url || "—"}</span>
                     <span class={rowStateClass(row)} title={row.detail || ""}>{rowStateLabel(row)}</span>
+                        {#if row.state === "manual" || !!row.resolution}
+                            <span class="glean-mrow__ops">
+                                <button class="glean-op-btn" title={t(i18n, "migrate.fixUrl")} onclick={() => editManual(row)}>✎</button>
+                                <button class="glean-op-btn" title={t(i18n, "migrate.asLocal")} onclick={() => void resolveManual(row, "local")}>▤</button>
+                                <button class="glean-op-btn" title={t(i18n, "migrate.exclude")} onclick={() => void resolveManual(row, "exclude")}>×</button>
+                                {#if row.conflictDocId}
+                                    <button class="glean-op-btn" title={t(i18n, "migrate.openExisting")} onclick={() => openExisting(row)}>↗</button>
+                                    <button class="glean-op-btn" title={t(i18n, "migrate.keepDuplicate")} onclick={() => void resolveManual(row, "url", true)}>＋</button>
+                                {/if}
+                            </span>
+                        {/if}
+                        {#if row.evidence?.length || row.missing?.length || row.conflictDocId}
+                            <span class="glean-mrow__why">
+                                {#each row.evidence ?? [] as evidence}
+                                    <span>{t(i18n, `candidate.evidence.${evidence}`)}</span>
+                                {/each}
+                                {#each row.missing ?? [] as missing}
+                                    <span>{t(i18n, `candidate.missing.${missing}`)}</span>
+                                {/each}
+                                {#if row.conflictDocId}<span>{t(i18n, "migrate.conflict")}</span>{/if}
+                            </span>
+                        {/if}
                 </div>
+                    {#if editingRowId === row.id}
+                        <div class="glean-candidate-edit">
+                            <input class="b3-text-field" type="url" bind:value={manualUrl} placeholder={t(i18n, "candidate.urlPlaceholder")} aria-label={t(i18n, "candidate.urlPlaceholder")} />
+                            <button class="glean-btn" onclick={() => void resolveManual(row, "url")}>{t(i18n, "action.save")}</button>
+                            <button class="glean-btn glean-btn--ghost" onclick={() => (editingRowId = "")}>{t(i18n, "action.cancel")}</button>
+                        </div>
+                    {/if}
             {/each}
         </div>
         <div class="glean-migrate__ops">
@@ -223,7 +298,7 @@ function rowStateLabel(row: MigrateRow): string {
                 <option value="error">{t(i18n, "import.failed")}</option>
             </select>
             <button class="glean-btn glean-btn--ghost" onclick={() => void startScan()}>{t(i18n, "migrate.rescan")}</button>
-            <button class="glean-btn glean-btn--pri" onclick={() => void startRun(true)} disabled={counts.pending === 0}>
+            <button class="glean-btn glean-btn--pri" onclick={() => void startRun(true)} disabled={rows.length === 0}>
                 {t(i18n, "migrate.run")}
             </button>
         </div>
@@ -246,7 +321,32 @@ function rowStateLabel(row: MigrateRow): string {
                     <span class="glean-mrow__ti" title={row.hpath}>{row.title || row.hpath}</span>
                     <span class="glean-mrow__url">{row.url || "—"}</span>
                     <span class={rowStateClass(row)} title={row.detail || ""}>{rowStateLabel(row)}</span>
+                        {#if (row.state === "manual" || (phase === "paused" && !!row.resolution)) && phase !== "running"}
+                            <span class="glean-mrow__ops">
+                                <button class="glean-op-btn" title={t(i18n, "migrate.fixUrl")} onclick={() => editManual(row)}>✎</button>
+                                <button class="glean-op-btn" title={t(i18n, "migrate.asLocal")} onclick={() => void resolveManual(row, "local")}>▤</button>
+                                <button class="glean-op-btn" title={t(i18n, "migrate.exclude")} onclick={() => void resolveManual(row, "exclude")}>×</button>
+                                {#if row.conflictDocId}
+                                    <button class="glean-op-btn" title={t(i18n, "migrate.openExisting")} onclick={() => openExisting(row)}>↗</button>
+                                    <button class="glean-op-btn" title={t(i18n, "migrate.keepDuplicate")} onclick={() => void resolveManual(row, "url", true)}>＋</button>
+                                {/if}
+                            </span>
+                        {/if}
+                        {#if row.evidence?.length || row.missing?.length || row.conflictDocId}
+                            <span class="glean-mrow__why">
+                                {#each row.evidence ?? [] as evidence}<span>{t(i18n, `candidate.evidence.${evidence}`)}</span>{/each}
+                                {#each row.missing ?? [] as missing}<span>{t(i18n, `candidate.missing.${missing}`)}</span>{/each}
+                                {#if row.conflictDocId}<span>{t(i18n, "migrate.conflict")}</span>{/if}
+                            </span>
+                        {/if}
                 </div>
+                    {#if editingRowId === row.id}
+                        <div class="glean-candidate-edit">
+                            <input class="b3-text-field" type="url" bind:value={manualUrl} placeholder={t(i18n, "candidate.urlPlaceholder")} aria-label={t(i18n, "candidate.urlPlaceholder")} />
+                            <button class="glean-btn" onclick={() => void resolveManual(row, "url")}>{t(i18n, "action.save")}</button>
+                            <button class="glean-btn glean-btn--ghost" onclick={() => (editingRowId = "")}>{t(i18n, "action.cancel")}</button>
+                        </div>
+                    {/if}
             {/each}
         </div>
         <div class="glean-migrate__ops">
@@ -269,7 +369,25 @@ function rowStateLabel(row: MigrateRow): string {
                     <div class="glean-mrow">
                         <span class="glean-mrow__ti" title={row.hpath}>{row.title || row.hpath}</span>
                         <span class={rowStateClass(row)} title={row.detail || ""}>{rowStateLabel(row)}</span>
+                        {#if row.state === "manual"}
+                            <span class="glean-mrow__ops">
+                                <button class="glean-op-btn" title={t(i18n, "migrate.fixUrl")} onclick={() => editManual(row)}>✎</button>
+                                <button class="glean-op-btn" title={t(i18n, "migrate.asLocal")} onclick={() => void resolveManual(row, "local")}>▤</button>
+                                <button class="glean-op-btn" title={t(i18n, "migrate.exclude")} onclick={() => void resolveManual(row, "exclude")}>×</button>
+                                {#if row.conflictDocId}
+                                    <button class="glean-op-btn" title={t(i18n, "migrate.openExisting")} onclick={() => openExisting(row)}>↗</button>
+                                    <button class="glean-op-btn" title={t(i18n, "migrate.keepDuplicate")} onclick={() => void resolveManual(row, "url", true)}>＋</button>
+                                {/if}
+                            </span>
+                        {/if}
                     </div>
+                    {#if editingRowId === row.id}
+                        <div class="glean-candidate-edit">
+                            <input class="b3-text-field" type="url" bind:value={manualUrl} placeholder={t(i18n, "candidate.urlPlaceholder")} aria-label={t(i18n, "candidate.urlPlaceholder")} />
+                            <button class="glean-btn" onclick={() => void resolveManual(row, "url")}>{t(i18n, "action.save")}</button>
+                            <button class="glean-btn glean-btn--ghost" onclick={() => (editingRowId = "")}>{t(i18n, "action.cancel")}</button>
+                        </div>
+                    {/if}
                 {/each}
             </div>
         {/if}

@@ -4,7 +4,8 @@ import { openTab, showMessage } from "siyuan";
 import type { GleanFacade } from "../types";
 import { t } from "../libs/i18n";
 import type { ClipStatus } from "../domain/schema";
-import { batchSetStatus, captureClip, reconcileIndex } from "../services/clip-store";
+import { normalizeUrl } from "../domain/url";
+import { batchSetStatus, captureDocument, findClipUrlConflict, reconcileIndex, writeClip } from "../services/clip-store";
 import { autoEnrich, enrichClip } from "../services/enrich-service";
 import { snapshotClip } from "../services/snapshot-service";
 import { aggregateStats } from "../domain/stats.ts";
@@ -16,6 +17,7 @@ import ResurfaceView from "./ResurfaceView.svelte";
 import { archiveStale } from "../services/resurface-service";
 import { loadUiPrefs, saveUiPrefs } from "../services/prefs";
 import { ageDays } from "../domain/resurface.ts";
+import { recordReadingDone } from "../services/checkin-bridge";
 
 interface Props {
     facade: GleanFacade;
@@ -52,6 +54,8 @@ function openPopup() {
 }
 let snappingId = $state("");
 let archivingStale = $state(false);
+let editingCandidateId = $state("");
+let candidateUrlInput = $state("");
 
 type QueueKey = ClipStatus;
 const queues: QueueKey[] = ["inbox", "later", "reading", "done", "archived"];
@@ -230,11 +234,17 @@ $effect(() => {
 });
 
 async function capture(entry: CandidateEntry) {
+    if (!normalizeUrl(entry.url)) {
+        showMessage(t(i18n, "msg.candidateNeedsUrl"), 3500);
+        return;
+    }
     try {
-        const result = await captureClip(facade.pluginInstance, entry.id, {});
+        const result = await captureDocument(facade.pluginInstance, entry.id, { url: entry.url || undefined });
         if (result.captured) {
             showMessage(t(i18n, "msg.added"), 2500);
             autoEnrich(facade.pluginInstance, entry.id, facade.settings);
+        } else if (result.conflict) {
+            showMessage(`${t(i18n, "inbox.duplicate")}: ${result.conflict.title || result.conflict.hpath}`, 4000);
         } else {
             showMessage(t(i18n, "msg.alreadyIn"), 2500);
         }
@@ -245,31 +255,76 @@ async function capture(entry: CandidateEntry) {
     }
 }
 
-async function captureAll() {
-    const entries = Object.values(index.candidates);
-    if (entries.length === 0) return;
-    const total = entries.length;
-    let done = 0;
-    let capturedCount = 0;
-    let failed = 0;
-    showMessage(t(i18n, "msg.capturing", { done: 0, total }), 2000);
-    for (const entry of entries) {
-        try {
-            const result = await captureClip(facade.pluginInstance, entry.id, {});
-            if (result.captured) {
-                capturedCount += 1;
-                autoEnrich(facade.pluginInstance, entry.id, facade.settings);
-            } else {
-                failed += 1;
-            }
-        } catch {
-            failed += 1;
-        }
-        done += 1;
-        showMessage(t(i18n, "msg.capturing", { done, total }), 2000);
+async function captureAsLocal(entry: CandidateEntry) {
+    if (entry.url) return;
+    try {
+        const result = await captureDocument(facade.pluginInstance, entry.id, { contentType: "local" });
+        showMessage(t(i18n, result.captured ? "msg.added" : "msg.alreadyIn"), 2500);
+        await reload();
+    } catch (error) {
+        console.warn("[glean] 本地文档收录失败:", error);
+        showMessage(t(i18n, "msg.captureFailed"), 3500);
     }
-    showMessage(t(i18n, "msg.captureDone", { done: capturedCount, failed }), 3500);
-    await reload();
+}
+
+async function excludeCandidate(entry: CandidateEntry) {
+    try {
+        await writeClip(facade.pluginInstance, entry.id, { excluded: true });
+        showMessage(t(i18n, "msg.candidateExcluded"), 2500);
+        await reload();
+    } catch (error) {
+        console.warn("[glean] 忽略候选失败:", error);
+        showMessage(t(i18n, "msg.captureFailed"), 3500);
+    }
+}
+
+function startCandidateUrlEdit(entry: CandidateEntry) {
+    editingCandidateId = entry.id;
+    candidateUrlInput = entry.url;
+}
+
+async function saveCandidateUrl(entry: CandidateEntry) {
+    const url = candidateUrlInput.trim();
+    if (!normalizeUrl(url)) {
+        showMessage(t(i18n, "msg.candidateInvalidUrl"), 3500);
+        return;
+    }
+    try {
+        const conflict = await findClipUrlConflict(url, entry.id);
+        if (conflict) {
+            showMessage(`${t(i18n, "inbox.duplicate")}: ${conflict.title || conflict.hpath}`, 4000);
+            return;
+        }
+        await writeClip(facade.pluginInstance, entry.id, { url }, { force: true });
+        editingCandidateId = "";
+        await reload();
+    } catch (error) {
+        console.warn("[glean] 修正来源失败:", error);
+        showMessage(t(i18n, "msg.captureFailed"), 3500);
+    }
+}
+
+function candidateEvidence(entry: CandidateEntry): string {
+    return entry.evidence.map((item) => t(i18n, `candidate.evidence.${item}`)).join(" · ");
+}
+
+function candidateMissing(entry: CandidateEntry): string {
+    return entry.missing.filter((item) => item !== "status")
+        .map((item) => t(i18n, `candidate.missing.${item}`)).join(" · ");
+}
+
+function clipType(entry: ClipIndexEntry): string {
+    return t(i18n, `clip.type.${entry.contentType || "unknown"}`);
+}
+
+function timeSource(entry: ClipIndexEntry): string {
+    return t(i18n, `clip.timeSource.${entry.timeSource || "unknown"}`);
+}
+
+function lengthLabel(entry: ClipIndexEntry): string {
+    if (entry.contentType === "link") return clipType(entry);
+    if (entry.words <= 0) return t(i18n, "clip.lengthUnknown");
+    return `${t(i18n, "panel.words", { n: entry.words })} · ${t(i18n, "panel.minutes", { n: entry.minutes })}`;
 }
 
 /** 手动 AI 富化（卡上 ✨，静默降级） */
@@ -300,6 +355,9 @@ async function enrich(entry: ClipIndexEntry) {
 
 async function setStatus(entry: ClipIndexEntry, status: ClipStatus) {
     const ok = await batchSetStatus(facade.pluginInstance, [entry.id], status);
+    if (ok === 1 && status === "done" && facade.settings.integration.checkinEnabled && facade.settings.integration.checkinItemId) {
+        void recordReadingDone(facade.settings.integration.checkinItemId, entry.id, entry.title);
+    }
     showMessage(t(i18n, ok === 1 ? "msg.statusChanged" : "msg.statusFailed"), 3000);
     await reload();
     return ok === 1;
@@ -359,7 +417,11 @@ async function takeSnapshot(entry: ClipIndexEntry) {
 
 function metaLine(entry: Row): string {
     const parts: string[] = [];
-    if ("minutes" in entry && entry.minutes > 0) parts.push(t(i18n, "panel.minutes", { n: entry.minutes }));
+    if (entry.kind === "clip") {
+        parts.push(clipType(entry));
+        if (entry.minutes > 0) parts.push(t(i18n, "panel.minutes", { n: entry.minutes }));
+        parts.push(timeSource(entry));
+    }
     return parts.join(" · ");
 }
 </script>
@@ -545,7 +607,7 @@ function metaLine(entry: Row): string {
                                         <span class={statusDotClass(entry.status)}></span>
                                         <span class="glean-drow__ti">{entry.title || t(i18n, "panel.untitled")}</span>
                                         <span class="glean-drow__site">{entry.site || t(i18n, "panel.unknownSite")}</span>
-                                        <span class="glean-drow__len">{t(i18n, "panel.words", { n: entry.words || 0 })} · {t(i18n, "panel.minutes", { n: entry.minutes || 0 })}</span>
+                                        <span class="glean-drow__len" title={timeSource(entry)}>{lengthLabel(entry)}</span>
                                         <span class="glean-drow__st">
                                             <span class="glean-st-badge glean-st-badge--{entry.status}">{queueLabel(entry.status)}</span>
                                         </span>
@@ -582,14 +644,24 @@ function metaLine(entry: Row): string {
                                     <div class="glean-drow" onclick={() => openDoc(entry.id)} role="button" tabindex="0">
                                         <span class="glean-dot glean-dot--inbox"></span>
                                         <span class="glean-drow__ti">{entry.title || t(i18n, "panel.untitled")}</span>
-                                        <span class="glean-drow__site">{entry.hpath}</span>
-                                        <span class="glean-drow__len"></span>
+                                        <span class="glean-drow__site" title={entry.url || entry.hpath}>{entry.site || candidateEvidence(entry)}</span>
+                                        <span class="glean-drow__len">{candidateMissing(entry) || t(i18n, "candidate.pending")}</span>
                                         <span class="glean-drow__st">
-                                            <button class="glean-card__capture" onclick={(e) => void capture(entry).finally(() => e.stopPropagation())}>
-                                                {t(i18n, "action.addToInbox")}
-                                            </button>
+                                            {#if entry.url}<button class="glean-card__capture" onclick={(e) => { e.stopPropagation(); void capture(entry); }}>{t(i18n, "action.addToInbox")}</button>{/if}
                                         </span>
+                                        <div class="glean-drow__ops">
+                                            <button class="glean-op-btn" title={t(i18n, "candidate.fixUrl")} onclick={(e) => { e.stopPropagation(); startCandidateUrlEdit(entry); }}>✎</button>
+                                            {#if !entry.url}<button class="glean-op-btn" title={t(i18n, "candidate.captureLocal")} onclick={(e) => { e.stopPropagation(); void captureAsLocal(entry); }}>▤</button>{/if}
+                                            <button class="glean-op-btn" title={t(i18n, "candidate.exclude")} onclick={(e) => { e.stopPropagation(); void excludeCandidate(entry); }}>×</button>
+                                        </div>
                                     </div>
+                                    {#if editingCandidateId === entry.id}
+                                        <div class="glean-candidate-edit">
+                                            <input class="b3-text-field" type="url" bind:value={candidateUrlInput} placeholder={t(i18n, "candidate.urlPlaceholder")} aria-label={t(i18n, "candidate.urlPlaceholder")} />
+                                            <button class="glean-btn" onclick={() => void saveCandidateUrl(entry)}>{t(i18n, "action.save")}</button>
+                                            <button class="glean-btn glean-btn--ghost" onclick={() => (editingCandidateId = "")}>{t(i18n, "action.cancel")}</button>
+                                        </div>
+                                    {/if}
                                 {/if}
                             {/each}
                         </div>
@@ -617,9 +689,6 @@ function metaLine(entry: Row): string {
                     <div class="glean-candidates">
                         <span>📥</span>
                         <span style="flex:1">{t(i18n, "panel.candidatesDetected", { n: candidateCount })}</span>
-                        <button class="glean-cap-btn" onclick={() => void captureAll()}>
-                            {t(i18n, "action.captureAll")}
-                        </button>
                     </div>
                 {/if}
                 {#if rows.length === 0 && !(candidateCount > 0 && activeQueue === "inbox")}
@@ -648,7 +717,7 @@ function metaLine(entry: Row): string {
                                     {#if entry.kind === "clip" && entry.site}
                                         <span class="glean-card__site">{entry.site}</span>
                                     {:else if entry.kind === "candidate"}
-                                        <span>{entry.hpath}</span>
+                                        <span title={entry.url || entry.hpath}>{entry.site || candidateEvidence(entry)}</span>
                                     {/if}
                                     {#if metaLine(entry)}
                                         <span>· {metaLine(entry)}</span>
@@ -662,9 +731,24 @@ function metaLine(entry: Row): string {
                                 </div>
                             </div>
                             {#if entry.kind === "candidate"}
-                                <button class="glean-card__capture" onclick={(e) => void capture(entry).finally(() => e.stopPropagation())}>
-                                    {t(i18n, "action.addToInbox")}
-                                </button>
+                                <div class="glean-card__ops">
+                                    {#if entry.url}<button class="glean-card__capture" onclick={() => void capture(entry)}>{t(i18n, "action.addToInbox")}</button>{/if}
+                                    <button class="glean-op-btn" title={t(i18n, "candidate.fixUrl")} onclick={() => startCandidateUrlEdit(entry)}>✎</button>
+                                    {#if !entry.url}<button class="glean-op-btn" title={t(i18n, "candidate.captureLocal")} onclick={() => void captureAsLocal(entry)}>▤</button>{/if}
+                                    <button class="glean-op-btn" title={t(i18n, "candidate.exclude")} onclick={() => void excludeCandidate(entry)}>×</button>
+                                </div>
+                                <div class="glean-candidate-detail">
+                                    <span>{t(i18n, "candidate.evidenceLabel")}: {candidateEvidence(entry)}</span>
+                                    {#if candidateMissing(entry)}<span>{candidateMissing(entry)}</span>{/if}
+                                    {#if entry.url}<span title={entry.url}>{entry.url}</span>{/if}
+                                </div>
+                                {#if editingCandidateId === entry.id}
+                                    <div class="glean-candidate-edit">
+                                        <input class="b3-text-field" type="url" bind:value={candidateUrlInput} placeholder={t(i18n, "candidate.urlPlaceholder")} aria-label={t(i18n, "candidate.urlPlaceholder")} />
+                                        <button class="glean-btn" onclick={() => void saveCandidateUrl(entry)}>{t(i18n, "action.save")}</button>
+                                        <button class="glean-btn glean-btn--ghost" onclick={() => (editingCandidateId = "")}>{t(i18n, "action.cancel")}</button>
+                                    </div>
+                                {/if}
                             {:else}
                                 <div class="glean-card__ops">
                                     <button

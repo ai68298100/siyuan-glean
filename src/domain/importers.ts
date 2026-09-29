@@ -3,6 +3,7 @@
  * 纯函数层：字符串进出，零依赖；解析必须防御性（外部导出格式随版本漂移），坏行跳过不抛错。
  * 状态映射（平静原则）：unread→inbox / read→done / archive→archived；未知状态→inbox。
  */
+import { normalizeUrl } from "./url.ts";
 
 export type ImportFormat = "pocket-html" | "pocket-csv" | "omnivore-json" | "wallabag-json";
 
@@ -91,12 +92,8 @@ function dedupe(items: ImportedItem[]): { items: ImportedItem[]; dropped: number
     const kept: ImportedItem[] = [];
     let dropped = 0;
     for (const item of items) {
-        if (!item.url || !/^https?:\/\//i.test(item.url)) {
-            dropped += 1;
-            continue;
-        }
-        const key = item.url.toLowerCase().replace(/\/$/, "");
-        if (seen.has(key)) {
+        const key = normalizeUrl(item.url);
+        if (!key || seen.has(key)) {
             dropped += 1;
             continue;
         }

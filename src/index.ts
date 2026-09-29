@@ -14,7 +14,7 @@ import { loadUiPrefs } from "./services/prefs";
 import SettingsView from "./ui/SettingsView.svelte";
 import { svelteDialog } from "./libs/dialog";
 import { t, type I18nBundle } from "./libs/i18n";
-import { captureClip } from "./services/clip-store";
+import { captureDocument } from "./services/clip-store";
 import { autoEnrich, enrichClip } from "./services/enrich-service";
 import { ensurePresetActions } from "./services/ai-actions";
 import { makeQuoteCard } from "./services/flashcard-service";
@@ -256,7 +256,7 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
             docTitle = rows[0]?.content ?? "";
         } catch { /* 标题取不到就用无来源卡面 */ }
         try {
-            await makeQuoteCard(this.settings, docTitle, quote);
+            await makeQuoteCard(this.settings, docTitle, quote, this);
             showMessage(t(this.i18n, "flashcard.done"), 3000);
         } catch (error) {
             showMessage(String(error).slice(0, 140), 5000);
@@ -271,17 +271,24 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
             return;
         }
         let ok = 0;
+        let duplicates = 0;
         for (const id of ids) {
             try {
                 const shorthand = await getShorthand(id);
                 if (!shorthand) continue;
-                await migrateShorthand(this, shorthand, { notebookId });
+                const result = await migrateShorthand(this, shorthand, { notebookId });
+                if (result.duplicate) {
+                    duplicates += 1;
+                    showMessage(`${t(this.i18n, "inbox.duplicate")}: ${result.existing?.title || result.existing?.hpath || ""}`, 3500);
+                    continue;
+                }
                 ok += 1;
             } catch (error) {
                 showMessage(String(error).slice(0, 140), 5000);
             }
         }
-        showMessage(t(this.i18n, "inbox.migrated"), 3000);
+        if (ok > 0) showMessage(t(this.i18n, "inbox.migrated"), 3000);
+        if (duplicates > 0) showMessage(`${t(this.i18n, "inbox.duplicate")}（${duplicates}）`, 3500);
         this.notifyDataChanged();
         void ok;
     };
@@ -305,8 +312,13 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
             showMessage(t(this.i18n, "msg.noSelection"), 3000);
             return;
         }
-        const result = await captureClip(this, docId, { src: "manual" });
-        showMessage(t(this.i18n, result.captured ? "msg.added" : "msg.alreadyIn"), 3000);
+        const result = await captureDocument(this, docId, { src: "manual" });
+        showMessage(
+            result.conflict
+                ? `${t(this.i18n, "inbox.duplicate")}: ${result.conflict.title || result.conflict.hpath}`
+                : t(this.i18n, result.captured ? "msg.added" : "msg.alreadyIn"),
+            3000,
+        );
         if (result.captured) autoEnrich(this, docId, this.settings);
         this.notifyDataChanged();
     }
@@ -326,7 +338,7 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
                     try {
                         const { querySql } = await import("./api/client");
                         const rows = await querySql<{ content: string }>("SELECT content FROM blocks WHERE id = '" + rootId.replace(/'/g, "''") + "' LIMIT 1");
-                        await makeQuoteCard(this.settings, rows[0]?.content ?? "", selectionText);
+                        await makeQuoteCard(this.settings, rows[0]?.content ?? "", selectionText, this);
                         showMessage(t(this.i18n, "flashcard.done"), 3000);
                     } catch (error) {
                         showMessage(String(error).slice(0, 140), 5000);
@@ -339,8 +351,13 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
             iconHTML: "",
             label: `${t(this.i18n, "pluginName")}：${t(this.i18n, "action.addToInbox")}`,
             click: async () => {
-                const result = await captureClip(this, rootId, { src: "manual" });
-                showMessage(t(this.i18n, result.captured ? "msg.added" : "msg.alreadyIn"), 3000);
+                const result = await captureDocument(this, rootId, { src: "manual" });
+                showMessage(
+                    result.conflict
+                        ? `${t(this.i18n, "inbox.duplicate")}: ${result.conflict.title || result.conflict.hpath}`
+                        : t(this.i18n, result.captured ? "msg.added" : "msg.alreadyIn"),
+                    3000,
+                );
                 if (result.captured) autoEnrich(this, rootId, this.settings);
                 this.notifyDataChanged();
             },

@@ -85,6 +85,8 @@ export interface DocRow {
     hpath: string;
     box: string;
     updated: string;
+    /** 搜索结果中的块标签；资格仍由精确 token 校验，SQL LIKE 只圈定范围。 */
+    tag?: string;
 }
 
 /** 跑一条只读 SQL；思源索引异步刷新，写后立刻查可能短暂滞后 */

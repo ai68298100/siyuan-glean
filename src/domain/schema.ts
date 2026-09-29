@@ -18,6 +18,14 @@ export const CLIP_SOURCES = [
 ] as const;
 export type ClipSource = (typeof CLIP_SOURCES)[number];
 
+/** 正文载体：fulltext=本地有正文，link=仅来源链接，local=用户指定本地文档。 */
+export const CLIP_CONTENT_TYPES = ["fulltext", "link", "local"] as const;
+export type ClipContentType = (typeof CLIP_CONTENT_TYPES)[number];
+
+/** custom-clip-time 的来源；legacy 表示历史值无法可靠追溯。 */
+export const CLIP_TIME_SOURCES = ["source", "document", "capture", "legacy"] as const;
+export type ClipTimeSource = (typeof CLIP_TIME_SOURCES)[number];
+
 /** IAL 键名（custom-* 属性）。值在 IAL 里一律是字符串。 */
 export const ATTR = {
     url: "custom-clip-url",
@@ -34,6 +42,12 @@ export const ATTR = {
     /** 单文件 HTML 快照（assets 路径，T-1504） */
     snapshot: "custom-clip-snapshot",
     src: "custom-clip-src",
+    contentType: "custom-clip-content-type",
+    timeSource: "custom-clip-time-source",
+    /** 用户确认“不是文章”后写入，避免候选扫描反复打扰。 */
+    excluded: "custom-clip-excluded",
+    /** 插件内部宿主文档标志；新建时写入，旧文档由候选规则回退推断。 */
+    internal: "custom-clip-internal",
 } as const;
 
 export type AttrKey = (typeof ATTR)[keyof typeof ATTR];
@@ -53,6 +67,10 @@ export interface ClipAttrs {
     lastSurfaced?: string;
     snapshot?: string;
     src?: ClipSource;
+    contentType?: ClipContentType;
+    timeSource?: ClipTimeSource;
+    excluded?: boolean;
+    internal?: boolean;
 }
 
 /** 待写回文档的属性补丁。值 = 字符串（IAL 形态）；null = 删除该键。 */
@@ -91,6 +109,18 @@ function parseSource(value: string | undefined): ClipSource | undefined {
     return CLIP_SOURCES.find((source) => source === value);
 }
 
+function parseContentType(value: string | undefined): ClipContentType | undefined {
+    return CLIP_CONTENT_TYPES.find((kind) => kind === value);
+}
+
+function parseTimeSource(value: string | undefined): ClipTimeSource | undefined {
+    return CLIP_TIME_SOURCES.find((source) => source === value);
+}
+
+function parseFlag(value: string | undefined): boolean | undefined {
+    return value?.toLowerCase() === "true" ? true : undefined;
+}
+
 function parseTags(value: string | undefined): string[] {
     if (!value) return [];
     return value
@@ -115,6 +145,11 @@ export function parseClipAttrs(ial: Record<string, string | undefined>): ClipAtt
         lastSurfaced: optionalString(ial[ATTR.lastSurfaced]),
         snapshot: optionalString(ial[ATTR.snapshot]),
         src: parseSource(ial[ATTR.src]),
+        contentType: parseContentType(ial[ATTR.contentType]),
+        // 旧数据没有来源标记；保留原时间且如实呈现为 legacy。
+        timeSource: parseTimeSource(ial[ATTR.timeSource]) ?? (ial[ATTR.time] ? "legacy" : undefined),
+        excluded: parseFlag(ial[ATTR.excluded]),
+        internal: parseFlag(ial[ATTR.internal]),
     };
 }
 
@@ -158,6 +193,10 @@ export function serializePatch(patch: Partial<ClipAttrs> & { aiTags?: string[] |
     if (patch.lastSurfaced !== undefined) put(ATTR.lastSurfaced, patch.lastSurfaced || null);
     if (patch.snapshot !== undefined) put(ATTR.snapshot, patch.snapshot || null);
     if (patch.src !== undefined) put(ATTR.src, patch.src ?? null);
+    if (patch.contentType !== undefined) put(ATTR.contentType, patch.contentType ?? null);
+    if (patch.timeSource !== undefined) put(ATTR.timeSource, patch.timeSource ?? null);
+    if (patch.excluded !== undefined) put(ATTR.excluded, patch.excluded ? "true" : null);
+    if (patch.internal !== undefined) put(ATTR.internal, patch.internal ? "true" : null);
     return out;
 }
 
@@ -191,6 +230,22 @@ export function siteFromUrl(rawUrl: string): string {
 export function siyuanTimestamp(now: Date = new Date()): string {
     const pad = (value: number, width = 2) => String(value).padStart(width, "0");
     return `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+}
+
+/** 从思源文档 ID 的前 14 位取创建时间；无效 ID 不臆造时间。 */
+export function documentTimeFromId(docId: string): string | null {
+    const stamp = String(docId ?? "").slice(0, 14);
+    if (!/^\d{14}$/.test(stamp)) return null;
+    const year = Number(stamp.slice(0, 4));
+    const month = Number(stamp.slice(4, 6));
+    const day = Number(stamp.slice(6, 8));
+    const hour = Number(stamp.slice(8, 10));
+    const minute = Number(stamp.slice(10, 12));
+    const second = Number(stamp.slice(12, 14));
+    const date = new Date(year, month - 1, day, hour, minute, second);
+    if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day ||
+        date.getHours() !== hour || date.getMinutes() !== minute || date.getSeconds() !== second) return null;
+    return stamp;
 }
 
 /** 重浮记录用日期 YYYYMMDD */

@@ -7,8 +7,8 @@
 import type { Plugin } from "siyuan";
 import { getShorthands, removeShorthands, type Shorthand, type ShorthandsPage } from "../api/inbox";
 import { createDocWithMd } from "../api/client";
-import { siteFromUrl, siyuanTimestamp } from "../domain/schema";
-import { captureClip } from "./clip-store";
+import { siteFromUrl } from "../domain/schema";
+import { captureClip, findClipUrlConflict, type DocMeta } from "./clip-store";
 
 /** 收集箱可用性探测：available=false 时 UI 整块隐藏。 */
 export interface InboxStatus {
@@ -36,16 +36,23 @@ export interface MigrateResult {
     docId: string;
     /** 云端删除是否成功（失败不阻塞，条目下次还会出现） */
     cloudRemoved: boolean;
+    /** 本地已有相同来源时不创建第二份，也不删除云端条目。 */
+    duplicate?: boolean;
+    existing?: DocMeta;
 }
 
 /** 迁入单条收集箱条目。 */
 export async function migrateShorthand(
     plugin: Plugin,
     shorthand: Shorthand,
-    options: { notebookId: string; folder?: string }
+    options: { notebookId: string; folder?: string; allowDuplicate?: boolean }
 ): Promise<MigrateResult> {
     const folder = options.folder?.trim() || "收集箱";
     const title = shorthand.shorthandTitle || shorthand.shorthandURL || "未命名收集";
+    if (shorthand.shorthandURL && !options.allowDuplicate) {
+        const existing = await findClipUrlConflict(shorthand.shorthandURL);
+        if (existing) return { docId: existing.id, cloudRemoved: false, duplicate: true, existing };
+    }
     const markdownParts: string[] = [`# ${title}`];
     if (shorthand.shorthandURL) markdownParts.push(`- [${shorthand.shorthandURL}](${shorthand.shorthandURL})`);
     if (shorthand.shorthandDesc) markdownParts.push(`> ${shorthand.shorthandDesc}`);
@@ -55,19 +62,22 @@ export async function migrateShorthand(
     const docId = await createDocWithMd(options.notebookId, `/${folder}/${sanitizeTitle(title)}`, markdownParts.join("\n"));
     if (!docId) throw new Error("创建文档失败");
 
-    await captureClip(plugin, docId, {
+    const cloudTime = cloudTimeToSiyuan(shorthand.hCreated);
+    const captured = await captureClip(plugin, docId, {
         url: shorthand.shorthandURL || undefined,
         site: shorthand.shorthandURL ? siteFromUrl(shorthand.shorthandURL) : undefined,
         src: "inbox",
+        time: cloudTime || undefined,
+        timeSource: cloudTime ? "source" : "capture",
+        markdown: markdownParts.join("\n"),
+        contentType: shorthand.shorthandMd?.trim() ? "fulltext" : "link",
+        allowDuplicate: options.allowDuplicate,
     });
-    // 原收藏时间（captureClip 缺省 now，这里覆盖为云端时间）
-    const cloudTime = cloudTimeToSiyuan(shorthand.hCreated);
-    if (cloudTime) {
-        const { writeClip } = await import("./clip-store");
-        await writeClip(plugin, docId, { time: cloudTime }, { force: true });
+    if (captured.conflict) {
+        // The URL may have appeared between the preflight and write. Keep the
+        // cloud item so the user can choose the existing document or retry.
+        return { docId: captured.conflict.id, cloudRemoved: false, duplicate: true, existing: captured.conflict };
     }
-    void siyuanTimestamp;
-
     let cloudRemoved = false;
     if (shorthand.oId) {
         try {

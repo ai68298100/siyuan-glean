@@ -105,24 +105,27 @@ async function runFlow(client, workspace) {
     assert.match(box ?? "", /^\d{14}-[0-9a-z]{7}$/);
     const settings = { anchorNotebooks: [box], migrateBatchSize: 1 };
 
-    const makeDoc = (title, body) => client.apiChecked("/api/filetree/createDocWithMd", {
+    const makeDoc = (title, body, tags = "") => client.apiChecked("/api/filetree/createDocWithMd", {
         notebook: box,
         path: `/S1/${title}`,
         markdown: `# ${title}\n\n${body}`,
+        tags,
     });
     const ordinary = await makeDoc("待发现普通文", "这是锚点笔记本中的候选文章。");
     const urlOnly = await makeDoc("待补全来源文", "这篇文档已有来源网址，却还没有状态。");
     const oldA = await makeDoc("旧文甲", "- [https://example.org/s1-old-a](https://example.org/s1-old-a)\n\n第一篇历史正文。");
     const oldB = await makeDoc("旧文乙", "- [https://example.org/s1-old-b](https://example.org/s1-old-b)\n\n第二篇历史正文。");
-    const noUrl = await makeDoc("待手填来源文", "没有链接的历史正文。");
+    const noUrl = await makeDoc("待手填来源文", "没有链接的历史正文。", "剪藏");
     const docIds = [ordinary, urlOnly, oldA, oldB, noUrl];
     await until("锚点笔记本 SQL 索引", async () => {
         const rows = await clip.listAnchorDocs([box]);
         return docIds.every((id) => rows.some((row) => row.id === id)) && rows.every((row) => row.box === box);
     });
     const firstIndex = await clip.reconcileIndex(plugin, settings);
-    assert(docIds.every((id) => firstIndex.candidates[id]));
-    pass("真实笔记本 ID 查出候选并写入派生索引");
+    assert(firstIndex.candidates[oldA] && firstIndex.candidates[oldB] && firstIndex.candidates[noUrl]);
+    assert.equal(firstIndex.candidates[ordinary], undefined);
+    assert.equal(firstIndex.candidates[urlOnly], undefined);
+    pass("真实笔记本 ID 完整扫描；只有来源或精确标签证据成为候选");
 
     const sourceUrl = "https://example.org/s1-url-only";
     await clip.writeClip(plugin, urlOnly, { url: sourceUrl });
@@ -212,7 +215,8 @@ async function runFlow(client, workspace) {
     assert.equal(rebuilt.clips[oldA].status, "inbox");
     assert.equal(rebuilt.clips[oldB].status, "inbox");
     assert.equal(rebuilt.clips[importedId].status, "done");
-    assert(rebuilt.candidates[ordinary] && rebuilt.candidates[noUrl]);
+    assert(rebuilt.candidates[noUrl]);
+    assert.equal(rebuilt.candidates[ordinary], undefined);
     assert.equal(rebuilt.candidates[urlOnly], undefined);
     pass("删除派生索引后从内核属性重建收录与候选一致");
 }

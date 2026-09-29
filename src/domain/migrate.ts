@@ -13,15 +13,17 @@ export interface UrlCandidate {
     reason: string;
 }
 
+import { normalizeUrl as canonicalUrl } from "./url.ts";
+
 const MARKDOWN_LINK = /\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g;
 
 function isHttpUrl(value: string): boolean {
     return /^https?:\/\//i.test(value);
 }
 
-function normalizeUrl(value: string): string {
-    // 去掉尾随标点（markdown 行尾句号等），不做其他改写
-    return value.replace(/[),.;!?'"\]]+$/, "");
+function normalizeExtractedUrl(value: string): string {
+    // 用户可见/待回填 URL 保留原始大小写和路径，仅清理 Markdown 行尾标点。
+    return value.replace(/[),.;!?\'"\]]+$/, "");
 }
 
 /**
@@ -37,12 +39,12 @@ export function extractUrlCandidates(markdown: string): UrlCandidate[] {
         // 策略一：裸 URL 行（collect 收集箱/部分工具直接贴 URL）
         const bare = line.trim();
         if (isHttpUrl(bare) && !bare.includes(" ")) {
-            push({ url: normalizeUrl(bare), score: 80 - lineIndex, reason: "bare-url-line" });
+            push({ url: normalizeExtractedUrl(bare), score: 80 - lineIndex, reason: "bare-url-line" });
         }
         // 策略二：markdown 链接，链接文本本身也是 URL 或与 href 同源（官方剪藏模板形态）
         for (const match of line.matchAll(MARKDOWN_LINK)) {
             const text = match[1].trim();
-            const href = normalizeUrl(match[2].trim());
+            const href = normalizeExtractedUrl(match[2].trim());
             if (!isHttpUrl(href)) continue;
             const looksLikeClipper = isHttpUrl(text) || text === href || text.replace(/\/$/, "") === href.replace(/\/$/, "");
             push({
@@ -54,7 +56,7 @@ export function extractUrlCandidates(markdown: string): UrlCandidate[] {
     });
 
     function push(candidate: UrlCandidate) {
-        const key = candidate.url.toLowerCase();
+        const key = canonicalUrl(candidate.url) || candidate.url.toLowerCase();
         if (seen.has(key)) return;
         seen.add(key);
         candidates.push(candidate);

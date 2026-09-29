@@ -64,7 +64,7 @@ async function card(quote: string) {
     if (cardingKey) return;
     cardingKey = key;
     try {
-        await makeQuoteCard(facade.settings, docTitle || t(i18n, "panel.untitled"), quote);
+        await makeQuoteCard(facade.settings, docTitle || t(i18n, "panel.untitled"), quote, facade.pluginInstance);
         showMessage(t(i18n, "flashcard.done"), 3000);
     } catch (error) {
         showMessage(String(error).slice(0, 140), 5000);

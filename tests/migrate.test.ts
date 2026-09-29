@@ -8,6 +8,8 @@ import ts from "typescript";
 import { bestUrlCandidate, extractUrlCandidates, stripMarkdown } from "../src/domain/migrate.ts";
 import { DEFAULT_MIGRATE_BATCH_SIZE, MAX_MIGRATE_BATCH_SIZE } from "../src/domain/migrate-consts.ts";
 import * as schema from "../src/domain/schema.ts";
+import * as candidatePolicy from "../src/domain/candidate-policy.ts";
+import * as content from "../src/domain/content.ts";
 
 test("官方剪藏默认模板形态：第二行链接行得分最高", () => {
     const markdown = [
@@ -59,9 +61,12 @@ type MigrateSettings = Parameters<MigrateService["buildDryRunReport"]>[0];
 /** 服务模块依赖内核和思源 Plugin，隔离替换后验证真实任务流。 */
 function loadMigrateService(mocks: {
     listAnchorDocs: (notebooks: string[], limit: number) => Promise<unknown[]>;
+    scanDocScopes?: (settings: MigrateSettings) => Promise<{ all: unknown[]; tagged: unknown[] }>;
     batchGetBlockAttrs: (ids: string[]) => Promise<{ id: string; attrs: Record<string, string> }[]>;
     exportMdContent: (id: string) => Promise<{ content: string }>;
     writeClip: (plugin: unknown, id: string, patch: unknown) => Promise<{ attrs: Record<string, unknown>; skippedKeys: string[] }>;
+    captureClip?: (plugin: unknown, id: string, options: Record<string, unknown>) => Promise<{ captured: boolean; attrs: Record<string, unknown>; conflict?: { id: string } }>;
+    findClipUrlConflict?: (url: string, exceptDocId?: string) => Promise<unknown | null>;
 }): MigrateService {
     const source = readFileSync(resolve(import.meta.dirname, "../src/services/migrate-service.ts"), "utf8");
     const compiled = ts.transpileModule(source, {
@@ -72,9 +77,18 @@ function loadMigrateService(mocks: {
         "../api/client": {
             exportMdContent: mocks.exportMdContent,
         },
-        "../domain/migrate": { bestUrlCandidate, stripMarkdown },
+        "../domain/candidate-policy": candidatePolicy,
+        "../domain/content": content,
         "../domain/schema": schema,
-        "./clip-store": { listAnchorDocs: mocks.listAnchorDocs, batchReadClipAttrs: mocks.batchGetBlockAttrs, writeClip: mocks.writeClip },
+        "../domain/url": { normalizeUrl: (value: string) => value.trim().toLowerCase().replace(/#.*$/, "") },
+        "./clip-store": {
+            listAnchorDocs: mocks.listAnchorDocs,
+            scanDocScopes: mocks.scanDocScopes,
+            batchReadClipAttrs: mocks.batchGetBlockAttrs,
+            writeClip: mocks.writeClip,
+            findClipUrlConflict: mocks.findClipUrlConflict ?? (async () => null),
+            captureClip: mocks.captureClip ?? (async () => ({ captured: true, attrs: {} })),
+        },
     };
     const requireMock = (path: string): unknown => {
         if (!(path in dependencies)) throw new Error(`Unexpected dependency: ${path}`);
@@ -93,7 +107,7 @@ function memoryPlugin() {
     };
 }
 
-test("迁移 dry-run 在预览时分类无 URL，确认后才建立可续跑任务", async () => {
+test("迁移 dry-run 只预览有证据的文章，普通笔记不会被误报", async () => {
     const plugin = memoryPlugin();
     const docs = ["found", "missing", "already"].map((id) => ({ id, content: id, hpath: `/${id}`, box: "box", updated: "" }));
     const service = loadMigrateService({
@@ -105,11 +119,11 @@ test("迁移 dry-run 在预览时分类无 URL，确认后才建立可续跑任�
         writeClip: async () => ({ attrs: {}, skippedKeys: [] }),
     });
     const report = await service.buildDryRunReport({ anchorNotebooks: ["box"] } as MigrateSettings);
-    assert.deepEqual(report.map((row) => row.state), ["pending", "manual", "skipped"]);
+    assert.deepEqual(report.map((row) => row.state), ["pending", "skipped"]);
     assert.equal(await service.loadMigrateProgress(plugin as never), null);
     const task = await service.startMigrateProgress(plugin as never, report);
-    assert.equal(task.rows.length, 3);
-    assert.equal((await service.loadMigrateProgress(plugin as never))?.rows[1].state, "manual");
+    assert.equal(task.rows.length, 2);
+    assert.equal((await service.loadMigrateProgress(plugin as never))?.rows[0].url, "https://example.com/article");
 });
 
 test("迁移逐篇保存进度：暂停不完成，失败可重试且不重复已成功行", async () => {
@@ -208,4 +222,107 @@ test("属性已写但索引同步失败时，续跑只修复索引不覆盖属�
     assert.equal(tick.skipped, 1);
     assert.deepEqual(patches[1], {});
     assert.equal(patches.length, 2);
+});
+
+test("手工迁移行裁决会写属性并同步保存任务，而不是伪报完成", async () => {
+    const plugin = memoryPlugin();
+    const patches: Array<{ id: string; patch: Record<string, unknown> }> = [];
+    const service = loadMigrateService({
+        listAnchorDocs: async () => [],
+        batchGetBlockAttrs: async () => [{ id: "manual", attrs: {} }],
+        exportMdContent: async () => ({ content: "# 旧文\n\n正文" }),
+        captureClip: async (_plugin, id, options) => {
+            patches.push({ id, patch: options });
+            return { captured: true, attrs: {} };
+        },
+        writeClip: async (_plugin, id, patch) => {
+            patches.push({ id, patch: patch as Record<string, unknown> });
+            return { attrs: {}, skippedKeys: [] };
+        },
+    });
+    const row = {
+        id: "manual", title: "旧文", hpath: "/旧文", box: "box", url: "", site: "",
+        words: 0, minutes: 0, state: "manual" as const, missing: ["url" as const],
+    };
+    await service.startMigrateProgress(plugin as never, [row]);
+    const resolved = await service.resolveMigrateRow(plugin as never, row, { kind: "url", url: "https://example.com/old" });
+    assert.equal(resolved.state, "ok");
+    assert.equal(resolved.url, "https://example.com/old");
+    assert.equal(patches[0].patch.url, "https://example.com/old");
+    assert.equal((await service.loadMigrateProgress(plugin as never))?.rows[0].state, "ok");
+});
+
+test("迁移 URL 冲突会保留 manual，允许第二份才继续写入", async () => {
+    const plugin = memoryPlugin();
+    const writes: unknown[] = [];
+    const service = loadMigrateService({
+        listAnchorDocs: async () => [],
+        batchGetBlockAttrs: async () => [{ id: "dup", attrs: {} }],
+        exportMdContent: async () => ({ content: "正文" }),
+        captureClip: async (_plugin, _id, options) => {
+            writes.push(options);
+            return { captured: true, attrs: {} };
+        },
+        findClipUrlConflict: async () => ({ id: "existing", title: "已有" }),
+        writeClip: async (_plugin, _id, patch) => { writes.push(patch); return { attrs: {}, skippedKeys: [] }; },
+    });
+    const row = {
+        id: "dup", title: "重复", hpath: "/重复", box: "box", url: "", site: "",
+        words: 0, minutes: 0, state: "manual" as const, missing: ["url" as const],
+    };
+    await service.startMigrateProgress(plugin as never, [row]);
+    const conflict = await service.resolveMigrateRow(plugin as never, row, { kind: "url", url: "https://example.com/same" });
+    assert.equal(conflict.state, "manual");
+    assert.equal(conflict.conflictDocId, "existing");
+    assert.equal(writes.length, 0);
+    const kept = await service.resolveMigrateRow(plugin as never, conflict, { kind: "url", url: "https://example.com/same", allowDuplicate: true });
+    assert.equal(kept.state, "ok");
+    assert.equal(writes.length > 0, true);
+});
+
+test("预览手工裁决只改变执行计划，确认后才写文档", async () => {
+    const plugin = memoryPlugin();
+    const writes: unknown[] = [];
+    const service = loadMigrateService({
+        listAnchorDocs: async () => [],
+        batchGetBlockAttrs: async () => [{ id: "planned", attrs: {} }],
+        exportMdContent: async () => ({ content: "# 旧文\n\n正文" }),
+        captureClip: async (_plugin, _id, options) => { writes.push(options); return { captured: true, attrs: {} }; },
+        writeClip: async (_plugin, _id, patch) => { writes.push(patch); return { attrs: {}, skippedKeys: [] }; },
+    });
+    const row = {
+        id: "planned", title: "旧文", hpath: "/旧文", box: "box", url: "", site: "",
+        words: 0, minutes: 0, state: "manual" as const,
+    };
+    const plan = service.planMigrateRow(row, { kind: "local" });
+    assert.equal(plan.resolution, "local");
+    assert.equal(writes.length, 0);
+    assert.equal(await service.loadMigrateProgress(plugin as never), null);
+    await service.startMigrateProgress(plugin as never, [plan]);
+    const tick = await service.runBackfillBatch(plugin as never, { migrateBatchSize: 10 } as MigrateSettings);
+    assert.equal(tick.ok, 1);
+    assert.equal(writes.length, 1);
+});
+
+test("执行期 URL 冲突保留 manual 任务，重开后仍可裁决", async () => {
+    const plugin = memoryPlugin();
+    const writes: unknown[] = [];
+    const service = loadMigrateService({
+        listAnchorDocs: async () => [],
+        batchGetBlockAttrs: async () => [{ id: "pending", attrs: {} }],
+        exportMdContent: async () => ({ content: "" }),
+        findClipUrlConflict: async () => ({ id: "existing", title: "已有" }),
+        writeClip: async (_plugin, _id, patch) => { writes.push(patch); return { attrs: {}, skippedKeys: [] }; },
+    });
+    await service.startMigrateProgress(plugin as never, [{
+        id: "pending", title: "待写", hpath: "/待写", box: "box", url: "https://example.com/same",
+        site: "example.com", words: 10, minutes: 1, state: "pending",
+    }]);
+    const tick = await service.runBackfillBatch(plugin as never, { migrateBatchSize: 10 } as MigrateSettings);
+    assert.equal(tick.finished, true);
+    assert.equal(tick.manual, 1);
+    assert.equal(writes.length, 0);
+    const saved = await service.loadMigrateProgress(plugin as never);
+    assert.equal(saved?.rows[0].conflictDocId, "existing");
+    assert.equal(saved?.rows[0].state, "manual");
 });

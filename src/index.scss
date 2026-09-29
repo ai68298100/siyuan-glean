@@ -488,6 +488,43 @@
     }
 }
 
+.glean-card--candidate .glean-card__ops {
+    position: static;
+    margin-top: 8px;
+    opacity: 1;
+    transform: none;
+    flex-wrap: wrap;
+}
+
+.glean-candidate-detail {
+    margin-top: 7px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: 10.5px;
+    color: var(--b3-theme-on-surface);
+    overflow-wrap: anywhere;
+}
+
+.glean-candidate-edit {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 0;
+    min-width: 0;
+}
+
+.glean-candidate-edit .b3-text-field {
+    flex: 1;
+    min-width: 0;
+}
+
+.glean-mrow__ops {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
 /* ============ 空态 / 加载 ============ */
 
 .glean-empty {
@@ -986,6 +1023,22 @@
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
+        }
+
+        .glean-mrow__why {
+            display: inline-flex;
+            gap: 4px;
+            max-width: 240px;
+            overflow: hidden;
+            color: var(--b3-theme-on-surface);
+            font-size: 10px;
+            white-space: nowrap;
+
+            span {
+                padding: 1px 5px;
+                border-radius: 999px;
+                background: var(--b3-theme-background-light);
+            }
         }
 
         .glean-mrow__st {
@@ -1820,6 +1873,15 @@
     white-space: nowrap;
 }
 .glean-inbox__ops { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+.glean-inbox__duplicate {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 8px;
+    color: var(--b3-theme-on-surface);
+    font-size: 10px;
+    background: var(--b3-theme-background-light);
+}
 .glean-inbox__dismiss {
     width: 22px;
     height: 22px;

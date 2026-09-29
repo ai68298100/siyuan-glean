@@ -10,6 +10,7 @@ import { ATTR, siyuanTimestamp } from "../domain/schema";
 import { siteFromUrl } from "../domain/schema";
 import type { ImportFormat, ImportedItem, ParseResult } from "../domain/importers";
 import { parseImport } from "../domain/importers";
+import { normalizeUrl } from "../domain/url";
 import { batchReadClipAttrs, captureClip, listClipDocs } from "./clip-store";
 
 export interface ImportPreviewRow {
@@ -40,7 +41,7 @@ export async function previewImport(content: string, format: ImportFormat | "aut
         time: item.time,
         tags: item.tags,
         status: item.status,
-        duplicate: existingUrls.has(item.url.toLowerCase().replace(/\/$/, "")),
+        duplicate: existingUrls.has(normalizeUrl(item.url)),
     }));
     return {
         format: parsed.format,
@@ -49,20 +50,29 @@ export async function previewImport(content: string, format: ImportFormat | "aut
     };
 }
 
-/** 全库已有 clip URL 集合（次锚点全扫；导入是一次性操作，代价可接受）。 */
+/** 全库已有 clip URL 集合；导入前必须读完次锚点的全部分页。 */
 async function collectExistingUrls(): Promise<Set<string>> {
-    const docs = await listClipDocs(5000);
-    const attrPairs = await batchReadClipAttrs(docs.map((doc) => doc.id));
+    const pageSize = 500;
     const urls = new Set<string>();
-    for (const pair of attrPairs) {
-        const url = pair.attrs[ATTR.url];
-        if (url) urls.add(normalizeUrl(url));
+    const seenIds = new Set<string>();
+    let offset = 0;
+    while (true) {
+        const docs = await listClipDocs(pageSize, offset);
+        if (docs.length === 0) break;
+        const freshIds = docs.map((doc) => doc.id).filter((id) => !seenIds.has(id));
+        if (docs.length === pageSize && freshIds.length === 0) {
+            throw new Error("导入查重分页未前进，无法确认全库 URL");
+        }
+        for (const id of freshIds) seenIds.add(id);
+        const attrPairs = await batchReadClipAttrs(freshIds);
+        for (const pair of attrPairs) {
+            const key = normalizeUrl(pair.attrs[ATTR.url] || "");
+            if (key) urls.add(key);
+        }
+        if (docs.length < pageSize) break;
+        offset += docs.length;
     }
     return urls;
-}
-
-function normalizeUrl(url: string): string {
-    return url.trim().toLowerCase().replace(/\/$/, "");
 }
 
 export interface ImportOptions {
@@ -116,8 +126,7 @@ export async function runImport(
                 // createDocWithMd 的 tags 参数已在隔离内核 spike 验证会落到新文档根块。
                 const docId = await createDocWithMd(options.notebookId, hPath, markdown, row.tags.join(","));
                 if (!docId) {
-                    summary.failed += 1;
-                    continue;
+                    throw new Error("创建导入文档失败");
                 }
                 // 即使后续属性写入失败，本次执行也不再为同 URL 建第二篇文档。
                 existingUrls.add(urlKey);
@@ -126,7 +135,10 @@ export async function runImport(
                     site: row.site || siteFromUrl(row.url),
                     src,
                     time: row.time || siyuanTimestamp(),
+                    timeSource: row.time ? "source" : "capture",
                     status: row.status,
+                    contentType: "link",
+                    markdown,
                 });
                 if (!captured.captured) {
                     throw new Error(`导入文档未完成收录: ${docId}`);

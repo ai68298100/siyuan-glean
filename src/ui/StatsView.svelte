@@ -38,7 +38,7 @@ function fmtWords(words: number): { num: string; unit: string } {
 async function doExport() {
     exporting = true;
     try {
-        await exportWeeklyReport(index, facade.settings);
+        await exportWeeklyReport(index, facade.settings, facade.pluginInstance);
         showMessage(t(i18n, "stats.exportDone"), 3000);
         onCaptured?.();
     } catch (error) {

@@ -1,6 +1,6 @@
 <script lang="ts">
 /** 收集箱区（T-1500）：云端收集箱条目列表 → 一键迁入读库。不可用（未登录/无订阅）时整块隐藏。 */
-import { showMessage } from "siyuan";
+import { openTab, showMessage } from "siyuan";
 import type { GleanFacade } from "../types";
 import { t } from "../libs/i18n";
 import { removeShorthands, type Shorthand } from "../api/inbox";
@@ -20,6 +20,7 @@ let checked = $state(false);
 let expanded = $state(false);
 let items = $state<Shorthand[]>([]);
 let busyId = $state("");
+let duplicate = $state<{ item: Shorthand; existingId: string } | null>(null);
 
 async function refresh() {
     try {
@@ -37,7 +38,7 @@ $effect(() => {
     void refresh();
 });
 
-async function migrate(item: Shorthand) {
+async function migrate(item: Shorthand, allowDuplicate = false) {
     if (busyId) return;
     busyId = item.oId;
     try {
@@ -46,7 +47,11 @@ async function migrate(item: Shorthand) {
             showMessage(t(i18n, "panel.noAnchorHint"), 4000);
             return;
         }
-        const result = await migrateShorthand(facade.pluginInstance, item, { notebookId });
+        const result = await migrateShorthand(facade.pluginInstance, item, { notebookId, allowDuplicate });
+        if (result.duplicate && result.existing) {
+            duplicate = { item, existingId: result.existing.id };
+            return;
+        }
         showMessage(t(i18n, "inbox.migrated"), 3000);
         items = items.filter((entry) => entry.oId !== item.oId);
         if (!result.cloudRemoved) {
@@ -100,6 +105,14 @@ async function dismiss(item: Shorthand) {
                             <button class="glean-inbox__dismiss" title={t(i18n, "inbox.dismiss")} onclick={() => void dismiss(item)}>✕</button>
                         </div>
                     </div>
+                    {#if duplicate?.item.oId === item.oId}
+                        <div class="glean-inbox__duplicate">
+                            <span>{t(i18n, "inbox.duplicate")}</span>
+                            <button class="glean-op-btn" onclick={() => duplicate && void openTab({ app: facade.pluginInstance.app, doc: { id: duplicate.existingId }, keepCursor: false })}>{t(i18n, "inbox.openExisting")}</button>
+                            <button class="glean-op-btn" onclick={() => void migrate(item, true)}>{t(i18n, "inbox.keepDuplicate")}</button>
+                            <button class="glean-op-btn" onclick={() => (duplicate = null)}>{t(i18n, "action.cancel")}</button>
+                        </div>
+                    {/if}
                 {/each}
             {/if}
         {/if}

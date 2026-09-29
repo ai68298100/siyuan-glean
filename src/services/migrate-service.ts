@@ -5,9 +5,11 @@
  */
 import type { Plugin } from "siyuan";
 import { exportMdContent, type DocRow } from "../api/client";
-import { bestUrlCandidate, stripMarkdown } from "../domain/migrate";
-import { ATTR, countWords, estimateMinutes, siteFromUrl, siyuanTimestamp } from "../domain/schema";
-import { batchReadClipAttrs, listAnchorDocs, writeClip } from "./clip-store";
+import { inspectCandidate, hasValidClipStatus, type CandidateEvidence, type CandidateMissing } from "../domain/candidate-policy";
+import { inspectClipMarkdown } from "../domain/content";
+import { ATTR, documentTimeFromId, siteFromUrl, siyuanTimestamp, type ClipContentType, type ClipTimeSource } from "../domain/schema";
+import { normalizeUrl } from "../domain/url";
+import { batchReadClipAttrs, captureClip, findClipUrlConflict, listAnchorDocs, scanDocScopes, writeClip } from "./clip-store";
 import type { GleanSettings } from "./settings";
 
 export type MigrateRowState = "pending" | "ok" | "skipped" | "manual" | "error";
@@ -22,6 +24,19 @@ export interface MigrateRow {
     site: string;
     words: number;
     minutes: number;
+    contentType?: ClipContentType;
+    time?: string;
+    timeSource?: ClipTimeSource;
+    /** dry-run 发现的来源证据，供预览解释候选为何出现。 */
+    evidence?: CandidateEvidence[];
+    /** 需要用户补齐的属性，当前为 url/status 子集。 */
+    missing?: CandidateMissing[];
+    /** 预览阶段的用户决策；执行之前绝不写入文档。 */
+    resolution?: "url" | "local" | "exclude";
+    /** URL 冲突时，用户明确允许仍保留第二份。 */
+    allowDuplicate?: boolean;
+    /** 已有相同来源文章的文档 ID，供 UI 打开核对。 */
+    conflictDocId?: string;
     state: MigrateRowState;
     detail?: string;
 }
@@ -71,14 +86,18 @@ export async function startMigrateProgress(plugin: Plugin, rows: MigrateRow[]): 
     return progress;
 }
 
+function retryable(row: MigrateRow): boolean {
+    return row.state === "error" && (!!row.url || !!row.resolution);
+}
+
 /** 完成一次尝试后仅重排写入失败的行；扫描失败仍需重新扫描。 */
 export async function retryMigrateErrors(plugin: Plugin): Promise<MigrateProgress> {
     const progress = await loadMigrateProgress(plugin);
     if (!progress) throw new Error("没有可续跑的迁移任务，请先执行 dry-run");
-    const first = progress.rows.findIndex((row) => row.state === "error" && !!row.url);
+    const first = progress.rows.findIndex(retryable);
     if (first < 0) return progress;
     for (const row of progress.rows) {
-        if (row.state === "error" && row.url) {
+        if (retryable(row)) {
             row.state = "pending";
             delete row.detail;
         }
@@ -89,23 +108,161 @@ export async function retryMigrateErrors(plugin: Plugin): Promise<MigrateProgres
     return progress;
 }
 
+export type MigrateDecision =
+    | { kind: "url"; url: string; allowDuplicate?: boolean }
+    | { kind: "local" }
+    | { kind: "exclude" };
+
+/** dry-run 行裁决只更新内存中的执行计划，不碰文档属性或持久任务。 */
+export function planMigrateRow(row: MigrateRow, decision: MigrateDecision): MigrateRow {
+    if (decision.kind === "url") {
+        const url = decision.url.trim();
+        if (!normalizeUrl(url)) throw new Error("请输入有效的 http(s) 来源链接");
+        return {
+            ...row, url, site: siteFromUrl(url), state: "pending", resolution: "url",
+            allowDuplicate: decision.allowDuplicate === true, conflictDocId: undefined,
+            detail: undefined, missing: (row.missing ?? []).filter((item) => item !== "url"),
+        };
+    }
+    return {
+        ...row, state: "pending", resolution: decision.kind, allowDuplicate: false,
+        conflictDocId: undefined, detail: undefined, missing: [],
+    };
+}
+
+/** 手工裁决已保存的任务行。属性先写成功，随后同步持久任务；冲突保持待处理。 */
+export async function resolveMigrateRow(
+    plugin: Plugin,
+    row: MigrateRow,
+    decision: MigrateDecision,
+): Promise<MigrateRow> {
+    const progress = await loadMigrateProgress(plugin);
+    if (!progress) throw new Error("请先确认迁移报告，再处理文档");
+    const saved = progress.rows.find((item) => item.id === row.id);
+    if (!saved) throw new Error("这篇文章不在当前迁移任务中，请重新扫描");
+    if (saved.state !== "manual" && saved.state !== "error" && !(saved.state === "pending" && saved.resolution)) {
+        throw new Error("这篇文章已被迁移任务处理，请刷新");
+    }
+    row = saved;
+    const current = await batchReadClipAttrs([row.id]);
+    const ial = current[0]?.attrs ?? {};
+    if (decision.kind === "url") {
+        const url = decision.url.trim();
+        if (!normalizeUrl(url)) throw new Error("请输入有效的 http(s) 来源链接");
+        if (ial[ATTR.url]) {
+            // 用户在预览之后从其他入口补了来源，迁移器只修复索引，不覆盖手填值。
+            await writeClip(plugin, row.id, {});
+            const skipped = { ...row, state: "skipped" as const, detail: "already-clipped", conflictDocId: undefined };
+            await persistResolvedRow(plugin, progress, skipped);
+            return skipped;
+        }
+        const conflict = await findClipUrlConflict(url, row.id);
+        if (conflict && !decision.allowDuplicate) {
+            const unresolved: MigrateRow = {
+                ...row, url, site: siteFromUrl(url), state: "manual", conflictDocId: conflict.id,
+                detail: "duplicate-url", missing: (row.missing ?? []).filter((item) => item !== "url"),
+            };
+            await persistResolvedRow(plugin, progress, unresolved);
+            return unresolved;
+        }
+        const markdown = (await exportMdContent(row.id))?.content ?? "";
+        const metadata = inspectClipMarkdown(markdown, { url });
+        if (!hasValidClipStatus(ial)) {
+            const captured = await captureClip(plugin, row.id, {
+                url,
+                markdown,
+                src: "migration",
+                contentType: metadata.contentType,
+                allowDuplicate: decision.allowDuplicate,
+            });
+            if (captured.conflict) {
+                const unresolved: MigrateRow = {
+                    ...row, url, site: siteFromUrl(url), state: "manual", conflictDocId: captured.conflict.id,
+                    detail: "duplicate-url", missing: (row.missing ?? []).filter((item) => item !== "url"),
+                };
+                await persistResolvedRow(plugin, progress, unresolved);
+                return unresolved;
+            }
+        } else {
+            await writeClip(plugin, row.id, { url });
+            await writeClip(plugin, row.id, {
+                site: metadata.site || undefined,
+                contentType: metadata.contentType,
+                words: metadata.words > 0 ? metadata.words : undefined,
+                minutes: metadata.minutes > 0 ? metadata.minutes : undefined,
+            });
+        }
+        row = { ...row, url, site: metadata.site, state: "ok", resolution: undefined, conflictDocId: undefined, detail: undefined, missing: [] };
+    } else if (decision.kind === "local") {
+        if (ial[ATTR.url]) {
+            await writeClip(plugin, row.id, {});
+            const skipped = { ...row, state: "skipped" as const, detail: "already-clipped" };
+            await persistResolvedRow(plugin, progress, skipped);
+            return skipped;
+        }
+        const markdown = (await exportMdContent(row.id))?.content ?? "";
+        if (!hasValidClipStatus(ial)) {
+            await captureClip(plugin, row.id, { markdown, src: "migration", contentType: "local" });
+        } else {
+            await writeClip(plugin, row.id, { contentType: "local" });
+        }
+        row = { ...row, state: "ok", resolution: undefined, contentType: "local", detail: undefined, missing: [] };
+    } else {
+        await writeClip(plugin, row.id, { excluded: true });
+        row = { ...row, state: "skipped", resolution: undefined, detail: "user-excluded", missing: [] };
+    }
+    await persistResolvedRow(plugin, progress, row);
+    return row;
+}
+
+async function persistResolvedRow(plugin: Plugin, progress: MigrateProgress | null, row: MigrateRow): Promise<void> {
+    if (progress) {
+        const index = progress.rows.findIndex((item) => item.id === row.id);
+        if (index >= 0) {
+            progress.rows[index] = row;
+            await saveProgress(plugin, progress);
+        }
+    }
+}
+
+async function resolvePlannedRow(plugin: Plugin, row: MigrateRow): Promise<MigrateRow> {
+    if (row.resolution === "exclude") {
+        await writeClip(plugin, row.id, { excluded: true });
+        return { ...row, state: "skipped", resolution: undefined, detail: "user-excluded", missing: [] };
+    }
+    const ial = (await batchReadClipAttrs([row.id]))[0]?.attrs;
+    if (!ial) throw new Error("无法读取文档属性");
+    if (ial[ATTR.url]) {
+        await writeClip(plugin, row.id, {});
+        return { ...row, state: "skipped", resolution: undefined, detail: "already-clipped" };
+    }
+    const markdown = (await exportMdContent(row.id))?.content ?? "";
+    if (!hasValidClipStatus(ial)) {
+        await captureClip(plugin, row.id, { markdown, src: "migration", contentType: "local" });
+    } else {
+        await writeClip(plugin, row.id, { contentType: "local" });
+    }
+    return { ...row, state: "ok", resolution: undefined, contentType: "local", detail: undefined, missing: [] };
+}
+
 /**
- * dry-run：扫描锚点笔记本 → 排除已收录 → 逐篇导出 markdown 提取 URL 候选 →
- * 生成报告（不写入任何属性）。
+ * dry-run：完整扫描状态/URL 次锚点、主锚点笔记本与跨笔记本 #剪藏 标签 →
+ * 按文档 ID 去重 → 排除已收录 → 逐篇导出 markdown 提取 URL 候选 → 生成报告
+ *（不写入任何属性）。测试替身若尚未提供 scanDocScopes，则退回旧的锚点查询。
  */
 export async function buildDryRunReport(settings: GleanSettings): Promise<MigrateRow[]> {
-    const anchorRows = await listAnchorDocs(settings.anchorNotebooks, 5000);
-    const attrPairs = await batchReadClipAttrs(anchorRows.map((row) => row.id));
-    const hasAttrs = new Set(
-        attrPairs
-            // 只有已有来源 URL 才是幂等跳过；status-only 旧文仍需补来源与元数据。
-            .filter((pair) => pair.attrs[ATTR.url])
-            .map((pair) => pair.id)
-    );
+    const scanned = typeof scanDocScopes === "function" ? await scanDocScopes(settings) : null;
+    const rowsToProbe = scanned?.all ?? await listAnchorDocs(settings.anchorNotebooks, 5000);
+    const attrPairs = await batchReadClipAttrs(rowsToProbe.map((row) => row.id));
+    const attrsById = new Map(attrPairs.map((pair) => [pair.id, pair.attrs]));
 
     const rows: MigrateRow[] = [];
-    for (const row of anchorRows) {
-        if (hasAttrs.has(row.id)) {
+    for (const row of rowsToProbe) {
+        const ial = attrsById.get(row.id) ?? {};
+        // 迁移器只回填缺来源的历史文档；URL-only 半成品留在候选区，
+        // 必须经过用户显式“加入读库”才补状态，避免预览执行时悄悄入队。
+        // status-only 文档仍需导出正文寻找来源。
+        if (ial[ATTR.url] || (ial[ATTR.contentType] === "local" && hasValidClipStatus(ial))) {
             rows.push({
                 id: row.id,
                 title: row.content || "",
@@ -115,17 +272,24 @@ export async function buildDryRunReport(settings: GleanSettings): Promise<Migrat
                 site: "",
                 words: 0,
                 minutes: 0,
+                contentType: undefined,
                 state: "skipped",
                 detail: "already-clipped",
+                evidence: ["url-attribute"],
+                missing: [],
             });
             continue;
         }
-        rows.push(await probeRow(row));
+        const probed = await probeRow(row, ial);
+        if (probed) rows.push(probed);
     }
     return rows;
 }
 
-async function probeRow(row: DocRow): Promise<MigrateRow> {
+async function probeRow(
+    row: DocRow,
+    ial: Record<string, string | undefined> = {},
+): Promise<MigrateRow | null> {
     const base: MigrateRow = {
         id: row.id,
         title: row.content || "",
@@ -140,15 +304,35 @@ async function probeRow(row: DocRow): Promise<MigrateRow> {
     try {
         const exported = await exportMdContent(row.id);
         const markdown = exported?.content ?? "";
-        const candidate = bestUrlCandidate(markdown);
-        const words = countWords(stripMarkdown(markdown));
+        const candidate = inspectCandidate({
+            ial,
+            markdown,
+            title: row.content || "",
+            hpath: row.hpath || "",
+            tags: row.tag || ial.tags || "",
+        });
+        // An anchor notebook is only a search boundary. Ordinary documents with no
+        // source evidence are omitted so a scan cannot turn a whole notebook into
+        // an apparent backlog. A status-only old clip remains visible as manual.
+        if (!candidate.eligible && !hasValidClipStatus(ial)) return null;
+        if (candidate.internal || candidate.excluded) return null;
+        const metadata = inspectClipMarkdown(markdown, { url: candidate.url });
+        const documentTime = documentTimeFromId(row.id);
         return {
             ...base,
-            url: candidate?.url ?? "",
-            site: candidate ? siteFromUrl(candidate.url) : "",
-            words,
-            minutes: estimateMinutes(words),
-            state: candidate ? "pending" : "manual",
+            // Metadata's broad URL extraction must not turn an incidental inline
+            // link into source evidence; candidate policy owns URL eligibility.
+            url: candidate.url,
+            site: candidate.site,
+            words: metadata.words,
+            minutes: metadata.minutes,
+            contentType: candidate.url ? metadata.contentType : undefined,
+            time: documentTime ?? undefined,
+            timeSource: documentTime ? "document" : "capture",
+            state: candidate.url ? "pending" : "manual",
+            evidence: candidate.evidence,
+            missing: candidate.missing,
+            detail: candidate.evidence.length > 0 ? undefined : "missing-source-url",
         };
     } catch (error) {
         return { ...base, state: "error", detail: String(error).slice(0, 120) };
@@ -167,7 +351,8 @@ export interface BackfillTick {
 /**
  * 分批回填：从 progress.cursor 继续，每批 settings.migrateBatchSize 篇；
  * 返回 tick 供 UI 展示进度；cursor 到尾或用户中断时返回。
- * 写入策略（时间戳幂等）：time 一律取"现在"一次性补齐；status=inbox；src=migration。
+ * 写入策略（时间戳幂等）：优先用文档 ID 时间，无法识别时取执行时刻；
+ * status=inbox；src=migration。来源的可信程度另存 timeSource。
  */
 export async function runBackfillBatch(
     plugin: Plugin,
@@ -183,7 +368,7 @@ export async function runBackfillBatch(
     const batchSize = Math.min(Math.max(1, settings.migrateBatchSize), 50);
     const end = Math.min(progress.cursor + batchSize, progress.rows.length);
     const pendingIds = progress.rows.slice(progress.cursor, end)
-        .filter((row) => row.state === "pending" && !!row.url)
+        .filter((row) => row.state === "pending" && !!row.url && row.resolution !== "local" && row.resolution !== "exclude")
         .map((row) => row.id);
     const attrsById = new Map(
         (await batchReadClipAttrs(pendingIds)).map((pair) => [pair.id, pair.attrs])
@@ -194,7 +379,15 @@ export async function runBackfillBatch(
         if (opts.signal?.aborted) break;
         const row = progress.rows[i];
         if (row.state === "pending") {
-            if (!row.url) {
+            if (row.resolution === "exclude" || row.resolution === "local") {
+                try {
+                    const resolved = await resolvePlannedRow(plugin, row);
+                    progress.rows[i] = resolved;
+                } catch (error) {
+                    row.state = "error";
+                    row.detail = String(error).slice(0, 120);
+                }
+            } else if (!row.url) {
                 row.state = "manual";
             } else {
                 const ial = attrsById.get(row.id);
@@ -213,20 +406,31 @@ export async function runBackfillBatch(
                     }
                 } else {
                     try {
-                        const patch: Parameters<typeof writeClip>[2] = { url: row.url, src: "migration" };
-                        if (!ial[ATTR.site] && row.site) patch.site = row.site;
-                        if (!ial[ATTR.time]) patch.time = stamped;
-                        if (!ial[ATTR.words] && row.words > 0) patch.words = row.words;
-                        if (!ial[ATTR.minutes] && row.minutes > 0) patch.minutes = row.minutes;
-                        // 旧文已有状态时只补缺失字段，绝不把它改回 inbox。
-                        if (!ial[ATTR.status]) patch.status = "inbox";
-                        const result = await writeClip(plugin, row.id, patch);
-                        if (result.skippedKeys.includes(ATTR.url)) {
-                            row.state = "skipped";
-                            row.detail = "already-clipped";
+                        const conflict = await findClipUrlConflict(row.url, row.id);
+                        if (conflict && !row.allowDuplicate) {
+                            row.state = "manual";
+                            row.conflictDocId = conflict.id;
+                            row.detail = "duplicate-url";
                         } else {
-                            row.state = "ok";
-                            delete row.detail;
+                            const patch: Parameters<typeof writeClip>[2] = { url: row.url, src: "migration" };
+                            if (!ial[ATTR.site] && row.site) patch.site = row.site;
+                            if (!ial[ATTR.time]) {
+                                patch.time = row.time ?? documentTimeFromId(row.id) ?? stamped;
+                                patch.timeSource = row.timeSource ?? (documentTimeFromId(row.id) ? "document" : "capture");
+                            }
+                            if (!ial[ATTR.words] && row.words > 0) patch.words = row.words;
+                            if (!ial[ATTR.minutes] && row.minutes > 0) patch.minutes = row.minutes;
+                            if (!ial[ATTR.contentType] && row.contentType) patch.contentType = row.contentType;
+                            // 旧文已有状态时只补缺失字段，绝不把它改回 inbox。
+                            if (!ial[ATTR.status]) patch.status = "inbox";
+                            const result = await writeClip(plugin, row.id, patch);
+                            if (result.skippedKeys.includes(ATTR.url)) {
+                                row.state = "skipped";
+                                row.detail = "already-clipped";
+                            } else {
+                                row.state = "ok";
+                                delete row.detail;
+                            }
                         }
                     } catch (error) {
                         row.state = "error";

@@ -25,7 +25,7 @@ registerHooks({
 
 const { previewImport, runImport } = await import("../src/services/import-service.ts");
 
-function harness() {
+function harness({ createEmpty = false } = {}) {
     const attrs = new Map();
     const files = new Map();
     const calls = [];
@@ -38,6 +38,10 @@ function harness() {
         let data;
         switch (route) {
             case "/api/filetree/createDocWithMd": {
+                if (createEmpty) {
+                    data = "";
+                    break;
+                }
                 const id = `doc-${attrs.size + 1}`;
                 attrs.set(id, body.tags ? { tags: body.tags } : {});
                 data = id;
@@ -55,7 +59,9 @@ function harness() {
                 break;
             case "/api/query/sql": {
                 const docId = /WHERE id = '([^']+)'/.exec(body.stmt)?.[1];
-                const ids = docId ? [docId] : [...attrs.keys()];
+                const limit = Number(/LIMIT\s+(\d+)/i.exec(body.stmt)?.[1] ?? attrs.size);
+                const offset = Number(/OFFSET\s+(\d+)/i.exec(body.stmt)?.[1] ?? 0);
+                const ids = docId ? [docId] : [...attrs.keys()].slice(offset, offset + limit);
                 data = ids.map((id) => ({ id, content: id, hpath: `/导入/${id}`, box: "box", updated: "20260929000000" }));
                 break;
             }
@@ -100,4 +106,36 @@ test("外部导入在建文档时带入 tags，首次收录写来源时间与状
     const preview = await previewImport("title,url,time_added,status,tags\n旧文,https://example.com/old,1577934245,read,技术", "pocket-csv");
     assert.equal(preview.duplicateCount, 1);
     assert.equal(preview.rows[0].duplicate, true);
+});
+
+test("导入查重读完 500 条后的下一页，避免创建重复 URL", async () => {
+    const h = harness();
+    for (let index = 0; index < 501; index += 1) {
+        h.attrs.set(`existing-${index}`, { "custom-clip-url": `https://example.com/${index}` });
+    }
+    const row = {
+        title: "跨页旧文", url: "https://example.com/500#fragment", site: "example.com",
+        time: "", tags: [], status: "inbox", duplicate: false,
+    };
+    const preview = await previewImport("title,url,time_added,status,tags\n跨页旧文,https://example.com/500#fragment,,unread,", "pocket-csv");
+    assert.equal(preview.rows[0].duplicate, true);
+    const summary = await runImport(h.plugin, [row], { notebookId: "box", folder: "导入", format: "pocket-csv" });
+    assert.equal(summary.skippedDuplicate, 1);
+    assert.equal(summary.imported, 0);
+    assert.equal(h.calls.some((call) => call.route === "/api/filetree/createDocWithMd"), false);
+    assert.ok(h.calls.some((call) => call.route === "/api/query/sql" && /OFFSET 500/.test(call.body.stmt)));
+});
+
+test("建文档返回空 ID 时计失败并推进进度", async () => {
+    const h = harness({ createEmpty: true });
+    const progress = [];
+    const summary = await runImport(h.plugin, [{
+        title: "失败项", url: "https://example.com/fail", site: "example.com",
+        time: "", tags: [], status: "inbox", duplicate: false,
+    }], {
+        notebookId: "box", folder: "导入", format: "pocket-csv",
+        onProgress: (done, total) => progress.push([done, total]),
+    });
+    assert.equal(summary.failed, 1);
+    assert.deepEqual(progress, [[1, 1]]);
 });

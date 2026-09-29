@@ -4,7 +4,8 @@
  * 写入纪律：只在本插件写属性成功后增量更新，或走 rebuild/reconcile 全量/对账重建。
  */
 import type { Plugin } from "siyuan";
-import { parseClipAttrs, type ClipStatus } from "../domain/schema";
+import { inspectCandidate, type CandidateEvidence, type CandidateMissing, type CandidateProbe } from "../domain/candidate-policy.ts";
+import { parseClipAttrs, type ClipStatus } from "../domain/schema.ts";
 
 const INDEX_FILE = "glean-index.json";
 const INDEX_VERSION = 1;
@@ -27,6 +28,8 @@ export interface ClipIndexEntry {
     /** 单文件快照 assets 路径 */
     snapshot: string;
     aiTags: string[];
+    contentType: string;
+    timeSource: string;
     updated: string;
 }
 
@@ -37,6 +40,10 @@ export interface CandidateEntry {
     hpath: string;
     box: string;
     updated: string;
+    url: string;
+    site: string;
+    evidence: CandidateEvidence[];
+    missing: CandidateMissing[];
 }
 
 export interface GleanIndex {
@@ -55,11 +62,27 @@ export async function loadIndex(plugin: Plugin): Promise<GleanIndex> {
         const raw = await plugin.loadData(INDEX_FILE);
         if (!raw || typeof raw !== "object") return emptyIndex();
         const index = raw as Partial<GleanIndex>;
+        const rawCandidates = index.candidates && typeof index.candidates === "object" ? index.candidates : {};
+        const candidates: Record<string, CandidateEntry> = {};
+        for (const [id, value] of Object.entries(rawCandidates as Record<string, Partial<CandidateEntry>>)) {
+            if (!value || typeof value !== "object") continue;
+            candidates[id] = {
+                id: typeof value.id === "string" ? value.id : id,
+                title: typeof value.title === "string" ? value.title : "",
+                hpath: typeof value.hpath === "string" ? value.hpath : "",
+                box: typeof value.box === "string" ? value.box : "",
+                updated: typeof value.updated === "string" ? value.updated : "",
+                url: typeof value.url === "string" ? value.url : "",
+                site: typeof value.site === "string" ? value.site : "",
+                evidence: Array.isArray(value.evidence) ? value.evidence as CandidateEvidence[] : [],
+                missing: Array.isArray(value.missing) ? value.missing as CandidateMissing[] : ["status"],
+            };
+        }
         return {
             version: INDEX_VERSION,
             updatedAt: typeof index.updatedAt === "string" ? index.updatedAt : "",
             clips: index.clips && typeof index.clips === "object" ? index.clips : {},
-            candidates: index.candidates && typeof index.candidates === "object" ? index.candidates : {},
+            candidates,
         };
     } catch {
         return emptyIndex();
@@ -77,7 +100,8 @@ export async function saveIndex(plugin: Plugin, index: GleanIndex): Promise<Glea
 export function applyAttrsToIndex(
     index: GleanIndex,
     doc: { id: string; title: string; hpath: string; box: string; updated: string },
-    ial: Record<string, string>
+    ial: Record<string, string>,
+    probe: CandidateProbe = inspectCandidate({ ial, title: doc.title, hpath: doc.hpath }),
 ): void {
     const attrs = parseClipAttrs(ial);
     const isClip = Boolean(attrs.status);
@@ -100,16 +124,26 @@ export function applyAttrsToIndex(
             summary: attrs.summary ?? "",
             snapshot: attrs.snapshot ?? "",
             aiTags: attrs.aiTags,
+            contentType: attrs.contentType ?? "",
+            timeSource: attrs.timeSource ?? "",
             updated: doc.updated,
         };
     } else {
         delete index.clips[doc.id];
+        if (!probe.eligible) {
+            delete index.candidates[doc.id];
+            return;
+        }
         index.candidates[doc.id] = {
             id: doc.id,
             title: doc.title,
             hpath: doc.hpath,
             box: doc.box,
             updated: doc.updated,
+            url: probe.url,
+            site: probe.site,
+            evidence: probe.evidence,
+            missing: probe.missing,
         };
     }
 }

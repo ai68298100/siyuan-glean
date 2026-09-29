@@ -3,9 +3,11 @@
  * 牌组与宿主文档幂等续建（按名找回，复用 library-db 的续建范式）。
  * v1 不消耗 token（卡面文案本地构造）；AI 问句化留待后续（动作钩子已留，D-0007）。
  */
+import type { Plugin } from "siyuan";
 import { insertBlockDom, createDocWithMd, querySql } from "../api/client";
 import { addRiffCards, createRiffDeck, getRiffDecks } from "../api/riff";
 import { buildFlashcardDom, buildQuoteCard } from "../domain/flashcard";
+import { writeClip } from "./clip-store";
 import type { GleanSettings } from "./settings";
 
 const DECK_NAME = "拾遗卡片";
@@ -17,7 +19,7 @@ export interface DeckContext {
 }
 
 /** 找回/创建"拾遗卡片"牌组与宿主文档（幂等）。 */
-export async function ensureFlashcardDeck(settings: GleanSettings): Promise<DeckContext> {
+export async function ensureFlashcardDeck(settings: GleanSettings, plugin: Plugin): Promise<DeckContext> {
     const notebookId = settings.anchorNotebooks[0];
     if (!notebookId) throw new Error("请先设置读库笔记本");
 
@@ -29,6 +31,9 @@ export async function ensureFlashcardDeck(settings: GleanSettings): Promise<Deck
     let hostDocId = existing[0]?.id ?? "";
     if (!hostDocId) {
         hostDocId = await createDocWithMd(notebookId, `/${DECK_DOC_TITLE}`, `# ${DECK_DOC_TITLE}\n\n`);
+        if (!hostDocId) throw new Error("创建拾遗卡片宿主文档失败");
+        // 宿主只是插件容器，不应进入“待确认候选”；属性写入统一经 clip-store。
+        await writeClip(plugin, hostDocId, { internal: true });
     }
     return { deckId: deck.id, hostDocId };
 }
@@ -37,9 +42,10 @@ export async function ensureFlashcardDeck(settings: GleanSettings): Promise<Deck
 export async function makeQuoteCard(
     settings: GleanSettings,
     docTitle: string,
-    quote: string
+    quote: string,
+    plugin: Plugin,
 ): Promise<{ cardBlockId: string }> {
-    const { deckId, hostDocId } = await ensureFlashcardDeck(settings);
+    const { deckId, hostDocId } = await ensureFlashcardDeck(settings, plugin);
     const content = buildQuoteCard(docTitle, quote);
     const dom = buildFlashcardDom(content.front, content.back);
     await insertBlockDom(hostDocId, dom);

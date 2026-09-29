@@ -8,6 +8,7 @@ export const getBlockAttrs = (...args) => globalThis.__gleanTestApi.getBlockAttr
 export const batchGetBlockAttrs = (...args) => globalThis.__gleanTestApi.batchGetBlockAttrs(...args);
 export const setBlockAttrs = (...args) => globalThis.__gleanTestApi.setBlockAttrs(...args);
 export const querySql = (...args) => globalThis.__gleanTestApi.querySql(...args);
+export const exportMdContent = (...args) => globalThis.__gleanTestApi.exportMdContent(...args);
 `;
 const apiUrl = `data:text/javascript,${encodeURIComponent(apiStub)}`;
 
@@ -23,7 +24,7 @@ registerHooks({
     },
 });
 
-const { batchSetStatus, captureClip, listAnchorDocs, listClipDocs, reconcileIndex, writeClip } = await import(
+const { batchSetStatus, captureClip, captureDocument, findClipUrlConflict, listAnchorDocs, listClipDocs, reconcileIndex, scanDocScopes, writeClip } = await import(
     "../src/services/clip-store.ts"
 );
 
@@ -33,15 +34,22 @@ interface FakeDoc {
     hpath: string;
     box: string;
     updated: string;
+    tag?: string;
+}
+
+function sortDocs(a: FakeDoc, b: FakeDoc): number {
+    return b.updated.localeCompare(a.updated) || b.id.localeCompare(a.id);
 }
 
 function harness() {
     const docs = new Map<string, FakeDoc>();
     const attrs = new Map<string, Record<string, string>>();
+    const markdowns = new Map<string, string>();
     const saved = new Map<string, unknown>();
     const queries: string[] = [];
     const writes: { id: string; attrs: Record<string, string | null> }[] = [];
     let failAnchorQuery = false;
+    let failPageOffset: number | null = null;
 
     const plugin = {
         async loadData(name: string) { return structuredClone(saved.get(name) ?? null); },
@@ -50,8 +58,9 @@ function harness() {
     (globalThis as Record<string, unknown>).__gleanTestApi = {
         async getBlockAttrs(id: string) { return { ...(attrs.get(id) ?? {}) }; },
         async batchGetBlockAttrs(ids: string[]) {
-            return ids.map((id) => ({ id, attrs: { ...(attrs.get(id) ?? {}) } }));
+            return ids.filter((id) => docs.has(id)).map((id) => ({ id, attrs: { ...(attrs.get(id) ?? {}) } }));
         },
+        async exportMdContent(id: string) { return { content: markdowns.get(id) ?? "" }; },
         async setBlockAttrs(id: string, patch: Record<string, string | null>) {
             writes.push({ id, attrs: { ...patch } });
             const next = { ...(attrs.get(id) ?? {}) };
@@ -64,27 +73,31 @@ function harness() {
         async querySql(sql: string) {
             queries.push(sql);
             if (failAnchorQuery && sql.includes("box IN")) throw new Error("SQL failed");
+            const offset = Number(sql.match(/OFFSET (\d+)/)?.[1] ?? 0);
+            const limit = Number(sql.match(/LIMIT (\d+)/)?.[1] ?? 500);
+            if (failPageOffset === offset && sql.includes("box IN")) throw new Error("page failed");
             const byId = sql.match(/WHERE id = '([^']+)'/);
             if (byId) return docs.has(byId[1]) ? [docs.get(byId[1])] : [];
             if (sql.includes("box IN")) {
                 const boxes = [...(sql.match(/box IN \(([^)]+)\)/)?.[1].matchAll(/'([^']+)'/g) ?? [])].map((m) => m[1]);
-                return [...docs.values()].filter((doc) => boxes.includes(doc.box));
+                return [...docs.values()].filter((doc) => boxes.includes(doc.box)).sort(sortDocs).slice(offset, offset + limit);
             }
-            if (sql.includes("tag LIKE")) return [];
+            if (sql.includes("tag LIKE")) return [...docs.values()].filter((doc) => Boolean(doc.tag?.includes("剪藏") || attrs.get(doc.id)?.tags?.includes("剪藏"))).sort(sortDocs).slice(offset, offset + limit);
             if (sql.includes("custom-clip-status")) {
                 return [...docs.values()].filter((doc) => {
                     const ial = attrs.get(doc.id) ?? {};
                     return Boolean(ial["custom-clip-status"] || (sql.includes("custom-clip-url") && ial["custom-clip-url"]));
-                });
+                }).sort(sortDocs).slice(offset, offset + limit);
             }
             return [];
         },
     };
-    const add = (id: string, box: string, ial: Record<string, string> = {}) => {
-        docs.set(id, { id, content: id, hpath: `/${id}`, box, updated: "20260929120000" });
+    const add = (id: string, box: string, ial: Record<string, string> = {}, markdown = "", tag = "") => {
+        docs.set(id, { id, content: id, hpath: `/${id}`, box, updated: "20260929120000", tag });
         attrs.set(id, ial);
+        markdowns.set(id, markdown);
     };
-    return { plugin, docs, attrs, saved, queries, writes, add, setFailAnchorQuery: (value: boolean) => { failAnchorQuery = value; } };
+    return { plugin, docs, attrs, saved, queries, writes, add, setFailAnchorQuery: (value: boolean) => { failAnchorQuery = value; }, setFailPageOffset: (value: number | null) => { failPageOffset = value; } };
 }
 
 test("锚点笔记本 ID 正确加 SQL 字符串引号，URL-only 文档可被次锚点发现", async () => {
@@ -136,6 +149,21 @@ test("URL-only 文档首次收录补状态并保留来源 URL、时间和优先�
     assert.equal((h.saved.get("glean-index.json") as { clips: Record<string, unknown> }).clips["url-only"] !== undefined, true);
 });
 
+test("显式收录发现同 URL 时返回冲突并保留第二份需显式允许", async () => {
+    const h = harness();
+    h.add("existing", "box-1", { "custom-clip-status": "done", "custom-clip-url": "https://example.com/a" });
+    h.add("incoming", "box-1", {}, "# Incoming\n\n正文");
+    const conflict = await findClipUrlConflict("HTTPS://EXAMPLE.COM/a#part", "incoming");
+    assert.equal(conflict?.id, "existing");
+    const blocked = await captureClip(h.plugin as never, "incoming", { url: "https://example.com/a" });
+    assert.equal(blocked.captured, false);
+    assert.equal(blocked.conflict?.id, "existing");
+    assert.equal(h.attrs.get("incoming")?.["custom-clip-status"], undefined);
+    const kept = await captureClip(h.plugin as never, "incoming", { url: "https://example.com/a", allowDuplicate: true });
+    assert.equal(kept.captured, true);
+    assert.equal(h.attrs.get("incoming")?.["custom-clip-status"], "inbox");
+});
+
 test("URL-only 全库扫描先进入待确认候选，显式收录后进入 inbox 队列", async () => {
     const h = harness();
     h.add("url-only", "outside-anchor", { "custom-clip-url": "https://example.com/old" });
@@ -174,4 +202,76 @@ test("对账 SQL 失败必须向上抛出且不保存不完整的索引", async 
     h.setFailAnchorQuery(true);
     await assert.rejects(reconcileIndex(h.plugin as never, { anchorNotebooks: ["box-1"] } as never), /SQL failed/);
     assert.equal(h.saved.has("glean-index.json"), false);
+});
+
+test("扫描读取全部分页并按 ID 去重，跨笔记本标签也在范围中", async () => {
+    const h = harness();
+    h.add("anchor-a", "box-1", {}, "# 标题\n- [https://example.com/a](https://example.com/a)\n正文");
+    h.add("anchor-b", "box-1", { "custom-clip-url": "https://example.com/b" });
+    h.add("tagged", "box-outside", { tags: "剪藏" }, "", "#剪藏#");
+    h.add("clip-outside", "box-outside", { "custom-clip-status": "later" });
+    const scopes = await scanDocScopes({ anchorNotebooks: ["box-1"] } as never, 1);
+    assert.equal(scopes.all.length, 4);
+    assert.equal(scopes.all.filter((doc) => doc.id === "anchor-b").length, 1);
+    assert.ok(scopes.tagged.some((doc) => doc.id === "tagged"));
+    assert.ok(h.queries.some((sql) => sql.includes("OFFSET 1")));
+    assert.ok(h.queries.every((sql) => !sql.includes("FROM blocks") || sql.includes("ORDER BY updated DESC, id DESC")));
+});
+
+test("完整对账清掉幽灵候选，已收录文章移出锚点仍由状态次锚点保留", async () => {
+    const h = harness();
+    h.add("old-candidate", "box-1", { "custom-clip-url": "https://example.com/candidate" });
+    h.add("kept-clip", "box-1", { "custom-clip-status": "later", "custom-clip-url": "https://example.com/kept" });
+    await reconcileIndex(h.plugin as never, { anchorNotebooks: ["box-1"] } as never);
+    h.docs.delete("old-candidate");
+    const kept = h.docs.get("kept-clip")!;
+    kept.box = "box-outside";
+    const after = await reconcileIndex(h.plugin as never, { anchorNotebooks: ["box-1"] } as never);
+    assert.equal(after.candidates["old-candidate"], undefined);
+    assert.equal(after.clips["kept-clip"].box, "box-outside");
+});
+
+test("模板候选会由正文证据出现，普通笔记和模糊标签不成为候选", async () => {
+    const h = harness();
+    h.add("article", "box-1", {}, "# 文章\n- [https://example.com/article](https://example.com/article)\n正文");
+    h.add("normal", "box-1", {}, "# 普通笔记\n参考 [网页](https://example.com/incidental)");
+    h.add("fuzzy-tag", "box-outside", { tags: "剪藏技巧" }, "# 普通笔记", "#剪藏技巧#");
+    const index = await reconcileIndex(h.plugin as never, { anchorNotebooks: ["box-1"] } as never);
+    assert.equal(index.candidates.article.url, "https://example.com/article");
+    assert.ok(index.candidates.article.evidence.includes("clipper-template"));
+    assert.equal(index.candidates.normal, undefined);
+    assert.equal(index.candidates["fuzzy-tag"], undefined);
+});
+
+test("精确剪藏标签仍会读取正文模板，补出候选来源 URL", async () => {
+    const h = harness();
+    h.add(
+        "tagged-template",
+        "box-outside",
+        { tags: "剪藏" },
+        "---\ntitle: saved\n---\n# 标题\n- [https://example.com/tagged](https://example.com/tagged)\n正文",
+        "#剪藏#",
+    );
+    const index = await reconcileIndex(h.plugin as never, { anchorNotebooks: [] } as never);
+    assert.equal(index.candidates["tagged-template"].url, "https://example.com/tagged");
+});
+
+test("显式收录会解除此前的误报标记", async () => {
+    const h = harness();
+    h.add("restored", "box-1", { "custom-clip-excluded": "true" }, "# 标题\n\n本地正文");
+    const result = await captureDocument(h.plugin as never, "restored");
+    assert.equal(result.captured, true);
+    assert.equal(h.attrs.get("restored")?.["custom-clip-excluded"], undefined);
+    assert.equal(result.attrs.excluded, undefined);
+});
+
+test("后续分页失败会保留旧索引", async () => {
+    const h = harness();
+    h.add("seed", "box-1", { "custom-clip-status": "later" });
+    await reconcileIndex(h.plugin as never, { anchorNotebooks: ["box-1"] } as never);
+    const before = structuredClone(h.saved.get("glean-index.json"));
+    for (let i = 0; i < 500; i += 1) h.add(`new-${String(i).padStart(3, "0")}`, "box-1", {}, "普通笔记");
+    h.setFailPageOffset(500);
+    await assert.rejects(reconcileIndex(h.plugin as never, { anchorNotebooks: ["box-1"] } as never), /page failed/);
+    assert.deepEqual(h.saved.get("glean-index.json"), before);
 });

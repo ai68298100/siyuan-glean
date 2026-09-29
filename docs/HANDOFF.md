@@ -1,15 +1,15 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
-## 当前有效交接（2026-09-29 S1 完成，D-0017）
+## 当前有效交接（2026-09-29 S2 收尾完成，D-0023）
 
 作者试用 v1.0.4 后反馈主流程错误多、用途和步骤不清。本轮已完成静态代码/文档复盘，重整方案见 [PRODUCT-REPLAN.md](PRODUCT-REPLAN.md)，执行顺序见 [ROADMAP.md](ROADMAP.md) S0–S6 与 [TODO.md](../TODO.md) T-1700 起。下面原有“下一步”“方案 B 待实施”“待发 v1.0.0”等段落为历史记录，不再是当前指令；实际 v1.0.4 已发布、自定义 AI 通道已实现。
 
-**S1 已完成**：锚点 SQL、查询失败提示、URL-only 收录补全、迁移任务持久化/暂停恢复/失败重试、显式状态写入、自动富化队列和迁移/导入统一属性写入均已修复。服务回归与隔离内核 E2E 已通过；未发布新版本。**下一轮做 S2**：收紧候选资格与插件内部文档排除，补 URL 规范化查重、全文/链接类型、时间语义和分页对账；不要按旧 M5 清单叠加能力。
+**S1 已完成**：锚点 SQL、查询失败提示、URL-only 收录补全、迁移任务持久化/暂停恢复/失败重试、显式状态写入、自动富化队列和迁移/导入统一属性写入均已修复。**S2 收尾已完成**：候选凭证据入列、跨笔记本标签、内部文档排除、URL 规范化与完整分页查重/对账、全文/链接/本地类型、时间来源、候选逐篇处理、宿主 internal 标记、同 URL 冲突停写与显式保留第二份、误报标记解除均已落地；今日拾遗“开始阅读”与“标记已读”分离。`pnpm test` 105/105，`pnpm check` 0 错误/38 既有告警，`pnpm build` 通过。Folo/RSS 调研见 `docs/RESEARCH-folo.md`，Readwise Reader/Inoreader 阅读调研见 `docs/RESEARCH-reading.md`；后续任务为 T-1715–T-1719、T-1721–T-1728。未发布新版本。
 
-本轮修改了主链代码、服务回归测试和隔离 E2E 脚本，没有发布新版本。当前 `pnpm check` 0 错误（38 告警），`pnpm test` 87/87，`pnpm build` 通过；隔离内核 3.8.6 的 `scripts/e2e/s1-flow.mjs` 6 项通过。真实扩展实剪、真机 UI、真实 AI 仍见 BLOCKERS。
+本轮修改了主链代码、服务回归测试和隔离 E2E 脚本，没有发布新版本。隔离内核 3.8.6 的 `scripts/e2e/s1-flow.mjs` 最近一次 6 项通过；真实扩展实剪、真机 UI、真实 AI、外部导入与收集箱仍见 BLOCKERS。迁移报告中的手工裁决在确认前只修改执行计划，运行中禁编辑；任务到尾但仍有 manual/错误时保留进度。
 
 > 续跑口令（新会话直接粘贴）：
-> **阅读 D:\思源插件\小驴拾遗\docs\HANDOFF.md 的“当前有效交接”与 docs/PRODUCT-REPLAN.md，按 S2 起的当前任务继续；工程纪律见 AGENTS.md 与 docs/DECISIONS.md，UI 以 docs/UI-STANDARD.md 为准，先通读 TODO.md 与 docs/DATA-CONTRACT.md 再动手。**
+> **阅读 D:\思源插件\小驴拾遗\docs\HANDOFF.md 的“当前有效交接”与 docs/PRODUCT-REPLAN.md，按 S3 的 T-1708、T-1715/1716 与 T-1721/1722 继续；工程纪律见 AGENTS.md 与 docs/DECISIONS.md，UI 以 docs/UI-STANDARD.md 为准，先通读 TODO.md 与 docs/DATA-CONTRACT.md 再动手。**
 
 ## 当前状态（2026-09-29 第二十二轮：**v1.0.4 已发布**——工作台独立浮窗 + SQL 容错）
 

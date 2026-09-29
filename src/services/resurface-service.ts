@@ -2,6 +2,7 @@
  * 每日重浮服务（T-1400/T-1402）：池选取、行动落盘、幂等。
  * lastSurfaced 只在用户行动（读了/改天/归档）时写——未行动的文章明天自然回池（平静原则）。
  * "改天" = 写 lastSurfaced=今天（当天不再出现，属性可复算，无后台进程）。
+ * “开始阅读”只进入 reading；读完必须由用户明确执行“标记已读”。
  */
 import type { Plugin } from "siyuan";
 import { parseClipAttrs } from "../domain/schema";
@@ -55,7 +56,7 @@ export type SurfaceAction = "read" | "later" | "archive";
 export async function actOnSurface(plugin: Plugin, docId: string, action: SurfaceAction): Promise<void> {
     const patch =
         action === "read"
-            ? { status: "done" as const, lastSurfaced: todayStamp() }
+            ? { status: "reading" as const, lastSurfaced: todayStamp() }
             : action === "archive"
               ? { status: "archived" as const, lastSurfaced: todayStamp() }
               : { lastSurfaced: todayStamp() };
