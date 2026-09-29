@@ -96,6 +96,13 @@
   browser-* 前端 CORS 明确报错；enrich-service callLLM 统一路由（token 治理不变）。
 - 设置 AI 组：通道分段 → custom 展开三字段 + 测试连接（ping 出人类可读成败原因）。
 
-## 历史速记索引
+## 关键修复：vite 单文件输出（发版前抓到，2026-09-29）
+
+- 动态 import 在 vite lib 构建里被代码分片（schema-*.cjs / client-*.cjs），而思源装载器
+  只加载 index.js → 运行时缺 chunk 崩溃。修复：rollupOptions.output.inlineDynamicImports=true
+  （vite.config.ts，注意曾出现重复 output 块覆盖配置的编辑事故，已去重）。
+- dist 旧产物需手动清理（emptyOutDir:false），发版前务必 rm -rf dist 再构建。
+
+# 历史速记索引
 
 - 第八轮 导入器 / 第九轮 快照 / 第十轮 制卡 / 第十一轮 收集箱 / 第十二轮 打卡桥（各轮速记见 git 历史）。

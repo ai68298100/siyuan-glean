@@ -85,7 +85,10 @@ export default defineConfig({
 
             external: ["siyuan", "process"],
 
+            // 思源插件装载器只加载 index.js 单文件：动态 import 必须内联
+            // （否则 split chunk 在运行时缺失，agent 工具/制卡等路径崩溃）
             output: {
+                inlineDynamicImports: true,
                 entryFileNames: "[name].js",
                 assetFileNames: (assetInfo) => assetInfo.name ?? "asset",
             },
