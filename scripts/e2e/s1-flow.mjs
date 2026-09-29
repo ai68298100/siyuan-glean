@@ -386,6 +386,21 @@ async function runFlow(client, workspace) {
     assert.equal(rebuilt.candidates[ordinary], undefined);
     assert.equal(rebuilt.candidates[urlOnly], undefined);
     pass("删除派生索引后从内核属性重建收录与候选一致");
+
+    // T-1108 数据主权：不经插件服务，直接经内核属性端点读取——"卸载插件"等价于只剩内核数据。
+    const sovereign = await client.apiChecked("/api/attr/getBlockAttrs", { id: fulltext });
+    assert.equal(sovereign["custom-clip-status"], "later");
+    assert.equal(sovereign["custom-clip-priority"], "5");
+    assert.equal(sovereign["custom-clip-rating"], "4");
+    assert.equal(sovereign["custom-clip-content-type"], "fulltext");
+    const doneDoc = await client.apiChecked("/api/attr/getBlockAttrs", { id: urlOnly });
+    assert.equal(doneDoc["custom-clip-status"], "archived");
+    assert.match(doneDoc["custom-clip-done-time"] ?? "", /^\d{14}$/);
+    // 清空插件 saveData（索引/设置只是缓存与偏好）后属性仍在
+    for (const name of ["glean-index.json", "settings.json"]) await plugin.removeData(name);
+    const afterWipe = await client.apiChecked("/api/attr/getBlockAttrs", { id: fulltext });
+    assert.equal(afterWipe["custom-clip-status"], "later");
+    pass("数据主权：卸载/清空插件存储后 custom-clip-* 属性仍在内核");
 }
 
 async function main() {

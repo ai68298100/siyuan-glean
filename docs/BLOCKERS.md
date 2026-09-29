@@ -1,6 +1,6 @@
 # 阻塞与风险（BLOCKERS）
 
-> v1.0.4 的核心用户流程存在内部 P0 断点，按 [PRODUCT-REPLAN.md](PRODUCT-REPLAN.md) S1 修复；它们不依赖作者输入。以下保留需真实环境或作者参与的验收项。新阻塞按 B-xxx 编号追加，解决后移入“已解除”。
+> v1.0.4 的核心用户流程存在内部 P0 断点，按 [PRODUCT-REPLAN.md](PRODUCT-REPLAN.md) S1 修复；它们不依赖作者输入。以下保留需真实环境或作者参与的验收项。**逐项操作指引见 [ACCEPTANCE.md](ACCEPTANCE.md)**（作者真机验收手册，含环境准备、步骤、预期与发布预检）。新阻塞按 B-xxx 编号追加，解决后移入“已解除”。
 
 ## 活跃
 
