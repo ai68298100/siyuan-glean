@@ -207,5 +207,12 @@
   "flashcard.done": "已制卡，进「拾遗卡片」牌组",
   "flashcard.noSelection": "请先在编辑器里选中要制卡的文本",
   "flashcard.menuMake": "摘录制卡（选中 ${n} 字）",
-  "cmd.makeCard": "摘录制卡（选中文本）"
+  "cmd.makeCard": "摘录制卡（选中文本）",
+  "inbox.title": "思源收集箱",
+  "inbox.empty": "收集箱是空的",
+  "inbox.migrate": "迁入读库",
+  "inbox.migrated": "已迁入读库",
+  "inbox.dismiss": "忽略（云端删除）",
+  "inbox.cloudRemoveFailed": "本地已迁入，但云端删除失败（下次还会出现）",
+  "inbox.menuMigrate": "迁入读库（选中 ${n} 条）"
 }

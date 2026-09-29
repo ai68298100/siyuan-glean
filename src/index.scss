@@ -1733,3 +1733,85 @@
     &:hover { background: rgba(249, 115, 22, 0.1); }
     &:disabled { opacity: 0.5; cursor: wait; }
 }
+
+/* ============ 收集箱（T-1500，UI-STANDARD §5.9） ============ */
+.glean-inbox {
+    margin: 0 12px 8px;
+    border-radius: 14px;
+    border: 1px solid var(--b3-border-color);
+    background: var(--b3-theme-surface);
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.glean-inbox__toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 8px 12px;
+    border: none;
+    background: transparent;
+    color: var(--b3-theme-on-background);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+
+    &:hover { background: rgba(128, 128, 128, 0.06); }
+}
+
+.glean-inbox__count {
+    font-size: 10.5px;
+    padding: 1px 8px;
+    border-radius: 999px;
+    background: rgba(59, 130, 246, 0.13);
+    color: var(--glean-st-later);
+    font-weight: 700;
+}
+
+.glean-inbox__spacer { flex: 1; }
+.glean-inbox__arrow { color: var(--b3-theme-on-surface); font-size: 10px; }
+
+.glean-inbox__empty {
+    padding: 8px 12px 10px;
+    font-size: 11px;
+    color: var(--b3-theme-on-surface);
+    opacity: 0.7;
+}
+
+.glean-inbox__item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-top: 1px solid var(--b3-border-color);
+}
+
+.glean-inbox__body { flex: 1; min-width: 0; }
+.glean-inbox__title {
+    font-size: 12px;
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.glean-inbox__url {
+    margin-top: 2px;
+    font-size: 10px;
+    color: var(--b3-theme-on-surface);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.glean-inbox__ops { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+.glean-inbox__dismiss {
+    width: 22px;
+    height: 22px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--b3-theme-on-surface);
+    cursor: pointer;
+
+    &:hover { background: var(--hover); color: #ef4444; }
+}

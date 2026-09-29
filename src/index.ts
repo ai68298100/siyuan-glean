@@ -16,6 +16,8 @@ import { captureClip } from "./services/clip-store";
 import { autoEnrich, enrichClip } from "./services/enrich-service";
 import { ensurePresetActions } from "./services/ai-actions";
 import { makeQuoteCard } from "./services/flashcard-service";
+import { migrateShorthand } from "./services/inbox-service";
+import { getShorthand } from "./api/inbox";
 import { DEFAULT_SETTINGS, loadSettings, saveSettings, type GleanSettings } from "./services/settings";
 import type { GleanFacade } from "./types";
 
@@ -105,6 +107,9 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
         // 右键菜单"加入读库"（收录入口三件套之一）
         this.eventBus.on("open-menu-content", this.onMenuContent);
 
+        // M5：收集箱右键"迁入读库"
+        this.eventBus.on("open-menu-inbox", this.onMenuInbox);
+
         // M3：预置 AI 动作（总结/要点/反方观点），幂等静默
         if (this.settings.ai.presetActions) {
             void ensurePresetActions().catch(() => undefined);
@@ -143,6 +148,7 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
 
     async onunload() {
         this.eventBus.off("open-menu-content", this.onMenuContent);
+        this.eventBus.off("open-menu-inbox", this.onMenuInbox);
         if (this.dockInstance) {
             unmount(this.dockInstance);
             this.dockInstance = null;
@@ -228,6 +234,40 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
             showMessage(String(error).slice(0, 140), 5000);
         }
     }
+
+    /** 收集箱右键"迁入读库"：open-menu-inbox detail.ids → 逐条取详情迁移（T-1500） */
+    private migrateFromInbox = async (ids: string[]): Promise<void> => {
+        const notebookId = this.settings.anchorNotebooks[0];
+        if (!notebookId) {
+            showMessage(t(this.i18n, "panel.noAnchorHint"), 4000);
+            return;
+        }
+        let ok = 0;
+        for (const id of ids) {
+            try {
+                const shorthand = await getShorthand(id);
+                if (!shorthand) continue;
+                await migrateShorthand(this, shorthand, { notebookId });
+                ok += 1;
+            } catch (error) {
+                showMessage(String(error).slice(0, 140), 5000);
+            }
+        }
+        showMessage(t(this.i18n, "inbox.migrated"), 3000);
+        this.notifyDataChanged();
+        void ok;
+    };
+
+    private readonly onMenuInbox = (event: { detail: { ids?: string[]; menu: { addItem: (item: unknown) => void } } }): void => {
+        const ids = event.detail.ids ?? [];
+        if (ids.length === 0) return;
+        event.detail.menu.addItem({
+            id: "glean-inbox-migrate",
+            iconHTML: "",
+            label: t(this.i18n, "pluginName") + "：" + t(this.i18n, "inbox.menuMigrate", { n: ids.length }),
+            click: () => void this.migrateFromInbox(ids),
+        });
+    };
 
     /* ---------- 收录 ---------- */
 

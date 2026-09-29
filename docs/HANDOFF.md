@@ -3,7 +3,7 @@
 > 续跑口令（新会话直接粘贴）：
 > **阅读 D:\思源插件\小驴拾遗\docs\HANDOFF.md，按其中"下一步"继续开发；工程纪律见 AGENTS.md 与 docs/DECISIONS.md，UI 以 docs/UI-STANDARD.md 为准，先通读 TODO.md 与 docs/DATA-CONTRACT.md 再动手。**
 
-## 当前状态（2026-09-29 第十轮开发完成：T-1502 摘录制卡）
+## 当前状态（2026-09-29 第十一轮开发完成：T-1500 收集箱）
 
 - 仓库：`D:\思源插件\小驴拾遗` = GitHub [ai68298100/siyuan-glean](https://github.com/ai68298100/siyuan-glean)，main 已推送。
 - **M3 AI 富化全量落地**（v0.3.0 工作版本，未打 tag）：
@@ -56,17 +56,18 @@
   面板视图偏好：services/prefs.ts（ui-prefs.json）；AI 日志：loadAiLog + 设置-维护展开行。
 - 发布材料：docs/CHANGELOG.md（v1.0.0 候选条目已写好）+ docs/RELEASE-MEDIA.md（拍摄手册）。
 
-## 制卡速记（第十轮新增）
+## 收集箱速记（第十一轮新增）
 
-- 制卡范式=列表项闪卡（父内容=正面，嵌套子列表=背面，官方标准）——段落嵌段落 DOM 内核拒收（spike 踩坑）；
-  卡块插入后列表项 id 经 SQL type='i' 找回（索引异步重试）。
-- "拾遗卡片"牌组+宿主文档按名幂等续建；入口：高亮卡 🎴 / 命令 cmd.makeCard（选区）/ 编辑器右键（带字数）。
-- 架构守门测试会抓 services 层裸调端点——新增内核调用必须先进 api/ 层。
+- getShorthands 响应**双层包裹**（response.data.data.shorthands），防御式剥包；未登录/无订阅 → code!=0
+  → available:false 面板整块隐藏。Shorthand.shorthandURL 官方前端丢弃、本插件保留写入 custom-clip-url。
+- 迁入：shorthandMd 直接落正文（比导入器完整）→ captureClip(src=inbox) → 云端时间覆盖 → removeShorthands
+  （删除失败不阻塞，条目会再出现由 URL 去重兜底）。open-menu-inbox {ids, element} 注入批量迁入菜单。
+- **B-0007（新）**：收集箱联调需作者订阅账号在真机验证（列表/迁入/删除/隐藏降级）。
 
 ## 下一步（M5 剩余 + 作者验收/决策）
 
-1. **M5 剩余推荐序**：T-1500 收集箱（需作者订阅账号配合）→ T-1505 小驴协同（打卡 window.siyuanCheckin
-   v5 契约在兄弟仓 contracts/；雷切 quick action 文档就绪度待查）→ T-1503 渐进阅读集成（作者定方向）。
-2. **作者验收**：B-0001 实剪 / B-0002 UI（含制卡正背面渲染）/ B-0004 AI 开关 / B-0005 导入器 / B-0006 快照。
-3. **决策点**：方案 B 专用 AI 通道；发版节奏（v1.0.0）。
-4. 小项池：面板批量收录接富化进度提示、导入器大文件分页预览、重浮卡片 AI 摘要渐显。
+1. **M5 剩余**：T-1505 小驴协同（打卡 window.siyuanCheckin v5 契约在兄弟仓 contracts/；雷切待查）→
+   T-1503 渐进阅读集成（作者定方向）。
+2. **作者验收**：B-0001 实剪 / B-0002 UI（含制卡渲染）/ B-0004 AI 开关 / B-0005 导入器 / B-0006 快照 /
+   B-0007 收集箱（需订阅）。
+3. **决策点**：方案 B 专用 AI 通道；发版节奏（v1.0.0）。全部 M1-M5 核心任务已完成，剩余均为生态联动。

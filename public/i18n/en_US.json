@@ -207,5 +207,12 @@
   "flashcard.done": "Card created in the Glean deck",
   "flashcard.noSelection": "Select text in the editor first",
   "flashcard.menuMake": "Make card (selected ${n} chars)",
-  "cmd.makeCard": "Make flashcard from selection"
+  "cmd.makeCard": "Make flashcard from selection",
+  "inbox.title": "SiYuan Inbox",
+  "inbox.empty": "Inbox is empty",
+  "inbox.migrate": "Migrate to library",
+  "inbox.migrated": "Migrated to library",
+  "inbox.dismiss": "Dismiss (delete in cloud)",
+  "inbox.cloudRemoveFailed": "Migrated locally, but cloud deletion failed (it will reappear)",
+  "inbox.menuMigrate": "Migrate to library (${n} selected)"
 }

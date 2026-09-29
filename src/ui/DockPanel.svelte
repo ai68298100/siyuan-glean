@@ -11,6 +11,7 @@ import { aggregateStats } from "../domain/stats.ts";
 import type { ClipIndexEntry, CandidateEntry, GleanIndex } from "../services/index-store";
 import StatsView from "./StatsView.svelte";
 import HighlightView from "./HighlightView.svelte";
+import InboxSection from "./InboxSection.svelte";
 import ResurfaceView from "./ResurfaceView.svelte";
 import { archiveStale } from "../services/resurface-service";
 import { loadUiPrefs, saveUiPrefs } from "../services/prefs";
@@ -354,6 +355,10 @@ function metaLine(entry: Row): string {
             </div>
         {/if}
     </header>
+
+    {#if view === "library" && !loading}
+        <InboxSection {facade} onMutated={() => void reload()} />
+    {/if}
 
     {#if view === "library"}
         <nav class="glean-queues">

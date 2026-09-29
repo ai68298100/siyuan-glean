@@ -1,5 +1,15 @@
 # 进度（PROGRESS）
 
+## M5 — T-1500 收集箱 ✅（2026-09-29，第十一轮；联调待作者订阅账号 B-0007）
+
+- [x] 契约核实：getShorthands {page} → **双层包裹**（response.data.data.shorthands，云收件箱特有形状）；
+      Shorthand 含 shorthandURL（官方前端丢弃、本插件保留）；open-menu-inbox detail {ids, element}
+- [x] api/inbox.ts（防御式剥包 + getShorthand 单条）+ services/inbox-service
+      （迁入=建文档+captureClip(src=inbox)+云端时间覆盖；云端删除失败不阻塞）
+- [x] UI：库视图顶部"📥 思源收集箱"折叠区（未登录/无订阅整块隐藏）；条目 迁入/忽略(云端删除)
+- [x] 编辑器外第二右键：open-menu-inbox 注入"迁入读库（选中 N 条）"
+- [x] 质量门禁：check 0 错、67/67 测试、构建+门禁全绿、spike 9/9（216 i18n 键）
+
 ## M5 — T-1502 摘录制卡 ✅（2026-09-29，第十轮）
 
 - [x] spike ⑧ 制卡闭环（createDeck→insertBlock→addRiffCards，**9/9**）：
