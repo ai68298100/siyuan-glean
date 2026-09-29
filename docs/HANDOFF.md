@@ -1,26 +1,27 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
-## 当前有效交接（2026-09-30 阅读页签伴生栏：摘录与 AI 伴读，D-0030）
+## 当前有效交接（2026-09-30 阅读收尾四件套：AI 标签筛选/读完下一篇/命令动作/首启预览）
 
-续跑口令指向的 T-1730d/T-1730e 已完成，门禁全绿，未发布新版本：
+续跑口令指向的 T-1729、T-1723、T-1724、T-1719 全部完成（另补勾选 T-1725/T-1726），门禁全绿，未发布新版本：
 
-- **契约（D-0030）**：摘录=引述块插入原文档（插所选块之后；不新增属性、不写用户标签、§4 高亮自动聚合；定位失败明示降级仅复制）；AI 伴读=动作+结果卡（临时显示可复制；仅显式保存写 custom-clip-summary；额度与富化共享；不做聊天窗）。
-- **T-1730d 摘录**：`domain/reader.ts`（clampExcerpt/引述块 DOM/总结与翻译 prompt，3 单测）+ `services/excerpt-service.ts`（excerptFromSelection 限定正文宿主、insertQuoteExcerpt）+ api `insertBlockAfter`（previousID 变体）+ ReaderTab 摘录段。**隔离内核 E2E 实证**：引述块插入所选块之后、listQuoteBlocks 聚合可见（blocks SQL 索引滞后需轮询——已知坑复现）。
-- **T-1730e AI 伴读**：`services/reader-ai.ts`（readerSummarize/readerTranslate/saveReaderSummary）+ enrich-service 导出 callLLM/aiQuotaAvailable/recordAiUsage/logAiEvent（额度共享：失败不扣，与富化同语义）+ ReaderTab AI 段（✨总结全文 / 文A 翻译选区（需选区）/ 🔗相关旧文（relatedWhileReading+嵌入）；结果卡带「AI·通道·动作」来源标记；总结可显式保存为 AI 摘要；相关旧文点击页签内跳转；AI off 时显示提示而非按钮）。
-- 架构守门立功：domain 注释含端点字符串被 architecture 测试拦截——**注释也不许写端点字面量**。
-- 门禁：`pnpm check` 0 错误/42 告警、`pnpm test` **131/131**、`pnpm build` 通过、隔离 E2E **14/14**。
-- **诚实边界**：真实模型下总结/翻译/相关旧文效果待 B-0004；页签运行时行为与选区交互待 B-0002 真机（清单已含）。
+- **T-1729**：`domain/library-view.ts` 新增 `aiTag` 筛选与 `aiTags` 分面；Dock 两侧筛选器与 tab rail 增加 ✨AI 标签组（带来源标记，与用户标签分面完全分开）；关键词搜索仍同时匹配 AI 标签。
+- **T-1723**：`resurface-service.pickNextUnread(plugin, excludeDocId)`（对账索引投影、排除当前篇、池空回退等待最久未读、不写状态）；ReaderTab 伴生栏 "✓→ 读完并下一篇"（完成写入成功才切页；队列空提示"待读队列空了"不回滚）；**无自动前进开关，默认不自动前进**。E2E 实证挑选与排除。
+- **T-1724**：命令面板 7 项动作（标记已读/打开下一篇/稍后读/归档/打开原文/摘录选中文本为引述/帮助）。done 走打卡桥钩子；摘录命令复用 excerpt-service（原生编辑器选区，定位失败降级复制）；帮助 `?` 为动作清单 + "快捷键在思源 设置→快捷键 自定义"提示；默认不占键位。
+- **T-1719**：首启引导第 3 步改为只读扫描预览（已收录/待确认候选/候选缺来源 + "普通笔记不会入库，逐篇确认才写入"；失败可返回重选或跳过）。只读属性 + 重建索引缓存，零文章属性写入。
+- 门禁：`pnpm check` 0 错误/42 告警、`pnpm test` **132/132**、`pnpm build` 通过、隔离 E2E **15/15**。E2E 补了正文段落查询的 until 轮询（blocks SQL 索引时序抖动第二次复现——**新写块后立刻查 SQL 必须轮询**）。
 
-**下一轮待办（按序）**：
-1. T-1729 AI 标签独立展示与筛选（S3 欠账）；
-2. T-1723 "读完并打开下一篇"显式动作（伴生栏/阅读条落点）；T-1724 命令面板与快捷键阅读动作；T-1719 首启引导与候选预览；
-3. S5 逐项验收（T-1711/T-1712/T-1718）多需作者真机/真实服务；S6 发布门禁（T-1713/T-1108）最后。
-4. 阅读页签若真机发现交互问题：当日修复、补丁版流程（反馈→根因→修复→发版）。
+**下一轮待办（剩余任务全是验收与发布类）**：
+1. S5 逐项验收：T-1711（AI 开关/通道/失败语义）、T-1712（AV/收集箱/导入/快照/制卡/打卡）——均需作者真机/真实服务，代码侧已就绪；B-0004 真实模型联调（含伴读总结/翻译/相关旧文）。
+2. S6 发布门禁：T-1713（T-1108 完整 E2E 数据主权用例、作者桌面走查、移动/浏览器冒烟、文档校准）。
+3. 作者真机清单集中在 B-0002（本轮新增：AI 标签筛选 UI、读完并下一篇切页、7 个命令动作、首启预览步）。
+4. 发版仍按 D-0005 逐次请示；发版流程见 RELEASE.md + RELEASE-MEDIA.md。
 
 > 续跑口令（新会话直接粘贴）：
-> **阅读 D:\思源插件\小驴拾遗\docs\HANDOFF.md 的"当前有效交接"与 docs/PRODUCT-REPLAN.md，先重跑最后改动后的门禁，再按 T-1729、T-1723/T-1724 与 T-1719 推进；工程纪律见 AGENTS.md 与 docs/DECISIONS.md，UI 以 docs/UI-STANDARD.md 为准；页签与 AI 伴读的运行时/真实模型行为只能作者真机验收（B-0002/B-0004），不冒称平台验证。**
+> **阅读 D:\思源插件\小驴拾遗\docs\HANDOFF.md 的"当前有效交接"与 docs/PRODUCT-REPLAN.md，先重跑最后改动后的门禁；开发侧任务池已基本清空，改为按 BLOCKERS 验收驱动：整理 B-0002/B-0004 等作者真机验收清单与操作指引（不驱动真机，B-0010 红线不变），并预检 T-1713 发布门禁缺项（T-1108 数据主权 E2E 用例可先脚本化）；工程纪律见 AGENTS.md 与 docs/DECISIONS.md，UI 以 docs/UI-STANDARD.md 为准。**
 
 ## 历史交接存档
+
+历史交接（2026-09-30 上轮，伴生栏摘录与 AI 伴读 D-0030）：摘录=引述块插入所选块之后（insertBlockAfter previousID，隔离内核实证，E2E 14/14）；AI 伴读=总结/翻译/相关旧文动作+结果卡、显式保存才写 summary、额度与富化共享（78b5722）。教训：domain 注释也不许出现端点字面量（architecture 测试拦截）。
 
 历史交接（2026-09-30 上轮，阅读页签 MVP D-0029）：`glean-reader` 页签内嵌真实 Protyle + 伴生栏骨架、settings.reader 组、facade.openReader 接线（E2E 13/13）；顺手修复 SettingsView save() 漏写 integration 的打卡持久化 bug。
 再早（S4 对账）：重浮/超龄清单对账后索引纯投影（computeDailyFromIndex）、超龄归档候选清单勾选（archiveStaleCandidates 按显式 ID）、今日拾遗"为什么出现"理由行（surfaceReasons）、改天幂等（4291bba）。

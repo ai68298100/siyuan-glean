@@ -102,6 +102,22 @@ export async function archiveStaleCandidates(
     return { ok: succeeded.length, succeeded };
 }
 
+/**
+ * "读完并下一篇"（T-1723）的下一篇选择：显式动作，不自动前进。
+ * 投影基于当前派生索引（面板打开/写入时已对账）；排除当前篇，挑选口径与今日拾遗一致，
+ * 池空（全部 surfaced 或无未读）时回退等待最久的 inbox/later。返回空串表示没有下一篇。
+ */
+export async function pickNextUnread(plugin: Plugin, excludeDocId: string): Promise<string> {
+    const index = await loadIndex(plugin);
+    const pool = indexToSurfaceItems(index).filter((item) => item.id !== excludeDocId);
+    const picks = pickDaily(pool, [], { count: 1, includeDone: false });
+    if (picks.length > 0) return picks[0].item.id;
+    const stalest = pool
+        .filter((item) => item.status === "inbox" || item.status === "later")
+        .sort((a, b) => a.time.localeCompare(b.time) || a.id.localeCompare(b.id));
+    return stalest[0]?.id ?? "";
+}
+
 /** 供测试/诊断：直接从批量属性构建 SurfaceItem 切片（不经索引）。 */
 export function surfaceItemsFromAttrs(pairs: Array<{ id: string; attrs: Record<string, string> }>): SurfaceItem[] {
     return pairs.map((pair) => {

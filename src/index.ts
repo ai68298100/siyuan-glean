@@ -16,8 +16,12 @@ import { loadUiPrefs } from "./services/prefs";
 import SettingsView from "./ui/SettingsView.svelte";
 import { svelteDialog } from "./libs/dialog";
 import { t, type I18nBundle } from "./libs/i18n";
-import { captureDocument } from "./services/clip-store";
+import { captureDocument, batchSetStatus, readClip, readClipContext } from "./services/clip-store";
 import { autoEnrich, enrichClip } from "./services/enrich-service";
+import { excerptFromSelection, insertQuoteExcerpt } from "./services/excerpt-service";
+import { pickNextUnread } from "./services/resurface-service";
+import { recordReadingDone } from "./services/checkin-bridge";
+import { sourceUrlForCarrier } from "./domain/carrier";
 import { ensurePresetActions } from "./services/ai-actions";
 import { makeQuoteCard } from "./services/flashcard-service";
 import { migrateShorthand } from "./services/inbox-service";
@@ -124,6 +128,15 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
             langKey: "cmd.makeCard",
             callback: () => void this.makeCardFromSelection(),
         });
+
+        // T-1724：命令面板阅读动作（低风险单篇动作；快捷键在思源 设置→快捷键 自定义）
+        this.addCommand({ langKey: "cmd.markDone", callback: () => void this.markCurrentStatus("done") });
+        this.addCommand({ langKey: "cmd.readNext", callback: () => void this.readNextArticle() });
+        this.addCommand({ langKey: "cmd.markLater", callback: () => void this.markCurrentStatus("later") });
+        this.addCommand({ langKey: "cmd.archiveCurrent", callback: () => void this.markCurrentStatus("archived") });
+        this.addCommand({ langKey: "cmd.openSource", callback: () => void this.openCurrentSource() });
+        this.addCommand({ langKey: "cmd.excerptQuote", callback: () => void this.excerptQuoteFromSelection() });
+        this.addCommand({ langKey: "cmd.readerHelp", callback: () => this.showReaderHelp() });
 
         // 右键菜单"加入读库"（收录入口三件套之一）
         this.eventBus.on("open-menu-content", this.onMenuContent);
@@ -337,6 +350,97 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
         const editor = getAllEditor().find((item) => item?.protyle?.element?.contains(selection.anchorNode ?? null));
         if (editor?.protyle?.element && !editor.protyle.element.contains(selection.anchorNode)) return "";
         return selection.toString();
+    }
+
+    /* ---------- T-1724 命令面板阅读动作 ---------- */
+
+    private requireCurrentDoc(): string {
+        const id = this.currentDocId();
+        if (!id) showMessage(t(this.i18n, "msg.noSelection"), 3000);
+        return id;
+    }
+
+    /** 当前文档显式改状态（读完/稍后/归档）；done 走同一打卡桥钩子。 */
+    async markCurrentStatus(status: "done" | "later" | "archived"): Promise<void> {
+        const id = this.requireCurrentDoc();
+        if (!id) return;
+        const changed = await batchSetStatus(this, [id], status);
+        if (changed !== 1) {
+            showMessage(t(this.i18n, "msg.statusFailed"), 3000);
+            return;
+        }
+        if (status === "done" && this.settings.integration.checkinEnabled && this.settings.integration.checkinItemId) {
+            const context = await readClipContext(id);
+            void recordReadingDone(this.settings.integration.checkinItemId, id, context?.title ?? "");
+        }
+        this.notifyDataChanged();
+        showMessage(t(this.i18n, "msg.statusChanged"), 2500);
+    }
+
+    /** 打开当前文档原文（载体与 URL 校验后导航，不写状态）。 */
+    async openCurrentSource(): Promise<void> {
+        const id = this.requireCurrentDoc();
+        if (!id) return;
+        const attrs = await readClip(id);
+        const url = sourceUrlForCarrier(attrs.contentType, attrs.url);
+        if (!url) {
+            showMessage(t(this.i18n, "clip.sourceMissing"), 3000);
+            return;
+        }
+        window.open(url, "_blank", "noopener,noreferrer");
+    }
+
+    /** 选区摘录为引述块（原生编辑器；定位失败降级为复制文本，不伪造锚点）。 */
+    async excerptQuoteFromSelection(): Promise<void> {
+        const selection = window.getSelection();
+        const editor = getAllEditor().find((item) => item?.protyle?.element?.contains(selection?.anchorNode ?? null));
+        const picked = excerptFromSelection(editor?.protyle?.element ?? null, selection ?? null);
+        if (!picked) {
+            showMessage(t(this.i18n, "flashcard.noSelection"), 3000);
+            return;
+        }
+        if (!picked.blockId) {
+            showMessage(t(this.i18n, "reader.excerptNoBlock"), 3000);
+            await navigator.clipboard.writeText(picked.text).catch(() => undefined);
+            return;
+        }
+        await insertQuoteExcerpt(picked.blockId, picked.text);
+        this.notifyDataChanged();
+        showMessage(t(this.i18n, "reader.excerptDone"), 2500);
+    }
+
+    /** 打开下一篇待读（显式导航；不写状态）。 */
+    async readNextArticle(): Promise<void> {
+        const next = await pickNextUnread(this, "");
+        if (!next) {
+            showMessage(t(this.i18n, "reader.noNext"), 3000);
+            return;
+        }
+        this.openReadingDocument(next);
+    }
+
+    /** `?` 帮助：阅读动作清单与自定义快捷键入口提示（T-1724）。 */
+    showReaderHelp(): void {
+        const actions: Array<[string, string]> = [
+            ["cmd.continueReading", "cmd.markDone"],
+            ["cmd.readNext", "cmd.markLater"],
+            ["cmd.openSource", "cmd.archiveCurrent"],
+            ["cmd.excerptQuote", "cmd.makeCard"],
+        ];
+        const list = actions
+            .map(([left, right]) =>
+                `<div style="display:flex;gap:12px;padding:3px 0;font-size:12.5px">` +
+                `<span style="flex:1">${t(this.i18n, left)}</span><span style="flex:1">${t(this.i18n, right)}</span></div>`)
+            .join("");
+        const wrap = document.createElement("div");
+        wrap.innerHTML =
+            `<div style="padding:6px 4px">` +
+            `<div style="font-size:12px;opacity:.72;margin-bottom:8px">${t(this.i18n, "help.hint")}</div>` +
+            list +
+            `</div>`;
+        void import("./libs/dialog").then(({ simpleDialog }) => {
+            simpleDialog({ title: t(this.i18n, "help.title"), ele: wrap, width: "520px" });
+        });
     }
 
     /** 摘录制卡：选中文本 → 问句卡入「拾遗卡片」牌组 */

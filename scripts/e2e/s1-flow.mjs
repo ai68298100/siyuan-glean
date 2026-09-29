@@ -290,10 +290,12 @@ async function runFlow(client, workspace) {
     // D-0030 摘录：引述块插在所选块之后，落入原文档并进高亮聚合（T-1730d）。
     const excerptMod = await import("../../src/services/excerpt-service.ts");
     const apiClient = await import("../../src/api/client.ts");
-    const paraRows = await client.apiChecked("/api/query/sql", {
-        stmt: `SELECT id FROM blocks WHERE root_id = '${fulltext}' AND type = 'p' ORDER BY sort ASC LIMIT 1`,
+    const firstPara = await until("正文段落入 SQL 索引", async () => {
+        const rows = await client.apiChecked("/api/query/sql", {
+            stmt: `SELECT id FROM blocks WHERE root_id = '${fulltext}' AND type = 'p' ORDER BY sort ASC LIMIT 1`,
+        });
+        return rows[0]?.id ?? "";
     });
-    const firstPara = paraRows[0]?.id ?? "";
     assert.match(firstPara, /^[0-9]{14}-[0-9a-z]{7}$/);
     const quoteId = await excerptMod.insertQuoteExcerpt(firstPara, '这是 <选中> 的 "摘录" 文本\n第二段');
     assert.match(quoteId, /^[0-9]{14}-[0-9a-z]{7}$/);
@@ -332,6 +334,16 @@ async function runFlow(client, workspace) {
     assert.equal((await client.apiChecked("/api/attr/getBlockAttrs", { id: oldB }))["custom-clip-status"], "archived");
     assert.equal((await client.apiChecked("/api/attr/getBlockAttrs", { id: oldA }))["custom-clip-status"], "inbox");
     pass("超龄清单来自对账索引；只归档勾选篇目并报告真实成功数");
+
+    // T-1723 下一篇选择：显式动作，排除当前篇，不写状态。
+    const next1 = await resurface.pickNextUnread(plugin, "");
+    assert.match(next1, /^[0-9]{14}-[0-9a-z]{7}$/);
+    const next1Status = (await client.apiChecked("/api/attr/getBlockAttrs", { id: next1 }))["custom-clip-status"];
+    assert(["inbox", "later", "reading"].includes(next1Status));
+    const next2 = await resurface.pickNextUnread(plugin, next1);
+    if (next2) assert.notEqual(next2, next1);
+    await clip.reconcileIndex(newPlugin(), settings);
+    pass("下一篇从对账索引挑选并排除当前篇，不写状态");
 
     const beforeFilter = await client.apiChecked("/api/attr/getBlockAttrs", { id: fulltext });
     const currentIndex = await newPlugin().loadData("glean-index.json");

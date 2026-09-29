@@ -24,6 +24,7 @@
     import { excerptFromSelection, insertQuoteExcerpt } from "../services/excerpt-service";
     import { makeQuoteCard } from "../services/flashcard-service";
     import { findRelated } from "../services/enrich-service";
+    import { pickNextUnread } from "../services/resurface-service";
     import { readerAiEnabled, readerSummarize, readerTranslate, saveReaderSummary } from "../services/reader-ai";
     import ClipStatusActions from "./ClipStatusActions.svelte";
     import ClipRankControls from "./ClipRankControls.svelte";
@@ -305,6 +306,41 @@
         await writeStatus("reading");
     }
 
+    /**
+     * "读完并下一篇"（T-1723）：显式动作，默认不自动前进。
+     * 完成写入成功后才切下一篇；没有下一篇时不回滚完成状态。
+     */
+    async function doneAndNext(): Promise<void> {
+        if (!context || statusBusy) return;
+        const current = context;
+        statusBusy = true;
+        try {
+            const changed = await batchSetStatus(facade.pluginInstance, [current.id], "done");
+            if (changed !== 1) {
+                showMessage(t(i18n, "msg.statusFailed"), 3000);
+                return;
+            }
+            if (facade.settings.integration.checkinEnabled && facade.settings.integration.checkinItemId) {
+                void recordReadingDone(facade.settings.integration.checkinItemId, current.id, current.title);
+            }
+            facade.notifyDataChanged();
+            const next = await pickNextUnread(facade.pluginInstance, current.id);
+            if (!next) {
+                context = { ...current, status: "done" };
+                showMessage(t(i18n, "reader.noNext"), 3000);
+                return;
+            }
+            showMessage(t(i18n, "msg.statusChanged"), 2000);
+            docId = next;
+            aiResult = null;
+            relatedShown = false;
+            relatedItems = [];
+            excerpt = null;
+        } finally {
+            statusBusy = false;
+        }
+    }
+
     async function setPriority(value: number): Promise<void> {
         if (!context || statusBusy) return;
         statusBusy = true;
@@ -406,6 +442,12 @@
                     onStartReading={() => void startReading()}
                     onSetStatus={(status) => void writeStatus(status)}
                 />
+                <button
+                    class="glean-btn glean-btn--ghost"
+                    disabled={statusBusy}
+                    title={t(i18n, "reader.doneNextHint")}
+                    onclick={() => void doneAndNext()}
+                >✓→ {t(i18n, "reader.doneNext")}</button>
                 <ClipRankControls
                     {i18n}
                     priority={context.priority}

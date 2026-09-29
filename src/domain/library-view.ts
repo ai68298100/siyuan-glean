@@ -37,6 +37,8 @@ export interface LibraryFilter {
     status?: ClipStatus | "all";
     site?: string;
     tag?: string;
+    /** AI 标签分面（T-1729）：与用户 tag 分开筛选，UI 需带 AI 来源标记。 */
+    aiTag?: string;
     src?: string;
     timeSource?: string;
     contentType?: string;
@@ -55,6 +57,8 @@ export interface LibraryFacet {
 export interface LibraryFacets {
     sites: LibraryFacet[];
     tags: LibraryFacet[];
+    /** AI 标签分面（T-1729）：独立于用户 tags，UI 显示 AI 来源标记。 */
+    aiTags: LibraryFacet[];
     sources: LibraryFacet[];
     timeSources: LibraryFacet[];
     contentTypes: LibraryFacet[];
@@ -90,6 +94,13 @@ function hasTag(item: LibraryItem, expected: string): boolean {
     return (item.tags ?? []).some((tag) => key(tag) === wanted);
 }
 
+/** AI 标签精确匹配（T-1729）；关键词搜索仍同时匹配 AI 标签（searchableText 不变）。 */
+function hasAiTag(item: LibraryItem, expected: string): boolean {
+    const wanted = key(expected);
+    if (!wanted) return true;
+    return (item.aiTags ?? []).some((tag) => key(tag) === wanted);
+}
+
 function searchableText(item: LibraryItem): string {
     return [
         item.title,
@@ -118,6 +129,7 @@ export function matchesLibraryFilter(item: LibraryItem, filter: LibraryFilter = 
     }
     if (!matchesExact(item.site, filter.site)) return false;
     if (filter.tag && !hasTag(item, filter.tag)) return false;
+    if (filter.aiTag && !hasAiTag(item, filter.aiTag)) return false;
     if (!matchesExact(item.src, filter.src)) return false;
     if (!matchesExact(item.timeSource, filter.timeSource)) return false;
     if (!matchesExact(item.contentType, filter.contentType)) return false;
@@ -173,6 +185,7 @@ function facetsFromMap(map: Map<string, LibraryFacet>): LibraryFacet[] {
 export function libraryFacets(items: readonly LibraryItem[]): LibraryFacets {
     const sites = new Map<string, LibraryFacet>();
     const tags = new Map<string, LibraryFacet>();
+    const aiTags = new Map<string, LibraryFacet>();
     const sources = new Map<string, LibraryFacet>();
     const timeSources = new Map<string, LibraryFacet>();
     const contentTypes = new Map<string, LibraryFacet>();
@@ -180,6 +193,7 @@ export function libraryFacets(items: readonly LibraryItem[]): LibraryFacets {
         if (item.kind !== "clip") continue;
         addFacet(sites, item.site);
         for (const tag of item.tags ?? []) addFacet(tags, tag);
+        for (const tag of item.aiTags ?? []) addFacet(aiTags, tag);
         addFacet(sources, item.src);
         addFacet(timeSources, item.timeSource);
         addFacet(contentTypes, item.contentType);
@@ -187,6 +201,7 @@ export function libraryFacets(items: readonly LibraryItem[]): LibraryFacets {
     return {
         sites: facetsFromMap(sites),
         tags: facetsFromMap(tags),
+        aiTags: facetsFromMap(aiTags),
         sources: facetsFromMap(sources),
         timeSources: facetsFromMap(timeSources),
         contentTypes: facetsFromMap(contentTypes),

@@ -91,3 +91,23 @@ test("筛选排序返回新数组，不改变输入顺序或条目字段", () =>
     assert.deepEqual(result[0], before[0]);
 });
 
+
+test("AI 标签独立分面与筛选，不冒充用户标签（T-1729）", () => {
+    const items = [
+        clip({ id: "a", tags: ["技术"], aiTags: ["机器学习"] }),
+        clip({ id: "b", tags: ["生活"], aiTags: ["机器学习", "健康"] }),
+        clip({ id: "c", tags: ["技术"], aiTags: [] }),
+    ];
+    const facets = libraryFacets(items);
+    assert.deepEqual(facets.tags.map((f) => f.value), ["技术", "生活"]);
+    assert.deepEqual(facets.aiTags.map((f) => f.value), ["机器学习", "健康"]);
+    assert.equal(facets.aiTags[0].count, 2);
+    // aiTag 筛选只命中 AI 标签，与用户 tag 互不混用
+    const byAi = filterAndSortLibrary(items, { aiTag: "机器学习" });
+    assert.deepEqual(byAi.map((item) => item.id).sort(), ["a", "b"]); // 排序按 time/id，与筛选无关
+    assert.deepEqual(filterAndSortLibrary(items, { tag: "机器学习" }).map((item) => item.id), []);
+    assert.deepEqual(filterAndSortLibrary(items, { aiTag: "技术" }).map((item) => item.id), []);
+    // 大小写不敏感与关键词搜索仍同时匹配 AI 标签
+    assert.equal(filterAndSortLibrary(items, { aiTag: "机器学习".toUpperCase() }).length, 2);
+    assert.equal(filterAndSortLibrary(items, { keyword: "机器学习" }).length, 2);
+});

@@ -42,6 +42,8 @@ let sortBy = $state<LibrarySortKey>("time");
 let sortDirection = $state<LibrarySortDirection>("desc");
 let selectedSite = $state("");
 let selectedTag = $state("");
+/** AI 标签分面（T-1729）：独立于用户 tag，UI 带 ✨ 来源标记。 */
+let selectedAiTag = $state("");
 let selectedSource = $state("");
 let selectedTimeSource = $state("");
 let selectedContentType = $state("");
@@ -113,6 +115,7 @@ const activeFilter = $derived({
     status: activeQueue,
     site: selectedSite,
     tag: selectedTag,
+    aiTag: selectedAiTag,
     src: selectedSource,
     timeSource: selectedTimeSource,
     contentType: selectedContentType,
@@ -206,6 +209,7 @@ function selectQueue(queue: QueueKey): void {
     activeQueue = queue;
     selectedSite = "";
     selectedTag = "";
+    selectedAiTag = "";
     selectedSource = "";
     selectedTimeSource = "";
     selectedContentType = "";
@@ -215,13 +219,14 @@ function selectQueue(queue: QueueKey): void {
 function clearFilters(): void {
     selectedSite = "";
     selectedTag = "";
+    selectedAiTag = "";
     selectedSource = "";
     selectedTimeSource = "";
     selectedContentType = "";
     keyword = "";
 }
 
-const hasFilters = $derived(Boolean(selectedSite || selectedTag || selectedSource || selectedTimeSource || selectedContentType || keyword.trim()));
+const hasFilters = $derived(Boolean(selectedSite || selectedTag || selectedAiTag || selectedSource || selectedTimeSource || selectedContentType || keyword.trim()));
 
 const kanbanCols = $derived.by(() => {
     const clips = filterAndSortLibrary(libraryItems, {
@@ -720,6 +725,10 @@ function metaLine(entry: Row): string {
                     <option value="">{t(i18n, "library.filterTag")}</option>
                     {#each facets.tags as facet (facet.value)}<option value={facet.value}>#{facet.value} · {facet.count}</option>{/each}
                 </select>
+                <select class="b3-select glean-filter" aria-label={t(i18n, "library.filterAiTag")} bind:value={selectedAiTag}>
+                    <option value="">{t(i18n, "library.filterAiTag")}</option>
+                    {#each facets.aiTags as facet (facet.value)}<option value={facet.value}>✨{facet.value} · {facet.count}</option>{/each}
+                </select>
                 <select class="b3-select glean-filter" aria-label={t(i18n, "library.filterSource")} bind:value={selectedSource}>
                     <option value="">{t(i18n, "library.filterSource")}</option>
                     {#each facets.sources as facet (facet.value)}<option value={facet.value}>{sourceLabel(facet.value)} · {facet.count}</option>{/each}
@@ -768,6 +777,10 @@ function metaLine(entry: Row): string {
                     <select class="b3-select glean-filter" aria-label={t(i18n, "library.filterTag")} bind:value={selectedTag}>
                         <option value="">{t(i18n, "library.filterTag")}</option>
                         {#each facets.tags as facet (facet.value)}<option value={facet.value}>#{facet.value} · {facet.count}</option>{/each}
+                    </select>
+                    <select class="b3-select glean-filter" aria-label={t(i18n, "library.filterAiTag")} bind:value={selectedAiTag}>
+                        <option value="">{t(i18n, "library.filterAiTag")}</option>
+                        {#each facets.aiTags as facet (facet.value)}<option value={facet.value}>✨{facet.value} · {facet.count}</option>{/each}
                     </select>
                     <select class="b3-select glean-filter" aria-label={t(i18n, "library.filterSource")} bind:value={selectedSource}>
                         <option value="">{t(i18n, "library.filterSource")}</option>
@@ -891,6 +904,14 @@ function metaLine(entry: Row): string {
                         {#each railStats.tags.slice(0, 8) as tag (tag.value)}
                             <button class="glean-rail__item" class:glean-rail__item--on={selectedTag === tag.value} onclick={() => (selectedTag = selectedTag === tag.value ? "" : tag.value)}>
                                 #{tag.value}<span class="glean-rail__n">{tag.count}</span>
+                            </button>
+                        {/each}
+                    {/if}
+                    {#if railStats.aiTags.length > 0}
+                        <div class="glean-rail__title" title={t(i18n, "library.filterAiTagHint")}>✨ {t(i18n, "rail.aiTags")}</div>
+                        {#each railStats.aiTags.slice(0, 8) as tag (tag.value)}
+                            <button class="glean-rail__item" class:glean-rail__item--on={selectedAiTag === tag.value} onclick={() => (selectedAiTag = selectedAiTag === tag.value ? "" : tag.value)}>
+                                ✨{tag.value}<span class="glean-rail__n">{tag.count}</span>
                             </button>
                         {/each}
                     {/if}

@@ -1,10 +1,12 @@
 <script lang="ts">
-/** 首启引导向导（平静原则：三步走完，可随时跳过，不催促不羞辱）。 */
+/** 首启引导向导（平静原则：三步走完，可随时跳过，不催促不羞辱）。
+ * T-1719：第 3 步为只读扫描预览——只读属性并展示分类计数，逐篇确认才写入。 */
 import { onMount } from "svelte";
 import { listNotebooks, type NotebookMeta } from "../api/client";
 import { t } from "../libs/i18n";
 import type { GleanFacade } from "../types";
 import { saveUiPrefs } from "../services/prefs";
+import { reconcileIndex } from "../services/clip-store";
 
 interface Props {
     facade: GleanFacade;
@@ -20,6 +22,12 @@ let notebooks = $state<NotebookMeta[]>([]);
 let anchorNotebooks = $state<string[]>(facade.settings.anchorNotebooks);
 /** 引导里的 AI 开关 = 是否开启"收录时自动富化"（写回 enrichMode: auto/manual） */
 let aiEnrich = $state(facade.settings.ai.enrichMode === "auto");
+
+let scanning = $state(false);
+let scanFailed = $state(false);
+let scannedClips = $state(0);
+let scannedCandidates = $state(0);
+let candidatesMissingUrl = $state(0);
 
 onMount(() => {
     void listNotebooks().then((items) => (notebooks = items));
@@ -43,9 +51,28 @@ async function markDone(): Promise<void> {
     await saveUiPrefs(facade.pluginInstance, { onboardingDone: true });
 }
 
+/** T-1719：只读扫描（读属性 + 重建派生索引缓存），不写任何文章属性。 */
+async function runScan(): Promise<void> {
+    scanning = true;
+    scanFailed = false;
+    try {
+        const index = await reconcileIndex(facade.pluginInstance, facade.settings);
+        scannedClips = Object.keys(index.clips).length;
+        const candidates = Object.values(index.candidates);
+        scannedCandidates = candidates.length;
+        candidatesMissingUrl = candidates.filter((candidate) => candidate.missing.includes("url")).length;
+    } catch (error) {
+        console.warn("[glean] 引导扫描失败:", error);
+        scanFailed = true;
+    } finally {
+        scanning = false;
+    }
+}
+
 async function next(): Promise<void> {
     await persist();
     step = 3;
+    void runScan();
 }
 
 async function finish(openMigrate: boolean): Promise<void> {
@@ -111,6 +138,32 @@ async function skip(): Promise<void> {
             <button class="glean-btn glean-btn--ghost" onclick={() => (step = 1)}>{t(i18n, "onboarding.back")}</button>
             <button class="glean-btn glean-btn--pri" onclick={() => void next()}>{t(i18n, "onboarding.next")}</button>
         </div>
+    {:else if step === 3}
+        <div class="glean-sect">{t(i18n, "onboarding.previewTitle")}</div>
+        {#if scanning}
+            <div class="glean-panel__loading">{t(i18n, "panel.loading")}</div>
+        {:else if scanFailed}
+            <div class="glean-empty" style="padding:12px">
+                <div class="glean-empty__hint">{t(i18n, "onboarding.scanFailed")}</div>
+            </div>
+            <div class="glean-migrate__ops">
+                <button class="glean-btn glean-btn--ghost" onclick={() => (step = 2)}>{t(i18n, "onboarding.back")}</button>
+                <button class="glean-btn glean-btn--pri" onclick={() => void runScan()}>{t(i18n, "action.retry")}</button>
+            </div>
+        {:else}
+            <div class="glean-mstats">
+                <div class="glean-mstat"><div class="glean-mstat__n">{scannedClips}</div><div class="glean-mstat__l">{t(i18n, "onboarding.previewClips")}</div></div>
+                <div class="glean-mstat"><div class="glean-mstat__n">{scannedCandidates}</div><div class="glean-mstat__l">{t(i18n, "onboarding.previewCandidates")}</div></div>
+                <div class="glean-mstat"><div class="glean-mstat__n">{candidatesMissingUrl}</div><div class="glean-mstat__l">{t(i18n, "onboarding.previewMissingUrl")}</div></div>
+            </div>
+            <div class="glean-empty" style="padding: 12px">
+                <div class="glean-empty__hint">{t(i18n, "onboarding.previewNote")}</div>
+            </div>
+            <div class="glean-migrate__ops">
+                <button class="glean-btn glean-btn--ghost" onclick={() => (step = 2)}>{t(i18n, "onboarding.back")}</button>
+                <button class="glean-btn glean-btn--pri" onclick={() => (step = 4)}>{t(i18n, "onboarding.next")}</button>
+            </div>
+        {/if}
     {:else}
         <div class="glean-mstats">
             <div class="glean-mstat"><div class="glean-mstat__n">📥</div><div class="glean-mstat__l">{t(i18n, "onboarding.cap1")}</div></div>
