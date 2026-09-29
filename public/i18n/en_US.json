@@ -199,5 +199,8 @@
   "import.imported": "Imported",
   "import.failed": "Failed",
   "import.entryDesc": "One-click import from Pocket / Omnivore / wallabag exports",
-  "import.entryAction": "Import"
+  "import.entryAction": "Import",
+  "snapshot.take": "Take snapshot (single-file HTML into assets)",
+  "snapshot.open": "Open snapshot",
+  "snapshot.done": "Snapshot created in notebook assets"
 }

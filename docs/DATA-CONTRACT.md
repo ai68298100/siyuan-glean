@@ -29,6 +29,7 @@
 | `custom-clip-ai-tags` | string | AI 标签（逗号分割，与用户 `tags` 完全隔离，永不覆盖用户 tags） |
 | `custom-clip-summary` | string | AI 一句话摘要 |
 | `custom-clip-last-surfaced` | string | 最近一次被重浮的日期 `YYYYMMDD` |
+| `custom-clip-snapshot` | string | 单文件 HTML 快照的 assets 路径（T-1504，防内容/链接腐烂） |
 | `custom-clip-src` | string | 来源管道：`web-clipper`/`inbox`/`manual`/`migration`/`import-*` |
 
 写入规则：

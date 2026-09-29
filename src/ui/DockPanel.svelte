@@ -6,6 +6,7 @@ import { t } from "../libs/i18n";
 import type { ClipStatus } from "../domain/schema";
 import { batchSetStatus, captureClip, reconcileIndex } from "../services/clip-store";
 import { autoEnrich, enrichClip } from "../services/enrich-service";
+import { snapshotClip } from "../services/snapshot-service";
 import { aggregateStats } from "../domain/stats.ts";
 import type { ClipIndexEntry, CandidateEntry, GleanIndex } from "../services/index-store";
 import StatsView from "./StatsView.svelte";
@@ -37,6 +38,7 @@ let isTabCanvas = $state(false);
 let dragOverCol = $state<ClipStatus | null>(null);
 let dragId = $state("");
 let enrichingId = $state("");
+let snappingId = $state("");
 let archivingStale = $state(false);
 
 type QueueKey = ClipStatus;
@@ -279,6 +281,33 @@ function openDoc(docId: string) {
     void openTab({ app: facade.pluginInstance.app, doc: { id: docId }, keepCursor: false });
 }
 
+function openAsset(path: string) {
+    void openTab({ app: facade.pluginInstance.app, asset: { path } });
+}
+
+function snapshotLabel(entry: ClipIndexEntry): string {
+    return entry.snapshot ? t(i18n, "snapshot.open") : t(i18n, "snapshot.take");
+}
+
+async function takeSnapshot(entry: ClipIndexEntry) {
+    if (snappingId) return;
+    if (entry.snapshot) {
+        openAsset(entry.snapshot);
+        return;
+    }
+    snappingId = entry.id;
+    try {
+        const { path } = await snapshotClip(facade.pluginInstance, entry.id);
+        showMessage(t(i18n, "snapshot.done"), 3000);
+        entry.snapshot = path;
+        await reload();
+    } catch (error) {
+        showMessage(String(error).slice(0, 140), 5000);
+    } finally {
+        snappingId = "";
+    }
+}
+
 function metaLine(entry: Row): string {
     const parts: string[] = [];
     if ("minutes" in entry && entry.minutes > 0) parts.push(t(i18n, "panel.minutes", { n: entry.minutes }));
@@ -460,6 +489,12 @@ function metaLine(entry: Row): string {
                                         <div class="glean-drow__ops">
                                             <button
                                                 class="glean-op-btn"
+                                                title={snapshotLabel(entry)}
+                                                disabled={snappingId === entry.id}
+                                                onclick={(e) => { e.stopPropagation(); void takeSnapshot(entry); }}
+                                            >{entry.snapshot ? "⟐" : "📷"}</button>
+                                            <button
+                                                class="glean-op-btn"
                                                 title={t(i18n, "ai.actionEnrich")}
                                                 disabled={enrichingId === entry.id}
                                                 onclick={(e) => { e.stopPropagation(); void enrich(entry); }}
@@ -569,6 +604,12 @@ function metaLine(entry: Row): string {
                                 </button>
                             {:else}
                                 <div class="glean-card__ops">
+                                    <button
+                                        class="glean-op-btn"
+                                        title={snapshotLabel(entry)}
+                                        disabled={snappingId === entry.id}
+                                        onclick={(e) => { e.stopPropagation(); void takeSnapshot(entry); }}
+                                    >{entry.snapshot ? "⟐" : "📷"}</button>
                                     <button
                                         class="glean-op-btn"
                                         title={t(i18n, "ai.actionEnrich")}

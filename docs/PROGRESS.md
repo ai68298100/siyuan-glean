@@ -1,5 +1,17 @@
 # 进度（PROGRESS）
 
+## M5 — T-1504 全页快照 ✅（2026-09-29，第九轮）
+
+- [x] 契约核实：`/api/export/exportHTML {id,pdf}` → data{name,content}（单文件 HTML）；
+      `/api/file/putFile` 为 **multipart**（path+file，apicontract/file.go）——宿主 fetchPost 原生透传
+      FormData（app/src/util/fetch.ts:35），api/assets.ts 落地
+- [x] snapshot 属性入契约与索引（custom-clip-snapshot 存 assets 路径）
+- [x] services/snapshot-service：exportHTML → putFile 写 /<笔记本>/assets/glean-<id>-<ts>.html →
+      写快照属性；面板卡/行表 📷 动作（有快照=⟐ 打开资产，无=拍摄）；openTab asset 打开
+- [x] spike 增 ⑦ 快照闭环（exportHTML→putFile→getFile 读回含正文）**8/8 通过**；
+      ⑥ 修正为 id+LIKE 精确断言+索引滞后重试（SQLite ial 异步刷新踩坑）
+- [x] 质量门禁：check 0 错、62/62 测试、构建+门禁全绿（204 i18n 键，CSS 27.6KB）
+
 ## M5 启动 — T-1501 迁移导入器 ✅（2026-09-29，第八轮；按作者"继续开发+推荐项先行"授权启动 M5）
 
 - [x] domain/importers.ts：Pocket HTML/CSV、Omnivore JSON、wallabag JSON 四格式解析

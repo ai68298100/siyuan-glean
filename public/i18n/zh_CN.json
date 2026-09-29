@@ -199,5 +199,8 @@
   "import.imported": "导入成功",
   "import.failed": "失败",
   "import.entryDesc": "从 Pocket / Omnivore / wallabag 的导出文件一键迁入读库",
-  "import.entryAction": "导入"
+  "import.entryAction": "导入",
+  "snapshot.take": "生成快照（单文件 HTML 存入资产）",
+  "snapshot.open": "打开快照",
+  "snapshot.done": "快照已生成，写入本文档资产"
 }

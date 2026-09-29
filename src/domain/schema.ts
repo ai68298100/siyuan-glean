@@ -31,6 +31,8 @@ export const ATTR = {
     aiTags: "custom-clip-ai-tags",
     summary: "custom-clip-summary",
     lastSurfaced: "custom-clip-last-surfaced",
+    /** 单文件 HTML 快照（assets 路径，T-1504） */
+    snapshot: "custom-clip-snapshot",
     src: "custom-clip-src",
 } as const;
 
@@ -49,6 +51,7 @@ export interface ClipAttrs {
     aiTags: string[];
     summary?: string;
     lastSurfaced?: string;
+    snapshot?: string;
     src?: ClipSource;
 }
 
@@ -110,6 +113,7 @@ export function parseClipAttrs(ial: Record<string, string | undefined>): ClipAtt
         aiTags: parseTags(ial[ATTR.aiTags]),
         summary: optionalString(ial[ATTR.summary]),
         lastSurfaced: optionalString(ial[ATTR.lastSurfaced]),
+        snapshot: optionalString(ial[ATTR.snapshot]),
         src: parseSource(ial[ATTR.src]),
     };
 }
@@ -152,6 +156,7 @@ export function serializePatch(patch: Partial<ClipAttrs> & { aiTags?: string[] |
     if (patch.aiTags !== undefined) put(ATTR.aiTags, patch.aiTags === null ? null : patch.aiTags.join(","));
     if (patch.summary !== undefined) put(ATTR.summary, patch.summary || null);
     if (patch.lastSurfaced !== undefined) put(ATTR.lastSurfaced, patch.lastSurfaced || null);
+    if (patch.snapshot !== undefined) put(ATTR.snapshot, patch.snapshot || null);
     if (patch.src !== undefined) put(ATTR.src, patch.src ?? null);
     return out;
 }

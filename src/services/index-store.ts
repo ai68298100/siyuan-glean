@@ -24,6 +24,8 @@ export interface ClipIndexEntry {
     rating: number;
     surfaced: string;
     summary: string;
+    /** 单文件快照 assets 路径 */
+    snapshot: string;
     aiTags: string[];
     updated: string;
 }
@@ -96,6 +98,7 @@ export function applyAttrsToIndex(
             rating: attrs.rating ?? 0,
             surfaced: attrs.lastSurfaced ?? "",
             summary: attrs.summary ?? "",
+            snapshot: attrs.snapshot ?? "",
             aiTags: attrs.aiTags,
             updated: doc.updated,
         };

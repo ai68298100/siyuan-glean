@@ -326,10 +326,16 @@ async function verifyExportMd(notebookID) {
 /* ---------- ⑥ SQL 双锚点 ---------- */
 
 async function verifyAnchorQueries(notebookID, attrDocId) {
-    // 次锚点语义：该文档 IAL 含 clip 键（精确 id + LIKE，免受 updated 排序窗口影响）
-    const clips = await apiChecked("/api/query/sql", {
-        stmt: `SELECT id, content, hpath, box, updated FROM blocks WHERE type='d' AND id='${attrDocId}' AND ial LIKE '%custom-clip-status%'`,
-    });
+    // 次锚点语义：该文档 IAL 含 clip 键（精确 id + LIKE，免受 updated 排序窗口影响）。
+    // SQLite ial 列异步刷新（DATA-CONTRACT §5 注），写后立即查可能滞后 → 重试至多 10 次。
+    let clips = [];
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+        clips = await apiChecked("/api/query/sql", {
+            stmt: `SELECT id, content, hpath, box, updated FROM blocks WHERE type='d' AND id='${attrDocId}' AND ial LIKE '%custom-clip-status%'`,
+        });
+        if (clips.length > 0) break;
+        await new Promise((r) => setTimeout(r, 600));
+    }
     const anchors = await apiChecked("/api/query/sql", {
         stmt: `SELECT id, content, hpath, box, updated FROM blocks WHERE type='d' AND box='${notebookID}' ORDER BY updated DESC LIMIT 200`,
     });
@@ -388,6 +394,34 @@ async function verifyPluginLoad(distDir) {
 
 /* ---------- main ---------- */
 
+
+/* ---------- ⑦ 快照闭环（T-1504） ---------- */
+
+async function verifySnapshot(notebookID, docId) {
+    // 1) exportHTML：savePath 留空 → data.content 为单文件 HTML
+    const exported = await api("/api/export/exportHTML", { id: docId, pdf: false });
+    if (exported.code !== 0 || !exported.data?.content) {
+        return { ok: false, detail: `exportHTML code=${exported.code} msg=${exported.msg} contentLen=${(exported.data?.content || "").length}` };
+    }
+    const html = exported.data.content;
+    const path = `/${notebookID}/assets/glean-${docId}-snap.html`;
+    // 2) putFile：multipart（apicontract/file.go PutFileRequest：path + file 字段）
+    const form = new FormData();
+    form.append("path", path);
+    form.append("file", new Blob([html], { type: "text/html" }), "snap.html");
+    const headers = { Authorization: `Token ${token}` };
+    const putResp = await fetch(`${BASE}/api/file/putFile`, { method: "POST", headers, body: form, signal: AbortSignal.timeout(20000) });
+    const putText = await putResp.text();
+    let putPayload;
+    try { putPayload = JSON.parse(putText); } catch { return { ok: false, detail: `putFile 非 JSON: ${putText.slice(0, 80)}` }; }
+    if (putPayload.code !== 0) return { ok: false, detail: `putFile code=${putPayload.code} msg=${putPayload.msg}` };
+    // 3) getFile 读回校验非空且含正文
+    const getResp = await fetch(`${BASE}/api/file/getFile`, { method: "POST", headers, body: JSON.stringify({ path }), signal: AbortSignal.timeout(20000) });
+    const back = await getResp.text();
+    const ok = back.includes("一篇剪藏的文章标题") || back.length > 200;
+    return { ok, detail: `contentLen=${html.length} put=${putPayload.code} 读回=${back.length}B 含正文=${ok}`, path };
+}
+
 async function main() {
     assertLoopback();
     const { kernel, appDir } = resolveKernel();
@@ -435,6 +469,12 @@ async function main() {
 
         const step6 = await verifyAnchorQueries(notebookID, step1.docId);
         record("⑥ SQL 双锚点查询", step6.ok, step6.detail);
+
+        let step7 = { ok: false, detail: "跳过（步骤①未产生文档）" };
+        if (step1.ok && step1.docId) {
+            step7 = await verifySnapshot(notebookID, step1.docId);
+            record("⑦ 快照闭环 exportHTML→putFile→getFile", step7.ok, step7.detail);
+        }
 
         const step5 = await verifyPluginLoad(path.join(process.cwd(), "dist"));
         record("⑤ 插件包加载 + i18n 双名", step5.ok, step5.detail);
