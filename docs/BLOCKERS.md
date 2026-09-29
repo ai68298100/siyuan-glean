@@ -28,6 +28,11 @@
   **结论：UI 冒烟不使用 computer-use 远程驱动**，由作者在真机直接执行（B-0002 清单），
   或作者明确关闭常驻实例的窗口期内另行安排。
 
+- **B-0011（已修复， v1.0.1）**：作者真机反馈"点击小驴拾遗图标无反应"。根因：openPanel 用
+  dispatchEvent 合成不冒泡的 click，而 dock 点击由 document 级委托监听器处理——事件永远收不到。
+  修复：openPanel 改走 window.siyuan.layout.*Dock.toggleModel(dockId, true)，
+  兜底 HTMLElement.click()（冒泡）。已发 v1.0.1 补丁（GitHub Release + package.zip）。
+
 ## 已解除
 
 （暂无）
