@@ -3,7 +3,7 @@
 > 续跑口令（新会话直接粘贴）：
 > **阅读 D:\思源插件\小驴拾遗\docs\HANDOFF.md，按其中"下一步"继续开发；工程纪律见 AGENTS.md 与 docs/DECISIONS.md，UI 以 docs/UI-STANDARD.md 为准，先通读 TODO.md 与 docs/DATA-CONTRACT.md 再动手。**
 
-## 当前状态（2026-09-29 第十六轮：UI 冒烟尝试安全收尾——结论：交由作者真机执行）
+## 当前状态（2026-09-29 第十七轮：**v1.0.0 已发布**）
 
 - 仓库：`D:\思源插件\小驴拾遗` = GitHub [ai68298100/siyuan-glean](https://github.com/ai68298100/siyuan-glean)，main 已推送。
 - **M3 AI 富化全量落地**（v0.3.0 工作版本，未打 tag）：
@@ -102,6 +102,14 @@
   只加载 index.js → 运行时缺 chunk 崩溃。修复：rollupOptions.output.inlineDynamicImports=true
   （vite.config.ts，注意曾出现重复 output 块覆盖配置的编辑事故，已去重）。
 - dist 旧产物需手动清理（emptyOutDir:false），发版前务必 rm -rf dist 再构建。
+
+# v1.0.0 发布记录（2026-09-29）
+
+- GitHub Release: https://github.com/ai68298100/siyuan-glean/releases/tag/v1.0.0
+  （package.zip 175KB 已附，sha256 af0f2e8a…）；tag v1.0.0 已推。
+- **集市未提交**（仍需作者单独授权）；真机验收七项仍待——发现问题走补丁版（v1.0.1+）。
+- 发版流程沉淀：版本定版 → CHANGELOG/RELEASE → 清 dist 重建 → check:release →
+  tag+push → GitHub API 建 Release+传附件（curl 走代理；node fetch 走代理会挂，踩坑）。
 
 # 历史速记索引
 
