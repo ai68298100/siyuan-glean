@@ -29,14 +29,14 @@ The scan range only says where to look. A document becomes a candidate only when
 
 - **Start reading** sets `reading` and opens the document or source according to its carrier. Full-text clippings also show a low-distraction context beside the native editor with title, carrier, source, status, and actions. A link-only item without a source URL is clearly reported rather than presented as opened.
 - **Mark as done** is the only action that sets `done`; the optional check-in bridge also fires on this explicit action.
-- **Today's gleaning** selects a small set from unfinished items and offers Start reading, Skip for today, or Archive. Skipping only changes that day's display.
-- **Queue and stale-item hints** show when the inbox is over quota and how many items qualify as stale. A click archives them in bulk; an itemized preview is still planned under T-1710.
+- **Today's gleaning** selects a small set from unfinished items with a factual "why it appeared" note (idle days, your priority, source, an unread topic). Start reading, Skip for today, and Archive are idempotent and only change that day's display; picks project from the reconciled index.
+- **Queue and stale-item hints** show when the inbox is over quota; stale items expand into a checklist first, and only the checked ones are archived, with the real success count reported.
 
 ### Optional AI and integrations
 
 - **AI enrichment** can be manual or explicitly enabled for automatic use: one-line summaries, AI tags, and semantic similarity hints. The default mode is manual and does not spend tokens automatically. AI tags are separate from user tags.
 - **Reading assistance** exposes SiYuan AI actions for summaries, key points, and counterarguments. Related articles, translation, cost hints, and failure behavior remain under the T-1718 acceptance work.
-- **Stats and reports** include article, word, site, and tag statistics plus Markdown weekly reports. "Done this week" counts only articles with a trusted completion time (explicit mark-done or a read time from the import file); legacy entries without one are never fabricated. Resurface and stale-archive reconciliation continues under T-1710.
+- **Stats and reports** include article, word, site, and tag statistics plus Markdown weekly reports. "Done this week" counts only articles with a trusted completion time (explicit mark-done or a read time from the import file); legacy entries without one are never fabricated. Resurface and stale-archive now project from a reconciled index (T-1710).
 - **Optional integrations** have code entry points for an attribute-view library, the SiYuan inbox, Pocket/Omnivore/wallabag imports, HTML snapshots of clipped documents, quote cards, agent tools, and the Lv Checkin bridge. Real exports, devices, and external-service checks are tracked in [docs/BLOCKERS.md](docs/BLOCKERS.md).
 
 ## First run

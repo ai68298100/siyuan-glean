@@ -15,7 +15,7 @@ import StatsView from "./StatsView.svelte";
 import HighlightView from "./HighlightView.svelte";
 import InboxSection from "./InboxSection.svelte";
 import ResurfaceView from "./ResurfaceView.svelte";
-import { archiveStale } from "../services/resurface-service";
+import { archiveStaleCandidates } from "../services/resurface-service";
 import { loadUiPrefs, saveUiPrefs } from "../services/prefs";
 import { ageDays } from "../domain/resurface.ts";
 import { recordReadingDone } from "../services/checkin-bridge";
@@ -148,12 +148,30 @@ const stalePool = $derived.by(() => {
     );
 });
 
+/** 超龄归档候选清单（T-1710）：先展示勾选，确认后按显式 ID 归档。 */
+let stalePreviewOpen = $state(false);
+let staleSelected = $state(new Set<string>());
+
+function toggleStalePreview() {
+    if (!stalePreviewOpen) staleSelected = new Set(stalePool.map((entry) => entry.id));
+    stalePreviewOpen = !stalePreviewOpen;
+}
+
+function toggleStalePick(id: string) {
+    const next = new Set(staleSelected);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    staleSelected = next;
+}
+
 async function doArchiveStale() {
-    if (archivingStale) return;
+    if (archivingStale || staleSelected.size === 0) return;
     archivingStale = true;
     try {
-        const n = await archiveStale(facade.pluginInstance, facade.settings);
-        showMessage(t(i18n, "panel.staleArchived", { n }), 3000);
+        const ids = stalePool.filter((entry) => staleSelected.has(entry.id)).map((entry) => entry.id);
+        const result = await archiveStaleCandidates(facade.pluginInstance, ids);
+        showMessage(t(i18n, "panel.staleArchived", { n: result.ok }), 3000);
+        stalePreviewOpen = false;
         await reload();
     } finally {
         archivingStale = false;
@@ -995,10 +1013,36 @@ function metaLine(entry: Row): string {
                     <div class="glean-quota">
                         <span>🧹</span>
                         <span style="flex:1">{t(i18n, "panel.staleCandidates", { n: stalePool.length })}</span>
-                        <button class="glean-cap-btn" disabled={archivingStale} onclick={() => void doArchiveStale()}>
-                            {t(i18n, "panel.archiveStale")}
+                        <button class="glean-cap-btn" onclick={() => toggleStalePreview()}>
+                            {stalePreviewOpen ? t(i18n, "panel.staleHide") : t(i18n, "panel.archiveStale")}
                         </button>
                     </div>
+                    {#if stalePreviewOpen}
+                        <div class="glean-stale-preview">
+                            <div class="glean-stale-preview__hint">{t(i18n, "panel.staleHint", { n: facade.settings.staleDays })}</div>
+                            {#each stalePool as entry (entry.id)}
+                                <label class="glean-stale-preview__row">
+                                    <input
+                                        type="checkbox"
+                                        checked={staleSelected.has(entry.id)}
+                                        onchange={() => toggleStalePick(entry.id)}
+                                    />
+                                    <span class="glean-stale-preview__title" title={entry.title}>{entry.title || t(i18n, "panel.untitled")}</span>
+                                    <span class="glean-stale-preview__meta">{entry.site || t(i18n, "panel.unknownSite")} · {t(i18n, "panel.staleDays", { n: ageDays(entry.time) })}</span>
+                                </label>
+                            {/each}
+                            <div class="glean-stale-preview__ops">
+                                <button class="glean-cap-btn" onclick={() => { staleSelected = new Set(stalePool.map((entry) => entry.id)); }}>
+                                    {t(i18n, "panel.staleSelectAll")}
+                                </button>
+                                <button
+                                    class="glean-cap-btn glean-cap-btn--pri"
+                                    disabled={archivingStale || staleSelected.size === 0}
+                                    onclick={() => void doArchiveStale()}
+                                >{t(i18n, "panel.staleConfirm", { n: staleSelected.size })}</button>
+                            </div>
+                        </div>
+                    {/if}
                 {/if}
                 {#if candidateCount > 0 && activeQueue === "inbox"}
                     <div class="glean-candidates">
@@ -1142,7 +1186,7 @@ function metaLine(entry: Row): string {
             {/if}
         {/if}
     {:else if view === "resurface"}
-        <ResurfaceView {facade} onMutated={() => void reload()} />
+        <ResurfaceView {facade} {index} onMutated={() => void reload()} />
     {:else if view === "stats"}
         <StatsView {facade} {index} onCaptured={() => void reload()} />
     {:else}

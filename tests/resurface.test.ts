@@ -8,6 +8,7 @@ import {
     recentlySurfaced,
     stableHash,
     staleCandidates,
+    surfaceReasons,
     surfaceScore,
     todayStamp,
     type SurfaceItem,
@@ -121,4 +122,26 @@ test("staleCandidates：inbox/later 且 ≥ 限值", () => {
 
 test("todayStamp：YYYYMMDD", () => {
     assert.equal(todayStamp(NOW), "20260929");
+});
+
+test("surfaceReasons：只列事实理由，不用欠账口吻（T-1717）", () => {
+    const explained = surfaceReasons(
+        item({ time: "20260901000000", priority: 5, site: "example.com" }),
+        [],
+        NOW
+    );
+    assert.deepEqual(explained.map((reason) => reason.kind), ["stale", "priority", "site"]);
+    // 刚收录、普通优先级、无站点：不需要解释
+    const fresh = item({ time: "20260928000000", priority: 3 });
+    assert.equal(surfaceReasons(fresh, [], NOW).length, 0);
+});
+
+test("surfaceReasons：与近 7 天重浮无标签重叠才算主题新鲜", () => {
+    const target = item({ aiTags: ["ai", "架构"] });
+    const noOverlap = surfaceReasons(target, [new Set(["阅读"])], NOW);
+    assert.ok(noOverlap.some((reason) => reason.kind === "freshTopic"));
+    const overlap = surfaceReasons(target, [new Set(["ai"])], NOW);
+    assert.ok(!overlap.some((reason) => reason.kind === "freshTopic"));
+    // 近期没有重浮历史时没有可比对象，不给新鲜理由
+    assert.ok(!surfaceReasons(target, [], NOW).some((reason) => reason.kind === "freshTopic"));
 });

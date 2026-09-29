@@ -1,5 +1,12 @@
 # 进度（PROGRESS）
 
+## S4 重浮与回顾对账（代码/隔离验证完成，真机验收进行中）◐（2026-09-30，D-0028 后续）
+
+- [x] T-1710：重浮与超龄归档改为**对账后索引的纯投影**——`computeDailyFromIndex` / `staleCandidatesFromIndex` 不再直读缓存（面板打开/刷新时 reconcileIndex 的结果作为唯一输入）；周报口径此前已按 D-0028 只认可信完成时间。
+- [x] T-1710：超龄归档从"一键全归"改为**候选清单预览**：横幅按钮展开逐篇勾选清单（标题/站点/吃灰天数），确认后 `archiveStaleCandidates` 按显式 ID 逐篇归档并报告真实成功数；清单外篇目不受影响。
+- [x] T-1717：`domain/resurface.ts` 新增 `surfaceReasons`（吃灰天数/用户优先级/站点/近期未读主题四类事实理由，平静口吻）；重浮卡新增"为什么出现"行；改天幂等与"开始阅读只进 reading"经 E2E 断言锁定。
+- [x] 门禁：`pnpm check` 0 错误（38 条既有 Svelte 告警）、`pnpm test` **127/127**、`pnpm build` 通过、隔离内核 `scripts/e2e/s1-flow.mjs` **13/13**（新增重浮确定性+理由、略过幂等、超龄显式清单三项断言）。未发布新版本。
+
 ## S3 收尾：完成时间与正文诊断（代码/隔离验证完成，真机验收进行中）◐（2026-09-30，D-0028）
 
 - [x] T-1709（契约先行）：DATA-CONTRACT 新增 `custom-clip-done-time`（D-0028）：仅由显式"标记读完"写入/覆盖，归档与恢复不抹除；导入只采信导出文件的可靠已读时间（Pocket `time_read`，Omnivore/wallabag 无此字段不伪造）；缺键 = 完成时间未知。

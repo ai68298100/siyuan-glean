@@ -1,42 +1,29 @@
 <script lang="ts">
-/** 今日拾遗视图（T-1400/T-1402）：确定性挑选，读了/改天/归档，平静原则文案。 */
+/** 今日拾遗视图（T-1400/T-1402/T-1717）：确定性挑选，读了/改天/归档，平静原则文案。
+ * 重浮是纯投影：输入是父级刚对账过的索引（T-1710），本组件不再另读缓存。 */
 import { showMessage } from "siyuan";
 import type { GleanFacade } from "../types";
 import { t } from "../libs/i18n";
-import { computeDaily, actOnSurface } from "../services/resurface-service";
-import { ageDays, type SurfacePick } from "../domain/resurface";
+import { computeDailyFromIndex, actOnSurface } from "../services/resurface-service";
+import type { GleanIndex } from "../services/index-store";
+import { type SurfacePick, type SurfaceReason } from "../domain/resurface";
 import { hasSourceAction, openTargetForCarrier, resolveCarrier, sourceUrlForCarrier } from "../domain/carrier";
 
 interface Props {
     facade: GleanFacade;
+    /** 面板对账后的派生索引；每次属性变化由父级传入新引用触发重算。 */
+    index: GleanIndex;
     onMutated: () => void;
 }
 
-let { facade, onMutated }: Props = $props();
+let { facade, index, onMutated }: Props = $props();
 
 const i18n = $derived(facade.i18n);
 
-let picks = $state<SurfacePick[]>([]);
-let recentCount = $state(0);
-let loading = $state(true);
+const daily = $derived(computeDailyFromIndex(index, facade.settings));
+const picks = $derived(daily.picks);
+const recentCount = $derived(daily.recentCount);
 let actingId = $state("");
-
-async function reload() {
-    loading = true;
-    try {
-        const daily = await computeDaily(facade.pluginInstance, facade.settings);
-        picks = daily.picks;
-        recentCount = daily.recentCount;
-    } catch {
-        picks = [];
-    } finally {
-        loading = false;
-    }
-}
-
-$effect(() => {
-    void reload();
-});
 
 function openDoc(docId: string) {
     facade.openReadingDocument(docId);
@@ -70,7 +57,6 @@ async function act(pick: SurfacePick, action: "read" | "later" | "archive") {
     try {
         await actOnSurface(facade.pluginInstance, pick.item.id, action);
         if (action === "read") openReading(pick);
-        await reload();
         onMutated();
     } catch (error) {
         showMessage(String(error).slice(0, 120), 4000);
@@ -91,8 +77,13 @@ function summaryText(pick: SurfacePick): string {
     return pick.item.summary || t(i18n, "resurface.noSummary");
 }
 
-function staleOf(pick: SurfacePick): number {
-    return ageDays(pick.item.time);
+function reasonText(reason: SurfaceReason): string {
+    switch (reason.kind) {
+        case "stale": return t(i18n, "resurface.reason.stale", { n: reason.days ?? 0 });
+        case "priority": return t(i18n, "resurface.reason.priority", { n: reason.priority ?? 3 });
+        case "site": return t(i18n, "resurface.reason.site", { site: reason.site ?? "" });
+        case "freshTopic": return t(i18n, "resurface.reason.freshTopic");
+    }
 }
 </script>
 
@@ -108,16 +99,14 @@ function staleOf(pick: SurfacePick): number {
                 </div>
             </div>
             <div class="glean-head-actions">
-                <button class="glean-icon-btn" title={t(i18n, "action.refresh")} onclick={() => void reload()}>
+                <button class="glean-icon-btn" title={t(i18n, "action.refresh")} onclick={() => onMutated()}>
                     <svg><use href="#iconGleanRefresh" /></svg>
                 </button>
             </div>
         </div>
     </header>
 
-    {#if loading}
-        <div class="glean-panel__loading">{t(i18n, "panel.loading")}</div>
-    {:else if picks.length === 0}
+    {#if picks.length === 0}
         <div class="glean-empty">
             <div class="glean-empty__art">🌱</div>
             <div class="glean-empty__title">{t(i18n, "resurface.allDone")}</div>
@@ -137,8 +126,15 @@ function staleOf(pick: SurfacePick): number {
                         {#if pick.item.aiTags.length > 0}
                             <span>#{pick.item.aiTags.slice(0, 3).join(" #")}</span>
                         {/if}
-                        <span>· {t(i18n, "panel.staleDays", { n: staleOf(pick) })}</span>
                     </div>
+                    {#if pick.reasons.length > 0}
+                        <div class="glean-surf__why" title={t(i18n, "resurface.why")}>
+                            <span class="glean-surf__why-label">{t(i18n, "resurface.why")}</span>
+                            {#each pick.reasons as reason (reason.kind + (reason.site ?? ""))}
+                                <span class="glean-stale">{reasonText(reason)}</span>
+                            {/each}
+                        </div>
+                    {/if}
                     <div class="glean-surf__acts">
                         {#if hasSourceAction(pick.item.contentType, pick.item.url)}
                             <button class="glean-surf-act" disabled={actingId === pick.item.id} onclick={() => openSource(pick)}>

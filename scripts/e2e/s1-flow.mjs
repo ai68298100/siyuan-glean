@@ -105,7 +105,12 @@ async function runFlow(client, workspace) {
     const listing = await client.apiChecked("/api/notebook/lsNotebooks", {});
     const box = listing.notebooks.find((item) => item.name === notebookName)?.id;
     assert.match(box ?? "", /^\d{14}-[0-9a-z]{7}$/);
-    const settings = { anchorNotebooks: [box], migrateBatchSize: 1 };
+    const settings = {
+        anchorNotebooks: [box],
+        migrateBatchSize: 1,
+        resurface: { dailyCount: 2, includeDoneHighlights: false },
+        staleDays: 90,
+    };
 
     const makeDoc = (title, body, tags = "") => client.apiChecked("/api/filetree/createDocWithMd", {
         notebook: box,
@@ -282,6 +287,34 @@ async function runFlow(client, workspace) {
     assert.equal((await client.apiChecked("/api/attr/getBlockAttrs", { id: hollow }))["custom-clip-words"], "0");
     pass("全文待核与空正文显式测量真实写回属性，不改用户正文");
 
+    // S4/T-1710/T-1717：重浮与超龄归档在对账后的索引上投影，略过幂等，归档按显式清单。
+    const resurface = await import("../../src/services/resurface-service.ts");
+    const surfaceIndex = await clip.reconcileIndex(newPlugin(), settings);
+    const dailyA = resurface.computeDailyFromIndex(surfaceIndex, settings);
+    const dailyB = resurface.computeDailyFromIndex(surfaceIndex, settings);
+    assert.deepEqual(dailyA, dailyB);
+    assert(dailyA.picks.length >= 1 && dailyA.picks.length <= 2);
+    for (const pick of dailyA.picks) assert(Array.isArray(pick.reasons));
+    const skippedId = dailyA.picks[0].item.id;
+    await resurface.actOnSurface(plugin, skippedId, "later");
+    const skipFirst = (await client.apiChecked("/api/attr/getBlockAttrs", { id: skippedId }))["custom-clip-last-surfaced"];
+    await resurface.actOnSurface(plugin, skippedId, "later");
+    const skipSecond = (await client.apiChecked("/api/attr/getBlockAttrs", { id: skippedId }))["custom-clip-last-surfaced"];
+    assert.equal(skipSecond, skipFirst);
+    const afterSkipIndex = await clip.reconcileIndex(newPlugin(), settings);
+    assert(!resurface.computeDailyFromIndex(afterSkipIndex, settings).picks.some((pick) => pick.item.id === skippedId));
+    pass("今日拾遗同索引确定性挑选并附理由；改天幂等且当天不再出现");
+
+    await clip.writeClip(newPlugin(), oldB, { status: "later", time: "20240101000000" });
+    const staleIndex = await clip.reconcileIndex(newPlugin(), settings);
+    const staleList = resurface.staleCandidatesFromIndex(staleIndex, settings);
+    assert(staleList.some((item) => item.id === oldB));
+    const archivedStale = await resurface.archiveStaleCandidates(plugin, [oldB]);
+    assert.deepEqual(archivedStale, { ok: 1, succeeded: [oldB] });
+    assert.equal((await client.apiChecked("/api/attr/getBlockAttrs", { id: oldB }))["custom-clip-status"], "archived");
+    assert.equal((await client.apiChecked("/api/attr/getBlockAttrs", { id: oldA }))["custom-clip-status"], "inbox");
+    pass("超龄清单来自对账索引；只归档勾选篇目并报告真实成功数");
+
     const beforeFilter = await client.apiChecked("/api/attr/getBlockAttrs", { id: fulltext });
     const currentIndex = await newPlugin().loadData("glean-index.json");
     const items = Object.values(currentIndex.clips).map((entry) => ({ ...entry, kind: "clip" }));
@@ -303,7 +336,8 @@ async function runFlow(client, workspace) {
     assert.equal(rebuilt.clips[urlOnly].status, "archived");
     assert.equal(rebuilt.clips[urlOnly].doneTime, doneAt);
     assert.equal(rebuilt.clips[oldA].status, "inbox");
-    assert.equal(rebuilt.clips[oldB].status, "inbox");
+    assert.equal(rebuilt.clips[oldB].status, "archived");
+    assert.equal(rebuilt.clips[oldB].time, "20240101000000");
     assert.equal(rebuilt.clips[importedId].status, "done");
     assert.match(rebuilt.clips[importedId].doneTime, /^\d{14}$/);
     assert.equal(rebuilt.clips[fulltext].status, "later");

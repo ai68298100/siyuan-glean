@@ -23,11 +23,23 @@ export interface SurfaceItem {
     /** 阅读载体与来源 URL；仅用于导航提示，不参与重浮评分。 */
     contentType?: string;
     url?: string;
+    /** 站点名，仅用于"为什么出现"说明，不参与评分。 */
+    site?: string;
 }
 
 export interface SurfacePick {
     item: SurfaceItem;
     score: number;
+}
+
+/** "为什么出现"的结构化理由（T-1717）；UI 负责转 i18n，域层不做文案。 */
+export type SurfaceReasonKind = "stale" | "priority" | "site" | "freshTopic";
+
+export interface SurfaceReason {
+    kind: SurfaceReasonKind;
+    days?: number;
+    priority?: number;
+    site?: string;
 }
 
 const DAY_MS = 86_400_000;
@@ -163,4 +175,37 @@ export function staleCandidates(items: SurfaceItem[], staleDaysLimit: number, no
         (item) =>
             (item.status === "inbox" || item.status === "later") && ageDays(item.time, now) >= staleDaysLimit
     );
+}
+
+/**
+ * 解释一篇为何出现在今日拾遗（T-1717）。只列事实，不用欠账口吻（平静原则）：
+ * 吃灰天数 ≥7 才列出（刚收录不算等待）；优先级 ≥4 说明是用户自己标的重要；
+ * 站点来源照实展示；与近 7 天已重浮文章无标签重叠时说明主题新鲜。
+ */
+export function surfaceReasons(
+    item: SurfaceItem,
+    recentTagSets: Set<string>[],
+    now: Date = new Date()
+): SurfaceReason[] {
+    const reasons: SurfaceReason[] = [];
+    const days = ageDays(item.time, now);
+    if (days >= 7) reasons.push({ kind: "stale", days });
+    if ((item.priority || 3) >= 4) reasons.push({ kind: "priority", priority: item.priority || 3 });
+    const site = String(item.site ?? "").trim();
+    if (site) reasons.push({ kind: "site", site });
+    const tags = new Set((item.aiTags || []).map((tag) => tag.toLowerCase()));
+    if (recentTagSets.length > 0 && tags.size > 0) {
+        let overlap = false;
+        for (const tag of tags) {
+            for (const recent of recentTagSets) {
+                if (recent.has(tag)) {
+                    overlap = true;
+                    break;
+                }
+            }
+            if (overlap) break;
+        }
+        if (!overlap) reasons.push({ kind: "freshTopic" });
+    }
+    return reasons;
 }
