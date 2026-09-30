@@ -242,6 +242,12 @@
         };
     });
 
+    $effect(() => {
+        // T-1748 键盘流：document 级监听 + isReaderFocused 限定（仅焦点在阅读宿主时生效）
+        document.addEventListener("keydown", handleHotkey);
+        return () => document.removeEventListener("keydown", handleHotkey);
+    });
+
     // 页签聚焦与尺寸事件由壳派发；数据变化后只刷新伴生栏，不动正文实例。
     $effect(() => {
         const onFocus = () => {
@@ -425,6 +431,76 @@
         sessionStart = Date.now();
         pausedElapsed = 0;
         sessionDisplay = 0;
+    }
+
+    // T-1748 键盘流：宿主聚焦时 j/k 步进滚动、e 切模式、m 标记已读、x 摘录、? 帮助。
+    // 仅当焦点在阅读宿主内且不在输入控件时生效；与思源全局快捷键的冲突随 B-0002 真机核验。
+    function stepToNeighborBlock(direction: 1 | -1): void {
+        const host = protyle?.protyle?.element;
+        if (!host) return;
+        const blocks = Array.from(host.querySelectorAll("[data-node-id]"));
+        const anchorId = currentAnchorId();
+        const index = blocks.findIndex((block) => block.getAttribute("data-node-id") === anchorId);
+        const next = blocks[Math.min(blocks.length - 1, Math.max(0, index + direction))];
+        next?.scrollIntoView({ block: "start", behavior: "smooth" });
+    }
+
+    function showHotkeyHelp(): void {
+        const wrap = document.createElement("div");
+        const rows: Array<[string, string]> = [
+            ["j / k", t(i18n, "reader.hotkeyScroll")],
+            ["e", t(i18n, "reader.hotkeyMode")],
+            ["m", t(i18n, "action.markDone")],
+            ["x", t(i18n, "reader.excerptQuote")],
+            ["?", t(i18n, "reader.hotkeyHelp")],
+        ];
+        wrap.innerHTML = rows
+            .map(([key, label]) => `<div style="display:flex;gap:12px;padding:3px 0;font-size:12.5px"><span style="flex-shrink:0;font-weight:600">${key}</span><span>${label}</span></div>`)
+            .join("");
+        void import("../libs/dialog").then(({ simpleDialog: dialog }) => {
+            dialog({ title: t(i18n, "reader.hotkeyHelp"), ele: wrap, width: "420px" });
+        });
+    }
+
+    function isReaderFocused(): boolean {
+        const host = document.querySelector(".glean-reader");
+        if (!host) return false;
+        const active = document.activeElement;
+        const selection = window.getSelection();
+        const anchor = selection && !selection.isCollapsed ? selection.anchorNode : active;
+        return Boolean(anchor && host.contains(anchor));
+    }
+
+    function handleHotkey(event: KeyboardEvent): void {
+        if (!docId || !isReaderFocused()) return;
+        const target = event.target as HTMLElement | null;
+        if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) return;
+        switch (event.key) {
+            case "j":
+                event.preventDefault();
+                stepToNeighborBlock(1);
+                break;
+            case "k":
+                event.preventDefault();
+                stepToNeighborBlock(-1);
+                break;
+            case "e":
+                event.preventDefault();
+                setMode(mode === "read" ? "edit" : "read");
+                break;
+            case "m":
+                event.preventDefault();
+                void writeStatus("done");
+                break;
+            case "x":
+                event.preventDefault();
+                void quoteExcerpt();
+                break;
+            case "?":
+                event.preventDefault();
+                showHotkeyHelp();
+                break;
+        }
     }
 
     async function runTranslateFull(): Promise<void> {
