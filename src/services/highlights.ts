@@ -11,6 +11,8 @@ export interface HighlightItem {
     text: string;
     /** 行内 markdown（含加粗/链接等标记，渲染用） */
     markdown: string;
+    /** 摘录时间 YYYYMMDDHHmmss（块更新时间；T-1753） */
+    at: string;
 }
 
 export async function listDocHighlights(rootDocId: string): Promise<HighlightItem[]> {
@@ -20,6 +22,7 @@ export async function listDocHighlights(rootDocId: string): Promise<HighlightIte
             id: row.id,
             text: cleanQuoteText(row.content || ""),
             markdown: row.markdown || "",
+            at: /^\d{14}$/.test(row.updated ?? "") ? (row.updated as string) : "",
         }))
         .filter((item) => item.text.length > 0);
 }

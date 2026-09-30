@@ -99,6 +99,11 @@ async function card(quote: string) {
 function openDoc(docId: string) {
     void openTab({ app: facade.pluginInstance.app, doc: { id: docId }, keepCursor: false });
 }
+
+/** T-1753：跳到原文位置——doc.id 传引述块 ID，思源打开所在文档（块内精确滚动随 B-0002）。 */
+function jumpToQuote(quoteBlockId: string): void {
+    if (/^\d{14}-[0-9a-z]{7}$/.test(quoteBlockId)) openDoc(quoteBlockId);
+}
 </script>
 
 <div class="glean-panel">
@@ -123,6 +128,13 @@ function openDoc(docId: string) {
                     <div class="glean-hl__q">{item.text}</div>
                     <div class="glean-hl__m">
                         <span>{t(i18n, "highlight.quoteTag")}</span>
+                        {#if item.at}
+                            <!-- T-1753：摘录时间（块更新时间投影） -->
+                            <span class="glean-hl__time">{item.at.slice(4, 6)}/{item.at.slice(6, 8)} {item.at.slice(8, 10)}:{item.at.slice(10, 12)}</span>
+                        {/if}
+                        <button class="glean-hl__card" title={t(i18n, "highlight.jumpTo")} onclick={() => jumpToQuote(item.id)}>
+                            ↗ {t(i18n, "highlight.jumpTo")}
+                        </button>
                         <button
                             class="glean-hl__card"
                             disabled={cardingKey === item.text.slice(0, 24)}

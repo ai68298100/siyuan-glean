@@ -2,7 +2,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { aggregateStats, buildWeeklyReportMarkdown, readingHeatmap, weeklyReportDocPath, type StatsInput } from "../src/domain/stats.ts";
+import { aggregateStats, buildWeeklyReportMarkdown, captureFunnel, readingHeatmap, weeklyReportDocPath, type StatsInput } from "../src/domain/stats.ts";
 
 function item(partial: Partial<StatsInput>): StatsInput {
     return {
@@ -146,4 +146,14 @@ test("readingHeatmap：空输入给全零网格（当前周截断）", () => {
     assert.equal(grid.cells.length, 9);
     assert.equal(grid.maxCount, 0);
     assert.equal(grid.totalDone, 0);
+});
+
+test("captureFunnel：候选→收录→完成转化率（T-1773）", () => {
+    const funnel = captureFunnel(80, 20, 20);
+    assert.deepEqual(funnel, {
+        candidates: 20, captured: 80, done: 20, captureRate: 80, doneRate: 25,
+    });
+    assert.deepEqual(captureFunnel(0, 0, 0), {
+        candidates: 0, captured: 0, done: 0, captureRate: 0, doneRate: 0,
+    });
 });

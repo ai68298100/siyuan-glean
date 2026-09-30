@@ -127,6 +127,8 @@ export interface BlockRow {
     type: string;
     root_id: string;
     box: string;
+    /** 块更新时间 YYYYMMDDHHmmss（T-1753 摘录时间展示用） */
+    updated?: string;
 }
 
 /**
@@ -136,7 +138,7 @@ export interface BlockRow {
 export async function listQuoteBlocks(rootDocId: string, limit = 200): Promise<BlockRow[]> {
     if (!/^(\d{14}-[0-9a-z]{7})$/.test(rootDocId)) return [];
     const data = await kernelPost<BlockRow[]>("/api/query/sql", {
-        stmt: `SELECT id, content, markdown, type, root_id, box FROM blocks
+        stmt: `SELECT id, content, markdown, type, root_id, box, updated FROM blocks
                WHERE root_id = '${rootDocId.replace(/'/g, "''")}' AND type = 'b' ORDER BY sort ASC LIMIT ${limit}`,
     });
     return Array.isArray(data) ? data : [];

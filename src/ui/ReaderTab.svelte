@@ -28,6 +28,8 @@
     import { readerAiEnabled, readerAsk, readerSummarize, readerTranslate, saveReaderSummary } from "../services/reader-ai";
     import { clampAskQuestion } from "../domain/reader";
     import { fetchDocOutline, outlineIndent, type OutlineHeading } from "../services/outline";
+    import { nextSpeechRate } from "../domain/tts";
+    import { speakText, stopSpeaking, ttsAvailable } from "../services/tts";
     import ClipStatusActions from "./ClipStatusActions.svelte";
     import ClipRankControls from "./ClipRankControls.svelte";
 
@@ -82,6 +84,45 @@
     let outlineOpen = $state(false);
     let outlineSeq = 0;
     const outlineIndents = $derived(outlineIndent(outline));
+
+    // T-1744 TTS 朗读：Web Speech 能力探测降级；移动端隐藏入口（facade.isMobile）；
+    // 朗读源 = 正文 DOM 文本（公开字段），选区优先用摘录捕获；纯会话行为不落任何存储。
+    const ttsOn = $derived(ttsAvailable() && !facade.isMobile);
+    let speaking = $state(false);
+    let speechRate = $state(1);
+    let speechHandle: { stop: () => void; active: () => boolean } | null = null;
+
+    function bodyTextForSpeech(): string {
+        return (protyle?.protyle?.element?.textContent ?? "").replace(/\s+/g, " ").trim();
+    }
+
+    function startSpeech(text: string): void {
+        if (!ttsOn || !text) return;
+        stopSpeech(false);
+        speaking = true;
+        speechHandle = speakText(text, speechRate, () => {
+            speaking = false;
+            speechHandle = null;
+        });
+    }
+
+    function stopSpeech(notify = true): void {
+        speechHandle?.stop();
+        speechHandle = null;
+        stopSpeaking();
+        speaking = false;
+        if (notify) showMessage(t(i18n, "reader.ttsStopped"), 1500);
+    }
+
+    function toggleSpeechRate(): void {
+        speechRate = nextSpeechRate(speechRate);
+        showMessage(t(i18n, "reader.ttsRate", { n: speechRate }), 1500);
+        if (speaking) {
+            // 换速即重启当前朗读（简单可预期；断点续读随真机反馈再议）
+            const text = bodyTextForSpeech();
+            startSpeech(text);
+        }
+    }
 
     async function loadOutline(id: string): Promise<void> {
         const seq = ++outlineSeq;
@@ -146,6 +187,8 @@
         return () => {
             protyle?.destroy();
             protyle = null;
+            // T-1744：页签销毁时停止朗读，不留悬挂的语音队列
+            stopSpeech(false);
         };
     });
 
@@ -670,6 +713,21 @@
                     <button class="glean-btn glean-btn--ghost" disabled={snapping} onclick={() => void takeSnapshot()}>
                         {context.snapshot ? "⟐" : "📷"}
                     </button>
+                    {#if ttsOn}
+                        <!-- T-1744 TTS：选区（摘录捕获）优先，其次全文；能力缺失/移动端整行隐藏 -->
+                        {#if speaking}
+                            <button class="glean-btn glean-btn--ghost" onclick={() => stopSpeech()}>{t(i18n, "reader.ttsStop")}</button>
+                        {:else}
+                            <button
+                                class="glean-btn glean-btn--ghost"
+                                title={excerpt?.text ? t(i18n, "reader.ttsSelection") : t(i18n, "reader.ttsFull")}
+                                onclick={() => startSpeech(excerpt?.text || bodyTextForSpeech())}
+                            >▶ {t(i18n, "reader.ttsSpeak")}</button>
+                        {/if}
+                        <button class="glean-btn glean-btn--ghost" title={t(i18n, "reader.ttsRateTitle")} onclick={toggleSpeechRate}>
+                            {speechRate}×
+                        </button>
+                    {/if}
                 </div>
                 {#if bodyState === "unmeasured"}
                     <button class="glean-btn glean-btn--ghost" disabled={measuring} title={t(i18n, "clip.bodyCheckHint")} onclick={() => void checkBody()}>

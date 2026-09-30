@@ -5,7 +5,7 @@ import type { GleanFacade } from "../types";
 import { t } from "../libs/i18n";
 import type { GleanIndex } from "../services/index-store";
 import { buildStats, exportWeeklyReport, exportMonthlyReview } from "../services/stats-service";
-import { readingHeatmap, type HeatmapGrid, type ReadingStats } from "../domain/stats";
+import { readingHeatmap, captureFunnel, type HeatmapGrid, type ReadingStats } from "../domain/stats";
 
 interface Props {
     facade: GleanFacade;
@@ -43,6 +43,13 @@ const heatmap = $derived.by<HeatmapGrid | null>(() => {
     if (!stats) return null;
     const doneTimes = Object.values(index.clips).map((clip) => clip.doneTime);
     return readingHeatmap(doneTimes, HEATMAP_WEEKS);
+});
+
+// T-1773 收录漏斗：候选→收录→完成转化率（纯投影）
+const funnel = $derived.by(() => {
+    if (!stats) return null;
+    const doneCount = Object.values(index.clips).filter((clip) => /^\d{14}$/.test(clip.doneTime)).length;
+    return captureFunnel(Object.keys(index.clips).length, doneCount, Object.keys(index.candidates).length);
 });
 
 function heatLevel(count: number, max: number): number {
@@ -161,6 +168,29 @@ $effect(() => {
                         <span class="glean-tag">{tag.name} ×{tag.count}</span>
                     {/each}
                 </div>
+            </div>
+        {/if}
+
+        {#if funnel && funnel.captured + funnel.candidates > 0}
+            <div class="glean-sect">{t(i18n, "stats.funnel")}</div>
+            <div class="glean-block">
+                <div class="glean-bar-row">
+                    <span class="glean-bar-row__nm">{t(i18n, "stats.funnelCaptured")}</span>
+                    <div class="glean-bar-row__bar"><i style="width:100%"></i></div>
+                    <span class="glean-bar-row__ct">{funnel.captured}</span>
+                </div>
+                <div class="glean-bar-row">
+                    <span class="glean-bar-row__nm">{t(i18n, "stats.funnelDone")}</span>
+                    <div class="glean-bar-row__bar"><i style={`width:${Math.max(funnel.doneRate, funnel.done > 0 ? 4 : 0)}%`}></i></div>
+                    <span class="glean-bar-row__ct">{funnel.done}（{funnel.doneRate}%）</span>
+                </div>
+                {#if funnel.candidates > 0}
+                    <div class="glean-bar-row">
+                        <span class="glean-bar-row__nm">{t(i18n, "stats.funnelPending")}</span>
+                        <div class="glean-bar-row__bar"><i style={`width:${Math.max(100 - funnel.captureRate, 4)}%`}></i></div>
+                        <span class="glean-bar-row__ct">{funnel.candidates}</span>
+                    </div>
+                {/if}
             </div>
         {/if}
 

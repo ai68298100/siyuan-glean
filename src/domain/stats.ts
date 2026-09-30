@@ -326,3 +326,30 @@ export function buildMonthlyReviewMarkdown(review: MonthlyReview, now: Date = ne
     }
     return lines.join("\n");
 }
+
+/* ---------- 收录漏斗（T-1773） ---------- */
+
+export interface CaptureFunnel {
+    /** 待确认候选（当前瞬时值） */
+    candidates: number;
+    /** 已收录（索引内全部状态） */
+    captured: number;
+    /** 有可信完成时间的条目（D-0028 口径，与当前状态无关） */
+    done: number;
+    /** 收录转化率：已收录 / (已收录 + 待确认候选)，百分比 */
+    captureRate: number;
+    /** 完成转化率：有完成时间 / 已收录，百分比 */
+    doneRate: number;
+}
+
+/** 收录漏斗纯投影：候选→收录→完成三段转化率；不新增写入。 */
+export function captureFunnel(capturedCount: number, doneCount: number, candidateCount: number): CaptureFunnel {
+    const pool = capturedCount + candidateCount;
+    return {
+        candidates: candidateCount,
+        captured: capturedCount,
+        done: doneCount,
+        captureRate: pool > 0 ? Math.round((capturedCount / pool) * 100) : 0,
+        doneRate: capturedCount > 0 ? Math.round((doneCount / capturedCount) * 100) : 0,
+    };
+}
