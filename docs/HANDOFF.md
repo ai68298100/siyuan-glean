@@ -1,5 +1,22 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-01 P0 缺陷批次修复：T-1881/1882/1883/1885/1979/1980/1987）
+
+- 作者指令"读取仓库情况，并按待办计划开发"= 开发授权；按优先级先清 **七项 P0 缺陷**（可靠性/数据主权），未做新功能。
+- **T-1881 索引写入串行化**：`index-store.ts` 新增 `withIndexLock`（内存 promise 链互斥）；`writeClip` 读改写段与 `reconcileIndex/rebuildIndex` 保存段全部入锁。教训：互斥只约束本插件实例执行顺序，锁内不得再获取锁（当前无嵌套）。
+- **T-1882 对账合并+代次**：`reconcileIndex` 进行中调用合并（`reconcileInFlight`）；`DockPanel.reload` 加 `reloadSeq` 代次守卫。全量对账与增量写互斥后，慢对账不再回滚期间的属性写入。
+- **T-1883 AI 额度原子租约**：`enrich-service` 导出 `runAiTask`（即原富化串行队列），`reader-ai` 总结/翻译的检查→调用→计数全程入队；并发回归：额度 2、并发 4 任务只放行 2 次模型调用。
+- **T-1885 完成统计口径**：`domain/stats.ts` `aggregateStats` 与 `stats-service` 周报 doneItems 改为只认 `doneTime`、与 status 解耦——读完又归档不丢本周完成记录（对齐 D-0028 本意；旧测试断言的正是缺陷行为，已更新）。
+- **T-1979 首启导入路由**：`OnboardingDialog` 能力卡"导入器"链接改 `finishThenImport()` → `facade.openImport()`（原先借道 `finish(true)` 开迁移器）。
+- **T-1980 焦点编辑器+收录前置**：`index.ts` 新增 `focusedEditor()`（活跃选区/焦点元素定位，无焦点回退第一个编辑器）；`markCurrentStatus` 对未收录文档提示（新 i18n 键 `msg.notInLibrary` 双名）；`batchSetStatusDetailed` 服务端跳过未收录文档（按未成功结算）——超龄清单/看板/智能体的 ID 都来自索引，正常路径不受影响（E2E 实证）。
+- **T-1987 内部宿主身份**：schema 新增纯函数 `isMarkedInternalDoc`；`library-db.findVerifiedHost` 只复用带 `custom-clip-internal` 标记的宿主，旧版无标记宿主以"内部已有四字段库（状态/字数/时长/来源）"幂等补标恢复；flashcard 宿主只认标记、无标记另建（riff 无按文档查卡端点，未臆造，旧卡按块注册仍可复习——后续要迁移先 spike `getTreeRiffCards`）；`api/av.ts` 新增 `findDocsByTitle`（全候选，保留旧 `findDocByTitle`）。
+- **契约同步**（行为澄清，无新属性）：DATA-CONTRACT §2 补宿主复用身份与状态动作前置；§3 补写入互斥与对账合并；§3.3 补 AI 租约原子性。
+- 门禁：`pnpm check` 0 错误 / 39 条既有告警、`pnpm test` **135/132+3**、`pnpm build` 通过、隔离 E2E **19/16+3**（新增：状态动作跳过未收录、读库/闪卡宿主身份三断言；E2E 里新建宿主后查 SQL 必须 `until` 轮询等索引刷新，踩过一次）。未发布新版本。
+- 未动项：T-1884/T-1886（P1）保持待办；多画布并发、分屏焦点、宿主幂等的真机行为统一随 B-0002。
+- 下一批候选（作者点单驱动）：P1 功能线（T-1740 本文大纲 / T-1744 TTS spike / T-1750 摘录墙 / T-1760 问这篇文章 / T-1770 热力图 / T-1780 备份恢复 / T-1790 a11y 清零），或继续 P1 缺陷（T-1839 ReaderTab 竞态 / T-1840/1841 半成功恢复 / T-1955–T-1957 竞态组 / T-1985 archive_stale 真实结算）。
+
+## 历史交接存档
+
 ## 当前有效交接（2026-09-30 UI 专项质感与美观复核）
 
 - 本轮只读 UI 复核记录见 [RESEARCH-ui-polish-audit-2026-09.md](RESEARCH-ui-polish-audit-2026-09.md)，覆盖 `src/index.scss`、`src/ui/*.svelte`、`UI-STANDARD.md` 和 `design/prototype.html`；没有修改 `src/`，没有驱动作者真实思源窗口。

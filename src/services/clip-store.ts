@@ -30,7 +30,7 @@ import {
 } from "../domain/schema";
 import { inspectClipMarkdown } from "../domain/content";
 import { normalizeUrl } from "../domain/url";
-import { applyAttrsToIndex, emptyIndex, loadIndex, saveIndex, type GleanIndex } from "./index-store";
+import { applyAttrsToIndex, emptyIndex, loadIndex, saveIndex, withIndexLock, type GleanIndex } from "./index-store";
 import type { GleanSettings } from "./settings";
 
 export interface DocMeta {
@@ -165,9 +165,12 @@ export async function writeClip(
         else merged[key] = value;
     }
     const meta = await fetchDocMeta(docId);
-    const index = await loadIndex(plugin);
-    applyAttrsToIndex(index, { ...meta, id: docId }, merged);
-    await saveIndex(plugin, index);
+    // 读改写段进互斥锁（T-1881）：并发写不同文章时增量不互相覆盖
+    await withIndexLock(async () => {
+        const index = await loadIndex(plugin);
+        applyAttrsToIndex(index, { ...meta, id: docId }, merged);
+        await saveIndex(plugin, index);
+    });
 
     return { attrs: parseClipAttrs(merged), skippedKeys };
 }
@@ -260,6 +263,11 @@ export async function batchSetStatusDetailed(
     const succeeded: string[] = [];
     for (const docId of docIds) {
         try {
+            // T-1980 收录前置：未收录的普通文档不得被状态动作直接写属性（绕过候选确认）；
+            // 批量来源（超龄清单/看板/智能体）的 ID 都来自索引，理论上已收录，
+            // 这里兜底拦截并按"未成功"结算，不静默产出幽灵读库文档。
+            const ial = await getBlockAttrs(docId);
+            if (!ial[ATTR.status]) continue;
             // 这是用户显式状态动作，不适用自动写入的手填字段保护。
             // 标记读完同时记录完成时间（D-0028）：归档/恢复不抹除，再次标记读完覆盖。
             const patch: Partial<ClipAttrs> = { status };
@@ -467,24 +475,37 @@ async function batchGetClipAttrsForIndex(ids: string[]) {
     return batchReadClipAttrs(ids);
 }
 
+/** 进行中的全量对账（T-1882）：多画布同时挂载/刷新时共享同一次扫描，避免旧结果覆盖新索引。 */
+let reconcileInFlight: Promise<GleanIndex> | null = null;
+
 /**
  * 面板打开时完整对账。所有分页和属性读取成功后才保存新索引；新索引从空集合构造，
  * 因此已删除、已失去候选证据或移出扫描范围的幽灵候选会被清掉，而状态/URL 次锚点
  * 仍会保留移出主锚点笔记本的已收录文章。
+ * 并发语义（T-1882）：调用合并（进行中直接等它）+ 保存段与增量写互斥（T-1881），
+ * 因此慢对账不会回滚对账期间发生的属性写入。
  */
 export async function reconcileIndex(plugin: Plugin, settings: GleanSettings): Promise<GleanIndex> {
-    const scopes = await scanDocScopes(settings);
-    const index = await indexFromScopes(scopes);
-    return saveIndex(plugin, index);
+    if (reconcileInFlight) return reconcileInFlight;
+    reconcileInFlight = withIndexLock(async () => {
+        const scopes = await scanDocScopes(settings);
+        const index = await indexFromScopes(scopes);
+        return saveIndex(plugin, index);
+    }).finally(() => {
+        reconcileInFlight = null;
+    });
+    return reconcileInFlight;
 }
 
 function rowToMeta(row: DocRow): DocMeta {
     return { id: row.id, title: row.content || "", hpath: row.hpath || "", box: row.box || "", updated: row.updated || "" };
 }
 
-/** 全量重建：完整分页重扫三类范围并写入新索引。不动文档属性。 */
+/** 全量重建：完整分页重扫三类范围并写入新索引。不动文档属性；保存段与增量写互斥（T-1881）。 */
 export async function rebuildIndex(plugin: Plugin, settings: GleanSettings): Promise<GleanIndex> {
-    const scopes = await scanDocScopes(settings);
-    const index = await indexFromScopes(scopes);
-    return saveIndex(plugin, index);
+    return withIndexLock(async () => {
+        const scopes = await scanDocScopes(settings);
+        const index = await indexFromScopes(scopes);
+        return saveIndex(plugin, index);
+    });
 }

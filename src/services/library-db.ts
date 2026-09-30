@@ -5,18 +5,19 @@
  * 看板列即状态机五态（reading 视图列用 select 字段）。
  */
 import type { Plugin } from "siyuan";
-import { createDocWithMd } from "../api/client";
+import { createDocWithMd, getBlockAttrs } from "../api/client";
 import {
     addField,
     bindDocsAsRows,
     createDatabaseInDoc,
     findAvInDoc,
-    findDocByTitle,
+    findDocsByTitle,
     mapBoundDocIds,
     renderView,
     setCellSelect,
     type AvRef,
 } from "../api/av";
+import { isMarkedInternalDoc } from "../domain/schema";
 import { loadIndex } from "./index-store";
 import { writeClip } from "./clip-store";
 import type { GleanSettings } from "./settings";
@@ -39,15 +40,37 @@ export interface LibraryAnchor {
     fieldMap: Record<string, string>;
 }
 
+/**
+ * 宿主身份验证（T-1987）：只凭标题找回会把同名用户文档当宿主（往里建库、补绑文档）。
+ * 可复用的宿主必须满足其一：① 带 custom-clip-internal 标记；② 旧版创建的无标记宿主，
+ * 其内部已有本插件四字段库（幂等恢复，补标记后复用）。其余同名文档一律视为用户文档。
+ */
+async function findVerifiedHost(notebookId: string, plugin: Plugin) {
+    const candidates = await findDocsByTitle(notebookId, LIBRARY_DOC_TITLE);
+    for (const candidate of candidates) {
+        const ial = await getBlockAttrs(candidate.id);
+        if (isMarkedInternalDoc(ial)) return candidate;
+        const av = await findAvInDoc(candidate.id);
+        if (!av) continue;
+        const rendered = await renderWithRetry(av.avId, av.dbBlockId, 2);
+        const names = new Set((rendered?.view?.columns ?? []).map((column) => column.name));
+        if (LIBRARY_FIELDS.every((field) => names.has(field.name))) {
+            await writeClip(plugin, candidate.id, { internal: true });
+            return candidate;
+        }
+    }
+    return null;
+}
+
 /** 找回或创建读库库锚点（幂等）。 */
 export async function ensureLibraryAnchor(settings: GleanSettings, plugin: Plugin): Promise<LibraryAnchor> {
     const notebookId = settings.anchorNotebooks[0];
     if (!notebookId) throw new Error("请先设置读库笔记本");
-    let hostDoc = await findDocByTitle(notebookId, LIBRARY_DOC_TITLE);
+    let hostDoc = await findVerifiedHost(notebookId, plugin);
     if (!hostDoc) {
         const created = await createDocWithMd(notebookId, `/${LIBRARY_DOC_TITLE}`, `# ${LIBRARY_DOC_TITLE}\n\n`);
         if (!created) throw new Error("创建读库数据库宿主文档失败");
-        // 仅对本次新建的插件宿主打标；旧同名文档仍由路径/标题回退识别，避免误标用户文档。
+        // 仅对本次新建的插件宿主打标；用户同名文档永不写入（T-1987）。
         await writeClip(plugin, created, { internal: true });
         hostDoc = { id: created, content: LIBRARY_DOC_TITLE, hpath: `/${LIBRARY_DOC_TITLE}`, box: notebookId, updated: "" };
     }

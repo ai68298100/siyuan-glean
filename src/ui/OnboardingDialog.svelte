@@ -73,11 +73,19 @@ async function next(): Promise<void> {
     void runScan();
 }
 
-async function finish(openMigrate: boolean): Promise<void> {
+async function finish(): Promise<void> {
     await markDone();
     await persist();
     onClose();
-    if (openMigrate) facade.openMigrate();
+}
+
+/** T-1979：能力卡"导入器"链接显式打开导入器（Pocket/Omnivore 文件导入），
+ * 不再借道迁移器路由——那是给思源内存量文档用的，入口混走会误导首次用户。 */
+async function finishThenImport(): Promise<void> {
+    await markDone();
+    await persist();
+    onClose();
+    facade.openImport();
 }
 
 /** 有待确认候选时，完成键直达工作台逐篇确认（T-1719 的行动闭环）。 */
@@ -181,14 +189,14 @@ async function skip(): Promise<void> {
         <div class="glean-empty" style="padding: 0 12px">
             <div class="glean-empty__hint">
                 {t(i18n, "onboarding.importLink")}
-                <button class="glean-linkish" onclick={() => void finish(true)}>{t(i18n, "import.title")} →</button>
+                <button class="glean-linkish" onclick={() => void finishThenImport()}>{t(i18n, "import.title")} →</button>
             </div>
         </div>
         <div class="glean-migrate__ops">
             {#if scannedCandidates > 0}
                 <button class="glean-btn glean-btn--pri" onclick={() => void finishByConfirmingCandidates()}>{t(i18n, "onboarding.ctaConfirm")}</button>
             {:else}
-                <button class="glean-btn glean-btn--pri" onclick={() => void finish(false)}>{t(i18n, "onboarding.finish")}</button>
+                <button class="glean-btn glean-btn--pri" onclick={() => void finish()}>{t(i18n, "onboarding.finish")}</button>
             {/if}
         </div>
     {/if}

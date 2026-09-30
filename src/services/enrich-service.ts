@@ -195,6 +195,15 @@ function enqueueEnrich<T>(task: () => Promise<T>): Promise<T> {
 }
 
 /**
+ * AI 消耗统一租约（T-1883）：检查额度 → 调用模型 → 成功计数的全过程必须在同一个
+ * 串行队列任务内执行。伴读动作（reader-ai）与富化共享每日额度但原本各自检查，
+ * 并发时可能都读到"剩 1 次"而双双通过，超额消耗；现在全部走本队列，天然原子。
+ */
+export function runAiTask<T>(task: () => Promise<T>): Promise<T> {
+    return enqueueEnrich(task);
+}
+
+/**
  * 收录自动富化入口（fire-and-forget）：仅在 enrichMode==="auto" 时执行；绝不阻塞收录主流程。
  * 上限在 enrichClip 内统一把守（auto 与 manual 共享额度）。
  */

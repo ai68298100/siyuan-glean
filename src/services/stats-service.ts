@@ -34,9 +34,10 @@ export async function exportWeeklyReport(index: GleanIndex, settings: GleanSetti
     const { title, rangeLabel } = weeklyReportDocPath();
     const todayNoon = new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate(), 12).getTime();
 
-    // 周报"本周读完"只列有可信完成时间的条目（D-0028）；无 done-time 的已读不进列表。
+    // 周报"本周读完"只列有可信完成时间的条目（D-0028）；完成事实与当前状态解耦
+    //（T-1885）：读完后又归档的文章不丢本周记录；无 done-time 的已读不进列表。
     const doneItems: StatsInput[] = Object.values(index.clips)
-        .filter((clip) => clip.status === "done" && withinWeek(clip.doneTime, todayNoon))
+        .filter((clip) => withinWeek(clip.doneTime, todayNoon))
         .map((clip) => ({
             id: clip.id,
             title: clip.title,

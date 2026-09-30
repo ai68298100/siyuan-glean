@@ -188,6 +188,7 @@
   "panel.reloadFailed": "Library scan failed. Showing the last cached result; please retry.",
   "msg.indexRebuilt": "Index rebuilt",
   "msg.noSelection": "Place the cursor inside a document first",
+  "msg.notInLibrary": "This document is not in the library yet. Add it to the library before changing its status",
   "msg.confirmBatch": "Apply this to ${n} selected articles?",
   "highlight.title": "Highlights",
   "highlight.empty": "No quotes in this document",

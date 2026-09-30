@@ -188,6 +188,7 @@
   "panel.reloadFailed": "读库扫描失败，正在显示上次缓存。请重试。",
   "msg.indexRebuilt": "索引已重建",
   "msg.noSelection": "请先把光标放进一篇文档",
+  "msg.notInLibrary": "该文档尚未加入读库，请先「加入读库」收录再改变状态",
   "msg.confirmBatch": "确认对选中 ${n} 篇执行该操作？",
   "highlight.title": "本文高亮",
   "highlight.empty": "本文还没有引述块",

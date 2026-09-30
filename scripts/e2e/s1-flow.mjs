@@ -401,6 +401,50 @@ async function runFlow(client, workspace) {
     const afterWipe = await client.apiChecked("/api/attr/getBlockAttrs", { id: fulltext });
     assert.equal(afterWipe["custom-clip-status"], "later");
     pass("数据主权：卸载/清空插件存储后 custom-clip-* 属性仍在内核");
+
+    // T-1980：状态动作对未收录的普通文档是服务端空操作（兜底，不产出幽灵读库文档）。
+    const plainDoc = await makeDoc("T1980 普通笔记", "从未收录的文档不得被状态命令写属性。");
+    const guarded = await clip.batchSetStatusDetailed(plugin, [plainDoc], "done");
+    assert.deepEqual(guarded, { ok: 0, succeeded: [] });
+    const plainAttrs = await client.apiChecked("/api/attr/getBlockAttrs", { id: plainDoc });
+    assert.equal(plainAttrs["custom-clip-status"], undefined);
+    assert.equal(plainAttrs["custom-clip-done-time"], undefined);
+    pass("T-1980 状态动作跳过未收录文档，不写属性");
+
+    // T-1987 读库宿主身份：同名用户文档不被当作宿主写入；带 internal 标记的宿主幂等复用。
+    const avApi = await import("../../src/api/av.ts");
+    const libraryDb = await import("../../src/services/library-db.ts");
+    const userLibDoc = await makeDoc("读库数据库", "用户自己建的文档，插件不得写入。");
+    const anchor1 = await libraryDb.ensureLibraryAnchor(settings, plugin);
+    assert.notEqual(anchor1.hostDocId, userLibDoc);
+    await until("读库宿主与同名用户文档都进入 SQL 索引", async () => {
+        const rows = await avApi.findDocsByTitle(box, "读库数据库");
+        return rows.length === 2 ? rows : null;
+    });
+    const hostAttrs = await client.apiChecked("/api/attr/getBlockAttrs", { id: anchor1.hostDocId });
+    assert.equal(hostAttrs["custom-clip-internal"], "true");
+    const userLibAttrs = await client.apiChecked("/api/attr/getBlockAttrs", { id: userLibDoc });
+    assert.equal(userLibAttrs["custom-clip-internal"], undefined);
+    const anchor2 = await libraryDb.ensureLibraryAnchor(settings, plugin);
+    assert.equal(anchor2.hostDocId, anchor1.hostDocId);
+    pass("T-1987 读库宿主复用要求 internal 身份，同名用户文档不被写入");
+
+    // T-1987 闪卡宿主身份：同语义验证「拾遗卡片」宿主。
+    const flashcards = await import("../../src/services/flashcard-service.ts");
+    const userCardDoc = await makeDoc("拾遗卡片", "用户自己建的卡片文档。");
+    const deck1 = await flashcards.ensureFlashcardDeck(settings, plugin);
+    assert.notEqual(deck1.hostDocId, userCardDoc);
+    await until("闪卡宿主进入 SQL 索引", async () => {
+        const rows = await client.apiChecked("/api/query/sql", {
+            stmt: `SELECT id FROM blocks WHERE type='d' AND box='${box}' AND content='拾遗卡片'`,
+        });
+        return rows.some((row) => row.id === deck1.hostDocId) ? rows : null;
+    });
+    const deck2 = await flashcards.ensureFlashcardDeck(settings, plugin);
+    assert.equal(deck2.hostDocId, deck1.hostDocId);
+    const userCardAttrs = await client.apiChecked("/api/attr/getBlockAttrs", { id: userCardDoc });
+    assert.equal(userCardAttrs["custom-clip-internal"], undefined);
+    pass("T-1987 闪卡宿主复用要求 internal 身份，同名用户文档不被写入");
 }
 
 async function main() {

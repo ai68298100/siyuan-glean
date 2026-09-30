@@ -179,4 +179,12 @@ export async function findDocByTitle(notebookId: string, title: string): Promise
     return rows[0] ?? null;
 }
 
+/** 同名文档全集（T-1987）：宿主身份验证需要逐候选核对属性，不能 LIMIT 1 碰运气。 */
+export async function findDocsByTitle(notebookId: string, title: string): Promise<DocRow[]> {
+    return querySql<DocRow>(
+        `SELECT id, content, hpath, box, updated FROM blocks
+         WHERE type = 'd' AND box = '${sqlQuote(notebookId)}' AND content = '${sqlQuote(title)}'`
+    );
+}
+
 export { ID_PATTERN };

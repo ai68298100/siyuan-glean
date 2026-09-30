@@ -1,12 +1,13 @@
 /**
  * 摘录制卡服务（T-1502）：引文/选中文本 → 列表项闪卡 → "拾遗卡片"牌组。
- * 牌组与宿主文档幂等续建（按名找回，复用 library-db 的续建范式）。
+ * 牌组与宿主文档幂等续建（复用 library-db 的续建范式）。
  * v1 不消耗 token（卡面文案本地构造）；AI 问句化留待后续（动作钩子已留，D-0007）。
  */
 import type { Plugin } from "siyuan";
-import { insertBlockDom, createDocWithMd, querySql } from "../api/client";
+import { getBlockAttrs, insertBlockDom, createDocWithMd, querySql } from "../api/client";
 import { addRiffCards, createRiffDeck, getRiffDecks } from "../api/riff";
 import { buildFlashcardDom, buildQuoteCard } from "../domain/flashcard";
+import { isMarkedInternalDoc } from "../domain/schema";
 import { writeClip } from "./clip-store";
 import type { GleanSettings } from "./settings";
 
@@ -27,8 +28,20 @@ export async function ensureFlashcardDeck(settings: GleanSettings, plugin: Plugi
     let deck = decks.find((item) => item.name === DECK_NAME);
     if (!deck) deck = await createRiffDeck(DECK_NAME);
 
-    const existing = await querySql<{ id: string }>(`SELECT id FROM blocks WHERE type='d' AND box='${notebookId.replace(/'/g, "'" + "'")}' AND content='${DECK_DOC_TITLE}' LIMIT 1`);
-    let hostDocId = existing[0]?.id ?? "";
+    // T-1987：同名候选逐个验证 internal 标记，绝不把用户同名文档当宿主写入。
+    // 旧版无标记宿主不做结构迁移（按文档查 riff 卡的端点未实证，先 spike 再补），
+    // 无标记时另建宿主：旧卡按块注册在牌组里仍可复习，功能无损失。
+    const safeNotebook = notebookId.replace(/'/g, "'" + "'");
+    const safeTitle = DECK_DOC_TITLE.replace(/'/g, "'" + "'");
+    const candidates = await querySql<{ id: string }>(`SELECT id FROM blocks WHERE type='d' AND box='${safeNotebook}' AND content='${safeTitle}'`);
+    let hostDocId = "";
+    for (const candidate of candidates) {
+        const ial = await getBlockAttrs(candidate.id);
+        if (isMarkedInternalDoc(ial)) {
+            hostDocId = candidate.id;
+            break;
+        }
+    }
     if (!hostDocId) {
         hostDocId = await createDocWithMd(notebookId, `/${DECK_DOC_TITLE}`, `# ${DECK_DOC_TITLE}\n\n`);
         if (!hostDocId) throw new Error("创建拾遗卡片宿主文档失败");

@@ -2,12 +2,13 @@
  * 阅读页签 AI 伴读（T-1730e，D-0030 落点 T-1726）：总结（全文）、翻译（选区）。
  * 显式动作；结果临时显示不落属性，仅用户显式"保存为 AI 摘要"写 custom-clip-summary；
  * 额度与富化共享（aiQuotaAvailable/recordAiUsage），关闭模式与失败静默降级。
+ * 额度原子性（T-1883）：检查→调用→计数全程包进 AI 串行租约队列（runAiTask）。
  */
 import type { Plugin } from "siyuan";
 import { exportMdContent } from "../api/client";
 import { stripMarkdown } from "../domain/migrate";
 import { buildSummarizePrompt, buildTranslatePrompt } from "../domain/reader";
-import { aiQuotaAvailable, callLLM, logAiEvent, recordAiUsage } from "./enrich-service";
+import { aiQuotaAvailable, callLLM, logAiEvent, recordAiUsage, runAiTask } from "./enrich-service";
 import { writeClip } from "./clip-store";
 import type { GleanSettings } from "./settings";
 
@@ -22,8 +23,12 @@ export function readerAiEnabled(settings: GleanSettings): boolean {
     return settings.ai.enrichMode !== "off";
 }
 
-export async function readerSummarize(plugin: Plugin, docId: string, settings: GleanSettings): Promise<ReaderAiOutcome> {
-    if (!readerAiEnabled(settings)) return { ok: false, skipped: "off" };
+export function readerSummarize(plugin: Plugin, docId: string, settings: GleanSettings): Promise<ReaderAiOutcome> {
+    if (!readerAiEnabled(settings)) return Promise.resolve({ ok: false, skipped: "off" });
+    return runAiTask(() => readerSummarizeInner(plugin, docId, settings));
+}
+
+async function readerSummarizeInner(plugin: Plugin, docId: string, settings: GleanSettings): Promise<ReaderAiOutcome> {
     if (!(await aiQuotaAvailable(plugin, settings))) return { ok: false, skipped: "cap" };
     try {
         const exported = await exportMdContent(docId);
@@ -42,8 +47,12 @@ export async function readerSummarize(plugin: Plugin, docId: string, settings: G
     }
 }
 
-export async function readerTranslate(plugin: Plugin, docId: string, text: string, settings: GleanSettings): Promise<ReaderAiOutcome> {
-    if (!readerAiEnabled(settings)) return { ok: false, skipped: "off" };
+export function readerTranslate(plugin: Plugin, docId: string, text: string, settings: GleanSettings): Promise<ReaderAiOutcome> {
+    if (!readerAiEnabled(settings)) return Promise.resolve({ ok: false, skipped: "off" });
+    return runAiTask(() => readerTranslateInner(plugin, docId, text, settings));
+}
+
+async function readerTranslateInner(plugin: Plugin, docId: string, text: string, settings: GleanSettings): Promise<ReaderAiOutcome> {
     if (!(await aiQuotaAvailable(plugin, settings))) return { ok: false, skipped: "cap" };
     try {
         const llm = await callLLM(plugin, settings, buildTranslatePrompt(text));

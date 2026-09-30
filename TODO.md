@@ -343,11 +343,11 @@
 
 ### 数据一致性、并发与统计事实
 
-- [ ] T-1881（P0，缺陷待开发）派生索引写入串行化：`writeClip` 当前每次 `loadIndex→apply→saveIndex`，多画布并发写不同文章可能互相覆盖；建立按插件实例的写队列或版本合并，保证属性已写成功的增量不丢失，补并发状态/评分/AI/完成时间回归。
-- [ ] T-1882（P0，缺陷待开发）对账请求代次与去抖：Dock、工作台、浮窗挂载及 `glean:data-changed` 会并发全量 `reconcileIndex`；增加请求序号、旧结果丢弃、短时合并和销毁取消，避免慢结果回滚新索引，并记录大库刷新次数与耗时。
-- [ ] T-1883（P0，缺陷待开发）AI 额度原子租约：阅读总结/翻译与富化队列共用每日额度却是“检查后调用、成功后计数”；统一串行队列或原子租约，覆盖并发点击、失败不扣/成功只扣一次、重启恢复和 `saveData` 计数冲突。
+- [x] T-1881（P0，缺陷待开发）派生索引写入串行化：`writeClip` 当前每次 `loadIndex→apply→saveIndex`，多画布并发写不同文章可能互相覆盖；建立按插件实例的写队列或版本合并，保证属性已写成功的增量不丢失，补并发状态/评分/AI/完成时间回归。（2026-10-01；`index-store.ts` 增 `withIndexLock` 内存互斥，writeClip 读改写段/reconcile/rebuild 全部入锁；隔离 E2E 19/19；多画布并发真机随 B-0002）
+- [x] T-1882（P0，缺陷待开发）对账请求代次与去抖：Dock、工作台、浮窗挂载及 `glean:data-changed` 会并发全量 `reconcileIndex`；增加请求序号、旧结果丢弃、短时合并和销毁取消，避免慢结果回滚新索引，并记录大库刷新次数与耗时。（2026-10-01；服务层进行中对账合并 + DockPanel reload 代次守卫；隔离 E2E 19/19；销毁取消的全场景真机随 B-0002）
+- [x] T-1883（P0，缺陷待开发）AI 额度原子租约：阅读总结/翻译与富化队列共用每日额度却是”检查后调用、成功后计数”；统一串行队列或原子租约，覆盖并发点击、失败不扣/成功只扣一次、重启恢复和 `saveData` 计数冲突。（2026-10-01；enrich-service 导出 `runAiTask` 租约，reader-ai 总结/翻译全程入队；并发 4 任务额度 2 只放行 2 的服务回归通过；重启恢复语义随 T-1856）
 - [ ] T-1884（P1，缺陷待开发）属性响应完整性保护：`batchGet` 缺少某文档 ID 时当前跳过该行仍可能保存新索引；改为保留旧索引并报告缺失 ID，区分单行属性异常和全量扫描失败，补隔离内核断言。
-- [ ] T-1885（P0，缺陷待开发）完成历史统计修正：统计与周报按当前 `status === done` 过滤，归档后会丢失已有 `doneTime` 的本周完成记录；按可信完成时间统计，明确归档/删除/恢复口径并补跨周、未知时间和时区测试。
+- [x] T-1885（P0，缺陷待开发）完成历史统计修正：统计与周报按当前 `status === done` 过滤，归档后会丢失已有 `doneTime` 的本周完成记录；按可信完成时间统计，明确归档/删除/恢复口径并补跨周、未知时间和时区测试。（2026-10-01；`aggregateStats`/周报 doneItems 改为只认 doneTime、与状态解耦；stats 单测 2 例更新+新增归档不丢用例；跨时区样例随 T-1857）
 - [ ] T-1886（P1，质量）Svelte 警告分层清零：将约 39 条告警拆为真正 a11y、状态/响应性、外部 facade 初值和 `fileInput` 更新四类；逐项修复或记录合理例外，避免把“check 通过”误解为交互可靠。
 
 ### UI、无障碍与多端交互
@@ -468,15 +468,15 @@
 - [ ] T-1976（P2，无障碍）统计图表文本替代：StatsView 的 spark/bar/tagcloud 不能只靠颜色和高度表达；提供可读摘要/表格、数值单位、空数据和导出文本，同时保留视觉图，衔接 T-1858/T-1913。
 - [ ] T-1977（P1，阅读交互）ReaderTab 模式切换回执：`setMode` 先改本地状态再调用 `protyle.switchMode`，切换失败会显示错误模式；加入成功回读/失败回滚、侧栏首焦点、标题层级和 AI/状态变化 live 区，纳入 T-1953 双栏旅程。
 - [ ] T-1978（P1，错误边界）命令与右键入口统一失败处理：`addCurrentDocToLibrary`、`onMenuContent`、`markCurrentStatus`、`openCurrentSource`、`readNextArticle` 和 `void openReaderTab` 存在未捕获 Promise；建立统一 action wrapper，记录脱敏诊断、显示可重试提示并在取消/失败时恢复按钮状态。
-- [ ] T-1979（P0，流程缺陷）首启导入入口路由：`OnboardingDialog` 的 Pocket/Omnivore 入口当前经过 `finish(true)` 打开迁移器；改为显式打开 `ImportDialog`，关闭引导后保持正确的文件选择、笔记本选择和返回路径，补首启点击回归。
-- [ ] T-1980（P0，状态流）焦点编辑器与收录前置校验：`currentDocId()` 必须解析真正焦点的 Protyle；命令状态、来源、制卡和摘录动作在普通未收录文档上先提示/走显式收录，不得直接写 `status/doneTime` 绕过候选确认，补多编辑器和无焦点场景。
+- [x] T-1979（P0，流程缺陷）首启导入入口路由：`OnboardingDialog` 的 Pocket/Omnivore 入口当前经过 `finish(true)` 打开迁移器；改为显式打开 `ImportDialog`，关闭引导后保持正确的文件选择、笔记本选择和返回路径，补首启点击回归。（2026-10-01；`finishThenImport` 显式走 `facade.openImport()`，`finish` 收敛为纯完成；首启点击回归随 B-0002 真机）
+- [x] T-1980（P0，状态流）焦点编辑器与收录前置校验：`currentDocId()` 必须解析真正焦点的 Protyle；命令状态、来源、制卡和摘录动作在普通未收录文档上先提示/走显式收录，不得直接写 `status/doneTime` 绕过候选确认，补多编辑器和无焦点场景。（2026-10-01；`focusedEditor()` 按选区/焦点元素定位+回退，`markCurrentStatus` 未收录提示（i18n 双名 `msg.notInLibrary`），`batchSetStatusDetailed` 服务端跳过未收录；隔离 E2E 19/19 含守卫断言；多编辑器真机随 B-0002）
 - [ ] T-1981（P1，UI 一致性）HighlightView 文档切换刷新：监听公开 Protyle 切换/销毁与 `glean:data-changed`，为引述/相关旧文加载增加请求序号、取消和销毁守卫；切换文章后不得残留上一篇内容，失败需保留可解释状态。
 - [ ] T-1982（P1，契约+验收）外部导入已读状态与时间保真：Pocket HTML/CSV 的 `time_read`、Omnivore 的 state/read 字段、wallabag 的 read/archive 统一映射；预览中显示来源字段，只有可靠时间写 `done-time`，补统计、归档、重复导入回归。
 - [ ] T-1983（P1，产品+统计）用户标签与 AI 标签统计边界：裁决统计页“标签分布”究竟展示根块用户 tags、AI tags 或两个独立区；数据契约、文案、导出和筛选必须与 T-1729/T-1943 一致，禁止 AI 推断冒充用户事实。
 - [ ] T-1984（P1，导入交互）换文件与无笔记本状态：选择新文件时重置预览页码/错误/执行计划，预览行使用稳定行 ID，URL 仅作去重键；未选择读库笔记本时禁用开始导入并提供设置/刷新笔记本入口，补长文件和重复 URL 视觉回归。
 - [ ] T-1985（P1，智能体结果）`archive_stale` 返回真实结算：使用 `batchSetStatusDetailed` 或等价结果，返回成功/失败/跳过 IDs 并在写后对账；工具描述、执行结果与实际归档数一致，失败可重试，不把 `stale.length` 当成功数。
 - [ ] T-1986（P1，发布门禁）package.zip 内容一致性：解压比较 zip 与本次 dist 的文件清单、manifest 版本、核心文件 hash 和构建 mtime，拒绝旧 zip/错版本/缺 i18n/README 的产物；把检查纳入 `check:release`，仍遵守逐次请示 tag/Release/集市。
-- [ ] T-1987（P0，数据主权）内部宿主身份隔离：闪卡牌组、周报、读库数据库和 AV 宿主查找不能只凭标题/路径命中用户同名文档；为每类宿主建立可验证身份/创建记录、碰撞提示和幂等恢复，确认 `custom-clip-internal` 不会写到用户文档，也不会被候选排除误伤。
+- [x] T-1987（P0，数据主权）内部宿主身份隔离：闪卡牌组、周报、读库数据库和 AV 宿主查找不能只凭标题/路径命中用户同名文档；为每类宿主建立可验证身份/创建记录、碰撞提示和幂等恢复，确认 `custom-clip-internal` 不会写到用户文档，也不会被候选排除误伤。（2026-10-01；schema 增 `isMarkedInternalDoc`，library-db `findVerifiedHost`（internal 标记 / 旧宿主四字段库幂等补标）、flashcard 只认标记另建宿主，av 增 `findDocsByTitle`；隔离 E2E 19/19 含双宿主断言；周报宿主本就只新建不查找；真机随 B-0002）
 - [ ] T-1988（P1，导入契约+安全）导入文件夹路径规范化：清理前导/尾部斜杠、空段、`.`、`..`、反斜杠和非法字符，限制在所选笔记本，预览显示最终 hpath；验证同名路径、取消、失败重试和跨平台路径差异，不能静默跨目录创建。
 - [ ] T-1989（P1，异步错误边界）扩展统一 rejection 处理到 ReaderTab 状态/读完下一篇、`ClipStatusActions.invoke`、设置/导入/迁移/首启初始化和文件选择；所有 pending 请求都有取消/销毁守卫，失败显示可重试动作并恢复按钮状态，日志脱敏且无 unhandled rejection。
 - [ ] T-1990（P1，数据恢复）派生索引 schema 校验与坏文件隔离：严格校验 `status/contentType/timeSource`、priority/rating、候选 evidence/missing、版本迁移和未知字段；损坏的 `glean-index.json` 不能驱动动态 CSS/i18n 或批量写入，须保留原文件、提示用户并自动安全重建，衔接 T-1856/T-1861。

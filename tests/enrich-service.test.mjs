@@ -25,6 +25,7 @@ registerHooks({
 });
 
 const { autoEnrich, enrichClip, usageToday } = await import("../src/services/enrich-service.ts");
+const { readerSummarize, readerTranslate } = await import("../src/services/reader-ai.ts");
 
 function harness() {
     const attrs = new Map();
@@ -140,4 +141,25 @@ test("auto 富化只入队一次，两篇完成后队列仍可处理后续手动
         assert.equal(typeof h.attrs.get(id)?.["custom-clip-summary"], "string");
     }
     assert.equal(await usageToday(h.plugin), 3);
+});
+
+test("T-1883：富化与伴读并发生态度租约，剩余 1 次时只放行一个调用", async () => {
+    const h = harness();
+    const settings = h.settings("manual", 2);
+    // 预置一篇文章属性（伴读路径只读额度，不写属性；富化路径走 writeClip）
+    // 并发发出 4 个 AI 消耗：1 富化 + 1 总结 + 1 翻译 + 1 富化，上限 2 → 只应有 2 次模型调用。
+    const pending = [
+        enrichClip(h.plugin, "lease-a", settings),
+        readerSummarize(h.plugin, "lease-b", settings),
+        readerTranslate(h.plugin, "lease-b", "待翻译文本", settings),
+        enrichClip(h.plugin, "lease-c", settings),
+    ];
+    const outcomes = await Promise.all(pending.map((task) => within(task)));
+    const modelCalls = h.calls.filter((call) => call.route === "/api/ai/chatGPT").length;
+    assert.equal(modelCalls, 2, "额度 2 次时并发 4 个 AI 任务只应放行 2 次模型调用");
+    assert.equal(await usageToday(h.plugin), 2);
+    const succeeded = outcomes.filter((outcome) => outcome.ok).length;
+    const capped = outcomes.filter((outcome) => outcome.skipped === "cap").length;
+    assert.equal(succeeded, 2);
+    assert.equal(capped, 2);
 });

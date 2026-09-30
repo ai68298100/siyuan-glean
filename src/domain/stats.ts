@@ -68,9 +68,10 @@ export function aggregateStats(items: StatsInput[], now: Date = new Date()): Rea
             const daysAgo = Math.round((todayNoon - t) / DAY_MS);
             if (daysAgo >= 0 && daysAgo < 7) dailyCaptured[6 - daysAgo] += 1;
         }
-        // 本周完成只按可信完成时间（D-0028）；无 done-time 的已读是"完成时间未知"，
-        // 不用 updated 伪造，只计入上面的状态总数。
-        if (item.status === "done" && withinWeek(item.doneTime, todayNoon)) doneThisWeek += 1;
+        // 本周完成只按可信完成时间（D-0028）；完成事实由 doneTime 表达，
+        // 与当前状态解耦（T-1885）：读完后又归档的文章不丢本周完成记录。
+        // 无 done-time 的已读是"完成时间未知"，不用 updated 伪造，只计入状态总数。
+        if (withinWeek(item.doneTime, todayNoon)) doneThisWeek += 1;
 
         const site = (item.site || "").trim().toLowerCase();
         if (site) siteCounts.set(site, (siteCounts.get(site) ?? 0) + 1);

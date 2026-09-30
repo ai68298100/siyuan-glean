@@ -10,6 +10,7 @@ import {
     daysSince,
     estimateMinutes,
     isClipDoc,
+    isMarkedInternalDoc,
     parseClipAttrs,
     serializePatch,
     siteFromUrl,
@@ -58,6 +59,14 @@ test("isClipDoc：有状态或 URL 即认，空串不算", () => {
     assert.equal(isClipDoc({ [ATTR.url]: "https://x" }), true);
     assert.equal(isClipDoc({ [ATTR.status]: "" }), false);
     assert.equal(isClipDoc({}), false);
+});
+
+test("isMarkedInternalDoc：只有字符串 true 的 internal 标记才算插件宿主（T-1987）", () => {
+    assert.equal(isMarkedInternalDoc({ [ATTR.internal]: "true" }), true);
+    assert.equal(isMarkedInternalDoc({ [ATTR.internal]: "True" }), true);
+    assert.equal(isMarkedInternalDoc({ [ATTR.internal]: "false" }), false);
+    assert.equal(isMarkedInternalDoc({ [ATTR.internal]: "" }), false);
+    assert.equal(isMarkedInternalDoc({}), false);
 });
 
 test("serializePatch：数字钳制与空串删除语义", () => {

@@ -38,7 +38,21 @@ test("aggregateStats：状态计数/字数/本周完成只按完成时间（D-00
     assert.equal(stats.reading, 1);
     assert.equal(stats.inbox, 1);
     assert.equal(stats.totalWords, 600);
-    assert.equal(stats.doneThisWeek, 1);
+    // T-1885：完成事实由 doneTime 表达，归档不抹除本周完成记录 → 两条都计入
+    assert.equal(stats.doneThisWeek, 2);
+});
+
+test("aggregateStats：归档后带完成时间的文章仍计入本周完成（T-1885）", () => {
+    const stats = aggregateStats(
+        [
+            item({ status: "archived", doneTime: "20260929080000" }), // 本周读完→归档
+            item({ status: "archived", doneTime: "20260925000000" }), // 本周读完→归档
+            item({ status: "later", doneTime: "20260928000000" }),    // 归档后恢复重读也保留事实
+        ],
+        NOW
+    );
+    assert.equal(stats.done, 0);
+    assert.equal(stats.doneThisWeek, 3);
 });
 
 test("aggregateStats：无完成时间或超一周的已读不计入本周（不用 updated 伪造）", () => {

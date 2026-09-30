@@ -235,9 +235,25 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
         document.dispatchEvent(new CustomEvent("glean:data-changed"));
     }
 
+    /**
+     * 解析真正持有焦点/选区的编辑器（T-1980）：分屏时 getAllEditor 的第一个元素
+     * 未必是用户正在看的那篇，命令可能取错文档。优先按活跃选区/焦点元素定位，
+     * 都无法定位时才回退到第一个有根块的编辑器（保持旧行为兜底）。
+     */
+    private focusedEditor(): { protyle?: { element?: HTMLElement; block?: { rootID?: string } } } | undefined {
+        const editors = getAllEditor();
+        const selection = window.getSelection();
+        const node: Node | Element | null =
+            selection && !selection.isCollapsed ? selection.anchorNode : document.activeElement;
+        if (node) {
+            const hit = editors.find((item) => item?.protyle?.element?.contains(node as Node));
+            if (hit) return hit;
+        }
+        return editors.find((item) => item?.protyle?.block?.rootID);
+    }
+
     currentDocId(): string {
-        const editor = getAllEditor().find((item) => item?.protyle?.block?.rootID);
-        return editor?.protyle?.block?.rootID ?? "";
+        return this.focusedEditor()?.protyle?.block?.rootID ?? "";
     }
 
     openReadingDocument(docId: string): void {
@@ -364,6 +380,12 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
     async markCurrentStatus(status: "done" | "later" | "archived"): Promise<void> {
         const id = this.requireCurrentDoc();
         if (!id) return;
+        // T-1980：未收录的普通文档不得被状态命令直接写属性，先收录再流转。
+        const current = await readClip(id);
+        if (!current.status) {
+            showMessage(t(this.i18n, "msg.notInLibrary"), 3500);
+            return;
+        }
         const changed = await batchSetStatus(this, [id], status);
         if (changed !== 1) {
             showMessage(t(this.i18n, "msg.statusFailed"), 3000);
@@ -450,7 +472,7 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
             showMessage(t(this.i18n, "flashcard.noSelection"), 3000);
             return;
         }
-        const editor = getAllEditor().find((item) => item?.protyle?.block?.rootID);
+        const editor = this.focusedEditor();
         const docId = editor?.protyle?.block?.rootID ?? "";
         let docTitle = "";
         try {

@@ -65,6 +65,19 @@ export function emptyIndex(): GleanIndex {
     return { version: INDEX_VERSION, updatedAt: "", clips: {}, candidates: {} };
 }
 
+/**
+ * 索引写入互斥（T-1881）：load→改→save 的读改写段必须整体串行，否则两个并发写
+ * （如多画布同时改不同文章的状态/评分）会互相覆盖增量。纯内存 promise 链，
+ * 只约束本插件实例内的执行顺序；索引本身仍是可全量重建的派生缓存。
+ */
+let indexLock: Promise<unknown> = Promise.resolve();
+
+export function withIndexLock<T>(task: () => Promise<T>): Promise<T> {
+    const run = indexLock.then(task, task);
+    indexLock = run.catch(() => undefined);
+    return run;
+}
+
 export async function loadIndex(plugin: Plugin): Promise<GleanIndex> {
     try {
         const raw = await plugin.loadData(INDEX_FILE);

@@ -186,6 +186,14 @@ export function isClipDoc(ial: Record<string, string | undefined>): boolean {
     return Boolean(ial[ATTR.status] || ial[ATTR.url]);
 }
 
+/**
+ * 插件内部宿主判定（T-1987）：只有带 custom-clip-internal 标记的文档才可信复用。
+ * 同名/同路径的用户文档一律视为用户文档，不得当作宿主绑定、写入或补挂内容。
+ */
+export function isMarkedInternalDoc(ial: Record<string, string | undefined>): boolean {
+    return parseFlag(ial[ATTR.internal]) === true;
+}
+
 /* ---------- 序列化 ---------- */
 
 function clampInt(value: number, min: number, max: number): number {

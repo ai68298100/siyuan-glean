@@ -271,17 +271,24 @@ function staleDays(time: string): number | null {
     return days >= 14 ? days : null;
 }
 
+let reloadSeq = 0;
+
 async function reload() {
+    // 请求代次守卫（T-1882）：快速连续刷新时丢弃晚到的旧结果，销毁后不再写状态
+    const seq = ++reloadSeq;
     loading = true;
     try {
-        index = await reconcileIndex(facade.pluginInstance, facade.settings);
+        const next = await reconcileIndex(facade.pluginInstance, facade.settings);
+        if (seq !== reloadSeq) return;
+        index = next;
         loadError = false;
     } catch (error) {
         console.warn("[glean] 读库对账失败:", error);
+        if (seq !== reloadSeq) return;
         if (!index.updatedAt) index = await loadIndex(facade.pluginInstance);
         loadError = true;
     } finally {
-        loading = false;
+        if (seq === reloadSeq) loading = false;
     }
 }
 
