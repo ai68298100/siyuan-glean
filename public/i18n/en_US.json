@@ -210,6 +210,7 @@
   "highlight.count": "${n} items",
   "highlight.jumpTo": "In article",
   "highlight.copyShare": "Copy quote",
+  "highlight.cycleColor": "Cycle color (yellow/red/blue/green/clear)",
   "stats.title": "Reading stats",
   "stats.total": "In library",
   "stats.read": "Finished",

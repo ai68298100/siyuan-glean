@@ -3,7 +3,7 @@
 import { openTab } from "siyuan";
 import type { GleanFacade } from "../types";
 import { t } from "../libs/i18n";
-import { listDocHighlights, type HighlightItem } from "../services/highlights";
+import { listDocHighlights, getQuoteColor, setQuoteColor, type HighlightItem } from "../services/highlights";
 import { findRelated } from "../services/enrich-service";
 import { formatQuoteShare } from "../domain/quotes";
 import { makeQuoteCard } from "../services/flashcard-service";
@@ -58,6 +58,10 @@ async function loadHighlights(docId: string) {
         if (seq !== loadSeq) return;
         items = nextItems;
         lastDocId = docId;
+        // T-1901：颜色标记逐块补齐（getBlockAttrs 可靠；SQL ial 列同步有限）
+        const colors = await Promise.all(nextItems.map((item) => getQuoteColor(item.id)));
+        if (seq !== loadSeq) return;
+        items = nextItems.map((item, index) => ({ ...item, color: colors[index] }));
         // T-1301 相关旧文：嵌入未启用时返回空（区块整体隐藏，UI-STANDARD §5.6）
         const query = nextItems[0]?.text || docId;
         const nextRelated = await findRelated(docId, query);
@@ -106,6 +110,25 @@ function jumpToQuote(quoteBlockId: string): void {
     if (/^\d{14}-[0-9a-z]{7}$/.test(quoteBlockId)) openDoc(quoteBlockId);
 }
 
+// T-1901 高亮颜色：五档循环（黄/红/蓝/绿/清除），写引述块级 IAL 标记
+const COLOR_CYCLE = ["", "yellow", "red", "blue", "green"];
+
+function nextColor(current: string): string {
+    const index = COLOR_CYCLE.indexOf(current);
+    return COLOR_CYCLE[(index + 1) % COLOR_CYCLE.length];
+}
+
+async function cycleColor(item: HighlightItem): Promise<void> {
+    const next = nextColor(item.color);
+    try {
+        await setQuoteColor(item.id, next);
+        item.color = next;
+    } catch (error) {
+        console.warn("[glean] 高亮颜色切换失败:", error);
+        showMessage(t(i18n, "msg.actionFailed"), 3000);
+    }
+}
+
 /** T-1803 分享卡：复制格式化引用（rootId=当前文档，标题用已加载的 docTitle）。 */
 async function copyShare(item: HighlightItem): Promise<void> {
     const share = formatQuoteShare({
@@ -152,6 +175,12 @@ async function copyShare(item: HighlightItem): Promise<void> {
                             <!-- T-1753：摘录时间（块更新时间投影） -->
                             <span class="glean-hl__time">{item.at.slice(4, 6)}/{item.at.slice(6, 8)} {item.at.slice(8, 10)}:{item.at.slice(10, 12)}</span>
                         {/if}
+                        <!-- T-1901 高亮颜色：五档循环（黄/红/蓝/绿/清除） -->
+                        <button
+                            class="glean-hl__card glean-hl__color glean-hl__color--{item.color || 'none'}"
+                            title={t(i18n, "highlight.cycleColor")}
+                            onclick={() => void cycleColor(item)}
+                        >●</button>
                         <!-- T-1803 分享卡：复制为格式化引用（含来源与回链） -->
                         <button class="glean-hl__card" title={t(i18n, "highlight.copyShare")} onclick={() => void copyShare(item)}>
                             ⧉ {t(i18n, "highlight.copyShare")}

@@ -210,6 +210,7 @@
   "highlight.count": "${n} 条",
   "highlight.jumpTo": "原文位置",
   "highlight.copyShare": "复制引用",
+  "highlight.cycleColor": "切换颜色（黄/红/蓝/绿/清除）",
   "stats.title": "阅读统计",
   "stats.total": "库内文章",
   "stats.read": "已读",

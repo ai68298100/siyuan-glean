@@ -149,6 +149,8 @@ export interface BlockRow {
     box: string;
     /** 块更新时间 YYYYMMDDHHmmss（T-1753 摘录时间展示用） */
     updated?: string;
+    /** 块级 IAL JSON 形文本（T-1901 颜色投影用） */
+    ial?: string;
 }
 
 /**
@@ -158,7 +160,8 @@ export interface BlockRow {
 export async function listQuoteBlocks(rootDocId: string, limit = 200): Promise<BlockRow[]> {
     if (!/^(\d{14}-[0-9a-z]{7})$/.test(rootDocId)) return [];
     const data = await kernelPost<BlockRow[]>("/api/query/sql", {
-        stmt: `SELECT id, content, markdown, type, root_id, box, updated FROM blocks
+        // T-1901：ial 列（JSON 形文本）供高亮颜色投影
+        stmt: `SELECT id, content, markdown, type, root_id, box, updated, ial FROM blocks
                WHERE root_id = '${rootDocId.replace(/'/g, "''")}' AND type = 'b' ORDER BY sort ASC LIMIT ${limit}`,
     });
     return Array.isArray(data) ? data : [];

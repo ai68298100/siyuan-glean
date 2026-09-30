@@ -683,6 +683,27 @@ async function runFlow(client, workspace) {
     const authorFacets = library.libraryFacets(authorItems);
     assert.ok(authorFacets.authors.some((facet) => facet.value === "测试作者"));
     pass("T-1811/T-1812 作者属性投影与作者筛选/分面命中");
+
+    // T-1901 高亮颜色：setQuoteColor 写块级 IAL → listDocHighlights 投影 color。
+    const hlQuoteId = await until("引述块可查", async () => {
+        const rows = await client.apiChecked("/api/query/sql", {
+            stmt: `SELECT id FROM blocks WHERE root_id='${fulltext}' AND type='b' LIMIT 1`,
+        });
+        return rows[0]?.id ?? "";
+    });
+    const hlSvc = await import("../../src/services/highlights.ts");
+    await hlSvc.setQuoteColor(hlQuoteId, "red");
+    // T-1901：颜色写入后 getBlockAttrs 确认（SQL ial 列不含自定义键，颜色读取走属性端点）
+    const coloredAttr = await client.apiChecked("/api/attr/getBlockAttrs", { id: hlQuoteId });
+    assert.equal(coloredAttr["custom-clip-hl-color"], "red");
+    const colorRead = await hlSvc.getQuoteColor(hlQuoteId);
+    assert.equal(colorRead, "red");
+    // 清除：传空串移除键
+    await hlSvc.setQuoteColor(hlQuoteId, "");
+    const clearedAttr = await client.apiChecked("/api/attr/getBlockAttrs", { id: hlQuoteId });
+    assert.equal(clearedAttr["custom-clip-hl-color"], undefined);
+    assert.equal(await hlSvc.getQuoteColor(hlQuoteId), "");
+    pass("T-1901 高亮颜色写入/读取/清除（块级 IAL 经属性端点）");
 }
 
 async function main() {

@@ -372,7 +372,7 @@
 ### 阅读调度、摘录与 AI 扩展
 
 - [ ] T-1900（P2，研究+契约）提醒与阅读调度：参考 Raindrop reminders、Reader Daily Digest，定义 due-at、重复提醒、时区/夏令时、静默/取消、归档/删除/恢复和离线触达；先裁决 `ui-prefs` 投影还是新增属性，不能把每日重浮冒充提醒。
-- [ ] T-1901（P2，契约+开发）高亮颜色与批注展示：参考 GoodLinks/Raindrop，定义颜色、批注、删除、跳回原文、全库筛选、搜索和 Markdown 导出；明确颜色是块样式还是插件属性，保证对比度、移动可读和文档移动/删除后的回链。
+- [x] T-1901（P2，契约+开发）高亮颜色与批注展示：参考 GoodLinks/Raindrop，定义颜色、批注、删除、跳回原文、全库筛选、搜索和 Markdown 导出；明确颜色是块样式还是插件属性，保证对比度、移动可读和文档移动/删除后的回链。（2026-10-01 最小版交付：**契约裁决=颜色存引述块级 IAL `custom-clip-hl-color`**（枚举 yellow/red/blue/green，非文档样式、思源原文外观不变）；DATA-CONTRACT §4 契约行；highlights.ts `getQuoteColor`（getBlockAttrs 路径——**SQL ial 列不含自定义键已实证**）/`setQuoteColor`（覆写/清除经 setBlockAttrs）+ HighlightView 色点五档循环 + 色条渲染；跳回/删除/全库筛选/搜索随 T-1750/T-1753 后续；真实观感随 B-0002）
 - [x] T-1902（P2，研究+开发）多文档 AI 报告：允许用户勾选多篇生成一次性报告，限定上下文、顺序、截断、额度、取消、逐篇失败和结果存储；与 T-1760 单篇动作、T-1764 三篇速览区分，不做聊天窗或自动代读。（2026-10-01 交付：`domain/enrich.buildMultiReportPrompt`（勾选篇标题/状态中文标签/来源/摘要清单，20 篇截断、400 字综述、单测）+ `reader-ai.generateMultiReport`（**单次调用额度一次**、租约队列）+ 批量条「📝 AI 报告」按钮 → 结果弹窗（文本+复制）；结果会话状态不落属性；上下文基于索引摘要（非全文）如实标注；逐篇失败粒度不适用（单次调用）——失败整体报错随 B-0004 真机核对）
 - [ ] T-1903（P2，契约+研究）会话阅读队列重排：参考 Matter Power Queuing 的拖拽 handle、置顶和左右滑动作，定义手动重排、随机/洗牌种子、筛选后顺序、跨画布同步、触控降级和重启语义；顺序只存 `ui-prefs`/会话，不偷偷改 `priority` 或文章事实。
 - [x] T-1904（P2，契约）长期收藏与今日钉住分离：参考 GoodLinks/Raindrop Favorites，评估复用 `priority` 还是新增 `custom-clip-favorite`；定义与 archived/done/今日重浮/统计/批量动作的关系，避免把重要性和临时 pin 混为一谈。（2026-10-01 交付：**设计裁决=新增独立 `custom-clip-favorite` 布尔位**（收藏与 priority 重要性排序语义分离，不复用不联动）；契约先行 DATA-CONTRACT §1；schema 序列化/解析 + 索引投影 + `library-view.favoriteOnly` 筛选（候选不参与）+ 行表/卡片/伴生栏星标 + 搜索旁「仅看收藏」toggle；E2E 断言写入→投影→筛选；今日钉住（临时 pin）仍是独立待办 T-1797）

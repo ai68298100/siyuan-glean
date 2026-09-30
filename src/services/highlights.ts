@@ -2,8 +2,12 @@
  * 高亮聚合（T-1202）：读当前文档的引述块（DATA-CONTRACT §4 形态②）。
  * 只消费不编辑——批注 UI 不在本插件范围（D-0008 延后项）。
  * T-1750/T-1752 地基：全库引述块分页查询（同端点新查询，root 元数据由调用方从索引映射）。
+ * T-1901：颜色标记不走 SQL（blocks.ial 列同步有限且为 IAL 格式），改由 getBlockAttrs 逐块读取。
  */
-import { listQuoteBlocks, querySql, type BlockRow } from "../api/client";
+import { getBlockAttrs, listQuoteBlocks, querySql, setBlockAttrs, type BlockRow } from "../api/client";
+
+export const HL_COLORS = ["yellow", "red", "blue", "green"] as const;
+export type HlColor = (typeof HL_COLORS)[number];
 
 export interface HighlightItem {
     id: string;
@@ -13,6 +17,8 @@ export interface HighlightItem {
     markdown: string;
     /** 摘录时间 YYYYMMDDHHmmss（块更新时间；T-1753） */
     at: string;
+    /** 高亮颜色标记（T-1901）；由调用方经 getQuoteColor 补齐，此处恒空串 */
+    color: string;
 }
 
 export async function listDocHighlights(rootDocId: string): Promise<HighlightItem[]> {
@@ -23,8 +29,21 @@ export async function listDocHighlights(rootDocId: string): Promise<HighlightIte
             text: cleanQuoteText(row.content || ""),
             markdown: row.markdown || "",
             at: /^\d{14}$/.test(row.updated ?? "") ? (row.updated as string) : "",
+            color: "",
         }))
         .filter((item) => item.text.length > 0);
+}
+
+/** 读单个引述块的颜色标记（getBlockAttrs 可靠；SQL ial 列同步有限不用）。 */
+export async function getQuoteColor(quoteBlockId: string): Promise<string> {
+    if (!/^\d{14}-[0-9a-z]{7}$/.test(quoteBlockId)) return "";
+    try {
+        const attrs = await getBlockAttrs(quoteBlockId);
+        const value = attrs["custom-clip-hl-color"] ?? "";
+        return (HL_COLORS as readonly string[]).includes(value) ? value : "";
+    } catch {
+        return "";
+    }
 }
 
 /** 引述块的 content 会带引用首行杂音（"&nbsp;" 等），做轻清洗。 */
@@ -75,4 +94,11 @@ export async function listQuoteRoots(rootIds: string[]): Promise<Map<string, str
         for (const row of rows) titles.set(row.id, row.content || "");
     }
     return titles;
+}
+
+/** 设置引述块颜色标记（T-1901）：覆写块级 IAL 键；空串清除。经 setBlockAttrs（既有端点）。 */
+export async function setQuoteColor(quoteBlockId: string, color: string): Promise<void> {
+    if (!/^\d{14}-[0-9a-z]{7}$/.test(quoteBlockId)) return;
+    const value = (HL_COLORS as readonly string[]).includes(color) ? color : "";
+    await setBlockAttrs(quoteBlockId, value ? { "custom-clip-hl-color": value } : { "custom-clip-hl-color": null });
 }

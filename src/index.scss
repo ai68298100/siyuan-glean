@@ -2774,3 +2774,15 @@
 .glean-reader--theme-sepia .glean-reader__main .protyle-content .protyle-wysiwyg {
     color: #5b4a3a;
 }
+
+/* ---------- 高亮颜色标记（T-1901）：色条 + 色点 ---------- */
+.glean-hl { border-left: 3px solid var(--b3-border-color); }
+.glean-hl--yellow { border-left-color: #eab308; }
+.glean-hl--red { border-left-color: #ef4444; }
+.glean-hl--blue { border-left-color: #3b82f6; }
+.glean-hl--green { border-left-color: #22c55e; }
+.glean-hl__color { cursor: pointer; font-size: 10px; }
+.glean-hl__color--yellow { color: #eab308; }
+.glean-hl__color--red { color: #ef4444; }
+.glean-hl__color--blue { color: #3b82f6; }
+.glean-hl__color--green { color: #22c55e; }
