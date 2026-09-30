@@ -186,6 +186,29 @@ async function main() {
             `code=${dup.code} data=${JSON.stringify(dup.data)} 新块hpath=${dupRow[0]?.hpath ?? "（未创建）"}`);
 
         const failures = results.filter((r) => !r.ok);
+
+        /* ---------- ⑥ 移出宿主到根目录（T-1872 恢复策略依赖）：toPath="/" 实证 ---------- */
+        // 前置：文章A 已在 /【归档】下（②移动过）；把它移回根目录
+        const rowAAgain = await apiChecked("/api/query/sql", {
+            stmt: `SELECT path FROM blocks WHERE type='d' AND id='${docA}'`,
+        });
+        const moveRoot = await api("/api/filetree/moveDocs", {
+            fromPaths: [rowAAgain[0]?.path ?? ""], toNotebook: notebookID, toPath: "/",
+        });
+        let rootOk = moveRoot.code === 0;
+        if (rootOk) {
+            try {
+                await until(async () => {
+                    const rows = await apiChecked("/api/query/sql", {
+                        stmt: `SELECT hpath FROM blocks WHERE type='d' AND id='${docA}'`,
+                    });
+                    return rows[0]?.hpath === "/文章A" ? true : null;
+                }, 8000, "移回根后 hpath 收敛");
+            } catch { rootOk = false; }
+        }
+        record("⑥ moveDocs toPath=\"/\" 移动到根目录（移出宿主依赖）", rootOk,
+            `code=${moveRoot.code} msg="${moveRoot.msg}" hpath回到根=${rootOk}`);
+
         exitCode = failures.length > 0 ? 1 : 0;
         fs.writeFileSync(
             path.join(process.cwd(), "scripts", "spike", "lifecycle-spike-results.json"),

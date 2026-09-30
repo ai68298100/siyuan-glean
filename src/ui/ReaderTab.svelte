@@ -924,6 +924,7 @@
                     onStartReading={() => void startReading()}
                     onSetStatus={(status) => void writeStatus(status)}
                     onArchive={() => facade.openArchiveDialog(activeDocId)}
+                    onRestore={() => facade.openRestoreDialog(activeDocId)}
                 />
                 <button
                     class="glean-btn glean-btn--ghost"

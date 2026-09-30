@@ -18,9 +18,11 @@
         onSetStatus: (status: ClipStatus) => void | Promise<void>;
         /** T-1866：提供时归档按钮弹三选对话框（保留原位置/移入【归档】/删除文章）；缺省回落直写 archived */
         onArchive?: () => void | Promise<void>;
+        /** T-1872：提供时恢复按钮按宿主位置分流（宿主内弹两选项）；缺省回落直写 later */
+        onRestore?: () => void | Promise<void>;
     }
 
-    let { i18n, status, disabled = false, onStartReading, onSetStatus, onArchive }: Props = $props();
+    let { i18n, status, disabled = false, onStartReading, onSetStatus, onArchive, onRestore }: Props = $props();
     let pending = $state(false);
 
     async function invoke(action: () => void | Promise<void>) {
@@ -54,7 +56,7 @@
             class="glean-status-actions__btn glean-status-actions__btn--restore"
             disabled={disabled || pending}
             title={t(i18n, "action.restore")}
-            onclick={(event) => { stop(event); void invoke(() => onSetStatus("later")); }}
+            onclick={(event) => { stop(event); void invoke(() => (onRestore ? onRestore() : onSetStatus("later"))); }}
         ><span aria-hidden="true">↩</span><span>{t(i18n, "action.restore")}</span></button>
     {:else}
         <button

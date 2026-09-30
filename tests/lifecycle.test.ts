@@ -9,6 +9,7 @@ import {
     hostHpathOf,
     isUnderHost,
     isHostItself,
+    hostParentFolderOf,
     buildPurgeInfo,
     canPurge,
 } from "../src/domain/lifecycle.ts";
@@ -44,6 +45,14 @@ test("isHostItself：仅宿主标题本身判真，普通同名文章不受影�
     assert.equal(isHostItself("/【回收】", "【回收】"), true);
     assert.equal(isHostItself("/收集/文章A", "文章A"), false);
     assert.equal(isHostItself("/", ARCHIVE_HOST_TITLE), false);
+});
+
+test("hostParentFolderOf：移出宿主目标 = 第一个宿主段的父目录（T-1872）", () => {
+    assert.equal(hostParentFolderOf("/S1/【归档】/文章A"), "/S1");
+    assert.equal(hostParentFolderOf("/【归档】/文章A"), "", "根级宿主移出目标为根");
+    assert.equal(hostParentFolderOf("/S1/【归档】/【回收】/文章B"), "/S1", "嵌套宿主一次跳出到宿主外");
+    assert.equal(hostParentFolderOf("/S1/普通/文章C"), null, "不在宿主下返回 null");
+    assert.equal(hostParentFolderOf(""), null);
 });
 
 test("buildPurgeInfo + canPurge：确认信息最小集合（§7.3）", () => {

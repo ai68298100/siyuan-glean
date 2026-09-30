@@ -1,5 +1,12 @@
 # 进度（PROGRESS）
 
+## 恢复策略契约与移出宿主（续跑口令驱动，2026-10-01）✅
+
+- [x] **T-1872 恢复策略**：**D-0033 + §7.6**——恢复是状态动作（宿主内滞留合法，队列只看状态）；宿主内文章恢复弹「仅恢复/恢复并移出宿主」两选项（RestoreDialog + onRestore 五处入口接线，非宿主保持直接恢复）；移出目标=宿主所在文件夹（hostParentFolderOf 从当前位置推导，无隐式状态）+ moveDocOutOfHost。
+- [x] **spike 补实证**：moveDocs `toPath="/"` 移动到根合法（lifecycle-spike **8/8**），§7.5 回写。
+- [x] 门禁：check 0 错 0 告警、test **179/179**（+1）、build 通过、E2E 全过（恢复分流+移出链路断言）。未发布新版本；对话框真机观感随 B-0002。
+- 坑：E2E 新建文档后内核 SQL 索引异步建行——服务层 docRow 依赖 SQL，**createDocWithMd 后必须等 SQL 收敛**（上段链路有等待、新段漏写一次超时定位）。
+
 ## 归档后处理入口统一接线（续跑口令驱动，2026-10-01）✅
 
 - [x] **T-1866 三选对话框**：`ArchiveDialog.svelte`（默认项=保留原位置；移入【归档】/删除文章=archiveMoveDoc/recycleDoc；彻底删除为底部二级动作——confirm 列标题/路径/来源+不可逆提示后 purgeDoc）+ `openArchiveDialog`（svelteDialog）+ `ClipStatusActions.onArchive` 回调——五处使用点接线（Dock 行表/看板卡/卡片、ReaderTab 阅读页签、ReadingContext 移动伴生栏）+ 命令 `cmd.archiveCurrent` 改弹对话框。

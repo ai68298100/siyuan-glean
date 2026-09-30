@@ -11,6 +11,7 @@ import ReaderTab from "./ui/ReaderTab.svelte";
 import { installReadingContext } from "./ui/reading-context-controller";
 import MigrateDialog from "./ui/MigrateDialog.svelte";
 import ArchiveDialog from "./ui/ArchiveDialog.svelte";
+import RestoreDialog from "./ui/RestoreDialog.svelte";
 import ImportDialog from "./ui/ImportDialog.svelte";
 import OnboardingDialog from "./ui/OnboardingDialog.svelte";
 import { loadUiPrefs } from "./services/prefs";
@@ -19,6 +20,7 @@ import { svelteDialog } from "./libs/dialog";
 import { t, type I18nBundle } from "./libs/i18n";
 import { captureDocument, batchSetStatus, readClip, readClipContext } from "./services/clip-store";
 import { autoEnrich, enrichClip } from "./services/enrich-service";
+import { docUnderHostKind } from "./services/lifecycle-service";
 import { excerptFromSelection, insertQuoteExcerpt } from "./services/excerpt-service";
 import { pickNextUnread } from "./services/resurface-service";
 import { recordReadingDone } from "./services/checkin-bridge";
@@ -456,6 +458,24 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
             props: { facade: this, docId },
             width: "440px",
             height: "360px",
+        });
+    }
+
+    /** 恢复策略入口（T-1872，D-0033）：宿主内文章弹两选项；非宿主文章保持既有直接恢复。 */
+    async openRestoreDialog(docId: string): Promise<void> {
+        const kind = await docUnderHostKind(docId);
+        if (!kind) {
+            await batchSetStatus(this, [docId], "later");
+            this.notifyDataChanged();
+            showMessage(t(this.i18n, "msg.statusChanged"), 2500);
+            return;
+        }
+        this.openGleanDialog({
+            title: t(this.i18n, "restore.title"),
+            component: RestoreDialog,
+            props: { facade: this, docId },
+            width: "440px",
+            height: "300px",
         });
     }
 

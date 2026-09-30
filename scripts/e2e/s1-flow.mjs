@@ -766,6 +766,34 @@ async function runFlow(client, workspace) {
     const purgedIndex = await clip.reconcileIndex(newPlugin(), settings);
     assert.equal(purgedIndex.clips[lcDoc], undefined, "彻底删除后索引无幽灵条目");
     pass("T-1869/1870/1871 生命周期链路：宿主幂等/移动不变式/回收/彻底删除+索引清理");
+
+    // T-1872 恢复策略（D-0033 §7.6）：恢复并移出宿主 → hpath 回宿主所在文件夹；恢复分流判据。
+    const rcDoc = await makeDoc("恢复文章", "# 恢复文章\n\n归档后恢复", "");
+    await clip.writeClip(plugin, rcDoc, { status: "later" });
+    await until("恢复文章入 SQL", async () => {
+        const rows = await client.apiChecked("/api/query/sql", {
+            stmt: `SELECT hpath FROM blocks WHERE type='d' AND id='${rcDoc}'`,
+        });
+        return rows[0]?.hpath ? true : null;
+    });
+    await lifecycleSvc.archiveMoveDoc(plugin, rcDoc);
+    const rcArchived = await client.apiChecked("/api/attr/getBlockAttrs", { id: rcDoc });
+    assert.equal(rcArchived["custom-clip-status"], "archived");
+    assert.equal(await lifecycleSvc.docUnderHostKind(rcDoc), "archive", "归档后判为宿主内");
+    // 恢复并移出宿主：位置回 /S1，状态写回 later
+    await lifecycleSvc.moveDocOutOfHost(rcDoc);
+    const rcHpath = await until("移出宿主后 hpath 收敛", async () => {
+        const rows = await client.apiChecked("/api/query/sql", {
+            stmt: `SELECT hpath FROM blocks WHERE type='d' AND id='${rcDoc}'`,
+        });
+        return rows[0]?.hpath === "/S1/恢复文章" ? rows[0].hpath : "";
+    });
+    assert.equal(rcHpath, "/S1/恢复文章");
+    await clip.writeClip(plugin, rcDoc, { status: "later" }, { forceStatus: true });
+    const rcRestored = await client.apiChecked("/api/attr/getBlockAttrs", { id: rcDoc });
+    assert.equal(rcRestored["custom-clip-status"], "later");
+    assert.equal(await lifecycleSvc.docUnderHostKind(rcDoc), null, "移出后判为宿主外（恢复直接动作分流）");
+    pass("T-1872 恢复策略：宿主判定分流 + 恢复并移出宿主（hpath 回父目录、状态写回）");
 }
 
 async function main() {

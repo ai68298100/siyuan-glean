@@ -46,6 +46,18 @@ export function isHostItself(hpath: string, title: string): boolean {
     return last === title && (title === ARCHIVE_HOST_TITLE || title === RECYCLE_HOST_TITLE);
 }
 
+/**
+ * 移出宿主的目标目录（T-1872 恢复策略）：hpath 含宿主段时，目标 = 第一个宿主段的父目录。
+ * 例："/S1/【归档】/文章" → "/S1"；"/【归档】/文章" → ""（根）；"/S1/【归档】/【回收】/文章" → "/S1"。
+ * 目标可从当前位置推导（无隐式状态）；不在宿主下返回 null。
+ */
+export function hostParentFolderOf(hpath: string): string | null {
+    const parts = hpath.replace(/\\/g, "/").split("/").filter(Boolean);
+    const hostIndex = parts.findIndex((part) => part === ARCHIVE_HOST_TITLE || part === RECYCLE_HOST_TITLE);
+    if (hostIndex < 0) return null;
+    return parts.slice(0, hostIndex).join("/") ? `/${parts.slice(0, hostIndex).join("/")}` : "";
+}
+
 /** 彻底删除确认信息（§7.3：标题/笔记本/路径/来源，缺一不弹确认）。 */
 export interface PurgeInfo {
     id: string;

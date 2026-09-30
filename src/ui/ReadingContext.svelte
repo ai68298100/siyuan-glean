@@ -219,6 +219,7 @@
                 onStartReading={startReading}
                 onSetStatus={setStatus}
                 onArchive={() => { if (context) facade.openArchiveDialog(context.id); }}
+                onRestore={() => { if (context) facade.openRestoreDialog(context.id); }}
             />
         </div>
     </aside>

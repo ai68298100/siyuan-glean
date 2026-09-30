@@ -8,7 +8,7 @@
 import type { Plugin } from "siyuan";
 import { createDocWithMd, getBlockAttrs, moveDocs, querySql, removeDoc, setBlockAttrs } from "../api/client";
 import { ATTR } from "../domain/schema";
-import { hostHpathOf, hostTitleOf, isUnderHost, isHostItself, type HostKind } from "../domain/lifecycle";
+import { hostHpathOf, hostParentFolderOf, hostTitleOf, isUnderHost, isHostItself, type HostKind } from "../domain/lifecycle";
 import { writeClip } from "./clip-store";
 import { loadIndex, removeDocFromIndex, saveIndex, withIndexLock } from "./index-store";
 
@@ -149,4 +149,40 @@ export async function buildDocPurgeInfo(docId: string): Promise<{ title: string;
     if (!row) return null;
     const attrs = await getBlockAttrs(docId).catch(() => ({}) as Record<string, string>);
     return { title: row.title, box: row.box, hpath: row.hpath, url: attrs[ATTR.url] ?? "" };
+}
+
+/** 文章当前所在宿主类型（恢复分流判据，T-1872）；不在宿主下返回 null。 */
+export async function docUnderHostKind(docId: string): Promise<HostKind | null> {
+    const row = await docRow(docId);
+    if (!row) return null;
+    if (isUnderHost(row.hpath, "archive")) return "archive";
+    if (isUnderHost(row.hpath, "recycle")) return "recycle";
+    return null;
+}
+
+/**
+ * 恢复并移出宿主（T-1872）：把文章移动回宿主所在文件夹（目标可从当前位置推导，
+ * 无"原路径"隐式状态）。已在宿主外时 no-op（moved=false）。状态由调用方另行写入。
+ */
+export async function moveDocOutOfHost(docId: string): Promise<MoveResult> {
+    const row = await docRow(docId);
+    if (!row) throw new Error("文档不存在或索引未同步，无法移出宿主");
+    if (isHostItself(row.hpath, row.title)) throw new Error("宿主文档自身不能被移出");
+    const target = hostParentFolderOf(row.hpath);
+    if (target === null) return { moved: false, hostHpath: row.hpath };
+    // 目标父目录对应的文档 path（带 .sy）；根目录用 "/"（T-1868 补充实证：moveDocs toPath="/" 合法）
+    let toPath = "/";
+    if (target !== "") {
+        const parentRows = await querySql<{ path: string }>(
+            `SELECT path FROM blocks WHERE type = 'd' AND box = '${sqlSafe(row.box)}' AND hpath = '${sqlSafe(target)}' LIMIT 1`
+        );
+        toPath = parentRows[0]?.path ?? "";
+        if (!toPath) throw new Error(`目标文件夹不存在：${target}`);
+    }
+    await moveDocs([row.path], row.box, toPath);
+    await untilSettled(async () => {
+        const after = await docRow(docId);
+        return after && !isUnderHost(after.hpath, "archive") && !isUnderHost(after.hpath, "recycle") ? after : null;
+    }, 8000, "移出宿主后索引收敛");
+    return { moved: true, hostHpath: target };
 }

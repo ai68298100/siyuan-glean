@@ -1,5 +1,13 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-01 第三十四轮：T-1872 恢复策略契约 + 移出宿主）
+
+- **恢复策略（D-0033 + §7.6）**：恢复是状态动作——宿主内文章恢复后位置默认留在宿主下（合法状态，队列只看状态）；宿主内文章恢复按钮弹两选项「仅恢复 / 恢复并移出宿主」（`RestoreDialog.svelte`，`ClipStatusActions.onRestore` 五处入口接线与 onArchive 对称），非宿主文章保持既有直接恢复（`openRestoreDialog` 内 `docUnderHostKind` SQL 分流）。移出目标=第一个宿主段的父目录（`domain/lifecycle.hostParentFolderOf` 纯函数 + 单测），从当前位置推导、**无"原路径"隐式状态**；`moveDocOutOfHost` 服务（目标父目录文档 path 作 toPath，根目录 toPath="/"）。
+- **spike 补实证**：moveDocs `toPath="/"` 移动到根合法（lifecycle-spike **8/8**，§7.5 已回写）。
+- 坑：E2E 新建文档后内核 SQL 索引异步建行——服务层 docRow 依赖 SQL，createDocWithMd 后必须等 SQL 收敛再调生命周期动作（漏写一次等待超时定位）。
+- 门禁：check 0 错 **0 告警**、test **179/179**、build 通过、E2E 全过（恢复分流+移出链路断言）。未发布新版本。提交序列：…→ 7fc6146 → 本轮（git log）。集市 PR #2288 待审。
+- 下一批候选：T-1866 组剩余（T-1876 归档宿主可发现性、T-1877 生命周期 E2E 完整矩阵、T-1878 资产关联处理研究、T-1879 用户说明待 B-0002 后）；验收矩阵 T-1873/1874/1875 需真机（**并入 B-0002**）；功能线其他候选（T-1903 会话队列重排等）。
+
 ## 当前有效交接（2026-10-01 第三十三轮：T-1866 归档后处理入口统一接线）
 
 - **归档三选对话框全入口统一**：`ArchiveDialog.svelte`（保留原位置【默认】/ 移入【归档】/ 删除文章=recycleDoc + 底部二级"彻底删除"=confirm 列标题/路径/来源+不可逆提示后 purgeDoc）经 `facade.openArchiveDialog(docId)` 打开（GleanFacade 接口已加方法）。`ClipStatusActions` 归档按钮新增可选 `onArchive` 回调，五处使用点全接线：Dock 行表、看板卡、卡片视图、ReaderTab 阅读页签、ReadingContext（移动伴生栏）；命令 `cmd.archiveCurrent` 改弹对话框（未收录提示沿用 markCurrentStatus 逻辑独立在 archiveCurrentWithChoice）。
