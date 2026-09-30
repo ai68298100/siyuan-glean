@@ -36,6 +36,23 @@ export async function loadAiLog(plugin: Plugin): Promise<AiLogEntry[]> {
     }
 }
 
+/**
+ * 富化失败待重试的文档集合（T-1763）：按每个文档"最近一条"日志判定——
+ * 最近一条非 ok（llm/parse/enrich）即视为失败待重试。供卡片 ⚠ 标记与重试入口。
+ */
+export async function loadEnrichFailedIds(plugin: Plugin): Promise<Set<string>> {
+    const entries = await loadAiLog(plugin); // 新的在前
+    const latest = new Map<string, string>();
+    for (const entry of entries) {
+        if (!latest.has(entry.docId)) latest.set(entry.docId, entry.stage);
+    }
+    const failed = new Set<string>();
+    for (const [docId, stage] of latest) {
+        if (stage !== "ok") failed.add(docId);
+    }
+    return failed;
+}
+
 export interface AiUsage {
     date: string;
     count: number;
@@ -156,6 +173,8 @@ async function enrichClipInner(plugin: Plugin, docId: string, settings: GleanSet
         }
         await writeClip(plugin, docId, { summary: parsed.summary, aiTags: parsed.tags });
         await incUsage(plugin);
+        // T-1763：成功也留痕（stage=ok）——卡片的"富化失败待重试"标记按最近一条日志判定
+        await appendLog(plugin, docId, "ok", "富化成功");
         const duplicates = settings.ai.dedupOnEnrich
             ? await findDuplicates(plugin, docId, title || parsed.summary)
             : [];

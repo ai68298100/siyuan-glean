@@ -7,7 +7,7 @@ import { t } from "../libs/i18n";
 import type { ClipStatus } from "../domain/schema";
 import { normalizeUrl } from "../domain/url";
 import { batchSetStatus, batchSetStatusDetailed, captureDocument, findClipUrlConflict, reconcileIndex, writeClip } from "../services/clip-store";
-import { autoEnrich, enrichClip } from "../services/enrich-service";
+import { autoEnrich, enrichClip, loadEnrichFailedIds } from "../services/enrich-service";
 import { snapshotClip } from "../services/snapshot-service";
 import { filterAndSortLibrary, libraryFacets, type LibraryItem, type LibrarySortDirection, type LibrarySortKey } from "../domain/library-view.ts";
 import { loadIndex, type ClipIndexEntry, type CandidateEntry, type GleanIndex } from "../services/index-store";
@@ -528,6 +528,13 @@ async function setStatus(entry: ClipIndexEntry, status: ClipStatus) {
 /** T-1762 批量富化：多选逐篇入串行队列（额度统一把守），进度与结算真实反馈。 */
 let batchEnriching = $state(false);
 
+// T-1763：富化失败的文档集合（最近一条日志非 ok）——卡片/行表 ✨ 变 ⚠ 提示重试
+let enrichFailedIds = $state<Set<string>>(new Set());
+
+$effect(() => {
+    void loadEnrichFailedIds(facade.pluginInstance).then((ids) => (enrichFailedIds = ids));
+});
+
 async function batchEnrich(): Promise<void> {
     if (selection.size === 0 || batchEnriching) return;
     batchEnriching = true;
@@ -563,6 +570,33 @@ async function toggleFavorite(entry: ClipIndexEntry): Promise<void> {
         console.warn("[glean] 收藏切换失败:", error);
         showMessage(t(i18n, "msg.actionFailed"), 3000);
     }
+}
+
+/** T-1808 行表溢出菜单：低频辅助动作（收藏/快照/富化/来源）收进 ⋯，高频流转留按钮。 */
+function openRowMenu(entry: ClipIndexEntry, event: MouseEvent): void {
+    void (async () => {
+        const { Menu } = await import("siyuan");
+        const menu = new Menu("glean-row-menu");
+        menu.addItem({
+            label: (entry.favorite ? "★ " : "☆ ") + t(i18n, entry.favorite ? "action.unfavorite" : "action.favorite"),
+            click: () => void toggleFavorite(entry),
+        });
+        menu.addItem({
+            label: (entry.snapshot ? "⟐ " : "📷 ") + snapshotLabel(entry),
+            click: () => void takeSnapshot(entry),
+        });
+        menu.addItem({
+            label: (enrichFailedIds.has(entry.id) ? "⚠ " : "✨ ") + t(i18n, "ai.actionEnrich"),
+            click: () => void enrich(entry),
+        });
+        if (hasSourceAction(entry.contentType, entry.url)) {
+            menu.addItem({
+                label: "↗ " + t(i18n, "clip.openSource"),
+                click: () => openSource(entry),
+            });
+        }
+        menu.open({ x: event.clientX, y: event.clientY });
+    })();
 }
 
 async function startReading(entry: ClipIndexEntry) {
@@ -1052,32 +1086,13 @@ function metaLine(entry: Row): string {
                                             <span class="glean-st-badge glean-st-badge--{entry.status}">{queueLabel(entry.status)}</span>
                                         </span>
                                         <div class="glean-drow__ops">
+                                            <!-- T-1808：低频辅助动作收进 ⋯ 溢出菜单，高频流转（ClipStatusActions）保留 -->
                                             <button
                                                 class="glean-op-btn"
-                                                title={t(i18n, entry.favorite ? "action.unfavorite" : "action.favorite")}
-                                                onclick={(e) => { e.stopPropagation(); void toggleFavorite(entry); }}
-                                            >{entry.favorite ? "★" : "☆"}</button>
-                                            <button
-                                                class="glean-op-btn"
-                                                title={snapshotLabel(entry)}
-                                                disabled={snappingId === entry.id}
-                                                onclick={(e) => { e.stopPropagation(); void takeSnapshot(entry); }}
-                                            >{entry.snapshot ? "⟐" : "📷"}</button>
-                                            <button
-                                                class="glean-op-btn"
-                                                title={t(i18n, "ai.actionEnrich")}
-                                                disabled={enrichingId === entry.id}
-                                                onclick={(e) => { e.stopPropagation(); void enrich(entry); }}
-                                            >✨</button>
-                                             {#if hasSourceAction(entry.contentType, entry.url)}
-                                                 <button
-                                                     class="glean-op-btn"
-                                                     title={t(i18n, "clip.openSource")}
-                                                     aria-label={t(i18n, "clip.openSource")}
-                                                     onclick={(e) => { e.stopPropagation(); openSource(entry); }}
-                                                 >↗</button>
-                                             {/if}
-                                             <ClipStatusActions
+                                                title={t(i18n, "action.more")}
+                                                onclick={(e) => { e.stopPropagation(); openRowMenu(entry, e); }}
+                                            >⋯</button>
+                                            <ClipStatusActions
                                                  {i18n}
                                                  status={entry.status || "inbox"}
                                                  disabled={statusActionId === entry.id}
@@ -1263,10 +1278,11 @@ function metaLine(entry: Row): string {
                                     >{entry.snapshot ? "⟐" : "📷"}</button>
                                     <button
                                         class="glean-op-btn"
-                                        title={t(i18n, "ai.actionEnrich")}
+                                        class:glean-op-btn--warn={enrichFailedIds.has(entry.id)}
+                                        title={enrichFailedIds.has(entry.id) ? t(i18n, "ai.retryHint") : t(i18n, "ai.actionEnrich")}
                                         disabled={enrichingId === entry.id}
                                         onclick={(e) => { e.stopPropagation(); void enrich(entry); }}
-                                    >✨</button>
+                                    >{enrichFailedIds.has(entry.id) ? "⚠" : "✨"}</button>
                                      {#if hasSourceAction(entry.contentType, entry.url)}
                                          <button
                                              class="glean-op-btn"

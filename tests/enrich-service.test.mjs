@@ -127,7 +127,8 @@ test("模型错误与解析失败后队列继续执行，失败不占额度", as
     assert.equal((await enrichClip(h.plugin, "bad", settings)).skipped, "parse");
     assert.equal((await enrichClip(h.plugin, "good", settings)).ok, true);
     assert.equal(h.attrs.get("good")["custom-clip-summary"], "恢复后的摘要");
-    assert.deepEqual(h.files.get("ai-log.json").map((entry) => entry.stage), ["llm", "parse"]);
+    // T-1763：成功也留痕（stage=ok），供卡片"失败待重试"标记按最近一条判定
+    assert.deepEqual(h.files.get("ai-log.json").map((entry) => entry.stage), ["llm", "parse", "ok"]);
     assert.equal(await usageToday(h.plugin), 1);
 });
 
