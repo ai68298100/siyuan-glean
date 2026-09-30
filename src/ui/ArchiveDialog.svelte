@@ -7,10 +7,11 @@
      * 今日拾遗与自动化批量不进此对话框（快速归档=默认项语义，T-1875 禁止批量默认不可逆）。
      */
     import { showMessage } from "siyuan";
+    import { onMount } from "svelte";
     import type { GleanFacade } from "../types";
     import { t } from "../libs/i18n";
     import { writeClip } from "../services/clip-store";
-    import { archiveMoveDoc, buildDocPurgeInfo, purgeDoc, recycleDoc } from "../services/lifecycle-service";
+    import { archiveMoveDoc, buildDocPurgeInfo, docHostContext, purgeDoc, recycleDoc, type DocHostContext } from "../services/lifecycle-service";
 
     interface Props {
         facade: GleanFacade;
@@ -22,6 +23,12 @@
     let { facade, docId, onClose }: Props = $props();
     const i18n = $derived(facade.i18n);
     let pending = $state(false);
+    // T-1876 可发现性：显示将要使用的宿主路径与"已在宿主下"状态
+    let ctx = $state<DocHostContext | null>(null);
+
+    onMount(() => {
+        void docHostContext(docId).then((value) => { ctx = value; }).catch(() => undefined);
+    });
 
     async function settle(feedbackKey: string, action: () => Promise<unknown>): Promise<void> {
         if (pending) return;
@@ -62,7 +69,12 @@
 </script>
 
 <div class="glean-archive-dlg">
-    <div class="glean-archive-dlg__hint">{t(i18n, "archive.hint")}</div>
+    <div class="glean-archive-dlg__hint">
+        {t(i18n, "archive.hint")}
+        {#if ctx?.hostKind === "archive" || ctx?.hostKind === "recycle"}
+            <span class="glean-archive-dlg__inhost">{t(i18n, "archive.alreadyInHost")}</span>
+        {/if}
+    </div>
     <button class="glean-archive-dlg__opt" disabled={pending} onclick={() => void keepInPlace()}>
         <span class="glean-archive-dlg__icon" aria-hidden="true">⤓</span>
         <span class="glean-archive-dlg__body">
@@ -74,7 +86,10 @@
         <span class="glean-archive-dlg__icon" aria-hidden="true">📁</span>
         <span class="glean-archive-dlg__body">
             <span class="glean-archive-dlg__name">{t(i18n, "archive.moveToHost")}</span>
-            <span class="glean-archive-dlg__desc">{t(i18n, "archive.moveToHostHint")}</span>
+            <span class="glean-archive-dlg__desc">
+                {t(i18n, "archive.moveToHostHint")}
+                {#if ctx}<span class="glean-archive-dlg__path">{t(i18n, "archive.targetPath", { path: ctx.archiveTarget })}</span>{/if}
+            </span>
         </span>
     </button>
     <button class="glean-archive-dlg__opt" disabled={pending} onclick={() => void moveToRecycle()}>

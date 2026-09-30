@@ -2808,3 +2808,5 @@
 }
 .glean-archive-dlg__purge:hover:not(:disabled) { opacity: 1; text-decoration: underline; }
 .glean-archive-dlg__purge:disabled { opacity: .4; cursor: default; }
+.glean-archive-dlg__inhost { margin-left: 6px; color: var(--b3-theme-primary); }
+.glean-archive-dlg__path { display: block; margin-top: 1px; color: var(--b3-theme-primary); opacity: .85; word-break: break-all; }

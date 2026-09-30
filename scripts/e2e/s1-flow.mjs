@@ -794,6 +794,63 @@ async function runFlow(client, workspace) {
     assert.equal(rcRestored["custom-clip-status"], "later");
     assert.equal(await lifecycleSvc.docUnderHostKind(rcDoc), null, "移出后判为宿主外（恢复直接动作分流）");
     pass("T-1872 恢复策略：宿主判定分流 + 恢复并移出宿主（hpath 回父目录、状态写回）");
+
+    // T-1877 完整矩阵补强：失败不伪报 / 宿主删除语义实证与重建 / 索引重建数据主权。
+    // ① 失败不伪报：对不存在文档执行生命周期动作必须抛错（服务层不吞错误）
+    const ghostId = "20260101000000-zzzzzzz";
+    let moveFailed = false;
+    try { await lifecycleSvc.archiveMoveDoc(plugin, ghostId); } catch { moveFailed = true; }
+    assert.equal(moveFailed, true, "对不存在文档归档移动必须抛错");
+    let purgeFailed = false;
+    try { await lifecycleSvc.purgeDoc(plugin, ghostId); } catch { purgeFailed = true; }
+    assert.equal(purgeFailed, true, "对不存在文档彻底删除必须抛错");
+    pass("T-1877a 失败语义：生命周期动作对不存在文档抛错，不伪报成功");
+
+    // ② 宿主删除语义实证 + 宿主重建：removeDoc 宿主是否递归删除子文档（内核语义）
+    const rbDoc = await makeDoc("宿主重建文章", "# 宿主重建文章\n\n宿主删除实证", "");
+    await clip.writeClip(plugin, rbDoc, { status: "later" });
+    await until("宿主重建文章入 SQL", async () => {
+        const rows = await client.apiChecked("/api/query/sql", {
+            stmt: `SELECT hpath FROM blocks WHERE type='d' AND id='${rbDoc}'`,
+        });
+        return rows[0]?.hpath ? true : null;
+    });
+    await lifecycleSvc.archiveMoveDoc(plugin, rbDoc);
+    const rbHostRow = await until("找到当前归档宿主", async () => {
+        const rows = await client.apiChecked("/api/query/sql", {
+            stmt: `SELECT id, path FROM blocks WHERE type='d' AND box='${box}' AND hpath='/S1/【归档】'`,
+        });
+        return rows[0]?.id ? rows[0] : null;
+    });
+    await client.apiChecked("/api/filetree/removeDoc", { notebook: box, path: rbHostRow.path });
+    const hostGone = await until("宿主删除后结果收敛", async () => {
+        const childRows = await client.apiChecked("/api/query/sql", {
+            stmt: `SELECT count(*) AS n FROM blocks WHERE root_id='${rbDoc}'`,
+        });
+        const hostRows = await client.apiChecked("/api/query/sql", {
+            stmt: `SELECT count(*) AS n FROM blocks WHERE type='d' AND id='${rbHostRow.id}'`,
+        });
+        return Number(childRows[0].n) === 0 || Number(hostRows[0].n) === 0 ? { childGone: Number(childRows[0].n) === 0 } : null;
+    });
+    if (hostGone.childGone) {
+        // 内核递归删除：宿主删除连带子文档（思源语义，思源数据历史兜底）——契约记录，宿主重建无从谈起
+        pass("T-1877b 宿主删除语义：内核递归删除宿主连带子文档（思源语义，数据历史兜底）");
+    } else {
+        // 宿主被删但子文档幸存：ensureHost 必须能重建宿主且移动幂等依旧
+        const rebuiltHost = await lifecycleSvc.ensureHost(box, "/S1/宿主重建文章", "archive");
+        assert.match(rebuiltHost.path, /\.sy$/);
+        const moveAgainAfterRebuild = await lifecycleSvc.archiveMoveDoc(plugin, rbDoc);
+        assert.equal(moveAgainAfterRebuild.moved, false, "宿主重建后重复归档移动仍幂等");
+        pass("T-1877b 宿主删除语义：子文档幸存，ensureHost 重建宿主 + 幂等依旧");
+    }
+
+    // ③ 索引重建数据主权：删 glean-index.json 重建后无幽灵条目（彻底删除/宿主删除篇目）
+    await plugin.removeData("glean-index.json");
+    const rebuiltLifecycle = await clip.rebuildIndex(newPlugin(), settings);
+    assert.equal(rebuiltLifecycle.clips[lcDoc], undefined, "索引重建后无已彻底删除篇目的幽灵条目");
+    if (hostGone.childGone) assert.equal(rebuiltLifecycle.clips[rbDoc], undefined, "索引重建后无随宿主删除篇目的幽灵条目");
+    else assert.ok(rebuiltLifecycle.clips[rbDoc], "宿主重建场景下文章条目保留");
+    pass("T-1877c 数据主权：索引删除重建后无幽灵条目，属性为唯一事实源");
 }
 
 async function main() {

@@ -5,10 +5,11 @@
      * 恢复 = 状态写回 later；移出目标 = 宿主所在文件夹（从当前位置推导，无隐式状态）。
      */
     import { showMessage } from "siyuan";
+    import { onMount } from "svelte";
     import type { GleanFacade } from "../types";
     import { t } from "../libs/i18n";
     import { writeClip } from "../services/clip-store";
-    import { moveDocOutOfHost } from "../services/lifecycle-service";
+    import { docHostContext, moveDocOutOfHost, type DocHostContext } from "../services/lifecycle-service";
 
     interface Props {
         facade: GleanFacade;
@@ -20,6 +21,12 @@
     let { facade, docId, onClose }: Props = $props();
     const i18n = $derived(facade.i18n);
     let pending = $state(false);
+    // T-1876 可发现性：移出目标目录
+    let ctx = $state<DocHostContext | null>(null);
+
+    onMount(() => {
+        void docHostContext(docId).then((value) => { ctx = value; }).catch(() => undefined);
+    });
 
     async function settle(feedbackKey: string, moveOut: boolean): Promise<void> {
         if (pending) return;
@@ -52,7 +59,14 @@
         <span class="glean-archive-dlg__icon" aria-hidden="true">📂</span>
         <span class="glean-archive-dlg__body">
             <span class="glean-archive-dlg__name">{t(i18n, "restore.moveOut")}</span>
-            <span class="glean-archive-dlg__desc">{t(i18n, "restore.moveOutHint")}</span>
+            <span class="glean-archive-dlg__desc">
+                {t(i18n, "restore.moveOutHint")}
+                {#if ctx?.moveOutTarget !== null && ctx?.moveOutTarget !== undefined}
+                    <span class="glean-archive-dlg__path">
+                        {t(i18n, "archive.targetPath", { path: ctx.moveOutTarget || t(i18n, "common.rootFolder") })}
+                    </span>
+                {/if}
+            </span>
         </span>
     </button>
 </div>

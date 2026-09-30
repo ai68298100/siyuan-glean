@@ -160,6 +160,29 @@ export async function docUnderHostKind(docId: string): Promise<HostKind | null> 
     return null;
 }
 
+/** 对话框可发现性上下文（T-1876）：当前位置/宿主判定/归档移入目标/移出宿主目标。 */
+export interface DocHostContext {
+    title: string;
+    hpath: string;
+    hostKind: HostKind | null;
+    /** 移入【归档】将使用的 hpath（hostHpathOf） */
+    archiveTarget: string;
+    /** 移出宿主的目标目录（hostParentFolderOf）；null=不在宿主下，""=根 */
+    moveOutTarget: string | null;
+}
+
+export async function docHostContext(docId: string): Promise<DocHostContext | null> {
+    const row = await docRow(docId);
+    if (!row) return null;
+    return {
+        title: row.title,
+        hpath: row.hpath,
+        hostKind: isUnderHost(row.hpath, "archive") ? "archive" : isUnderHost(row.hpath, "recycle") ? "recycle" : null,
+        archiveTarget: hostHpathOf(row.hpath, "archive"),
+        moveOutTarget: hostParentFolderOf(row.hpath),
+    };
+}
+
 /**
  * 恢复并移出宿主（T-1872）：把文章移动回宿主所在文件夹（目标可从当前位置推导，
  * 无"原路径"隐式状态）。已在宿主外时 no-op（moved=false）。状态由调用方另行写入。
