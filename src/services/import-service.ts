@@ -90,6 +90,12 @@ export interface ImportOptions {
     signal?: { aborted: boolean };
 }
 
+export interface ImportFailure {
+    title: string;
+    /** 脱敏后的失败原因（错误消息前 120 字） */
+    reason: string;
+}
+
 export interface ImportSummary {
     imported: number;
     skippedDuplicate: number;
@@ -97,6 +103,8 @@ export interface ImportSummary {
     docIds: string[];
     /** 文档已创建但收录未完成的孤儿（T-1840）：已记入 import-orphans.json，可重试补收录 */
     orphanCount: number;
+    /** 逐条失败原因（T-1963）：title + 脱敏 reason，供 done 阶段展示 */
+    failures: ImportFailure[];
 }
 
 /* ---------- 导入孤儿账本（T-1840，DATA-CONTRACT §0） ---------- */
@@ -166,7 +174,7 @@ export async function runImport(
     const src = formatToSrc(options.format);
     // T-1988：目标文件夹规范化——拒绝越级（..）、空段与非法字符，不静默跨目录创建
     const folder = normalizeImportFolder(options.folder, "导入");
-    const summary: ImportSummary = { imported: 0, skippedDuplicate: 0, failed: 0, docIds: [], orphanCount: 0 };
+    const summary: ImportSummary = { imported: 0, skippedDuplicate: 0, failed: 0, docIds: [], orphanCount: 0, failures: [] };
     const orphans: ImportOrphan[] = [];
     // 预览和执行之间库可能已变化；执行阶段重新查重，并把本批已创建 URL 记入集合。
     const existingUrls = await collectExistingUrls();
@@ -214,8 +222,13 @@ export async function runImport(
                 }
                 summary.imported += 1;
                 summary.docIds.push(docId);
-            } catch {
+            } catch (error) {
                 summary.failed += 1;
+                // T-1963：逐条失败原因（脱敏：只取消息前 120 字）
+                summary.failures.push({
+                    title: row.title || row.url,
+                    reason: String((error as Error)?.message ?? error).slice(0, 120),
+                });
                 // T-1840：失败可能发生在"文档已创建、属性未写入"——若本批已为该 URL 建档
                 //（existingUrls 含 urlKey），记入孤儿账本供重试补收录，避免重跑重建重复文档。
                 if (existingUrls.has(urlKey) && urlKey) {

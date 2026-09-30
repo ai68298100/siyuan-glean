@@ -267,6 +267,17 @@ function resetToPick() {
                 <div class="glean-empty__hint">{t(i18n, "import.orphansCreated", { n: summary.orphanCount })}</div>
             </div>
         {/if}
+        {#if summary.failures.length > 0}
+            <!-- T-1963：逐条失败原因 -->
+            <div class="glean-set-row" style="flex-direction:column; align-items:stretch; gap:4px">
+                {#each summary.failures as failure (failure.title + failure.reason)}
+                    <div class="glean-logrow">
+                        <span class="glean-logrow__stage">{t(i18n, "import.failed")}</span>
+                        <span class="glean-logrow__msg">{failure.title}：{failure.reason}</span>
+                    </div>
+                {/each}
+            </div>
+        {/if}
         <div class="glean-migrate__ops">
             <button class="glean-btn glean-btn--pri" onclick={() => void onClose()}>{t(i18n, "action.close")}</button>
         </div>

@@ -1,5 +1,11 @@
 # 进度（PROGRESS）
 
+## 网络可靠性批（续跑口令驱动，2026-10-01）✅
+
+- [x] **T-1967 内核请求超时**：`kernelPost` 默认 60s 超时兜底（settled 守卫：超时 reject 后迟到响应丢弃，不二次 settle 不抛 unhandled）；`KERNEL_TIMEOUT_LONG_MS=180s` 放宽长操作（SQL 分页/批量属性/exportMdContent/exportHTML/putFile 快照上传）。3 组单测（stub fetchPost：超时 reject/迟到丢弃/正常路径）。**取消语义说明**：fetchPost 回调模式无底层取消能力，本轮做"放弃等待"；Abort 需内核侧支持，随 T-1855。断网/重启 E2E 同上。
+- [x] **T-1963 导入逐条失败原因**：`ImportSummary.failures`（title + 脱敏 reason 前 120 字），done 阶段逐条列出；孤儿账本（T-1840）与失败原因互补。
+- [x] 门禁：check 0 错 0 告警、test **160/160**（+3）、build 通过、隔离 E2E **30/30**。未发布新版本。
+
 ## 收藏功能（续跑口令驱动，2026-10-01）✅
 
 - [x] **T-1904 收藏（契约先行）**：设计裁决=新增独立 `custom-clip-favorite` 布尔位（不复用 priority——收藏与重要性排序语义分离）。DATA-CONTRACT §1 补属性行；schema 序列化/解析；索引投影（favorite 字段）；`library-view.favoriteOnly` 筛选（候选不参与，单测）；行表/卡片/伴生栏星标 toggle（★/☆）+ 搜索框旁「仅看收藏」switch。E2E 断言（写入→投影→筛选全链）。注意：口令中的"T-1755 收藏"系编号笔误，实际任务号=T-1904。

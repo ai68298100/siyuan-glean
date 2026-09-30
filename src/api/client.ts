@@ -1,6 +1,9 @@
 /**
  * 内核 HTTP 传输层：api/ 是唯一允许发内核请求的地方（AGENTS.md 铁律）。
  * 端点形状以 docs/DATA-CONTRACT.md §5 与 scripts/spike 实证为准。
+ *
+ * T-1967 超时：默认 60s 兜底（本地内核 60s 无响应视为挂起），长操作调用点
+ * （大库 SQL 分页/全文导出/批量属性）显式放宽；超时仅放弃等待，底层请求无法取消。
  */
 import { fetchPost } from "siyuan";
 
@@ -10,9 +13,26 @@ export interface KernelResponse<T> {
     data: T;
 }
 
-function kernelPost<T>(route: string, body: Record<string, unknown> = {}): Promise<T> {
+export const KERNEL_TIMEOUT_DEFAULT_MS = 60_000;
+export const KERNEL_TIMEOUT_LONG_MS = 180_000;
+
+function kernelPost<T>(
+    route: string,
+    body: Record<string, unknown> = {},
+    options: { timeoutMs?: number } = {}
+): Promise<T> {
+    const timeoutMs = options.timeoutMs ?? KERNEL_TIMEOUT_DEFAULT_MS;
     return new Promise((resolve, reject) => {
+        let settled = false;
+        const timer = setTimeout(() => {
+            if (settled) return;
+            settled = true;
+            reject(new Error(`${route} 请求超时（${Math.round(timeoutMs / 1000)}s 无响应）`));
+        }, timeoutMs);
         fetchPost(route, body, (response: { code?: number; msg?: string; data?: T }) => {
+            if (settled) return; // 超时后迟到的响应丢弃
+            settled = true;
+            clearTimeout(timer);
             if (!response || typeof response.code !== "number") {
                 reject(new Error(`${route} 返回异常响应`));
             } else if (response.code !== 0) {
@@ -59,7 +79,7 @@ export interface BlockAttrsPair {
  */
 export async function batchGetBlockAttrs(ids: string[]): Promise<BlockAttrsPair[]> {
     if (ids.length === 0) return [];
-    const data = await kernelPost<Record<string, Ial>>("/api/attr/batchGetBlockAttrs", { ids });
+    const data = await kernelPost<Record<string, Ial>>("/api/attr/batchGetBlockAttrs", { ids }, { timeoutMs: KERNEL_TIMEOUT_LONG_MS });
     const pairs: BlockAttrsPair[] = [];
     for (const [id, attrs] of Object.entries(data ?? {})) {
         pairs.push({ id, attrs: attrs ?? {} });
@@ -91,7 +111,7 @@ export interface DocRow {
 
 /** 跑一条只读 SQL；思源索引异步刷新，写后立刻查可能短暂滞后 */
 export async function querySql<T = Record<string, unknown>>(stmt: string): Promise<T[]> {
-    const data = await kernelPost<T[]>("/api/query/sql", { stmt });
+    const data = await kernelPost<T[]>("/api/query/sql", { stmt }, { timeoutMs: KERNEL_TIMEOUT_LONG_MS });
     return Array.isArray(data) ? data : [];
 }
 
@@ -110,7 +130,7 @@ export async function listNotebooks(): Promise<NotebookMeta[]> {
 
 /** 导出文档为 markdown（迁移器读正文用；返回 content 已含正文 markdown） */
 export async function exportMdContent(id: string): Promise<{ hPath: string; content: string }> {
-    return kernelPost<{ hPath: string; content: string }>("/api/export/exportMdContent", { id });
+    return kernelPost<{ hPath: string; content: string }>("/api/export/exportMdContent", { id }, { timeoutMs: KERNEL_TIMEOUT_LONG_MS });
 }
 
 /** 创建文档（同路径会再建新文档，不幂等——调用方先查重，人脉 D-0007 同款结论）。返回文档 ID。 */
