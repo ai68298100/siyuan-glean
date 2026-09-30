@@ -429,6 +429,8 @@
   "reader.hotkeyHelp": "键盘快捷键",
   "reader.hotkeyScroll": "向下 / 向上滚动一块",
   "reader.hotkeyMode": "切换 阅读/编辑 模式",
+  "reader.typographyFont": "切换字号（小/中/大）",
+  "reader.typographyLine": "切换行距（紧/常规/松）",
   "reader.bilingualTitle": "双语对照 · 译文",
   "reader.readingProgress": "阅读进度（按已过内容块估计）",
   "reader.sessionMinutes": "本次阅读 ${n} 分钟",

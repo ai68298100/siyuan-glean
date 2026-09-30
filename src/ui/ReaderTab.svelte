@@ -48,6 +48,7 @@
     import { speakText, stopSpeaking, ttsAvailable } from "../services/tts";
     import { anchorBlockInViewport, blockPosition, countDocBlocks, saveReadingPos } from "../services/reading-position";
     import { settleReadingMinutes } from "../services/reading-time";
+    import { loadUiPrefs, saveUiPrefs, type ReaderTypography } from "../services/prefs";
     import ClipStatusActions from "./ClipStatusActions.svelte";
     import ClipRankControls from "./ClipRankControls.svelte";
 
@@ -76,6 +77,26 @@
     let protyle: Protyle | null = null;
 
     const bodyState = $derived(context ? fulltextBodyState(context.contentType, context.words) : "na");
+
+    // T-1742 排版偏好：字号/行距三档（ui-prefs 持久化，纯视图状态）
+    let typography = $state<ReaderTypography>({ fontSize: "md", lineHeight: "normal" });
+    $effect(() => {
+        void loadUiPrefs(facade.pluginInstance).then((prefs) => {
+            typography = prefs.readerTypography;
+        });
+    });
+
+    function cycleFontSize(): void {
+        const order: ReaderTypography["fontSize"][] = ["sm", "md", "lg"];
+        typography = { ...typography, fontSize: order[(order.indexOf(typography.fontSize) + 1) % order.length] };
+        void saveUiPrefs(facade.pluginInstance, { readerTypography: typography });
+    }
+
+    function cycleLineHeight(): void {
+        const order: ReaderTypography["lineHeight"][] = ["compact", "normal", "relaxed"];
+        typography = { ...typography, lineHeight: order[(order.indexOf(typography.lineHeight) + 1) % order.length] };
+        void saveUiPrefs(facade.pluginInstance, { readerTypography: typography });
+    }
 
     // 摘录段（D-0030）：selectionchange 限定正文宿主内；blockId 空=定位失败，仅可复制。
     let excerpt = $state<{ text: string; blockId: string } | null>(null);
@@ -783,7 +804,7 @@
     }
 </script>
 
-<div class="glean-reader">
+<div class="glean-reader glean-reader--font-{typography.fontSize} glean-reader--lh-{typography.lineHeight}">
     <div class="glean-reader__main">
         {#if docId}
             <div class="glean-reader__host" bind:this={protyleHost}></div>
@@ -860,6 +881,17 @@
                     title={t(i18n, "reader.editHint")}
                     onclick={() => setMode("edit")}
                 >{t(i18n, "reader.modeEdit")}</button>
+                <!-- T-1742 排版偏好：字号/行距循环（纯视图状态，ui-prefs 持久化） -->
+                <button
+                    class="glean-seg__btn"
+                    title={t(i18n, "reader.typographyFont")}
+                    onclick={() => cycleFontSize()}
+                >A</button>
+                <button
+                    class="glean-seg__btn"
+                    title={t(i18n, "reader.typographyLine")}
+                    onclick={() => cycleLineHeight()}
+                >{typography.lineHeight === "compact" ? "≡" : typography.lineHeight === "normal" ? "≣" : "☰"}</button>
             </div>
             {#if context}
                 <ClipStatusActions

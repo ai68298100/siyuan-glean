@@ -2743,3 +2743,11 @@
     color: var(--b3-theme-on-surface);
     white-space: pre-wrap;
 }
+
+/* ---------- 排版偏好（T-1742）：字号/行距三档，作用于正文宿主 ---------- */
+.glean-reader--font-sm .glean-reader__main { font-size: 13px; }
+.glean-reader--font-md .glean-reader__main { font-size: 15px; }
+.glean-reader--font-lg .glean-reader__main { font-size: 17px; }
+.glean-reader--lh-compact .glean-reader__main .protyle-content { line-height: 1.5; }
+.glean-reader--lh-normal .glean-reader__main .protyle-content { line-height: 1.75; }
+.glean-reader--lh-relaxed .glean-reader__main .protyle-content { line-height: 2; }

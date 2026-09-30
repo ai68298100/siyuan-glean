@@ -12,6 +12,16 @@ export interface UiPrefs {
     onboardingDone: boolean;
     /** 保存的筛选视图（T-1846）：仅筛选条件投影，不复制文章状态 */
     savedFilters: SavedFilter[];
+    /** 阅读页签排版（T-1742）：字号/行距三档档位 */
+    readerTypography: ReaderTypography;
+}
+
+/** 阅读页签排版档位（T-1742）：纯视图状态，默认档跟随思源。 */
+export interface ReaderTypography {
+    /** 字号档：sm / md / lg */
+    fontSize: "sm" | "md" | "lg";
+    /** 行距档：compact / normal / relaxed */
+    lineHeight: "compact" | "normal" | "relaxed";
 }
 
 /** 保存的筛选视图（T-1846）：name 唯一性由 UI 保证，这里只做类型归一。 */
@@ -22,7 +32,26 @@ export interface SavedFilter {
 
 const PREFS_FILE = "ui-prefs.json";
 
-const DEFAULTS: UiPrefs = { lastView: "", onboardingDone: false, savedFilters: [] };
+const DEFAULTS: UiPrefs = {
+    lastView: "",
+    onboardingDone: false,
+    savedFilters: [],
+    readerTypography: { fontSize: "md", lineHeight: "normal" },
+};
+
+const FONT_SIZES = ["sm", "md", "lg"] as const;
+const LINE_HEIGHTS = ["compact", "normal", "relaxed"] as const;
+
+/** 归一化排版档位（T-1742）：非法值回落默认。 */
+function normalizeTypography(raw: unknown): ReaderTypography {
+    const input = (raw ?? {}) as Partial<ReaderTypography>;
+    return {
+        fontSize: FONT_SIZES.includes(input.fontSize as never) ? (input.fontSize as ReaderTypography["fontSize"]) : "md",
+        lineHeight: LINE_HEIGHTS.includes(input.lineHeight as never)
+            ? (input.lineHeight as ReaderTypography["lineHeight"])
+            : "normal",
+    };
+}
 
 /** 归一化单条筛选投影：只保留字符串/布尔原语键。 */
 function normalizeFilterRecord(raw: unknown): Record<string, string | boolean> {
@@ -66,6 +95,7 @@ export async function loadUiPrefs(plugin: Plugin): Promise<UiPrefs> {
                     lastView: typeof partial.lastView === "string" ? partial.lastView : "",
                     onboardingDone: partial.onboardingDone === true,
                     savedFilters: normalizeSavedFilters(partial.savedFilters),
+                    readerTypography: normalizeTypography(partial.readerTypography),
                 };
             }
         } catch { /* 忽略 */ }
@@ -93,6 +123,7 @@ async function loadUiPrefsUnlocked(plugin: Plugin): Promise<UiPrefs> {
                 lastView: typeof partial.lastView === "string" ? partial.lastView : "",
                 onboardingDone: partial.onboardingDone === true,
                 savedFilters: normalizeSavedFilters(partial.savedFilters),
+                readerTypography: normalizeTypography(partial.readerTypography),
             };
         }
     } catch { /* 忽略 */ }
