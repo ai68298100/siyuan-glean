@@ -61,6 +61,19 @@ test("quoteExportMarkdown：逐条附原文回链", () => {
     assert.ok(md.includes("未命名文档"));
 });
 
+test("quoteExportMarkdown：颜色标记带【色名】前缀（T-1901 延伸）", () => {
+    const md = quoteExportMarkdown(
+        [
+            entry({ id: "q1", text: "黄色摘录", color: "yellow" }),
+            entry({ id: "q2", text: "未标色摘录", color: "" }),
+        ],
+        "2026.10.01",
+        "2026-10-01 12:00"
+    );
+    assert.ok(md.includes("- 【yellow】黄色摘录"));
+    assert.ok(md.includes("- 未标色摘录"));
+});
+
 test("formatQuoteShare：引述 + 来源 + 回链（T-1803）", () => {
     const share = formatQuoteShare(entry({ text: "关键论点", title: "深度文章", site: "a.com", rootId: "20260101000001-bbbbbbb" }));
     assert.ok(share.includes("> 关键论点"));
@@ -68,4 +81,16 @@ test("formatQuoteShare：引述 + 来源 + 回链（T-1803）", () => {
     assert.ok(share.includes("siyuan://blocks/20260101000001-bbbbbbb"));
     // 无站点时省略括号
     assert.ok(formatQuoteShare(entry({ text: "x", title: "文" })).includes("—— 文"));
+});
+
+test("quoteFacets/filterQuotes：颜色分面与颜色筛选（T-1901 延伸）", () => {
+    const items = [
+        entry({ id: "q1", color: "yellow" }),
+        entry({ id: "q2", color: "yellow" }),
+        entry({ id: "q3", color: "" }),
+    ];
+    const facets = quoteFacets(items);
+    assert.deepEqual(facets.colors, [{ name: "yellow", count: 2 }]);
+    assert.deepEqual(filterQuotes(items, { color: "yellow" }).map((q) => q.id), ["q1", "q2"]);
+    assert.deepEqual(filterQuotes(items, { color: "red" }).map((q) => q.id), []);
 });

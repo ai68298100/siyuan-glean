@@ -1,5 +1,11 @@
 # 进度（PROGRESS）
 
+## 摘录墙颜色筛选与导出色标（续跑口令驱动，2026-10-01）✅
+
+- [x] **T-1901 延伸二：颜色全链在摘录墙闭合**：domain `QuoteFilter.color` + `quoteFacets.colors` 分面 + `filterQuotes` 颜色匹配（单测）；`quoteExportMarkdown` 有色条目加【色名】前缀（单测 +1）；QuotesView 颜色分面 chips（色点 `glean-hl__color--*` 着色 + i18n 色名双语 4 键 `highlight.color.*`）+ 活性 chip 本地化；HighlightView 分享卡构造补 color 字段。
+- [x] 门禁：check 0 错 0 告警、test **171/171**（+2）、build 通过、隔离 E2E **31/31**。未发布新版本；真机观感随 B-0002。
+- 坑：domain 接口加必填字段（QuoteEntry.color）后其他构造点（HighlightView 分享卡）编译即时暴露——**接口加必填字段需全仓 grep 构造点**（DEFAULTS 教训的推广）。
+
 ## 摘录墙颜色与简报朗读（续跑口令驱动，2026-10-01）✅
 
 - [x] **T-1901 延伸：摘录墙颜色**：`QuoteEntryWithColor`（color 字段）+ loadQuotes 后逐块 getQuoteColor 补齐 + 色点循环切换（写引述块级 IAL）+ 色条渲染。颜色筛选随 T-1901 后续（全库筛选/搜索）。

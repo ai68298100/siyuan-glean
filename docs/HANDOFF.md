@@ -1,5 +1,12 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-01 第三十轮：摘录墙颜色筛选/导出色标）
+
+- **T-1901 延伸二：颜色全链在摘录墙闭合**：domain `QuoteFilter.color` + `quoteFacets.colors` 分面 + `filterQuotes` 颜色匹配（单测）；`quoteExportMarkdown` 有色条目加【色名】前缀（新单测）；QuotesView 颜色分面 chips（色点 `glean-hl__color--*` 着色 + i18n 色名）+ 活性 chip 本地化；i18n 新增 `highlight.color.yellow/red/blue/green` 双语 4 键（tests/i18n.test.ts 守门通过）。HighlightView 分享卡构造补 color 字段。引述块删除/高亮视图侧全库操作仍随 T-1753 后续。
+- 坑（教训推广）：domain 接口加必填字段（QuoteEntry.color）后，其他构造点（HighlightView 分享卡字面量）编译即时暴露——**接口加必填字段需全仓 grep 构造点**（DEFAULTS 字面量教训的推广形）。
+- 门禁：check 0 错 **0 告警**、test **171/171**、build 通过、E2E **31/31**。未发布新版本。提交序列：…→ 68b9951 → 本轮（git log）。集市 PR #2288 待审。
+- 下一批候选：功能线大项/契约组（T-1903 会话队列重排、T-1905 结论落地随 T-1866/T-1867、T-1753 摘录侧删除）；重活缺陷已全清；**强烈建议作者安排 B-0002 真机走查**（积压非常多，走查后可按 v1.1.x 补丁版定版）。
+
 ## 当前有效交接（2026-10-01 第二十九轮：摘录墙颜色 / 简报朗读）
 
 - **T-1901 延伸：摘录墙颜色**：`QuotesView` entries 扩展 `QuoteEntryWithColor`（color 字段）+ loadQuotes 后逐块 `getQuoteColor` 补齐 + 色点循环切换（`cycleQuoteColor` 写引述块级 IAL）+ 色条渲染。颜色筛选随 T-1901 后续（全库筛选/搜索）。

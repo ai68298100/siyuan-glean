@@ -139,6 +139,7 @@ async function copyShare(item: HighlightItem): Promise<void> {
         site: "",
         tags: [],
         aiTags: [],
+        color: item.color,
     });
     try {
         await navigator.clipboard.writeText(share);

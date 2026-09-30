@@ -62,7 +62,7 @@ async function loadQuotes() {
         });
         // T-1901 延伸：颜色标记逐块补齐（getBlockAttrs 可靠；SQL ial 列同步有限）
         const colors = await Promise.all(entries.map((entry) => getQuoteColor(entry.id)));
-        entries = entries.map((entry, index) => ({ ...entry, color: colors[index] }));
+        entries = entries.map((entry, i) => ({ ...entry, color: colors[i] }));
     } catch (error) {
         console.warn("[glean] 摘录墙加载失败:", error);
         loadFailed = true;
@@ -84,21 +84,27 @@ async function cycleQuoteColor(entry: QuoteEntryWithColor): Promise<void> {
     }
 }
 
-function toggleFacet(key: "site" | "tag" | "aiTag", value: string): void {
+function toggleFacet(key: "site" | "tag" | "aiTag" | "color", value: string): void {
     filter = { ...filter, [key]: filter[key] === value ? undefined : value };
 }
 
-function activeChips(): Array<{ key: "site" | "tag" | "aiTag" | "keyword"; label: string }> {
-    const chips: Array<{ key: "site" | "tag" | "aiTag" | "keyword"; label: string }> = [];
+function activeChips(): Array<{ key: "site" | "tag" | "aiTag" | "color" | "keyword"; label: string }> {
+    const chips: Array<{ key: "site" | "tag" | "aiTag" | "color" | "keyword"; label: string }> = [];
     if (filter.site) chips.push({ key: "site", label: filter.site });
     if (filter.tag) chips.push({ key: "tag", label: `#${filter.tag}` });
     if (filter.aiTag) chips.push({ key: "aiTag", label: `✨${filter.aiTag}` });
+    if (filter.color) chips.push({ key: "color", label: `●${colorLabel(filter.color)}` });
     if (filter.keyword) chips.push({ key: "keyword", label: `“${filter.keyword}”` });
     return chips;
 }
 
 function clearFilter(): void {
     filter = {};
+}
+
+/** 颜色分面文案：色名走 i18n（zh: 黄/红/蓝/绿）。 */
+function colorLabel(name: string): string {
+    return t(i18n, `highlight.color.${name}`);
 }
 
 function openRoot(quoteId: string): void {
@@ -156,7 +162,7 @@ async function doExport(): Promise<void> {
             aria-label={t(i18n, "quotes.search")}
             bind:value={filter.keyword}
         />
-        {#if facets.sites.length > 0 || facets.tags.length > 0 || facets.aiTags.length > 0}
+        {#if facets.sites.length > 0 || facets.tags.length > 0 || facets.aiTags.length > 0 || facets.colors.length > 0}
             <div class="glean-quotes__facets">
                 {#each facets.sites.slice(0, 8) as site (site.name)}
                     <button
@@ -178,6 +184,14 @@ async function doExport(): Promise<void> {
                         class:glean-quotes__facet--on={filter.aiTag === tag.name}
                         onclick={() => toggleFacet("aiTag", tag.name)}
                     >✨{tag.name} ×{tag.count}</button>
+                {/each}
+                <!-- T-1901 延伸：颜色分面（色点筛选） -->
+                {#each facets.colors.slice(0, 5) as color (color.name)}
+                    <button
+                        class="glean-tag glean-quotes__facet"
+                        class:glean-quotes__facet--on={filter.color === color.name}
+                        onclick={() => toggleFacet("color", color.name)}
+                    ><span class="glean-hl__color--{color.name}">●</span> {colorLabel(color.name)} ×{color.count}</button>
                 {/each}
             </div>
         {/if}
