@@ -916,12 +916,14 @@
                 >{typography.theme === "paper" ? "📄" : typography.theme === "sepia" ? "☕" : "◐"}</button>
             </div>
             {#if context}
+                {@const activeDocId = context.id}
                 <ClipStatusActions
                     {i18n}
                     status={context.status}
                     disabled={statusBusy}
                     onStartReading={() => void startReading()}
                     onSetStatus={(status) => void writeStatus(status)}
+                    onArchive={() => facade.openArchiveDialog(activeDocId)}
                 />
                 <button
                     class="glean-btn glean-btn--ghost"

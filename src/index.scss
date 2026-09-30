@@ -2786,3 +2786,25 @@
 .glean-hl__color--red { color: #ef4444; }
 .glean-hl__color--blue { color: #3b82f6; }
 .glean-hl__color--green { color: #22c55e; }
+
+/* 归档后处理三选对话框（T-1866，glean-dialog-root 内） */
+.glean-archive-dlg { display: flex; flex-direction: column; gap: 8px; padding: 4px 2px; }
+.glean-archive-dlg__hint { font-size: 12px; color: var(--b3-theme-on-surface); opacity: .75; margin-bottom: 2px; }
+.glean-archive-dlg__opt {
+  display: flex; align-items: flex-start; gap: 10px; text-align: left;
+  border: 1px solid var(--b3-border-color); border-radius: 8px;
+  background: transparent; cursor: pointer; padding: 10px 12px;
+  color: var(--b3-theme-on-background);
+}
+.glean-archive-dlg__opt:hover:not(:disabled) { background: var(--b3-theme-surface); border-color: var(--b3-theme-primary); }
+.glean-archive-dlg__opt:disabled { opacity: .5; cursor: default; }
+.glean-archive-dlg__icon { font-size: 16px; line-height: 1.4; }
+.glean-archive-dlg__body { display: flex; flex-direction: column; gap: 2px; }
+.glean-archive-dlg__name { font-size: 13px; font-weight: 500; }
+.glean-archive-dlg__desc { font-size: 11.5px; color: var(--b3-theme-on-surface); opacity: .7; }
+.glean-archive-dlg__purge {
+  border: 0; background: transparent; cursor: pointer; text-align: center;
+  font-size: 11.5px; color: var(--b3-theme-error); opacity: .8; padding: 4px 0 0;
+}
+.glean-archive-dlg__purge:hover:not(:disabled) { opacity: 1; text-decoration: underline; }
+.glean-archive-dlg__purge:disabled { opacity: .4; cursor: default; }

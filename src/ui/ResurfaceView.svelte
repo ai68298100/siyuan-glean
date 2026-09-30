@@ -118,6 +118,8 @@ async function act(pick: SurfacePick, action: "read" | "later" | "archive" | "pi
             openReading(pick);
         }
         if (action === "pin") showMessage(t(i18n, "resurface.pinned"), 2500);
+        // T-1866：今日拾遗的快速归档 = 三选对话框默认项语义（保留原位置），反馈文案统一
+        if (action === "archive") showMessage(t(i18n, "archive.doneInPlace"), 2500);
         onMutated();
     } catch (error) {
         showMessage(String(error).slice(0, 120), 4000);

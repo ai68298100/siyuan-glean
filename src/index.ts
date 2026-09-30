@@ -10,6 +10,7 @@ import DockPanel from "./ui/DockPanel.svelte";
 import ReaderTab from "./ui/ReaderTab.svelte";
 import { installReadingContext } from "./ui/reading-context-controller";
 import MigrateDialog from "./ui/MigrateDialog.svelte";
+import ArchiveDialog from "./ui/ArchiveDialog.svelte";
 import ImportDialog from "./ui/ImportDialog.svelte";
 import OnboardingDialog from "./ui/OnboardingDialog.svelte";
 import { loadUiPrefs } from "./services/prefs";
@@ -137,7 +138,7 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
         this.addCommand({ langKey: "cmd.markDone", callback: () => this.guardAction("markDone", () => this.markCurrentStatus("done")) });
         this.addCommand({ langKey: "cmd.readNext", callback: () => this.guardAction("readNext", () => this.readNextArticle()) });
         this.addCommand({ langKey: "cmd.markLater", callback: () => this.guardAction("markLater", () => this.markCurrentStatus("later")) });
-        this.addCommand({ langKey: "cmd.archiveCurrent", callback: () => this.guardAction("archiveCurrent", () => this.markCurrentStatus("archived")) });
+        this.addCommand({ langKey: "cmd.archiveCurrent", callback: () => this.guardAction("archiveCurrent", () => this.archiveCurrentWithChoice()) });
         this.addCommand({ langKey: "cmd.openSource", callback: () => this.guardAction("openSource", () => this.openCurrentSource()) });
         this.addCommand({ langKey: "cmd.excerptQuote", callback: () => this.guardAction("excerptQuote", () => this.excerptQuoteFromSelection()) });
         this.addCommand({ langKey: "cmd.readerHelp", callback: () => this.showReaderHelp() });
@@ -433,6 +434,29 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
         }
         this.notifyDataChanged();
         showMessage(t(this.i18n, "msg.statusChanged"), 2500);
+    }
+
+    /** 归档命令入口（T-1866）：弹三选对话框（保留原位置/移入【归档】/删除文章），替代直写 archived。 */
+    async archiveCurrentWithChoice(): Promise<void> {
+        const id = this.requireCurrentDoc();
+        if (!id) return;
+        const current = await readClip(id);
+        if (!current.status) {
+            showMessage(t(this.i18n, "msg.notInLibrary"), 3500);
+            return;
+        }
+        this.openArchiveDialog(id);
+    }
+
+    /** 归档后处理三选对话框（T-1866，D-0032）：统一七处入口语义；彻底删除为二级确认动作。 */
+    openArchiveDialog(docId: string): void {
+        this.openGleanDialog({
+            title: t(this.i18n, "archive.title"),
+            component: ArchiveDialog,
+            props: { facade: this, docId },
+            width: "440px",
+            height: "360px",
+        });
     }
 
     /** 打开当前文档原文（载体与 URL 校验后导航，不写状态）。 */

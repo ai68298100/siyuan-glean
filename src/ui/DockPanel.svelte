@@ -1163,6 +1163,7 @@ function metaLine(entry: Row): string {
                                     disabled={statusActionId === entry.id}
                                     onStartReading={() => void startReading(entry)}
                                     onSetStatus={(status) => void setStatus(entry, status)}
+                                    onArchive={() => facade.openArchiveDialog(entry.id)}
                                 />
                             </div>
                         {/each}
@@ -1273,6 +1274,7 @@ function metaLine(entry: Row): string {
                                                  disabled={statusActionId === entry.id}
                                                  onStartReading={() => void startReading(entry)}
                                                  onSetStatus={(status) => void setStatus(entry, status)}
+                                                 onArchive={() => facade.openArchiveDialog(entry.id)}
                                              />
                                             <label>
                                                 <input
@@ -1483,6 +1485,7 @@ function metaLine(entry: Row): string {
                                     disabled={statusActionId === entry.id}
                                     onStartReading={() => void startReading(entry)}
                                     onSetStatus={(status) => void setStatus(entry, status)}
+                                    onArchive={() => facade.openArchiveDialog(entry.id)}
                                 />
                             {/if}
                             {#if entry.kind === "clip"}

@@ -17,6 +17,8 @@ export interface GleanFacade {
     openSettings(): void;
     /** 打开迁移导入弹窗 */
     openImport(): void;
+    /** 归档后处理三选对话框（T-1866：保留原位置/移入【归档】/删除文章+彻底删除二级） */
+    openArchiveDialog(docId: string): void;
     /** 工作台弹出为独立浮窗 */
     openWorkbenchPopup(): void;
     /** 面板数据变更后的回调（如迁移完成后刷新） */

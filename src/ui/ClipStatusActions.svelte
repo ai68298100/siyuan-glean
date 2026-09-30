@@ -16,9 +16,11 @@
         disabled?: boolean;
         onStartReading: () => void | Promise<void>;
         onSetStatus: (status: ClipStatus) => void | Promise<void>;
+        /** T-1866：提供时归档按钮弹三选对话框（保留原位置/移入【归档】/删除文章）；缺省回落直写 archived */
+        onArchive?: () => void | Promise<void>;
     }
 
-    let { i18n, status, disabled = false, onStartReading, onSetStatus }: Props = $props();
+    let { i18n, status, disabled = false, onStartReading, onSetStatus, onArchive }: Props = $props();
     let pending = $state(false);
 
     async function invoke(action: () => void | Promise<void>) {
@@ -80,7 +82,7 @@
             class="glean-status-actions__btn glean-status-actions__btn--archive"
             disabled={disabled || pending}
             title={t(i18n, "action.archive")}
-            onclick={(event) => { stop(event); void invoke(() => onSetStatus("archived")); }}
+            onclick={(event) => { stop(event); void invoke(() => (onArchive ? onArchive() : onSetStatus("archived"))); }}
         ><span aria-hidden="true">⤓</span><span>{t(i18n, "action.archive")}</span></button>
     {/if}
 </div>

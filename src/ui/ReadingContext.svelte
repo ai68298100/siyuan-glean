@@ -218,6 +218,7 @@
                 disabled={busy}
                 onStartReading={startReading}
                 onSetStatus={setStatus}
+                onArchive={() => { if (context) facade.openArchiveDialog(context.id); }}
             />
         </div>
     </aside>

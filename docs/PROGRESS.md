@@ -1,5 +1,12 @@
 # 进度（PROGRESS）
 
+## 归档后处理入口统一接线（续跑口令驱动，2026-10-01）✅
+
+- [x] **T-1866 三选对话框**：`ArchiveDialog.svelte`（默认项=保留原位置；移入【归档】/删除文章=archiveMoveDoc/recycleDoc；彻底删除为底部二级动作——confirm 列标题/路径/来源+不可逆提示后 purgeDoc）+ `openArchiveDialog`（svelteDialog）+ `ClipStatusActions.onArchive` 回调——五处使用点接线（Dock 行表/看板卡/卡片、ReaderTab 阅读页签、ReadingContext 移动伴生栏）+ 命令 `cmd.archiveCurrent` 改弹对话框。
+- [x] **裁决**：今日拾遗快速归档与自动化批量保持默认项语义（不弹窗、纯状态写 archived——T-1875 禁止批量默认不可逆）；今日拾遗补统一反馈 `archive.doneInPlace`。i18n 双语 15 键。
+- [x] 门禁：check 0 错 0 告警、test **178/178**、build 通过、隔离 E2E 全过。未发布新版本；对话框真机观感随 B-0002，验收矩阵随 T-1874/1875。
+- 坑：Svelte 5 闭包不收窄 `{#if}` 内的可空值（`context.id` 报 possibly null）——模板回调引用可空上下文用 `$derived`/守卫，`@const` 只能放块的直接子级。
+
 ## 归档生命周期服务层落地（续跑口令驱动，2026-10-01）✅
 
 - [x] **T-1869 宿主幂等创建**：`domain/lifecycle.ts` 纯函数（hostHpathOf/parentFolderOf/isUnderHost/isHostItself，单测 6 组）+ `lifecycle-service.ensureHost`——**先 SQL 查再 createDocWithMd**（同路径静默新建不幂等，T-1868 实证），复用用户手动建的同名文档，创建后写 `custom-clip-internal=true` 双保险；宿主自身不可被移动/彻底删除。

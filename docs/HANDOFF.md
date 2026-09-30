@@ -1,5 +1,13 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-01 第三十三轮：T-1866 归档后处理入口统一接线）
+
+- **归档三选对话框全入口统一**：`ArchiveDialog.svelte`（保留原位置【默认】/ 移入【归档】/ 删除文章=recycleDoc + 底部二级"彻底删除"=confirm 列标题/路径/来源+不可逆提示后 purgeDoc）经 `facade.openArchiveDialog(docId)` 打开（GleanFacade 接口已加方法）。`ClipStatusActions` 归档按钮新增可选 `onArchive` 回调，五处使用点全接线：Dock 行表、看板卡、卡片视图、ReaderTab 阅读页签、ReadingContext（移动伴生栏）；命令 `cmd.archiveCurrent` 改弹对话框（未收录提示沿用 markCurrentStatus 逻辑独立在 archiveCurrentWithChoice）。
+- **裁决**：今日拾遗快速归档与自动化批量（archive_stale/超龄清单/批量条）**保持默认项语义**（不弹窗、纯状态写 archived）——轻量消费场景不打断、T-1875 禁止自动化批量默认不可逆删除；今日拾遗归档反馈统一为 `archive.doneInPlace`。i18n 双语 15 键（archive.*）。
+- 坑：Svelte 5 模板回调闭包不收窄 `{#if}` 内可空值——`@const` 只能放块直接子级（跨层包裹时改 `$derived`/守卫）；本次一轮内两次 Edit 事故（index.ts 误删 done 打卡联动行、heredoc 追加中文注释——后者本次未损坏但再次确认纪律）均已即时恢复。
+- 门禁：check 0 错 **0 告警**、test **178/178**、build 通过、E2E 全过。未发布新版本。提交序列：…→ 46483d0 → 本轮（git log）。集市 PR #2288 待审。
+- 下一批候选：T-1866 组剩余（T-1872 恢复策略契约、T-1876 归档宿主可发现性、T-1877 生命周期 E2E 完整矩阵、T-1878 资产关联处理研究、T-1879 用户说明）；验收矩阵 T-1873/1874/1875 需真机（**并入 B-0002 强烈建议作者走查**）；功能线其他候选（T-1903 会话队列重排等）。
+
 ## 当前有效交接（2026-10-01 第三十二轮：归档生命周期服务层 T-1869/1870/1871）
 
 - **生命周期服务层全落地**（契约 §7 + spike §7.5 的实现闭环）：`domain/lifecycle.ts` 纯函数（宿主路径/幂等判定/确认信息，单测 6 组）+ `api/client.ts` 补 `moveDocs`/`removeDoc`（带实证形状注释）+ `services/lifecycle-service.ts`：
