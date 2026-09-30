@@ -921,7 +921,16 @@ function metaLine(entry: Row): string {
                         <div class="glean-empty">
                             <div class="glean-empty__art"><svg><use href="#iconGleanWheat" /></svg></div>
                             <div class="glean-empty__title">{t(i18n, "panel.empty")}</div>
-                            <div class="glean-empty__hint">{t(i18n, "panel.emptyHint")}</div>
+                            <div class="glean-empty__hint">
+                                {facade.settings.anchorNotebooks.length === 0
+                                    ? t(i18n, "panel.noAnchorHint")
+                                    : t(i18n, "panel.emptyHint")}
+                            </div>
+                            {#if facade.settings.anchorNotebooks.length === 0}
+                                <button class="glean-btn" style="margin-top:10px" onclick={() => facade.openSettings()}>
+                                    {t(i18n, "panel.setupAnchor")}
+                                </button>
+                            {/if}
                         </div>
                     {:else}
                         <div class="glean-dtable">
@@ -1080,6 +1089,11 @@ function metaLine(entry: Row): string {
                                 ? t(i18n, "panel.noAnchorHint")
                                 : t(i18n, "panel.emptyHint")}
                         </div>
+                        {#if facade.settings.anchorNotebooks.length === 0}
+                            <button class="glean-btn" style="margin-top:10px" onclick={() => facade.openSettings()}>
+                                {t(i18n, "panel.setupAnchor")}
+                            </button>
+                        {/if}
                     </div>
                 {:else}
                     {#each rows as entry (entry.id)}

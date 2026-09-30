@@ -166,6 +166,9 @@ async function doMountBoard() {
             <div style="font-size:10px; color:var(--b3-theme-on-surface)">{t(i18n, "settings.sovereigntyNote")}</div>
         </div>
     </div>
+    <div class="glean-set-group" style="padding:9px 14px; font-size:11px; color:var(--b3-theme-on-surface)">
+        🌾 {t(i18n, "settings.newbieHint")}
+    </div>
 
     <div>
         <div class="glean-set-title">{t(i18n, "settings.anchorNotebooks")}</div>

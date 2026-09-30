@@ -20,8 +20,6 @@ const i18n = $derived(facade.i18n);
 let step = $state(1);
 let notebooks = $state<NotebookMeta[]>([]);
 let anchorNotebooks = $state<string[]>(facade.settings.anchorNotebooks);
-/** 引导里的 AI 开关 = 是否开启"收录时自动富化"（写回 enrichMode: auto/manual） */
-let aiEnrich = $state(facade.settings.ai.enrichMode === "auto");
 
 let scanning = $state(false);
 let scanFailed = $state(false);
@@ -40,10 +38,10 @@ function toggleNotebook(id: string) {
 }
 
 async function persist(): Promise<void> {
+    // T-1709 后首启不再询问 AI：enrichMode 保持默认 manual（D-0013），能力卡引导稍后在设置开启。
     await facade.updateSettings({
         ...facade.settings,
         anchorNotebooks: [...anchorNotebooks],
-        ai: { ...facade.settings.ai, enrichMode: aiEnrich ? "auto" : "manual" },
     });
 }
 
@@ -80,6 +78,14 @@ async function finish(openMigrate: boolean): Promise<void> {
     await persist();
     onClose();
     if (openMigrate) facade.openMigrate();
+}
+
+/** 有待确认候选时，完成键直达工作台逐篇确认（T-1719 的行动闭环）。 */
+async function finishByConfirmingCandidates(): Promise<void> {
+    await markDone();
+    await persist();
+    onClose();
+    facade.openWorkbenchPopup();
 }
 
 async function skip(): Promise<void> {
@@ -126,12 +132,8 @@ async function skip(): Promise<void> {
                     <span style="font-size:11.5px; color:var(--b3-theme-on-surface)">—</span>
                 {/if}
             </div>
-            <div class="glean-set-row">
-                <div class="glean-set-row__lb">
-                    {t(i18n, "settings.aiEnrichMode")}
-                    <div class="glean-set-row__desc">{t(i18n, "settings.aiEnrichModeDesc")}</div>
-                </div>
-                <button class="glean-sw" class:glean-sw--on={aiEnrich} onclick={() => (aiEnrich = !aiEnrich)}></button>
+            <div class="glean-empty" style="padding: 10px 4px 2px">
+                <div class="glean-empty__hint">{t(i18n, "onboarding.anchorHint")}</div>
             </div>
         </div>
         <div class="glean-migrate__ops">
@@ -170,12 +172,20 @@ async function skip(): Promise<void> {
             <div class="glean-mstat"><div class="glean-mstat__n">🔄</div><div class="glean-mstat__l">{t(i18n, "onboarding.cap2")}</div></div>
             <div class="glean-mstat"><div class="glean-mstat__n">✨</div><div class="glean-mstat__l">{t(i18n, "onboarding.cap3")}</div></div>
         </div>
-        <div class="glean-empty" style="padding: 16px 12px">
+        <div class="glean-empty" style="padding: 8px 12px 0">
+            <div class="glean-empty__hint">{t(i18n, "onboarding.aiLater")}</div>
+        </div>
+        <div class="glean-empty" style="padding: 10px 12px">
             <div class="glean-empty__hint">{t(i18n, "onboarding.doneHint")}</div>
         </div>
         <div class="glean-migrate__ops">
-            <button class="glean-btn glean-btn--ghost" onclick={() => void finish(true)}>{t(i18n, "import.title")}</button>
-            <button class="glean-btn glean-btn--pri" onclick={() => void finish(false)}>{t(i18n, "onboarding.finish")}</button>
+            {#if scannedCandidates > 0}
+                <button class="glean-btn glean-btn--ghost" onclick={() => void finish(true)}>{t(i18n, "import.title")}</button>
+                <button class="glean-btn" onclick={() => void finishByConfirmingCandidates()}>{t(i18n, "onboarding.ctaConfirm")}</button>
+            {:else}
+                <button class="glean-btn glean-btn--ghost" onclick={() => void finish(true)}>{t(i18n, "import.title")}</button>
+                <button class="glean-btn glean-btn--pri" onclick={() => void finish(false)}>{t(i18n, "onboarding.finish")}</button>
+            {/if}
         </div>
     {/if}
 </div>

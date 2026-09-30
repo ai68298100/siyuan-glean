@@ -106,7 +106,16 @@ function reasonText(reason: SurfaceReason): string {
         </div>
     </header>
 
-    {#if picks.length === 0}
+    {#if picks.length === 0 && facade.settings.anchorNotebooks.length === 0}
+        <div class="glean-empty">
+            <div class="glean-empty__art">🌾</div>
+            <div class="glean-empty__title">{t(i18n, "resurface.noAnchor")}</div>
+            <div class="glean-empty__hint">{t(i18n, "panel.noAnchorHint")}</div>
+            <button class="glean-btn" style="margin-top:10px" onclick={() => facade.openSettings()}>
+                {t(i18n, "panel.setupAnchor")}
+            </button>
+        </div>
+    {:else if picks.length === 0}
         <div class="glean-empty">
             <div class="glean-empty__art">🌱</div>
             <div class="glean-empty__title">{t(i18n, "resurface.allDone")}</div>
