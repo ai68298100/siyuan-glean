@@ -1,5 +1,11 @@
 # 进度（PROGRESS）
 
+## 摘录墙颜色与简报朗读（续跑口令驱动，2026-10-01）✅
+
+- [x] **T-1901 延伸：摘录墙颜色**：`QuoteEntryWithColor`（color 字段）+ loadQuotes 后逐块 getQuoteColor 补齐 + 色点循环切换（写引述块级 IAL）+ 色条渲染。颜色筛选随 T-1901 后续（全库筛选/搜索）。
+- [x] **T-1764×T-1744 衔接：简报朗读**：速览卡「朗读/停止」按钮（TTS 可用且非移动端时显示，复用 speakText/stopSpeaking）。
+- [x] 门禁：check 0 错 0 告警、test **169/169**、build 通过、隔离 E2E **31/31**。未发布新版本；真机观感随 B-0002。
+
 ## 高亮颜色标记（续跑口令驱动，2026-10-01）✅
 
 - [x] **T-1901 高亮颜色**（最小版）：**契约裁决=颜色存引述块级 IAL `custom-clip-hl-color`**（yellow/red/blue/green，非文档样式、思源原文外观不变）。DATA-CONTRACT §4 契约行；highlights.ts `getQuoteColor`/`setQuoteColor`（覆写/清除经 setBlockAttrs）+ HighlightView 色点五档循环 + 色条渲染。E2E 断言（写入→读取→清除）。跳回/删除/全库筛选/搜索随 T-1750/T-1753 后续；真实观感随 B-0002。

@@ -7,9 +7,11 @@ import { openTab, showMessage } from "siyuan";
 import type { GleanFacade } from "../types";
 import { t } from "../libs/i18n";
 import type { GleanIndex } from "../services/index-store";
-import { listLibraryQuotes, listQuoteRoots } from "../services/highlights";
+import { listLibraryQuotes, listQuoteRoots, getQuoteColor, setQuoteColor } from "../services/highlights";
 import { exportQuotesToDoc } from "../services/excerpt-service";
 import { filterQuotes, formatQuoteShare, quoteFacets, type QuoteEntry, type QuoteFilter } from "../domain/quotes";
+
+type QuoteEntryWithColor = QuoteEntry & { color: string };
 
 interface Props {
     facade: GleanFacade;
@@ -20,7 +22,7 @@ let { facade, index }: Props = $props();
 
 const i18n = $derived(facade.i18n);
 
-let entries = $state<QuoteEntry[]>([]);
+let entries = $state<QuoteEntryWithColor[]>([]);
 let loading = $state(true);
 let loadFailed = $state(false);
 let exporting = $state(false);
@@ -55,13 +57,30 @@ async function loadQuotes() {
                 site: clip?.site || "",
                 tags: clip?.tags ?? [],
                 aiTags: clip?.aiTags ?? [],
+                color: "",
             };
         });
+        // T-1901 延伸：颜色标记逐块补齐（getBlockAttrs 可靠；SQL ial 列同步有限）
+        const colors = await Promise.all(entries.map((entry) => getQuoteColor(entry.id)));
+        entries = entries.map((entry, index) => ({ ...entry, color: colors[index] }));
     } catch (error) {
         console.warn("[glean] 摘录墙加载失败:", error);
         loadFailed = true;
     } finally {
         loading = false;
+    }
+}
+
+/** T-1901 延伸：单条颜色循环切换（写引述块级 IAL）。 */
+async function cycleQuoteColor(entry: QuoteEntryWithColor): Promise<void> {
+    const order = ["", "yellow", "red", "blue", "green"];
+    const next = order[(order.indexOf(entry.color) + 1) % order.length];
+    try {
+        await setQuoteColor(entry.id, next);
+        entries = entries.map((item) => (item.id === entry.id ? { ...item, color: next } : item));
+    } catch (error) {
+        console.warn("[glean] 摘录颜色切换失败:", error);
+        showMessage(t(i18n, "msg.actionFailed"), 3000);
     }
 }
 
@@ -181,12 +200,18 @@ async function doExport(): Promise<void> {
         {/if}
         <div class="glean-quotes">
             {#each filtered as quote (quote.id)}
-                <div class="glean-quote">
+                <div class="glean-quote" class:glean-hl--yellow={quote.color === "yellow"} class:glean-hl--red={quote.color === "red"} class:glean-hl--blue={quote.color === "blue"} class:glean-hl--green={quote.color === "green"}>
                     <div class="glean-quote__text">{quote.text.slice(0, 160)}{quote.text.length > 160 ? "…" : ""}</div>
                     <div class="glean-quote__meta">
                         <button class="glean-quote__src" title={quote.title || quote.rootId} onclick={() => openRoot(quote.id)}>
                             ↩ {quote.title || t(i18n, "panel.untitled")}{quote.site ? ` · ${quote.site}` : ""}
                         </button>
+                        <!-- T-1901 延伸：颜色循环切换 -->
+                        <button
+                            class="glean-quote__src glean-hl__color glean-hl__color--{quote.color || 'none'}"
+                            title={t(i18n, "highlight.cycleColor")}
+                            onclick={() => void cycleQuoteColor(quote)}
+                        >{quote.color ? "●" : "○"}</button>
                         <!-- T-1803 分享卡：复制格式化引用 -->
                         <button
                             class="glean-quote__src"

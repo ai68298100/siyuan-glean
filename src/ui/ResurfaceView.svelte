@@ -6,6 +6,7 @@ import type { GleanFacade } from "../types";
 import { t } from "../libs/i18n";
 import { computeDailyFromIndex, actOnSurface } from "../services/resurface-service";
 import { dailyDigest, readerAiEnabled } from "../services/reader-ai";
+import { speakText, stopSpeaking, ttsAvailable } from "../services/tts";
 import type { GleanIndex } from "../services/index-store";
 import { type SurfacePick, type SurfaceReason } from "../domain/resurface";
 import { hasSourceAction, openTargetForCarrier, resolveCarrier, sourceUrlForCarrier } from "../domain/carrier";
@@ -30,6 +31,20 @@ let actingId = $state("");
 let digestBusy = $state(false);
 let digestText = $state("");
 const digestOn = $derived(readerAiEnabled(facade.settings) && !facade.isMobile);
+// T-1764×T-1744 衔接：速览文本朗读（TTS 可用时显示）
+const digestTtsOn = $derived(ttsAvailable() && !facade.isMobile);
+let digestSpeaking = $state(false);
+
+function speakDigest(): void {
+    if (!digestText || digestSpeaking) return;
+    digestSpeaking = true;
+    speakText(digestText, 1, () => (digestSpeaking = false));
+}
+
+function stopDigestSpeech(): void {
+    stopSpeaking();
+    digestSpeaking = false;
+}
 
 async function generateDigest(): Promise<void> {
     if (digestBusy || picks.length === 0) return;
@@ -175,6 +190,14 @@ function reasonText(reason: SurfaceReason): string {
                     <div class="glean-surf-digest__text">{digestText}</div>
                     <div class="glean-surf__acts">
                         <button class="glean-surf-act" onclick={() => void copyDigest()}>{t(i18n, "reader.copy")}</button>
+                        {#if digestTtsOn}
+                            <!-- T-1764×T-1744 衔接：速览朗读（TTS 可用时显示） -->
+                            {#if digestSpeaking}
+                                <button class="glean-surf-act" onclick={() => { stopDigestSpeech(); }}>{t(i18n, "reader.ttsStop")}</button>
+                            {:else}
+                                <button class="glean-surf-act" onclick={() => speakDigest()}>{t(i18n, "reader.ttsSpeak")}</button>
+                            {/if}
+                        {/if}
                         <button class="glean-surf-act" onclick={() => (digestText = "")}>{t(i18n, "action.close")}</button>
                     </div>
                 {:else}

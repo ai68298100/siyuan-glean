@@ -53,8 +53,8 @@ export function quoteFacets(entries: QuoteEntry[]): { sites: NameCount[]; tags: 
     return { sites: toNameCounts(sites), tags: toNameCounts(tags), aiTags: toNameCounts(aiTags) };
 }
 
-/** 筛选只返回新数组，不改条目（视图投影纪律）。全部条件为空时返回原集合的浅拷贝。 */
-export function filterQuotes(entries: QuoteEntry[], filter: QuoteFilter): QuoteEntry[] {
+/** 筛选只返回新数组，不改条目（视图投影纪律）。泛型保留调用方的扩展字段（如摘录墙 color）。 */
+export function filterQuotes<T extends QuoteEntry>(entries: T[], filter: QuoteFilter): T[] {
     const keyword = (filter.keyword ?? "").trim().toLowerCase();
     return entries.filter((entry) => {
         if (filter.site && entry.site.trim().toLowerCase() !== filter.site.trim().toLowerCase()) return false;
