@@ -511,6 +511,29 @@ async function runFlow(client, workspace) {
     const afterRestoreIndex = JSON.parse(fs.readFileSync(indexPath, "utf8"));
     assert.equal(afterRestoreIndex.clips[fulltext].rating, 4);
     pass("T-1780 备份→改动→恢复回环：属性回到备份点，索引随对账一致");
+
+    // T-1740 大纲：heading 查询（隔离内核实证 ORDER BY sort 与 subtype 形状）。
+    const outline = await import("../../src/services/outline.ts");
+    const headings = await outline.fetchDocOutline(fulltext);
+    assert.ok(headings.length >= 1);
+    assert.match(headings[0].id, /^\d{14}-[0-9a-z]{7}$/);
+    assert.equal(headings[0].text.length > 0, true);
+    assert.deepEqual(outline.outlineIndent(headings)[0], 0);
+    pass("T-1740 大纲查询：标题按文档顺序返回且首层缩进归一");
+
+    // T-1750/1752 地基：全库引述块分页查询（摘录宿主=fulltext，索引已就绪）。
+    const highlights = await import("../../src/services/highlights.ts");
+    const libraryQuotes = await highlights.listLibraryQuotes(50, 0);
+    assert.ok(libraryQuotes.length >= 1);
+    assert.ok(libraryQuotes.some((quote) => quote.rootId === fulltext));
+    pass("T-1750/1752 地基：全库引述块查询覆盖摘录宿主文档");
+
+    // T-1772 CSV：BOM + 表头 + 全量行。
+    const libraryCsv = stats.buildLibraryCsv(recovered);
+    assert.ok(libraryCsv.startsWith("\uFEFF"));
+    assert.ok(libraryCsv.includes("title"));
+    assert.ok(libraryCsv.split("\r\n").length > 2);
+    pass("T-1772 CSV 构建：BOM + 表头 + 数据行");
 }
 
 async function main() {

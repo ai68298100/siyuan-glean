@@ -2554,3 +2554,37 @@
 /* ---------- 问这篇文章（T-1760）：单轮输入行，无会话窗 ---------- */
 .glean-reader__ask { display: flex; gap: 6px; align-items: center; }
 .glean-reader__ask-input { flex: 1; min-width: 0; font-size: 12px; }
+
+/* ---------- 本文大纲（T-1740）：标题树缩进 + 点击滚动定位 ---------- */
+.glean-reader__outline {
+    display: flex;
+    flex-direction: column;
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1px solid var(--b3-border-color);
+    border-radius: 8px;
+    padding: 3px;
+    background: var(--b3-theme-surface);
+}
+.glean-reader__outline-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    border: 0;
+    background: transparent;
+    color: var(--b3-theme-on-surface);
+    font-size: 12px;
+    line-height: 1.5;
+    padding: 3px 6px;
+    border-radius: 5px;
+    cursor: pointer;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.glean-reader__outline-item:hover { background: var(--b3-list-hover, var(--b3-theme-surface-lighter)); }
+.glean-reader__outline-toggle {
+    align-self: flex-start;
+    font-size: 11.5px;
+    padding: 2px 6px;
+}

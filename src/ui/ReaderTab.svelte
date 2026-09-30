@@ -27,6 +27,7 @@
     import { pickNextUnread } from "../services/resurface-service";
     import { readerAiEnabled, readerAsk, readerSummarize, readerTranslate, saveReaderSummary } from "../services/reader-ai";
     import { clampAskQuestion } from "../domain/reader";
+    import { fetchDocOutline, outlineIndent, type OutlineHeading } from "../services/outline";
     import ClipStatusActions from "./ClipStatusActions.svelte";
     import ClipRankControls from "./ClipRankControls.svelte";
 
@@ -76,6 +77,35 @@
     let askInput = $state("");
     let askActionLabel = $derived(t(i18n, "reader.aiAsk"));
 
+    // T-1740 本文大纲：标题树 + 点击滚动定位（DOM scrollIntoView；真机滚动随 B-0002）
+    let outline = $state<OutlineHeading[]>([]);
+    let outlineOpen = $state(false);
+    let outlineSeq = 0;
+    const outlineIndents = $derived(outlineIndent(outline));
+
+    async function loadOutline(id: string): Promise<void> {
+        const seq = ++outlineSeq;
+        try {
+            const next = await fetchDocOutline(id);
+            if (seq !== outlineSeq) return;
+            outline = next;
+        } catch {
+            if (seq !== outlineSeq) return;
+            outline = [];
+        }
+    }
+
+    function scrollToHeading(blockId: string): void {
+        const host = protyle?.protyle?.element;
+        if (!host) return;
+        const target = host.querySelector(`[data-node-id="${blockId}"]`);
+        if (!target) {
+            showMessage(t(i18n, "reader.outlineMiss"), 2500);
+            return;
+        }
+        target.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
     function modeValue(value: "read" | "edit"): "preview" | "wysiwyg" {
         return value === "edit" ? "wysiwyg" : "preview";
     }
@@ -112,6 +142,7 @@
             render: { breadcrumb: false, background: false },
         });
         void untrack(() => loadContext(id));
+        void untrack(() => loadOutline(id));
         return () => {
             protyle?.destroy();
             protyle = null;
@@ -150,6 +181,7 @@
         relatedItems = [];
         excerpt = null;
         askInput = "";
+        outline = [];
     }
 
     async function quoteExcerpt(): Promise<void> {
@@ -465,6 +497,26 @@
                 </span>
                 {#if context?.site}<span>{context.site}</span>{/if}
             </div>
+            {#if outline.length > 0}
+                <!-- T-1740 本文大纲：标题树 + 点击滚动定位 -->
+                {#if outlineOpen}
+                    <nav class="glean-reader__outline" aria-label={t(i18n, "reader.outline")}>
+                        {#each outline as heading, index (heading.id)}
+                            <button
+                                class="glean-reader__outline-item"
+                                style={`padding-left:${6 + outlineIndents[index] * 12}px`}
+                                title={heading.text}
+                                onclick={() => scrollToHeading(heading.id)}
+                            >{heading.text}</button>
+                        {/each}
+                    </nav>
+                {/if}
+                <button
+                    class="glean-btn glean-btn--ghost glean-reader__outline-toggle"
+                    aria-expanded={outlineOpen}
+                    onclick={() => (outlineOpen = !outlineOpen)}
+                >{outlineOpen ? "▾" : "▸"} {t(i18n, "reader.outline")}</button>
+            {/if}
             <div class="glean-reader__mode" role="group" aria-label={t(i18n, "settings.readerMode")}>
                 <button
                     class="glean-seg__btn"

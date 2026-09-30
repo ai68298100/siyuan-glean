@@ -139,7 +139,7 @@
 
 ### 阅读页签与阅读体验（T-1740 组）
 
-- [ ] T-1740（P1）伴生栏"本文大纲"：从 Protyle/SQL 取标题树展示，点击滚动定位到对应块；先 spike Protyle outline 能力或 heading SQL。
+- [x] T-1740（P1）伴生栏"本文大纲"：从 Protyle/SQL 取标题树展示，点击滚动定位到对应块；先 spike Protyle outline 能力或 heading SQL。（2026-10-01；`services/outline.ts`（heading SQL `type='h' ORDER BY sort`，隔离内核 E2E 实证形状；无新端点）+ ReaderTab 伴生栏可折叠大纲段（层级缩进归一 outlineIndent，域层可测）+ 点击定位走标准 DOM `scrollIntoView` 到 `[data-node-id]`（IProtyle.element 是 SDK 公开字段，已查 node_modules/siyuan 类型定义，未用内部 API）；滚动真机行为随 B-0002）
 - [ ] T-1741（P1）页签内键盘流：j/k 滚动、e 切编辑、m 标记已读、x 摘录选区、? 帮助；仅页签聚焦时生效，与思源全局快捷键冲突需真机核验（并入 B-0002）。
 - [ ] T-1742（P2）排版偏好：正文字号/行距/栏宽各三档，存 ui-prefs（纯视图状态），页签头部一行控件。
 - [ ] T-1743（P2）阅读主题：跟随思源明暗之外，加"纸感/护眼"两套纯 CSS 主题。
@@ -150,7 +150,7 @@
 
 ### 摘录与知识沉淀（T-1750 组）
 
-- [ ] T-1750（P1，远期池转正）全库摘录墙：引述块全库聚合视图，支持站点/用户标签/AI 标签筛选，点击跳回原文块位置（openTab 定位）。
+- [ ] T-1750（P1，远期池转正）全库摘录墙：引述块全库聚合视图，支持站点/用户标签/AI 标签筛选，点击跳回原文块位置（openTab 定位）。（地基已就绪 2026-10-01：`highlights.listLibraryQuotes` 全库引述块分页查询（`type='b'`，与 listQuoteBlocks 实证形状一致；加 subtype 条件查不到已踩坑），E2E 断言通过；剩视图层——新面板视图 + root 元数据映射 + 筛选分面）
 - [ ] T-1751（P1）AI 问句制卡：接通 T-1502 预留的"AI 问句化"钩子——选区→AI 生成问句卡面，结果可编辑确认后再入卡（手动+额度）。
 - [ ] T-1752（P2）摘录批量导出 Markdown：按筛选结果把引述块导出为普通笔记（含原文回链）。
 - [ ] T-1753（P2）高亮视图增强：每条高亮加"跳到原文位置"动作；显示摘录时间。
@@ -168,7 +168,7 @@
 
 - [x] T-1770（P1，远期池转正）阅读热力图：按 custom-clip-done-time 画年度热力图（D-0028 契约已就绪）。（2026-10-01；`domain/stats.readingHeatmap` 纯函数（周列网格、当前周截断、2 组单测）+ StatsView 近 26 周热力图（b3 主色 opacity 五档、aria-label 逐格文本 + 文字摘要，兼顾 T-1976 图表文本替代）；年度跨度可后续调参数）
 - [x] T-1771（P2）月度/年度回顾报告：本月读完 N 篇/M 万字/Top 站点与标签，Markdown 导出（复用周报管线）。（2026-10-01，本月部分交付：`domain/stats.monthlyReview`（只认 doneTime 在本月）+ `buildMonthlyReviewMarkdown` + `exportMonthlyReview`（/读库月报/YYYYMM 幂等定位，E2E 断言）+ 统计页按钮；年度回顾待月度走查后按需扩展）
-- [ ] T-1772（P3）统计导出 CSV：读库全量属性表导出。
+- [x] T-1772（P3）统计导出 CSV：读库全量属性表导出。（2026-10-01；`domain/csv` RFC 4180 转义纯函数（2 组单测）+ `buildLibraryCsv`（18 列含标签/AI 标签/完成时间，BOM 兼容 Excel）+ 统计页按钮下载）
 - [ ] T-1773（P2）收录漏斗：候选→收录→完成各环节转化率一览（用现有候选/状态数据纯投影，不新增写入）。
 
 ### 数据、生态与多端（T-1780 组）

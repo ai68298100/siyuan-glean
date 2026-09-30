@@ -20,6 +20,7 @@ const i18n = $derived(facade.i18n);
 let stats = $state<ReadingStats | null>(null);
 let exporting = $state(false);
 let exportingMonthly = $state(false);
+let exportingCsv = $state(false);
 
 /** T-1771：生成本月回顾文档（/读库月报/YYYYMM，幂等定位）。 */
 async function doExportMonthly() {
@@ -80,6 +81,27 @@ async function doExport() {
         showMessage(String(error).slice(0, 120), 5000);
     } finally {
         exporting = false;
+    }
+}
+
+/** T-1772：读库全量属性表 CSV 下载（BOM 由 buildLibraryCsv 提供）。 */
+async function doExportCsv() {
+    exportingCsv = true;
+    try {
+        const { buildLibraryCsv } = await import("../services/stats-service");
+        const csv = buildLibraryCsv(index);
+        const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download = `glean-library-${Date.now()}.csv`;
+        anchor.click();
+        URL.revokeObjectURL(url);
+        showMessage(t(i18n, "stats.exportCsvDone"), 3000);
+    } catch (error) {
+        showMessage(String(error).slice(0, 120), 5000);
+    } finally {
+        exportingCsv = false;
     }
 }
 
@@ -172,6 +194,9 @@ $effect(() => {
         </button>
         <button class="glean-primary-btn" disabled={exportingMonthly} onclick={() => void doExportMonthly()}>
             🗓️ {exportingMonthly ? t(i18n, "panel.loading") : t(i18n, "stats.exportMonthly")}
+        </button>
+        <button class="glean-primary-btn" disabled={exportingCsv} onclick={() => void doExportCsv()}>
+            📊 {exportingCsv ? t(i18n, "panel.loading") : t(i18n, "stats.exportCsv")}
         </button>
     {:else}
         <div class="glean-panel__loading">{t(i18n, "panel.loading")}</div>

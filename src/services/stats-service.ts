@@ -15,6 +15,7 @@ import {
 } from "../domain/stats";
 import type { GleanIndex } from "./index-store";
 import { writeClip } from "./clip-store";
+import { toCsv } from "../domain/csv";
 import type { GleanSettings } from "./settings";
 
 export function buildStats(index: GleanIndex) {
@@ -103,4 +104,36 @@ export async function exportMonthlyReview(index: GleanIndex, settings: GleanSett
     if (!docId) throw new Error("创建读库月报宿主文档失败");
     await writeClip(plugin, docId, { internal: true });
     return docId;
+}
+
+/** 读库全量属性表 CSV（T-1772）：导出当前索引投影，含 BOM（Excel 中文兼容）。 */
+export function buildLibraryCsv(index: GleanIndex): string {
+    const header = [
+        "id", "title", "status", "site", "url", "words", "minutes", "priority", "rating",
+        "tags", "aiTags", "time", "timeSource", "doneTime", "src", "contentType", "hpath", "summary",
+    ];
+    const rows: Array<Array<string | number>> = [header];
+    for (const clip of Object.values(index.clips)) {
+        rows.push([
+            clip.id,
+            clip.title,
+            clip.status,
+            clip.site,
+            clip.url,
+            clip.words,
+            clip.minutes,
+            clip.priority,
+            clip.rating,
+            clip.tags.join(" "),
+            clip.aiTags.join(" "),
+            clip.time,
+            clip.timeSource,
+            clip.doneTime,
+            clip.src,
+            clip.contentType,
+            clip.hpath,
+            clip.summary,
+        ]);
+    }
+    return "\uFEFF" + toCsv(rows);
 }

@@ -1,5 +1,13 @@
 # 进度（PROGRESS）
 
+## P1 功能线第三批（续跑口令驱动，2026-10-01）✅
+
+- [x] **T-1740 本文大纲**：`services/outline.ts` heading 查询（`type='h' ORDER BY sort`，无新端点，E2E 实证形状）+ ReaderTab 伴生栏可折叠大纲段（层级缩进归一）+ 点击定位走标准 DOM `scrollIntoView`（SDK 公开字段 IProtyle.element，查 node_modules/siyuan 类型确认，未用内部 API）。滚动真机随 B-0002。
+- [x] **T-1772 统计导出 CSV**：`domain/csv` RFC 4180 转义纯函数（2 单测）+ `buildLibraryCsv`（18 列、BOM 兼容 Excel）+ 统计页按钮。
+- [x] **T-1750/1752 地基**：`highlights.listLibraryQuotes` 全库引述块分页查询 + E2E 断言。踩坑：引述块 SQL 条件是 `type='b'`（与 listQuoteBlocks 实证一致），臆加 `subtype='bq'` 查不到。
+- [x] 门禁：check 0 错 0 告警、test **146/146**（+2）、build 通过、隔离 E2E **26/26**（+3）。未发布新版本。
+- 方法沉淀：定位 Protyle 能力先查 `node_modules/siyuan/types/protyle.d.ts`（SDK 类型即契约），公开字段够用就不碰内部 API。
+
 ## P1 功能线第二批（续跑口令驱动，2026-10-01）✅
 
 - [x] **T-1780 一键备份/恢复**（契约先行）：DATA-CONTRACT 补 §0.1 备份包语义（包是自查证明非第二事实源、不含密钥、两步恢复）。`domain/backup` 纯函数（包校验/非法键丢弃/预览统计，4 组单测）+ `backup-service`（导出批读→浏览器下载；恢复=预览存在性→确认→`restoreClipAttrs` 覆盖写回（clip-store 新增恢复专用写入口，进索引锁）→设置/偏好覆盖→全量对账）+ 设置-维护导出/导入 UI。E2E 回环断言：导出→改动属性→恢复→属性回到备份点。
