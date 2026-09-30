@@ -8,6 +8,8 @@ import { bindAllClipsToLibrary } from "../services/library-db";
 import { usageToday, loadAiLog, type AiLogEntry } from "../services/enrich-service";
 import { restoreBackup, previewRestore, backupFileName } from "../services/backup-service";
 import { suggestAiTagMerges, applyAiTagMerge, type AiTagMergePlan } from "../services/ai-tag-service";
+import { listMissingAuthors, inferAuthor, applyAuthor } from "../services/author-service";
+import type { ClipIndexEntry } from "../services/index-store";
 import { listCheckinItems, type CheckinItemOption } from "../services/checkin-bridge";
 import { testDirectChannel } from "../api/ai-direct";
 import { t } from "../libs/i18n";
@@ -105,6 +107,63 @@ async function mergeTagGroup(plan: AiTagMergePlan): Promise<void> {
         showMessage(String(error).slice(0, 140), 5000);
     } finally {
         tagMergeBusyKey = "";
+    }
+}
+
+// T-1813 来源作者回填：扫描缺作者 → AI 逐条推断 → 用户改/确认写入
+let authorScanBusy = $state(false);
+let authorCandidates = $state<ClipIndexEntry[] | null>(null);
+let authorDrafts = $state<Record<string, string>>({});
+let authorBusyId = $state("");
+
+async function scanMissingAuthors(): Promise<void> {
+    authorScanBusy = true;
+    try {
+        authorCandidates = await listMissingAuthors(facade.pluginInstance);
+        authorDrafts = {};
+        if (authorCandidates.length === 0) showMessage(t(i18n, "settings.authorNone"), 3000);
+    } catch (error) {
+        showMessage(String(error).slice(0, 140), 5000);
+    } finally {
+        authorScanBusy = false;
+    }
+}
+
+/** 单篇 AI 推断：建议值填入草稿输入框，用户可改后确认写入。 */
+async function inferOneAuthor(entry: ClipIndexEntry): Promise<void> {
+    authorBusyId = entry.id;
+    try {
+        const result = await inferAuthor(facade.pluginInstance, entry.id, entry.title, facade.settings);
+        if (result.ok) {
+            if (result.author) {
+                authorDrafts = { ...authorDrafts, [entry.id]: result.author };
+            } else {
+                showMessage(t(i18n, "settings.authorInferUnknown"), 3000);
+            }
+        } else if (result.skipped === "cap") {
+            showMessage(t(i18n, "ai.capReached", { n: facade.settings.ai.enrichDailyCap }), 4000);
+        } else if (result.skipped !== "off") {
+            showMessage(t(i18n, "ai.enrichFailed"), 3000);
+        }
+    } finally {
+        authorBusyId = "";
+    }
+}
+
+async function confirmAuthor(entry: ClipIndexEntry): Promise<void> {
+    const value = (authorDrafts[entry.id] ?? "").trim();
+    if (!value) return;
+    authorBusyId = entry.id;
+    try {
+        if (await applyAuthor(facade.pluginInstance, entry.id, value)) {
+            authorCandidates = (authorCandidates ?? []).filter((item) => item.id !== entry.id);
+            facade.notifyDataChanged();
+            showMessage(t(i18n, "settings.authorSaved", { name: value }), 2500);
+        } else {
+            showMessage(t(i18n, "msg.actionFailed"), 3000);
+        }
+    } finally {
+        authorBusyId = "";
     }
 }
 
@@ -594,6 +653,52 @@ async function doMountBoard() {
                             >{tagMergeBusyKey === plan.variants.join("|") ? t(i18n, "panel.loading") : t(i18n, "settings.aiTagsMerge")}</button>
                         </div>
                     {/each}
+                </div>
+            {/if}
+            <!-- T-1813 来源作者回填：扫描缺作者 → AI 逐条推断 → 用户改/确认 -->
+            <div class="glean-set-row">
+                <div class="glean-set-row__lb">
+                    {t(i18n, "settings.authorTitle")}
+                    <div class="glean-set-row__desc">{t(i18n, "settings.authorDesc")}</div>
+                </div>
+                <button class="glean-btn" style="flex-shrink:0" disabled={authorScanBusy} onclick={() => void scanMissingAuthors()}>
+                    {authorScanBusy ? t(i18n, "panel.loading") : t(i18n, "settings.authorScan")}
+                </button>
+            </div>
+            {#if authorCandidates && authorCandidates.length > 0}
+                <div class="glean-set-row" style="flex-direction:column; align-items:stretch; gap:6px">
+                    {#each authorCandidates.slice(0, 20) as entry (entry.id)}
+                        <div class="glean-logrow" style="align-items:center; flex-wrap:wrap">
+                            <span class="glean-logrow__msg" style="flex:1; min-width:140px" title={entry.title}>
+                                {entry.title || t(i18n, "panel.untitled")}
+                            </span>
+                            <input
+                                class="glean-mini-input"
+                                type="text"
+                                style="width:120px; flex-shrink:0"
+                                placeholder={t(i18n, "settings.authorPlaceholder")}
+                                aria-label={t(i18n, "settings.authorTitle")}
+                                value={authorDrafts[entry.id] ?? ""}
+                                oninput={(event) => (authorDrafts = { ...authorDrafts, [entry.id]: event.currentTarget.value })}
+                            />
+                            <button
+                                class="glean-btn"
+                                style="flex-shrink:0"
+                                disabled={authorBusyId !== ""}
+                                title={t(i18n, "settings.authorInferHint")}
+                                onclick={() => void inferOneAuthor(entry)}
+                            >{authorBusyId === entry.id ? "…" : "✨"}</button>
+                            <button
+                                class="glean-btn"
+                                style="flex-shrink:0"
+                                disabled={authorBusyId !== "" || !(authorDrafts[entry.id] ?? "").trim()}
+                                onclick={() => void confirmAuthor(entry)}
+                            >{t(i18n, "settings.authorSave")}</button>
+                        </div>
+                    {/each}
+                    {#if authorCandidates.length > 20}
+                        <span style="font-size:11px; color:var(--b3-theme-on-surface)">{t(i18n, "settings.authorMore", { n: authorCandidates.length - 20 })}</span>
+                    {/if}
                 </div>
             {/if}
             <div class="glean-set-row">

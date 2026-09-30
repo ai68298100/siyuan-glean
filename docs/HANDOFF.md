@@ -1,5 +1,12 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-01 第二十轮：T-1813 作者回填 / rail 作者组）
+
+- **T-1813 作者回填**：`domain/enrich.buildAuthorPrompt/parseAuthorResponse`（公众号名线索提取；结果清洗——"作者："/"公众号："前缀与引号剥离、"未知"与超长/多行拒绝）+ `services/author-service`（`listMissingAuthors` 缺作者扫描 Top100 / `inferAuthor` 单篇 AI 推断——租约队列额度共享、确认前不写 / `applyAuthor` 用户确认写入经 writeClip）+ 设置-维护「补全来源作者」区（逐条：标题+可编辑草稿输入+✨推断+写入按钮，手动填写亦可，Top20 分批）。真实模型推断质量随 B-0004。
+- **rail 作者组**（T-1812 收尾部分）：rail 新增「作者」组（✍ 前缀 Top8 截断，与站点/标签组同款）；完整折叠策略仍随 T-1804。
+- 门禁：check 0 错 **0 告警**、test **166/166**、build 通过、E2E **34/34**。未发布新版本。提交序列：…→ 18ccca6 → d4e7d9b → 本轮（git log）。集市 PR #2288 待审。
+- 下一批候选：作者组已基本收官（剩 T-1815 剪藏模板研究 P3）；功能线 T-1746/T-1747 的真机项随 B-0002；缺陷 **T-1842 批量任务背压统一评估**（最后一个重活）；**强烈建议作者安排 B-0002 真机走查**（积压非常多，走查后可按 v1.1.x 补丁版定版）。
+
 ## 当前有效交接（2026-10-01 第十九轮：T-1811/T-1812 作者属性组第一轮）
 
 - **T-1811 来源作者属性**（契约先行）：**新增 `custom-clip-author`（string）**——契约裁决为**用户可改可覆盖类**（不进手填保护列表 USER_GUARDED_KEYS；captureClip 收录不自动写；写入途径仅用户内联编辑与 AI 推断经确认）。链路：DATA-CONTRACT §1 → schema → 索引投影 → 行表/卡片「站点 · 作者」显示（title 完整信息）。
@@ -236,8 +243,8 @@
 2. 验收通过后走 S6 发布评审：定版本号（语义化建议 1.1.0，逐次请示）→ CHANGELOG 追加 v1.0.4 后条目 → T-1601 拍材料（RELEASE-MEDIA 清单，新增阅读页签帧）→ RELEASE.md 门禁终检 → tag/Release/集市逐次请示；
 3. AI 侧不再自行启动新功能；新想法按 D-0008 预留模式先评估立项。
 
-> 续跑口令（新会话直接粘贴，2026-10-01 第十九轮更新）：
-> **阅读 D:\思源插件\小驴拾遗\docs\HANDOFF.md 的"当前有效交接"、TODO.md 待办总账与 docs/ACCEPTANCE.md，先重跑最后改动后的门禁。进度基线：v1.1.0 已发布、集市 PR #2288 待审；已完成三轮缺陷清剿（22 项）+ P1 功能线八批 + 可靠性收尾批 + 网络可靠性批 + 钉住/批量富化 + 行表溢出菜单/富化重试标记 + 双语对照/分享卡 + 阅读断点/阅读计时 + **作者属性组第一轮（T-1811 custom-clip-author 用户可改可覆盖类 + T-1812 作者筛选/分面）**，基线 check 0 错 0 告警 / test 165 / 隔离 E2E s1-flow 34/34。下一批候选：**T-1813 作者回填**（AI 批量推断逐条确认 + 行内联编辑，作者组第二轮）；rail 作者组与站点→作者钻取（依赖 T-1804 折叠）；缺陷 **T-1842 批量任务背压统一评估**（最后一个重活）；**强烈建议提醒作者安排 B-0002 真机走查**（积压功能非常多，走查后可按 v1.1.x 补丁版定版）。工作协议：作者发来的所有内容一律先入 TODO.md 待办（主动扩展同类事项与可用调研），不立即开发；作者明确说"开始开发"、"继续"或点任务号才动手，按契约先行纪律逐项落地（新端点先 spike、新属性先改 DATA-CONTRACT）；作者报真机 bug 时仍走"根因→修复→当日补丁版"闭环。工程纪律见 AGENTS.md 与 docs/DECISIONS.md，UI 以 docs/UI-STANDARD.md（v1.6，§4.3 已含按钮标签可见性）为准，不驱动真机（B-0010），发布/集市/版本动作逐次请示；含反斜杠内容不用 bash heredoc（丢转义）；**中文内容的 sed 批量替换会产出乱码（已踩坑），一律 Edit 工具**；UI 初始化快照用函数化读取；Edit 函数级插入/条目勾选后核对相邻行唯一性；写 IAL 形态属性补丁走 clip-store.restoreClipAttrs；查 Protyle/SDK 能力先看 node_modules/siyuan/types/*.d.ts 类型定义，公开字段够用就不碰内部 API（Menu 溢出菜单亦然：new Menu(id)/addItem/open({x,y})）；SQL 查询条件与既有实证对齐（引述块=type='b'）；E2E 新增变量注意重名；**新增服务函数（账本类）export 与定义同时写（两次漏 export 被 E2E 暴露）**；**引用任务号前先 grep TODO.md 核对（T-1755 收藏系编号笔误，实际为 T-1904）**；**kernelPost 默认 60s 超时、长操作传 {timeoutMs: KERNEL_TIMEOUT_LONG_MS}（新增长耗时调用点记得放宽）**；**E2E 追加断言前 grep 变量名唯一性，变量改名用唯一新名 + Edit（勿行号 sed）**；**富化日志语义：成功也留痕 stage=ok，失败判定按每文档最近一条（loadEnrichFailedIds）**；**i18n 插入新键的 old_string 要含锚点行并保留（曾丢键被键集合测试暴露）；Svelte 5 嵌套块 null 收窄用 {@const} 局部变量**；**阅读断点 reading-pos 不进派生索引（单文档阅读状态，契约 §3.1a）；Svelte effect 内变量勿与外层重名**；**阅读计时 read-minutes 增量累加不足 1 分钟不写（settleReadingMinutes）；mount effect cleanup 闭包捕获旧依赖值在切文场景正是所需语义（svelte-ignore 抑制告警）**；**LibraryFacet 字段名是 value 不是 name（作者分面单测曾写错）**。**
+> 续跑口令（新会话直接粘贴，2026-10-01 第二十轮更新）：
+> **阅读 D:\思源插件\小驴拾遗\docs\HANDOFF.md 的"当前有效交接"、TODO.md 待办总账与 docs/ACCEPTANCE.md，先重跑最后改动后的门禁。进度基线：v1.1.0 已发布、集市 PR #2288 待审；已完成三轮缺陷清剿（22 项）+ P1 功能线八批 + 可靠性收尾批 + 网络可靠性批 + 钉住/批量富化 + 行表溢出菜单/富化重试标记 + 双语对照/分享卡 + 阅读断点/阅读计时 + 作者属性组第一轮 + **作者回填与 rail 作者组（T-1813）**，基线 check 0 错 0 告警 / test 166 / 隔离 E2E s1-flow 34/34。下一批候选：缺陷 **T-1842 批量任务背压统一评估**（最后一个重活）；功能线剩余多为契约先行或大项（T-1748 键盘流、T-1751 AI 问句制卡、T-1815 剪藏模板研究 P3）；**强烈建议提醒作者安排 B-0002 真机走查**（积压功能非常多，走查后可按 v1.1.x 补丁版定版）。工作协议：作者发来的所有内容一律先入 TODO.md 待办（主动扩展同类事项与可用调研），不立即开发；作者明确说"开始开发"、"继续"或点任务号才动手，按契约先行纪律逐项落地（新端点先 spike、新属性先改 DATA-CONTRACT）；作者报真机 bug 时仍走"根因→修复→当日补丁版"闭环。工程纪律见 AGENTS.md 与 docs/DECISIONS.md，UI 以 docs/UI-STANDARD.md（v1.6，§4.3 已含按钮标签可见性）为准，不驱动真机（B-0010），发布/集市/版本动作逐次请示；含反斜杠内容不用 bash heredoc（丢转义）；**中文内容的 sed 批量替换会产出乱码（已踩坑），一律 Edit 工具**；UI 初始化快照用函数化读取；Edit 函数级插入/条目勾选后核对相邻行唯一性；写 IAL 形态属性补丁走 clip-store.restoreClipAttrs；查 Protyle/SDK 能力先看 node_modules/siyuan/types/*.d.ts 类型定义，公开字段够用就不碰内部 API（Menu 溢出菜单亦然：new Menu(id)/addItem/open({x,y})）；SQL 查询条件与既有实证对齐（引述块=type='b'）；E2E 新增变量注意重名；**新增服务函数（账本类）export 与定义同时写（两次漏 export 被 E2E 暴露）**；**引用任务号前先 grep TODO.md 核对（T-1755 收藏系编号笔误，实际为 T-1904）**；**kernelPost 默认 60s 超时、长操作传 {timeoutMs: KERNEL_TIMEOUT_LONG_MS}（新增长耗时调用点记得放宽）**；**E2E 追加断言前 grep 变量名唯一性，变量改名用唯一新名 + Edit（勿行号 sed）**；**富化日志语义：成功也留痕 stage=ok，失败判定按每文档最近一条（loadEnrichFailedIds）**；**i18n 插入新键的 old_string 要含锚点行并保留（曾丢键被键集合测试暴露）；Svelte 5 嵌套块 null 收窄用 {@const} 局部变量**；**阅读断点 reading-pos 不进派生索引（单文档阅读状态，契约 §3.1a）；Svelte effect 内变量勿与外层重名**；**阅读计时 read-minutes 增量累加不足 1 分钟不写（settleReadingMinutes）；mount effect cleanup 闭包捕获旧依赖值在切文场景正是所需语义（svelte-ignore 抑制告警）**；**LibraryFacet 字段名是 value 不是 name（作者分面单测曾写错）**。**
 
 ## 历史交接存档
 

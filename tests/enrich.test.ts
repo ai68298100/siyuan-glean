@@ -3,10 +3,12 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+    buildAuthorPrompt,
     buildEnrichPrompt,
     extractJson,
     findSimilarTagGroups,
     isLikelyDuplicate,
+    parseAuthorResponse,
     parseEnrichResponse,
 } from "../src/domain/enrich.ts";
 
@@ -78,4 +80,16 @@ test("findSimilarTagGroups：短于 2 字的短标签不触发包含判定，空
     const groups = findSimilarTagGroups(["人工智能", "AGI", "人工智能应用"]);
     assert.equal(groups.length, 1);
     assert.equal(groups[0].keep, "人工智能应用");
+});
+
+test("buildAuthorPrompt/parseAuthorResponse：作者推断指令与结果清洗（T-1813）", () => {
+    const prompt = buildAuthorPrompt("深度文章", "点击上方蓝字关注 极客视界……");
+    assert.ok(prompt.includes("深度文章"));
+    assert.ok(prompt.includes("只输出作者名本身"));
+    assert.equal(parseAuthorResponse("极客视界"), "极客视界");
+    assert.equal(parseAuthorResponse("公众号：极客视界"), "极客视界");
+    assert.equal(parseAuthorResponse("“极客视界”"), "极客视界");
+    assert.equal(parseAuthorResponse("未知"), null);
+    assert.equal(parseAuthorResponse(""), null);
+    assert.equal(parseAuthorResponse("a".repeat(50)), null); // 超上限拒绝
 });

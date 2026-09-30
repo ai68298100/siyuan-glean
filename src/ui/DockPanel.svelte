@@ -1046,6 +1046,15 @@ function metaLine(entry: Row): string {
                             </button>
                         {/each}
                     {/if}
+                    {#if railStats.authors.length > 0}
+                        <!-- T-1812 作者组（Top8）：与站点/标签组同款折叠省略 -->
+                        <div class="glean-rail__title">{t(i18n, "rail.authors")}</div>
+                        {#each railStats.authors.slice(0, 8) as author (author.value)}
+                            <button class="glean-rail__item" class:glean-rail__item--on={selectedAuthor === author.value} onclick={() => (selectedAuthor = selectedAuthor === author.value ? "" : author.value)}>
+                                ✍{author.value}<span class="glean-rail__n">{author.count}</span>
+                            </button>
+                        {/each}
+                    {/if}
                     {#if railStats.aiTags.length > 0}
                         <div class="glean-rail__title" title={t(i18n, "library.filterAiTagHint")}>✨ {t(i18n, "rail.aiTags")}</div>
                         {#each railStats.aiTags.slice(0, 8) as tag (tag.value)}

@@ -171,3 +171,33 @@ export function findSimilarTagGroups(tags: string[]): AiTagMergeSuggestion[] {
     }
     return groups;
 }
+
+/* ---------- 来源作者推断（T-1813） ---------- */
+
+export const AUTHOR_MAX_LEN = 40;
+
+/**
+ * 作者推断 prompt（T-1813）：从文章标题/正文找公众号/作者名线索
+ * （如"点击上方蓝字关注 XX"、文末署名）。只输出名字本身，无法判断输出"未知"。
+ */
+export function buildAuthorPrompt(title: string, plain: string): string {
+    return [
+        "请从以下文章内容中推断来源作者名（公众号名/作者名/专栏名）。",
+        "线索常见于：正文开头的「点击上方蓝字关注 XX」、文末署名、转载声明。",
+        "只输出作者名本身，不要任何解释；确实无法判断时只输出：未知",
+        `文章标题：${String(title ?? "").trim()}`,
+        "文章内容：",
+        String(plain ?? "").slice(0, 6000),
+    ].join("\n");
+}
+
+/** 解析作者推断响应：去掉引号/前缀修饰，超出上限截断；"未知"或空返回 null。 */
+export function parseAuthorResponse(raw: string): string | null {
+    let text = String(raw ?? "").trim();
+    // 常见包裹清理：引号、书名号、"作者："/"公众号："前缀
+    text = text.replace(/^(作者|公众号|专栏)[:：]\s*/i, "").replace(/^["'“”「『]|["'“”」』]$/g, "").trim();
+    if (!text || text === "未知" || text.length > AUTHOR_MAX_LEN) return null;
+    // 单行白名单化：拒绝多行/明显非名字内容
+    if (/[\r\n]/.test(text)) return null;
+    return text;
+}
