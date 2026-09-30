@@ -479,6 +479,42 @@ input.mini { width: 64px; text-align: center; }
 }
 .surf-done .art { width: 72px; height: 72px; margin: 0 auto 14px; border-radius: 24px; display: grid; place-items: center; font-size: 30px; background: linear-gradient(160deg, color-mix(in srgb, var(--st-done) 16%, transparent), color-mix(in srgb, var(--st-done) 6%, transparent)); }
 
+
+/* ============ v1.6 新增：阅读页签 / 引导 / 导入器 / 理由行 ============ */
+.s-why { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; font-size: 9.5px; color: var(--b3-theme-on-surface); }
+.s-why .lb { opacity: .7; margin-right: 2px; }
+.pending {
+    font-size: 9.5px; padding: 1px 6px; border-radius: 6px; font-weight: 600; white-space: nowrap;
+    background: color-mix(in srgb, var(--b3-theme-on-surface) 10%, transparent); color: var(--b3-theme-on-surface); opacity: .85;
+}
+.reader-side {
+    width: 272px; flex-shrink: 0; border-left: 1px solid var(--b3-border-color);
+    padding: 14px 13px; display: flex; flex-direction: column; gap: 10px;
+    background: var(--b3-theme-surface); overflow: hidden;
+}
+.reader-side .rt { font-size: 13px; font-weight: 700; line-height: 1.45; }
+.reader-side .rmeta { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; font-size: 10px; color: var(--b3-theme-on-surface); }
+.reader-side .rops { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+.reader-side .rops .bb { flex: 1; text-align: center; padding-left: 4px; padding-right: 4px; white-space: nowrap; }
+.reader-side .rsec { border-top: 1px solid var(--b3-border-color); padding-top: 9px; display: flex; flex-direction: column; gap: 7px; }
+.reader-side .rsec-t { font-size: 9.5px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; color: var(--b3-theme-on-surface); opacity: .75; }
+.reader-side .rexcerpt {
+    font-size: 10.5px; line-height: 1.6; color: var(--b3-theme-on-surface);
+    border-left: 3px solid var(--glean-accent-a); padding: 4px 8px; border-radius: 0 8px 8px 0;
+    background: color-mix(in srgb, var(--glean-accent-a) 8%, transparent);
+}
+.reader-side .ai-card { border: 1px solid var(--b3-border-color); border-radius: 12px; padding: 9px 10px; display: flex; flex-direction: column; gap: 6px; background: var(--b3-theme-background); }
+.reader-side .ai-src { font-size: 9px; color: var(--b3-theme-on-surface); opacity: .75; }
+.reader-side .ai-text { font-size: 10.8px; line-height: 1.65; color: var(--b3-theme-on-background); }
+.reader-side .rback { border: none; background: transparent; color: var(--glean-accent-b); font-size: 11px; cursor: pointer; text-align: left; padding: 2px 0; }
+.reader-body { flex: 1; min-width: 0; padding: 34px 56px; line-height: 2; overflow: hidden; }
+.reader-body .sel { background: color-mix(in srgb, var(--glean-accent-a) 30%, transparent); border-radius: 3px; }
+.sel-chip { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; padding: 3px 10px; border-radius: 999px; background: var(--g-accent-grad); color: #fff; box-shadow: 0 3px 10px -3px rgba(249,115,22,.5); }
+.onb-steps { display: flex; align-items: center; gap: 6px; padding: 2px 14px 10px; }
+.onb-steps i { flex: 1; height: 4px; border-radius: 2px; background: var(--hover); }
+.onb-steps i.on { background: var(--g-accent-grad); }
+.imp-row { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-bottom: 1px solid var(--b3-border-color); font-size: 11px; }
+.imp-row .u { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--b3-theme-on-surface); }
 </style>
 </head>
 <body>
@@ -781,10 +817,14 @@ input.mini { width: 64px; text-align: center; }
           <div class="rail-item">#架构<span class="n">18</span></div>
           <div class="rail-item">#AI<span class="n">14</span></div>
           <div class="rail-item">#设计<span class="n">11</span></div>
+          <div class="rail-title" title="AI 标签由模型生成，独立于你的用户标签">✨ AI 标签</div>
+          <div class="rail-item on">✨机器学习<span class="n">9</span></div>
+          <div class="rail-item">✨本地优先<span class="n">7</span></div>
+          <div class="rail-item">✨事件驱动<span class="n">5</span></div>
         </div>
         <div class="d-main">
           <div class="d-table">
-            <div class="drow"><span class="dot" style="background:var(--st-inbox)"></span><span class="ti">The Bitter Lesson of AI Engineering: Why Context Is All You Need</span><span class="site">news.example.com</span><span class="len">7,240 字 · 18 分</span><span class="st"><span class="st-badge inbox">新剪藏</span></span></div>
+            <div class="drow"><span class="dot" style="background:var(--st-inbox)"></span><span class="ti">The Bitter Lesson of AI Engineering: Why Context Is All You Need</span><span class="site">news.example.com</span><span class="pending">正文待核</span><span class="len">7,240 字 · 18 分</span><span class="st"><span class="st-badge inbox">新剪藏</span></span></div>
             <div class="drow"><span class="dot" style="background:var(--st-reading)"></span><span class="ti">Designing liquid glass interfaces that feel alive without hurting usability</span><span class="site">design.weekly.dev</span><span class="len">3,610 字 · 9 分</span><span class="st"><span class="st-badge reading">阅读中</span></span></div>
             <div class="drow"><span class="dot" style="background:var(--st-later)"></span><span class="ti">How Linear builds product: small teams, deep context, and a culture of written thinking</span><span class="site">linear.app</span><span class="len">4,880 字 · 12 分</span><span class="st"><span class="st-badge later">稍后读</span></span></div>
             <div class="drow"><span class="dot" style="background:var(--st-later)"></span><span class="ti">像堆乐高一样搭后端：事件驱动架构入门</span><span class="site">zh.dev.to</span><span class="len">5,600 字 · 14 分</span><span class="st"><span class="st-badge later">稍后读</span></span></div>
@@ -918,10 +958,12 @@ input.mini { width: 64px; text-align: center; }
         <div class="rail-item on">📇 读库笔记本</div>
         <div class="rail-item">🤖 AI 增强</div>
         <div class="rail-item">🔄 每日拾遗</div>
+        <div class="rail-item">📖 阅读</div>
         <div class="rail-item">🗂 读库数据库</div>
         <div class="rail-item">🧰 维护</div>
       </div>
       <div class="set-content">
+        <div class="glean-set-group" style="font-size:11px; color:var(--b3-theme-on-surface)">🌾 新用户只需两步：① 选择「读库笔记本」；② 打开工作台逐篇确认候选。其余选项保持默认即可。</div>
         <div class="glean-set-group">
           <div class="glean-set-row">
             <div class="glean-set-row__lb">剪藏收藏<div class="glean-set-row__desc">32 篇文档 · 主锚点</div></div>
@@ -957,7 +999,7 @@ input.mini { width: 64px; text-align: center; }
 <!-- ============ 今日拾遗（暗，M4 灵魂场景） ============ -->
 <div style="position:relative">
   <div class="frame-label">今日拾遗 · 暗</div>
-  <div class="frame theme-dark">
+  <div class="frame theme-dark" style="height:856px">
     <div class="panel">
       <div class="panel-head" style="padding-bottom:0">
         <div class="brand-row">
@@ -979,6 +1021,7 @@ input.mini { width: 64px; text-align: center; }
           <div class="s-title">How Linear builds product: small teams, deep context, and a culture of written thinking</div>
           <div class="s-summary">Linear 的产品方法论：小团队保持完整上下文，书面思考代替会议，把"为什么"写进工单。</div>
           <div class="s-meta"><span>📰 linear.app</span><span>· 约 12 分钟</span><span class="stale">吃灰 41 天</span></div>
+          <div class="s-why"><span class="lb">为什么出现</span><span class="stale">吃灰 41 天</span><span class="stale">你标了优先级 5</span><span class="stale">近期没读过的主题</span></div>
           <div class="s-acts"><button class="s-act">改天</button><button class="s-act">归档</button><button class="s-act pri">✓ 读了</button></div>
         </div>
         <div class="surf-card">
@@ -1031,6 +1074,163 @@ input.mini { width: 64px; text-align: center; }
       <div style="padding:34px 54px;line-height:1.9">
         <div style="font-size:22px;font-weight:700">The rise of local-first software</div>
         <div style="margin-top:16px;color:var(--b3-theme-on-surface)">正文由思源原生编辑器承载。上方只保留文章上下文和动作。</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ============ 桌面 · 内嵌阅读页签（D-0029 旗舰场景） ============ -->
+<div style="position:relative">
+  <div class="frame-label">桌面 · 内嵌阅读页签（左正文 + 右伴生栏）</div>
+  <div class="frame desktop theme-light">
+    <div style="display:flex; height:100%">
+      <div class="reader-body">
+        <div style="font-size:22px; font-weight:700; line-height:1.5">The rise of local-first software</div>
+        <div style="margin-top:6px; font-size:10.5px; color:var(--b3-theme-on-surface)">inkandswitch.com · 2026-08 · 全文剪藏</div>
+        <p style="margin-top:18px">本地优先软件正把数据所有权交还用户。CRDT 让多端无冲突合并成为可能，<span class="sel">同步引擎正在成为新的数据库层，而应用只是它上面的视图</span>——这正是思源笔记的架构选择。</p>
+        <p style="margin-top:12px">与云优先方案相比，本地优先放弃了即时协作的便利，换来的是离线可用、无供应商锁定和毫秒级响应。</p>
+        <div style="margin-top:22px"><span class="sel-chip">✓ 已捕获选区 · 伴生栏可摘录 / 翻译 / 提问</span></div>
+      </div>
+      <div class="reader-side">
+        <div class="rt">The rise of local-first software</div>
+        <div class="rmeta"><span class="chip">全文剪藏</span><span>阅读中</span><span>· inkandswitch.com</span></div>
+        <div class="d-seg"><button class="on">📖 阅读</button><button>✏️ 编辑</button></div>
+        <div class="rops">
+          <button class="bb">▶ 继续阅读</button><button class="bb">✓ 已读</button><button class="bb">↷ 稍后</button><button class="bb">⤓ 归档</button>
+        </div>
+        <button class="bb pri" style="text-align:center; padding:7px">✓→ 读完并下一篇</button>
+        <div class="rops" style="font-size:10px; color:var(--b3-theme-on-surface)">
+          优先级 <span style="color:var(--glean-accent-b)">★★★</span>☆ · 评分 <span style="color:var(--glean-accent-b)">⭐4</span>
+        </div>
+        <div class="rsec">
+          <div class="rsec-t">摘录</div>
+          <div class="rexcerpt">同步引擎正在成为新的数据库层，而应用只是它上面的视图…</div>
+          <div class="rops"><button class="bb">摘录为引述</button><button class="bb">制卡</button><button class="bb">复制</button></div>
+        </div>
+        <div class="rsec">
+          <div class="rsec-t">AI 伴读</div>
+          <div class="rops"><button class="bb">✨ 总结全文</button><button class="bb">文A 翻译选区</button><button class="bb">🔗 相关旧文</button></div>
+          <div class="ai-card">
+            <div class="ai-src">AI · 思源 AI · 总结全文</div>
+            <div class="ai-text">本地优先以 CRDT 与同步引擎把数据所有权交还用户，代价是放弃实时协作，换来离线、锁定自由与响应速度。</div>
+            <div class="rops"><button class="bb">复制</button><button class="bb pri">保存为 AI 摘要</button></div>
+          </div>
+        </div>
+        <div class="rops" style="margin-top:auto; padding-top:8px">
+          <button class="bb">↗ 打开原文</button><button class="bb">📷</button>
+        </div>
+        <button class="rback">← 返回读库中的这篇</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ Dock 侧栏（320 窄列速览） ============ -->
+<div style="position:relative">
+  <div class="frame-label">Dock 侧栏 · 320 窄列速览</div>
+  <div class="frame theme-dark">
+    <div class="panel">
+      <div class="panel-head" style="padding-bottom:8px">
+        <div class="brand-row">
+          <div class="brand-mark">🌾</div>
+          <div><div class="brand-name">小驴拾遗</div><div class="brand-sub">速览 · 读库 128 篇</div></div>
+          <div class="head-actions"><button class="iconbtn">⧉</button><button class="iconbtn">⚙</button></div>
+        </div>
+        <div class="pill-seg"><button>今日拾遗</button><button class="on">库</button><button>统计</button><button>高亮</button></div>
+      </div>
+      <div class="queues">
+        <button class="q on">📥 新剪藏<span class="n">12</span></button>
+        <button class="q">稍后读<span class="n">31</span></button>
+        <button class="q">阅读中<span class="n">5</span></button>
+        <button class="q">已读<span class="n">64</span></button>
+      </div>
+      <div class="candidates"><span>📥</span><span class="txt"><b>6 篇</b>待确认候选</span><button class="cap-btn">确认</button></div>
+      <div class="list" style="padding-top:4px">
+        <div class="card">
+          <div class="t">The Bitter Lesson of AI Engineering: Why Context Is All You Need</div>
+          <div class="meta"><span class="dot" style="background:var(--st-inbox)"></span><span class="site">📰 news.example.com</span><span class="stale">正文待核</span><span class="min">18 分</span></div>
+          <div class="acts"><button class="ab">▶</button><button class="ab">✓</button><button class="ab">⤓</button></div>
+        </div>
+        <div class="card">
+          <div class="t">像堆乐高一样搭后端：事件驱动架构入门</div>
+          <div class="meta"><span class="dot" style="background:var(--st-later)"></span><span class="site">📰 zh.dev.to</span><span class="min">14 分</span></div>
+        </div>
+        <div class="card">
+          <div class="t">Designing liquid glass interfaces that feel alive</div>
+          <div class="meta"><span class="dot" style="background:var(--st-reading)"></span><span class="site">📰 design.weekly.dev</span><span class="min">9 分</span></div>
+          <div class="prog"><i></i></div>
+        </div>
+        <div class="card">
+          <div class="t">理解 CUDA：从显卡架构到 kernel 调度的极简心智模型 ⭐4</div>
+          <div class="meta"><span class="dot" style="background:var(--st-done)"></span><span class="site">📰 gpu.dev</span><span class="min">21 分</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 首启引导（扫描预览步，T-1719） ============ -->
+<div style="position:relative">
+  <div class="frame-label">首启引导 · 扫描预览（只读，不写入）</div>
+  <div class="frame wide theme-light" style="min-height:560px">
+    <div class="panel">
+      <div class="panel-head" style="padding-bottom:8px">
+        <div class="brand-row">
+          <div class="brand-mark">🌾</div>
+          <div><div class="brand-name">欢迎使用小驴拾遗</div><div class="brand-sub">把吃灰的收藏，捡回来喂给自己</div></div>
+        </div>
+        <div class="onb-steps"><i class="on"></i><i class="on"></i><i class="on"></i><i></i></div>
+      </div>
+      <div style="padding: 2px 16px 0"><div class="sect">扫描预览 · 只读，不写入</div></div>
+      <div class="bento" style="padding: 8px 16px">
+        <div class="tile"><div class="glow"></div><div class="k">📚 已收录</div><div class="v">32</div></div>
+        <div class="tile"><div class="glow"></div><div class="k">📥 待确认候选</div><div class="v">6</div></div>
+        <div class="tile"><div class="glow"></div><div class="k">🔗 候选缺来源</div><div class="v">2</div></div>
+        <div class="tile"><div class="glow"></div><div class="k">🗃 普通笔记</div><div class="v">不入库</div></div>
+      </div>
+      <div style="padding: 4px 16px">
+        <div class="panel-block" style="font-size:11px; line-height:1.8; color:var(--b3-theme-on-surface)">
+          只有带来源证据的文章会成为候选（URL 属性 / #剪藏 标签 / 剪藏模板）；
+          普通笔记不会入库。<b>逐篇确认后</b>才会写入读库属性——先看报告，不会动你的数据。
+        </div>
+      </div>
+      <div style="margin-top:auto; padding: 12px 16px 16px; display:flex; gap:8px; justify-content:flex-end">
+        <button class="btn">← 上一步</button>
+        <button class="btn pri">下一步 · 能力一览</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 导入器（Pocket / Omnivore / wallabag） ============ -->
+<div style="position:relative">
+  <div class="frame-label">导入器 · 预览与执行</div>
+  <div class="frame wide theme-light" style="min-height:560px">
+    <div class="panel">
+      <div class="panel-head" style="padding-bottom:8px">
+        <div class="brand-row">
+          <div class="brand-mark">🌾</div>
+          <div><div class="brand-name">迁移导入器</div><div class="brand-sub">pocket_export.csv · 已解析 128 条</div></div>
+        </div>
+      </div>
+      <div class="bento" style="padding: 2px 16px">
+        <div class="tile"><div class="k">📄 解析成功</div><div class="v">128</div></div>
+        <div class="tile"><div class="k">♻️ 库内重复</div><div class="v">6</div><div class="u">将跳过</div></div>
+        <div class="tile"><div class="k">📥 待导入</div><div class="v">122</div></div>
+        <div class="tile"><div class="k">✅ 已读映射</div><div class="v">41</div><div class="u">含完成时间</div></div>
+      </div>
+      <div style="padding: 10px 16px 0"><div class="sect">预览（50 行/页）</div></div>
+      <div style="margin: 6px 16px; border: 1px solid var(--b3-border-color); border-radius: 14px; overflow: hidden; flex: 1">
+        <div class="imp-row"><span class="u">The rise of local-first software</span><span class="chip">read → 已读</span><span style="font-size:9.5px; color:var(--b3-theme-on-surface)">2024-11-02 已读</span></div>
+        <div class="imp-row"><span class="u">How Linear builds product</span><span class="chip">unread → 新剪藏</span></div>
+        <div class="imp-row" style="opacity:.55"><span class="u">设计心理学（已收藏）</span><span class="chip">♻️ 库内重复 · 跳过</span></div>
+        <div class="imp-row"><span class="u">像堆乐高一样搭后端：事件驱动架构入门</span><span class="chip">archive → 归档</span></div>
+        <div class="imp-row"><span class="u">理解 CUDA：从显卡架构到 kernel 调度</span><span class="chip">read → 已读</span><span style="font-size:9.5px; color:var(--b3-theme-on-surface)">2025-01-18 已读</span></div>
+      </div>
+      <div style="padding: 10px 16px 16px; display:flex; gap:8px; justify-content:flex-end">
+        <button class="btn">选择文件…</button>
+        <button class="btn pri">开始导入 122 篇</button>
       </div>
     </div>
   </div>
