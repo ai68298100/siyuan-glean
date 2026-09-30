@@ -410,6 +410,7 @@
   "reader.aiAsk": "Ask this article",
   "reader.aiTranslateFull": "Translate full article",
   "reader.bilingualTitle": "Bilingual · translation",
+  "reader.readingProgress": "Reading progress (estimated by blocks passed)",
   "reader.outline": "Outline",
   "reader.outlineMiss": "Heading not found (it may be inside a collapsed block)",
   "reader.ttsSpeak": "Read aloud",

@@ -634,6 +634,24 @@ async function runFlow(client, workspace) {
     assert.equal(afterPin.picks.some((pick) => pick.item.id === local), true);
     assert.equal(afterPin.picks[0].item.id, local, "钉住的篇目应置顶首位");
     pass("T-1797 钉住当日置顶首位（覆盖改天），属性与索引一致");
+
+    // T-1746 阅读断点：写 readingPos → readClipContext 投影（断点不进派生索引）。
+    const readingPos = await import("../../src/services/reading-position.ts");
+    const anchorBlock = await until("锚定块入 SQL 索引", async () => {
+        const rows = await client.apiChecked("/api/query/sql", {
+            stmt: `SELECT id FROM blocks WHERE root_id='${fulltext}' AND type='p' ORDER BY sort ASC LIMIT 1`,
+        });
+        return rows[0]?.id ?? "";
+    });
+    await readingPos.saveReadingPos(fulltext, anchorBlock, plugin);
+    const posAttrs = await client.apiChecked("/api/attr/getBlockAttrs", { id: fulltext });
+    assert.equal(posAttrs["custom-clip-reading-pos"], anchorBlock);
+    const posContext = await clip.readClipContext(fulltext);
+    assert.equal(posContext?.readingPos, anchorBlock);
+    // 断点不进派生索引（单文档阅读状态，DATA-CONTRACT §3.1a）
+    const posIndexData = await newPlugin().loadData("glean-index.json");
+    assert.equal("readingPos" in (posIndexData?.clips?.[fulltext] ?? {}), false);
+    pass("T-1746 阅读断点写入与上下文投影一致，不进派生索引");
 }
 
 async function main() {

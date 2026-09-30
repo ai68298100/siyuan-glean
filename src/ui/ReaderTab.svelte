@@ -46,6 +46,7 @@
     import { fetchDocOutline, outlineIndent, type OutlineHeading } from "../services/outline";
     import { nextSpeechRate } from "../domain/tts";
     import { speakText, stopSpeaking, ttsAvailable } from "../services/tts";
+    import { anchorBlockInViewport, blockPosition, countDocBlocks, saveReadingPos } from "../services/reading-position";
     import ClipStatusActions from "./ClipStatusActions.svelte";
     import ClipRankControls from "./ClipRankControls.svelte";
 
@@ -201,7 +202,19 @@
         });
         void untrack(() => loadContext(id));
         void untrack(() => loadOutline(id));
+        // T-1746：恢复上次阅读断点（轻延迟等 Protyle 渲染首屏）
+        window.setTimeout(() => void untrack(() => restoreReadingPos(id)), 600);
+        // T-1746：滚动捕获阶段监听防抖写断点；离开/销毁立即落盘
+        const scrollHost = protyle?.protyle?.element;
+        const onScroll = () => scheduleReadingPos();
+        scrollHost?.addEventListener("scroll", onScroll, true);
         return () => {
+            scrollHost?.removeEventListener("scroll", onScroll, true);
+            if (posSaveTimer) {
+                clearTimeout(posSaveTimer);
+                posSaveTimer = null;
+            }
+            void untrack(() => flushReadingPos());
             protyle?.destroy();
             protyle = null;
             // T-1744：页签销毁时停止朗读，不留悬挂的语音队列
@@ -312,6 +325,47 @@
 
     /** T-1745 双语对照：全文翻译（租约/额度共享），结果入对照块（可折叠、可复制）。 */
     let translateFullOpen = $state(false);
+
+    // T-1746 阅读断点与进度：滚动防抖写锚定块 + 细进度条（结构估计无百分比）+ 续读定位
+    let readingPercent = $state(0);
+    let posSaveTimer: ReturnType<typeof setTimeout> | null = null;
+    let lastSavedPos = "";
+
+    function currentAnchorId(): string {
+        const host = protyle?.protyle?.element;
+        if (!host) return "";
+        return anchorBlockInViewport(host);
+    }
+
+    async function flushReadingPos(): Promise<void> {
+        const id = docId;
+        const anchor = currentAnchorId();
+        if (!id || !anchor || anchor === lastSavedPos) return;
+        lastSavedPos = anchor;
+        try {
+            await saveReadingPos(id, anchor, facade.pluginInstance);
+            const [position, total] = await Promise.all([blockPosition(id, anchor), countDocBlocks(id)]);
+            if (total > 0) readingPercent = Math.min(100, Math.round((position / total) * 100));
+        } catch (error) {
+            console.debug("[glean] 阅读断点写入失败:", error);
+        }
+    }
+
+    function scheduleReadingPos(): void {
+        if (posSaveTimer) clearTimeout(posSaveTimer);
+        posSaveTimer = setTimeout(() => void flushReadingPos(), 30_000);
+    }
+
+    async function restoreReadingPos(id: string): Promise<void> {
+        try {
+            const restored = await readClipContext(id);
+            const pos = restored?.readingPos ?? "";
+            if (!pos || !protyle?.protyle?.element) return;
+            protyle.protyle.element.querySelector(`[data-node-id="${pos}"]`)?.scrollIntoView({ block: "start" });
+        } catch (error) {
+            console.debug("[glean] 阅读断点恢复失败:", error);
+        }
+    }
 
     async function runTranslateFull(): Promise<void> {
         if (!context || aiBusy) return;
@@ -571,6 +625,12 @@
     </div>
     {#if docId}
         <aside class="glean-reader__side" aria-label={t(i18n, "reader.title")}>
+            {#if readingPercent > 0}
+                <!-- T-1746：结构估计进度条（无百分比数字，遵守 T-1728 反伪精确纪律） -->
+                <div class="glean-reader__progress" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={readingPercent} aria-label={t(i18n, "reader.readingProgress")}>
+                    <i style={`width:${readingPercent}%`}></i>
+                </div>
+            {/if}
             <div class="glean-reader__titleline">
                 <div class="glean-reader__title" title={context?.title}>{context?.title || t(i18n, "panel.untitled")}</div>
                 {#if context}

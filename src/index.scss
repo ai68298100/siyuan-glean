@@ -2696,3 +2696,18 @@
     white-space: pre-wrap;
     color: var(--b3-theme-on-surface);
 }
+
+/* ---------- 阅读断点进度条（T-1746）：结构估计细条，无百分比数字 ---------- */
+.glean-reader__progress {
+    height: 3px;
+    border-radius: 2px;
+    background: var(--b3-theme-surface-lighter);
+    overflow: hidden;
+    margin-bottom: 4px;
+}
+.glean-reader__progress i {
+    display: block;
+    height: 100%;
+    background: var(--glean-accent, var(--b3-theme-primary));
+    transition: width 0.4s ease;
+}

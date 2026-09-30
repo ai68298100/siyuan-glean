@@ -62,6 +62,8 @@ export interface ReadingClipContext {
     rating?: number;
     /** 用户显式收藏标记（T-1755） */
     favorite?: boolean;
+    /** 阅读断点：锚定块 ID（T-1746）；空串 = 无断点 */
+    readingPos?: string;
 }
 
 /** 编辑器上下文只读当前根块属性；旧索引不能冒充正在阅读的状态。 */
@@ -81,6 +83,7 @@ export async function readClipContext(docId: string): Promise<ReadingClipContext
         priority: attrs.priority ?? 3,
         rating: attrs.rating ?? 0,
         favorite: attrs.favorite === true,
+        readingPos: attrs.readingPos ?? "",
     };
 }
 
