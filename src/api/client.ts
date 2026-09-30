@@ -138,6 +138,20 @@ export async function createDocWithMd(notebookId: string, hPath: string, markdow
     return kernelPost<string>("/api/filetree/createDocWithMd", { notebook: notebookId, path: hPath, markdown, ...(tags ? { tags } : {}) });
 }
 
+/**
+ * 移动文档（T-1868 实证，DATA-CONTRACT §7.5）：toPath **必须是目标宿主文档完整 path（带 `.sy`）**，
+ * 去掉 `.sy` 的目录形态报 block not found；fromPaths 各项同为 `/<id>.sy` 形态。
+ * 移动保留根块 ID 与 IAL；重复移动幂等（code=0）。
+ */
+export async function moveDocs(fromPaths: string[], toNotebookId: string, toHostPath: string): Promise<void> {
+    await kernelPost("/api/filetree/moveDocs", { fromPaths, toNotebook: toNotebookId, toPath: toHostPath });
+}
+
+/** 删除文档（T-1868 实证）：path 为 `/<id>.sy`；索引异步清空；删除后 getBlockAttrs 返回空对象不报错——判存在性只能靠 SQL。 */
+export async function removeDoc(notebookId: string, docPath: string): Promise<void> {
+    await kernelPost("/api/filetree/removeDoc", { notebook: notebookId, path: docPath });
+}
+
 /* ---------- block 子块（高亮聚合） ---------- */
 
 export interface BlockRow {

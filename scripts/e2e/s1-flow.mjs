@@ -704,6 +704,68 @@ async function runFlow(client, workspace) {
     assert.equal(clearedAttr["custom-clip-hl-color"], undefined);
     assert.equal(await hlSvc.getQuoteColor(hlQuoteId), "");
     pass("T-1901 高亮颜色写入/读取/清除（块级 IAL 经属性端点）");
+
+    // T-1869/1870/1871 归档生命周期链路（D-0032 / DATA-CONTRACT §7）：
+    // 宿主幂等创建 → 归档移动不变式 → 回收 → 彻底删除+索引清理。
+    const lifecycleSvc = await import("../../src/services/lifecycle-service.ts");
+    const lcDoc = await makeDoc("生命周期文章", "# 生命周期文章\n\n待移动正文", "");
+    await clip.writeClip(plugin, lcDoc, { status: "reading" });
+    const lcHpath = await until("生命周期文章入 SQL", async () => {
+        const rows = await client.apiChecked("/api/query/sql", {
+            stmt: `SELECT hpath FROM blocks WHERE type='d' AND id='${lcDoc}'`,
+        });
+        return rows[0]?.hpath ?? "";
+    });
+    // ① 宿主幂等创建：重复调用复用同一文档（同路径 createDocWithMd 静默新建不幂等，先 SQL 查）
+    const host1 = await lifecycleSvc.ensureHost(box, lcHpath, "archive");
+    const host2 = await lifecycleSvc.ensureHost(box, lcHpath, "archive");
+    assert.equal(host1.id, host2.id, "宿主幂等：重复创建复用同一文档");
+    assert.match(host1.path, /\.sy$/);
+    const lcHostAttrs = await client.apiChecked("/api/attr/getBlockAttrs", { id: host1.id });
+    assert.equal(lcHostAttrs["custom-clip-internal"], "true");
+    // ② 归档移动：ID/属性保留 + hpath 落宿主下 + 状态 archived + 索引投影刷新
+    const moveResult = await lifecycleSvc.archiveMoveDoc(plugin, lcDoc);
+    assert.equal(moveResult.moved, true);
+    const movedAttrs = await client.apiChecked("/api/attr/getBlockAttrs", { id: lcDoc });
+    assert.equal(movedAttrs["custom-clip-status"], "archived");
+    const movedHpath = await until("移动后 hpath 收敛", async () => {
+        const rows = await client.apiChecked("/api/query/sql", {
+            stmt: `SELECT hpath FROM blocks WHERE type='d' AND id='${lcDoc}'`,
+        });
+        return rows[0]?.hpath === "/S1/【归档】/生命周期文章" ? rows[0].hpath : "";
+    });
+    assert.equal(movedHpath, "/S1/【归档】/生命周期文章");
+    const movedIndex = await clip.reconcileIndex(newPlugin(), settings);
+    assert.equal(movedIndex.clips[lcDoc].hpath, "/S1/【归档】/生命周期文章", "索引 hpath 随移动定向刷新");
+    // 幂等重入：已在宿主下 → no-op（moved=false），状态保持
+    const moveAgain = await lifecycleSvc.archiveMoveDoc(plugin, lcDoc);
+    assert.equal(moveAgain.moved, false);
+    // ③ 回收（删除默认语义）：移入同目录【回收】宿主
+    const recycleResult = await lifecycleSvc.recycleDoc(plugin, lcDoc);
+    assert.equal(recycleResult.moved, true);
+    // 回收宿主按契约建在文章当前所在文件夹下：已在【归档】下的文章，其【回收】宿主为宿主内同级
+    // （嵌套自洽、无隐式状态，DATA-CONTRACT §7.1 边界）。
+    const recycledHpath = await until("回收后 hpath 收敛", async () => {
+        const rows = await client.apiChecked("/api/query/sql", {
+            stmt: `SELECT hpath FROM blocks WHERE type='d' AND id='${lcDoc}'`,
+        });
+        return rows[0]?.hpath === "/S1/【归档】/【回收】/生命周期文章" ? rows[0].hpath : "";
+    });
+    assert.equal(recycledHpath, "/S1/【归档】/【回收】/生命周期文章");
+    // ④ 彻底删除（二级动作）：确认信息齐备 → 删除 → SQL 清空 + 索引清理
+    const purgeInfo = await lifecycleSvc.buildDocPurgeInfo(lcDoc);
+    assert.equal(purgeInfo.title, "生命周期文章");
+    assert.equal(purgeInfo.box, box);
+    assert.equal(purgeInfo.hpath, "/S1/【归档】/【回收】/生命周期文章");
+    const purge = await lifecycleSvc.purgeDoc(plugin, lcDoc);
+    assert.equal(purge.removed, true);
+    const goneRows = await client.apiChecked("/api/query/sql", {
+        stmt: `SELECT count(*) AS n FROM blocks WHERE root_id='${lcDoc}'`,
+    });
+    assert.equal(Number(goneRows[0].n), 0, "彻底删除后 SQL 无残留行");
+    const purgedIndex = await clip.reconcileIndex(newPlugin(), settings);
+    assert.equal(purgedIndex.clips[lcDoc], undefined, "彻底删除后索引无幽灵条目");
+    pass("T-1869/1870/1871 生命周期链路：宿主幂等/移动不变式/回收/彻底删除+索引清理");
 }
 
 async function main() {

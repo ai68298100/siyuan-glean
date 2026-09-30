@@ -1,5 +1,14 @@
 # 进度（PROGRESS）
 
+## 归档生命周期服务层落地（续跑口令驱动，2026-10-01）✅
+
+- [x] **T-1869 宿主幂等创建**：`domain/lifecycle.ts` 纯函数（hostHpathOf/parentFolderOf/isUnderHost/isHostItself，单测 6 组）+ `lifecycle-service.ensureHost`——**先 SQL 查再 createDocWithMd**（同路径静默新建不幂等，T-1868 实证），复用用户手动建的同名文档，创建后写 `custom-clip-internal=true` 双保险；宿主自身不可被移动/彻底删除。
+- [x] **T-1870 归档移动语义**：`moveDocToHost/archiveMoveDoc/recycleDoc`——moveDocs 经 §7.5 实证形状，移动后轮询 hpath 收敛再写 `archived`（writeClip 按最新 hpath 定向刷新索引投影）；已在宿主下 no-op 幂等。**嵌宿主边界落地：宿主内文章的回收宿主为宿主内同级**（如 `/S1/【归档】/【回收】`——契约字面自洽、无隐式状态，已回写 §7.1 并补单测）。
+- [x] **T-1871 删除安全语义**：两级删除——默认 `recycleDoc` 移入【回收】宿主（状态写 archived 退出活动队列，可人工移回）；二级 `purgeDoc` 彻底删除：删前重查 ID+path 配对（防误删同名新文档）、删后轮询确认 SQL 清空、索引条目必须清理（防幽灵/URL 误报/候选复活）、失败抛出不伪报；快照/AV 行/打卡历史按 §7.3 保留；`buildDocPurgeInfo` 供确认框（标题/笔记本/路径/来源）。
+- [x] **api 层**：`moveDocs`/`removeDoc` 进 `src/api/client.ts`（§7.5 实证形状注释）。
+- [x] 门禁：check 0 错 0 告警、test **178/178**（+7）、build 通过、隔离 E2E 全过（新增生命周期链路断言：宿主幂等/移动不变式/回收/彻底删除+索引清理）。未发布新版本。
+- 坑：E2E 断言期望 hpath 时忘算 makeDoc 的 `/S1/` 前缀目录（一次超时定位）；TODO.md 组内插行时覆盖误删相邻条目（git diff 复核后恢复）——**大段替换 old_string 含相邻行时，提交前必查相邻条目仍在**。
+
 ## 归档生命周期契约与端点实证（续跑口令驱动，2026-10-01）✅
 
 - [x] **T-1867 契约**：DATA-CONTRACT 新增 **§7 归档生命周期**（概念三分：归档状态/【归档】宿主/两级删除；移动不变式；彻底删除留存清理边界矩阵；宿主扫描豁免；端点实证）+ **DECISIONS D-0032**（宿主移动可逆、两级删除默认可恢复——T-1905 研究裁决落地）。
