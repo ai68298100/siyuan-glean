@@ -8,6 +8,7 @@ import type { ClipStatus } from "../domain/schema";
 import { normalizeUrl } from "../domain/url";
 import { batchSetStatus, batchSetStatusDetailed, captureDocument, findClipUrlConflict, reconcileIndex, writeClip } from "../services/clip-store";
 import { autoEnrich, enrichClip, loadEnrichFailedIds } from "../services/enrich-service";
+import { generateMultiReport } from "../services/reader-ai";
 import { snapshotClip } from "../services/snapshot-service";
 import { filterAndSortLibrary, libraryFacets, type LibraryItem, type LibrarySortDirection, type LibrarySortKey } from "../domain/library-view.ts";
 import { loadIndex, type ClipIndexEntry, type CandidateEntry, type GleanIndex } from "../services/index-store";
@@ -596,6 +597,49 @@ let enrichFailedIds = $state<Set<string>>(new Set());
 $effect(() => {
     void loadEnrichFailedIds(facade.pluginInstance).then((ids) => (enrichFailedIds = ids));
 });
+
+/** T-1902 多文档 AI 报告：勾选篇单次调用生成综述报告（额度一次），结果弹窗展示+复制。 */
+let reportBusy = $state(false);
+
+async function generateReport(): Promise<void> {
+    if (selection.size === 0 || reportBusy) return;
+    reportBusy = true;
+    try {
+        const items = [...selection]
+            .map((id) => index.clips[id])
+            .filter((entry): entry is ClipIndexEntry => Boolean(entry))
+            .map((entry) => ({
+                title: entry.title || "",
+                site: entry.site || "",
+                summary: entry.summary || "",
+                status: entry.status || "inbox",
+            }));
+        const outcome = await generateMultiReport(facade.pluginInstance, items, facade.settings);
+        if (outcome.ok && outcome.text) {
+            const wrap = document.createElement("div");
+            const textEl = document.createElement("div");
+            textEl.style.cssText = "font-size:12.5px;line-height:1.7;white-space:pre-wrap;max-height:320px;overflow-y:auto";
+            textEl.textContent = outcome.text;
+            const copyBtn = document.createElement("button");
+            copyBtn.className = "glean-btn glean-btn--ghost";
+            copyBtn.style.marginTop = "8px";
+            copyBtn.textContent = t(i18n, "reader.copy");
+            copyBtn.onclick = () => {
+                void navigator.clipboard.writeText(outcome.text ?? "").then(() => showMessage(t(i18n, "reader.copied"), 2000));
+            };
+            wrap.appendChild(textEl);
+            wrap.appendChild(copyBtn);
+            const { simpleDialog } = await import("../libs/dialog");
+            simpleDialog({ title: t(i18n, "ai.reportTitle"), ele: wrap, width: "560px" });
+        } else if (outcome.skipped === "cap") {
+            showMessage(t(i18n, "ai.capReached", { n: facade.settings.ai.enrichDailyCap }), 4000);
+        } else if (outcome.skipped !== "off") {
+            showMessage(t(i18n, "ai.enrichFailed"), 3000);
+        }
+    } finally {
+        reportBusy = false;
+    }
+}
 
 async function batchEnrich(): Promise<void> {
     if (selection.size === 0 || batchEnriching) return;
@@ -1471,6 +1515,10 @@ function metaLine(entry: Row): string {
                                 ✨ {t(i18n, "ai.batchEnrich")}
                             </button>
                         {/if}
+                        <!-- T-1902 多文档 AI 报告：勾选篇单次调用生成综述（额度一次） -->
+                        <button class="glean-bb" disabled={reportBusy} onclick={() => void generateReport()}>
+                            {reportBusy ? t(i18n, "panel.loading") : `📝 ${t(i18n, "ai.report")}`}
+                        </button>
                         <button class="glean-bb" onclick={() => (selection = new Set())}>✕</button>
                     </div>
                 </footer>

@@ -179,6 +179,8 @@
   "resurface.pinHint": "Pin for today (surfaces first, returns to the pool tomorrow)",
   "resurface.pinned": "Pinned for today",
   "ai.batchEnrich": "Batch enrich",
+  "ai.report": "AI report",
+  "ai.reportTitle": "AI summary report",
   "ai.batchProgress": "Batch enriching ${done}/${total}…",
   "ai.batchDone": "Batch enrich done: ${ok} ok${capped > 0 ? ', ' + capped + ' capped' : ''}${failed > 0 ? ', ' + failed + ' failed' : ''}",
   "resurface.why": "Why it appeared",

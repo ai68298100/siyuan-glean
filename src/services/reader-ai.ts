@@ -13,7 +13,7 @@ import {
     buildTranslatePrompt,
     clampAskQuestion,
 } from "../domain/reader";
-import { buildDailyDigestPrompt, buildQuestionCardPrompt } from "../domain/enrich";
+import { buildDailyDigestPrompt, buildMultiReportPrompt, buildQuestionCardPrompt } from "../domain/enrich";
 import { aiQuotaAvailable, callLLM, logAiEvent, recordAiUsage, runAiTask } from "./enrich-service";
 import { writeClip } from "./clip-store";
 import type { GleanSettings } from "./settings";
@@ -200,6 +200,41 @@ export function dailyDigest(
             return { ok: true, text: String(llm.text ?? "").trim() };
         } catch (error) {
             await logAiEvent(plugin, "daily-digest", "daily-digest", String((error as Error)?.message ?? error));
+            return { ok: false, skipped: "error" };
+        }
+    });
+}
+
+/**
+ * 多文档 AI 报告（T-1902）：勾选篇单次调用生成综述报告（额度一次）。
+ * 租约队列/额度共享/失败静默；结果为会话状态（弹窗展示+复制），不落属性。
+ */
+export interface MultiReportItem {
+    title: string;
+    site: string;
+    summary: string;
+    status: string;
+}
+
+export function generateMultiReport(
+    plugin: Plugin,
+    items: MultiReportItem[],
+    settings: GleanSettings
+): Promise<ReaderAiOutcome> {
+    if (!readerAiEnabled(settings)) return Promise.resolve({ ok: false, skipped: "off" });
+    if (items.length === 0) return Promise.resolve({ ok: false, skipped: "error" });
+    return runAiTask(async () => {
+        if (!(await aiQuotaAvailable(plugin, settings))) return { ok: false, skipped: "cap" };
+        try {
+            const llm = await callLLM(plugin, settings, buildMultiReportPrompt(items));
+            if (!llm.ok) {
+                await logAiEvent(plugin, "multi-report", "multi-report", llm.reason || "调用失败");
+                return { ok: false, skipped: "error" };
+            }
+            await recordAiUsage(plugin);
+            return { ok: true, text: String(llm.text ?? "").trim() };
+        } catch (error) {
+            await logAiEvent(plugin, "multi-report", "multi-report", String((error as Error)?.message ?? error));
             return { ok: false, skipped: "error" };
         }
     });

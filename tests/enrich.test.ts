@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import {
     buildAuthorPrompt,
     buildDailyDigestPrompt,
+    buildMultiReportPrompt,
     buildEnrichPrompt,
     buildQuestionCardPrompt,
     extractJson,
@@ -117,4 +118,18 @@ test("buildDailyDigestPrompt：三篇速览指令与无摘要占位（T-1764）"
     assert.ok(prompt.includes("2. 《文章二》（未知来源）：（无摘要）"));
     assert.ok(prompt.includes("150 字"));
     assert.ok(prompt.includes("只输出速览正文"));
+});
+
+test("buildMultiReportPrompt：勾选篇清单与状态标签（T-1902）", () => {
+    const prompt = buildMultiReportPrompt([
+        { title: "文章甲", site: "a.com", summary: "摘要甲", status: "inbox" },
+        { title: "文章乙", site: "", summary: "", status: "done" },
+    ]);
+    assert.ok(prompt.includes("2 篇文章"));
+    assert.ok(prompt.includes("1. 《文章甲》[新剪藏]（a.com）：摘要甲"));
+    assert.ok(prompt.includes("2. 《文章乙》[已读]（未知来源）：（无摘要）"));
+    assert.ok(prompt.includes("400 字"));
+    // 超过 20 篇截断
+    const many = Array.from({ length: 25 }, (_, i) => ({ title: `t${i}`, site: "", summary: "", status: "inbox" }));
+    assert.ok(!buildMultiReportPrompt(many).includes("t20"));
 });

@@ -249,3 +249,42 @@ export function buildDailyDigestPrompt(items: DigestItem[]): string {
         ...lines,
     ].join("\n");
 }
+
+/* ---------- 多文档 AI 报告（T-1902） ---------- */
+
+export interface ReportItem {
+    title: string;
+    site: string;
+    /** 摘要（无则空串，以"（无摘要）"占位） */
+    summary: string;
+    status: string;
+}
+
+/** 五态中文标签（报告清单行用；与 UI 状态词一致）。 */
+const REPORT_STATUS_LABEL: Record<string, string> = {
+    inbox: "新剪藏",
+    later: "稍后读",
+    reading: "阅读中",
+    done: "已读",
+    archived: "已归档",
+};
+
+/**
+ * 多文档报告 prompt（T-1902）：基于勾选篇的标题/来源/摘要/状态，
+ * 生成一篇 400 字内的综述报告（主题分布、相互关联、阅读优先级建议）。
+ * 单次调用（额度一次）；上限 20 篇防超长。
+ */
+export function buildMultiReportPrompt(items: ReportItem[]): string {
+    const lines = items.slice(0, 20).map((item, index) => {
+        const status = REPORT_STATUS_LABEL[item.status] ?? item.status;
+        const site = String(item.site ?? "").trim() || "未知来源";
+        const summary = String(item.summary ?? "").trim() || "（无摘要）";
+        return `${index + 1}. 《${String(item.title ?? "").trim()}》[${status}]（${site}）：${summary}`;
+    });
+    return [
+        `以下是用户读库中勾选的 ${Math.min(items.length, 20)} 篇文章的标题、状态、来源与摘要。`,
+        "请生成一篇不超过 400 字的综述报告：概括这批文章覆盖的主题、指出内容上的相互关联、",
+        "并给出阅读优先级建议（哪些值得先读、哪些可略读）。语气平实，只输出报告正文。",
+        ...lines,
+    ].join("\n");
+}
