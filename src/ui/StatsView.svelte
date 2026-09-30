@@ -4,7 +4,7 @@ import { showMessage } from "siyuan";
 import type { GleanFacade } from "../types";
 import { t } from "../libs/i18n";
 import type { GleanIndex } from "../services/index-store";
-import { buildStats, exportWeeklyReport } from "../services/stats-service";
+import { buildStats, exportWeeklyReport, exportMonthlyReview } from "../services/stats-service";
 import { readingHeatmap, type HeatmapGrid, type ReadingStats } from "../domain/stats";
 
 interface Props {
@@ -19,6 +19,21 @@ const i18n = $derived(facade.i18n);
 
 let stats = $state<ReadingStats | null>(null);
 let exporting = $state(false);
+let exportingMonthly = $state(false);
+
+/** T-1771：生成本月回顾文档（/读库月报/YYYYMM，幂等定位）。 */
+async function doExportMonthly() {
+    exportingMonthly = true;
+    try {
+        await exportMonthlyReview(index, facade.settings, facade.pluginInstance);
+        showMessage(t(i18n, "stats.exportMonthlyDone"), 3000);
+        onCaptured?.();
+    } catch (error) {
+        showMessage(String(error).slice(0, 120), 5000);
+    } finally {
+        exportingMonthly = false;
+    }
+}
 
 const HEATMAP_WEEKS = 26;
 
@@ -154,6 +169,9 @@ $effect(() => {
 
         <button class="glean-primary-btn" disabled={exporting} onclick={() => void doExport()}>
             📝 {exporting ? t(i18n, "panel.loading") : t(i18n, "stats.exportWeekly")}
+        </button>
+        <button class="glean-primary-btn" disabled={exportingMonthly} onclick={() => void doExportMonthly()}>
+            🗓️ {exportingMonthly ? t(i18n, "panel.loading") : t(i18n, "stats.exportMonthly")}
         </button>
     {:else}
         <div class="glean-panel__loading">{t(i18n, "panel.loading")}</div>

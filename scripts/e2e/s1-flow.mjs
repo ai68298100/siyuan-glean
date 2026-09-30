@@ -464,6 +464,18 @@ async function runFlow(client, workspace) {
     assert.equal(weeklyRows.length, 1);
     pass("T-1958 同周重复生成周报定位同一文档，不堆积同名宿主");
 
+    // T-1771 月度回顾：同月幂等定位（复用周报管线）。
+    const monthly1 = await stats.exportMonthlyReview(weeklyIndex, settings, plugin);
+    await until("月报宿主进入 SQL 索引", async () => {
+        const rows = await client.apiChecked("/api/query/sql", {
+            stmt: `SELECT id FROM blocks WHERE type='d' AND box='${box}' AND hpath LIKE '/读库月报/%'`,
+        });
+        return rows.some((row) => row.id === monthly1) ? rows : null;
+    });
+    const monthly2 = await stats.exportMonthlyReview(weeklyIndex, settings, plugin);
+    assert.equal(monthly2, monthly1);
+    pass("T-1771 同月重复生成月报定位同一文档，不堆积");
+
     // T-1990 损坏索引：坏文件保留、增量写不覆盖、对账重建后恢复落盘。
     const indexStore = await import("../../src/services/index-store.ts");
     const indexPath = path.join(workspace, "glean-s1-service-data", "glean-index.json");
@@ -478,6 +490,27 @@ async function runFlow(client, workspace) {
     const rawAfter = JSON.parse(fs.readFileSync(indexPath, "utf8"));
     assert.equal(rawAfter.clips[fulltext].status, "later");
     pass("T-1990 损坏索引保留原文件，增量写被拦截，对账重建恢复");
+
+    // T-1780 备份回环：导出 → 改动属性 → 恢复 → 属性回到备份点。
+    const backup = await import("../../src/services/backup-service.ts");
+    const backupPlugin = newPlugin();
+    const pkg = await backup.buildBackupPackage(backupPlugin, settings);
+    const json = backup.backupPackageJson(pkg);
+    assert.ok(json.includes('"siyuan-glean"'));
+    await clip.writeClip(backupPlugin, fulltext, { rating: 5, status: "done" }, { force: true, forceStatus: true });
+    const changed = await client.apiChecked("/api/attr/getBlockAttrs", { id: fulltext });
+    assert.equal(changed["custom-clip-rating"], "5");
+    const target = await backup.previewRestore(json);
+    assert.ok(target.preview.totalClips > 0);
+    assert.equal(target.preview.missing, 0);
+    const restoreSummary = await backup.restoreBackup(backupPlugin, target.pkg);
+    assert.ok(restoreSummary.restored > 0);
+    const restored = await client.apiChecked("/api/attr/getBlockAttrs", { id: fulltext });
+    assert.equal(restored["custom-clip-rating"], "4");
+    assert.equal(restored["custom-clip-status"], "later");
+    const afterRestoreIndex = JSON.parse(fs.readFileSync(indexPath, "utf8"));
+    assert.equal(afterRestoreIndex.clips[fulltext].rating, 4);
+    pass("T-1780 备份→改动→恢复回环：属性回到备份点，索引随对账一致");
 }
 
 async function main() {

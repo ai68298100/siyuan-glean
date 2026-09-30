@@ -241,3 +241,88 @@ export function readingHeatmap(doneTimes: string[], weeks: number, now: Date = n
     }
     return { cells, maxCount, activeDays, totalDone };
 }
+
+/* ---------- 月度回顾（T-1771） ---------- */
+
+export interface MonthlyReview {
+    /** 本月标签 YYYYMM */
+    monthKey: string;
+    /** 完成篇数（只认 doneTime 在本月，D-0028） */
+    doneCount: number;
+    /** 完成条目累计字数 */
+    doneWords: number;
+    topSites: NameCount[];
+    topTags: NameCount[];
+    /** 本月完成清单（旧→新），供回顾文档列条目 */
+    doneItems: StatsInput[];
+}
+
+export function monthKeyOf(now: Date): string {
+    return `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}`;
+}
+
+/** 本月回顾聚合：完成篇数/字数/站点与标签分布，只统计可信完成时间在本月的条目。 */
+export function monthlyReview(items: StatsInput[], now: Date = new Date()): MonthlyReview {
+    const key = monthKeyOf(now);
+    const siteCounts = new Map<string, number>();
+    const tagCounts = new Map<string, number>();
+    const doneItems: StatsInput[] = [];
+    let doneWords = 0;
+    for (const item of items) {
+        if (!/^\d{14}$/.test(item.doneTime) || item.doneTime.slice(0, 6) !== key) continue;
+        doneItems.push(item);
+        doneWords += item.words || 0;
+        const site = (item.site || "").trim().toLowerCase();
+        if (site) siteCounts.set(site, (siteCounts.get(site) ?? 0) + 1);
+        for (const tag of item.aiTags ?? []) {
+            const name = tag.trim();
+            if (name) tagCounts.set(name, (tagCounts.get(name) ?? 0) + 1);
+        }
+    }
+    doneItems.sort((a, b) => a.doneTime.localeCompare(b.doneTime));
+    return {
+        monthKey: key,
+        doneCount: doneItems.length,
+        doneWords,
+        topSites: topNameCounts(siteCounts, 6),
+        topTags: topNameCounts(tagCounts, 8),
+        doneItems,
+    };
+}
+
+/** 月度回顾 Markdown（供 createDocWithMd 导出）。 */
+export function buildMonthlyReviewMarkdown(review: MonthlyReview, now: Date = new Date()): string {
+    const monthLabel = `${review.monthKey.slice(0, 4)} 年 ${Number(review.monthKey.slice(4, 6))} 月`;
+    const lines: string[] = [];
+    lines.push(`# 阅读月报 · ${monthLabel}`);
+    lines.push("");
+    lines.push(`> 由小驴拾遗生成于 ${formatDate(now)} —— 把吃灰的收藏捡回来喂给自己`);
+    lines.push("");
+    lines.push("## 概览");
+    lines.push("");
+    lines.push(`- 本月完成 **${review.doneCount}** 篇，累计 **${formatWords(review.doneWords)}** 字`);
+    lines.push("");
+    if (review.doneItems.length > 0) {
+        lines.push("## 本月读完");
+        lines.push("");
+        for (const item of review.doneItems.slice(0, 30)) {
+            const site = item.site ? `（${item.site}）` : "";
+            const rating = item.rating > 0 ? ` ⭐${item.rating}` : "";
+            lines.push(`- [${item.title || "无标题"}](siyuan://blocks/${item.id})${site}${rating}`);
+        }
+        lines.push("");
+    }
+    if (review.topSites.length > 0) {
+        lines.push("## 站点分布");
+        lines.push("");
+        for (const { name, count } of review.topSites) lines.push(`- ${name} × ${count}`);
+        lines.push("");
+    }
+    if (review.topTags.length > 0) {
+        lines.push("## 标签分布");
+        lines.push("");
+        for (const { name, count } of review.topTags) lines.push(`- ${name} × ${count}`);
+        lines.push("");
+    }
+    return lines.join("\n");
+}

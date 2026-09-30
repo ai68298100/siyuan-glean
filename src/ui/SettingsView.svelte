@@ -6,6 +6,7 @@ import { listNotebooks, type NotebookMeta } from "../api/client";
 import { rebuildIndex } from "../services/clip-store";
 import { bindAllClipsToLibrary } from "../services/library-db";
 import { usageToday, loadAiLog, type AiLogEntry } from "../services/enrich-service";
+import { restoreBackup, previewRestore, backupFileName } from "../services/backup-service";
 import { listCheckinItems, type CheckinItemOption } from "../services/checkin-bridge";
 import { testDirectChannel } from "../api/ai-direct";
 import { t } from "../libs/i18n";
@@ -74,6 +75,70 @@ let readerOpenInTab = $state(formInit.readerOpenInTab);
 let readerMode = $state<"read" | "edit">(formInit.readerMode);
 
 let aiLog = $state<AiLogEntry[] | null>(null);
+
+// T-1780 备份/恢复：导出经浏览器下载；恢复两步（选文件预览 → 确认执行）
+let backupBusy = $state(false);
+let restoreFileInput = $state<HTMLInputElement | null>(null);
+let restorePreview = $state<{ pkg: Parameters<typeof restoreBackup>[1]; preview: Awaited<ReturnType<typeof previewRestore>>["preview"] } | null>(null);
+
+async function doExportBackup() {
+    backupBusy = true;
+    try {
+        const { buildBackupPackage, backupPackageJson } = await import("../services/backup-service");
+        const pkg = await buildBackupPackage(facade.pluginInstance, facade.settings);
+        const blob = new Blob([backupPackageJson(pkg)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download = backupFileName();
+        anchor.click();
+        URL.revokeObjectURL(url);
+        showMessage(t(i18n, "backup.exportDone"), 3000);
+    } catch (error) {
+        showMessage(String(error).slice(0, 140), 5000);
+    } finally {
+        backupBusy = false;
+    }
+}
+
+async function onRestoreFileChosen(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = "";
+    if (!file) return;
+    backupBusy = true;
+    try {
+        const result = await previewRestore(await file.text());
+        restorePreview = result;
+        showMessage(t(i18n, "backup.previewReady"), 3000);
+    } catch (error) {
+        restorePreview = null;
+        showMessage(String(error).slice(0, 160), 6000);
+    } finally {
+        backupBusy = false;
+    }
+}
+
+async function doRestore() {
+    if (!restorePreview) return;
+    backupBusy = true;
+    try {
+        const { pkg } = restorePreview;
+        const summary = await restoreBackup(facade.pluginInstance, pkg);
+        // 包内设置已落盘：同步壳层缓存并广播（合并语义下等价全量覆盖）
+        if (summary.settingsRestored && pkg.settings) {
+            await facade.updateSettings(pkg.settings as Parameters<typeof facade.updateSettings>[0]);
+        } else {
+            facade.notifyDataChanged();
+        }
+        restorePreview = null;
+        showMessage(t(i18n, "backup.restoreDone", { n: summary.restored, skip: summary.skipped }), 5000);
+    } catch (error) {
+        showMessage(String(error).slice(0, 160), 6000);
+    } finally {
+        backupBusy = false;
+    }
+}
 
 onMount(() => {
     void listNotebooks().then((items) => (notebooks = items));
@@ -468,6 +533,44 @@ async function doMountBoard() {
                 <button class="glean-btn" style="flex-shrink:0" onclick={() => void toggleAiLog()}>
                     {aiLog === null ? t(i18n, "settings.aiLogView") : t(i18n, "action.close")}
                 </button>
+            </div>
+            <!-- T-1780 一键备份/恢复（DATA-CONTRACT §0.1）：导出下载；恢复两步确认 -->
+            <div class="glean-set-row">
+                <div class="glean-set-row__lb">
+                    {t(i18n, "backup.export")}
+                    <div class="glean-set-row__desc">{t(i18n, "backup.exportDesc")}</div>
+                </div>
+                <button class="glean-btn" style="flex-shrink:0" disabled={backupBusy} onclick={() => void doExportBackup()}>
+                    {backupBusy ? t(i18n, "panel.loading") : t(i18n, "backup.exportAction")}
+                </button>
+            </div>
+            <div class="glean-set-row" style="flex-direction:column; align-items:stretch; gap:6px">
+                <div class="glean-set-row">
+                    <div class="glean-set-row__lb">
+                        {t(i18n, "backup.restore")}
+                        <div class="glean-set-row__desc">{t(i18n, "backup.restoreDesc")}</div>
+                    </div>
+                    <button class="glean-btn" style="flex-shrink:0" disabled={backupBusy} onclick={() => restoreFileInput?.click()}>
+                        {t(i18n, "backup.restorePick")}
+                    </button>
+                    <input
+                        bind:this={restoreFileInput}
+                        type="file"
+                        accept=".json,application/json"
+                        style="display:none"
+                        onchange={(event) => void onRestoreFileChosen(event)}
+                    />
+                </div>
+                {#if restorePreview}
+                    <div class="glean-set-row" style="flex-direction:column; align-items:stretch; gap:4px; font-size:11.5px">
+                        <span>{t(i18n, "backup.previewTotal", { n: restorePreview.preview.totalClips })}</span>
+                        <span>{t(i18n, "backup.previewRestore", { n: restorePreview.preview.restorable })}</span>
+                        <span>{t(i18n, "backup.previewMissing", { n: restorePreview.preview.missing })}</span>
+                        <button class="glean-btn" style="flex-shrink:0" disabled={backupBusy || restorePreview.preview.restorable === 0} onclick={() => void doRestore()}>
+                            {backupBusy ? t(i18n, "panel.loading") : t(i18n, "backup.restoreConfirm")}
+                        </button>
+                    </div>
+                {/if}
             </div>
             {#if aiLog !== null && aiLog.length > 0}
                 <div class="glean-set-row" style="flex-direction:column; align-items:stretch; gap:6px">

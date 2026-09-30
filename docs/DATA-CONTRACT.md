@@ -13,6 +13,15 @@
 | 迁移任务进度 `migrate-progress.json` | 插件 saveData | 随插件删除；仅用于暂停、恢复与失败重试，文章属性仍是事实源 |
 | 插件设置 | 插件 saveData | 随插件删除 |
 
+### 0.1 备份包（T-1780，用户显式动作）
+
+备份包是数据主权的**自查证明**，不是第二事实源：文章事实仍在文档属性，备份包只是把属性、设置与派生缓存打包供迁移/灾备。
+
+- **包格式**：`glean-backup-YYYYMMDD-HHmmss.json`，`{ version: 1, app: "siyuan-glean", exportedAt, settings, index, uiPrefs, clips: [{ id, attrs }] }`。`clips[].attrs` 只含 `custom-clip-*` 键（从根块 IAL 过滤）；不包含任何密钥（自定义通道只导出 `customSecretName` 名字，密钥本体留在思源密钥库）。
+- **导出**：用户在设置-维护显式点击；属性读取走 `clip-store` 批读端点，包文件由浏览器下载（不写用户文档区）。
+- **恢复**：两步显式动作——先预览（包内文章数 / 文档仍存在且将覆盖 / 文档已缺失跳过，三项计数），用户确认后执行。恢复按包内 `attrs` 全量写回（`force` 语义，含手填字段——这是用户显式选择"回到备份点"）；设置与 `ui-prefs` 按包内值整体覆盖；缺失文档计入跳过不报错；派生索引恢复后执行一次全量对账。
+- **校验**：`version` 不为 1 或 `app` 不符的包拒绝导入；`attrs` 中非法键（非 `custom-clip-*`）丢弃；非法枚举值经 `parseClipAttrs` 归一或丢弃，与索引加载同一纪律。
+
 ## 1. 属性规范（文档级，根块 IAL）
 
 `src/domain/schema.ts` 为唯一事实源；本表与其同步维护。

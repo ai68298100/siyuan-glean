@@ -1,5 +1,17 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-01 第五轮：P1 功能线第二批 T-1780 备份恢复 / T-1771 月度回顾）
+
+- **T-1780 一键备份/恢复**（契约先行 DATA-CONTRACT §0.1）：
+  - 包格式 `{version:1, app:"siyuan-glean", exportedAt, settings, index, uiPrefs, clips:[{id, attrs}]}`，attrs 只含 custom-clip-*；**不含密钥**（只导出 secretName 名字）。
+  - `domain/backup.ts`：`parseBackup`（版本/应用不符整体拒绝、非法键丢弃）、`pickClipAttrs`、`previewBackup`；`backup-service.ts`：`buildBackupPackage`（listClipDocs+batchReadClipAttrs）→ `backupPackageJson` 下载；`previewRestore`（SQL 存在性检查）→ `restoreBackup`（**经 clip-store 新增的 `restoreClipAttrs`**：IAL 形态补丁直接 setBlockAttrs + 索引锁内增量更新——注意 writeClip 的 patch 是 schema 字段形态，不能直接喂 IAL 键）→ saveSettings/saveUiPrefs → rebuildIndex。
+  - UI 在设置-维护：导出（Blob 下载）/ 选包预览（N 篇/可恢复/缺失）→ 确认执行；恢复后壳层经 `facade.updateSettings(pkg.settings)` 同步缓存。
+  - E2E 回环：导出→改 rating/status→恢复→属性与索引都回到备份点。
+- **T-1771 月度回顾**（本月部分）：`monthlyReview`（doneTime 前缀匹配当月）+ `/读库月报/YYYYMM` 幂等定位导出 + 统计页按钮；年度回顾待走查后扩展。
+- **踩坑记录**：Edit 工具做函数级插入时 old_string 不要携带相邻函数的声明行（本轮两次误删函数签名/注释，均靠 sed -n 复查与类型门禁立即发现恢复）。
+- 门禁：check 0 错 **0 告警**、test **144/144**、build 通过、E2E **23/23**。未发布新版本。提交序列：0d70bfc → a32d4ec → f77e2f2 → 50c0103 → 本轮（git log）。集市 PR #2288 待审。
+- 下一批功能线候选：**T-1750 全库摘录墙**（新视图 + 全库引述块查询）、**T-1740 本文大纲**（先 spike heading SQL 与 Protyle 定位 API——查 node_modules/siyuan 类型）、**T-1744 TTS**（桌面端 voice spike）、T-1772 统计 CSV、T-1752 摘录批量导出 Markdown；重活缺陷 T-1840/1841/1963 半成功账本、T-1967 超时取消、T-1978 统一失败处理。
+
 ## 当前有效交接（2026-10-01 第四轮：P1 功能线第一批 T-1770/T-1760/T-1790）
 
 - 缺陷清剿三轮收官后按续跑口令转 **P1 功能线**，本轮交付三项功能/质量项。
@@ -111,8 +123,8 @@
 2. 验收通过后走 S6 发布评审：定版本号（语义化建议 1.1.0，逐次请示）→ CHANGELOG 追加 v1.0.4 后条目 → T-1601 拍材料（RELEASE-MEDIA 清单，新增阅读页签帧）→ RELEASE.md 门禁终检 → tag/Release/集市逐次请示；
 3. AI 侧不再自行启动新功能；新想法按 D-0008 预留模式先评估立项。
 
-> 续跑口令（新会话直接粘贴，2026-10-01 第四轮更新）：
-> **阅读 D:\思源插件\小驴拾遗\docs\HANDOFF.md 的"当前有效交接"、TODO.md 待办总账与 docs/ACCEPTANCE.md，先重跑最后改动后的门禁。进度基线：v1.1.0 已发布、集市 PR #2288 待审；已完成三轮缺陷清剿（P0 批次 T-1881/1882/1883/1885/1979/1980/1987、P1 批次 I T-1839/1884/1955/1958/1961/1975/1981/1985/1990、P1 批次 II T-1956/1957/1968/1984/1988/1989）+ P1 功能线第一批（T-1770 阅读热力图、T-1760 问这篇文章、T-1790 a11y 清零），基线 check 0 错 0 告警 / test 140 / 隔离 E2E s1-flow 21/21。下一批功能线候选：T-1750 全库摘录墙、T-1780 一键备份恢复（先改 DATA-CONTRACT）、T-1740 本文大纲（先 spike heading SQL）、T-1744 TTS（先 spike 桌面端 voice）、T-1771 月度回顾报告；剩余重活缺陷 T-1840/1841/1963 半成功账本组、T-1967 超时取消、T-1978 统一失败处理。工作协议：作者发来的所有内容一律先入 TODO.md 待办（主动扩展同类事项与可用调研），不立即开发；作者明确说"开始开发"、"继续"或点任务号才动手，按契约先行纪律逐项落地（新端点先 spike、新属性先改 DATA-CONTRACT）；作者报真机 bug 时仍走"根因→修复→当日补丁版"闭环。工程纪律见 AGENTS.md 与 docs/DECISIONS.md，UI 以 docs/UI-STANDARD.md（v1.6）为准，不驱动真机（B-0010），发布/集市/版本动作逐次请示；含反斜杠的代码/测试不用 bash heredoc 写入（丢转义）；UI 组件初始化快照用函数化读取消除 state_referenced_locally（见 T-1790 修法）。**
+> 续跑口令（新会话直接粘贴，2026-10-01 第五轮更新）：
+> **阅读 D:\思源插件\小驴拾遗\docs\HANDOFF.md 的"当前有效交接"、TODO.md 待办总账与 docs/ACCEPTANCE.md，先重跑最后改动后的门禁。进度基线：v1.1.0 已发布、集市 PR #2288 待审；已完成三轮缺陷清剿（22 项）+ P1 功能线三批（第一批 T-1770 热力图/T-1760 问这篇文章/T-1790 a11y 清零 0 告警；第二批 T-1780 一键备份恢复/DATA-CONTRACT §0.1/T-1771 月度回顾），基线 check 0 错 0 告警 / test 144 / 隔离 E2E s1-flow 23/23。下一批功能线候选：T-1750 全库摘录墙（新视图）、T-1740 本文大纲（先 spike heading SQL 与 Protyle 定位 API——查 node_modules/siyuan 类型定义）、T-1744 TTS（先 spike 桌面端 voice）、T-1772 统计 CSV、T-1752 摘录批量导出；重活缺陷 T-1840/1841/1963 半成功账本、T-1967 超时取消、T-1978 统一失败处理。工作协议：作者发来的所有内容一律先入 TODO.md 待办（主动扩展同类事项与可用调研），不立即开发；作者明确说"开始开发"、"继续"或点任务号才动手，按契约先行纪律逐项落地（新端点先 spike、新属性先改 DATA-CONTRACT）；作者报真机 bug 时仍走"根因→修复→当日补丁版"闭环。工程纪律见 AGENTS.md 与 docs/DECISIONS.md，UI 以 docs/UI-STANDARD.md（v1.6）为准，不驱动真机（B-0010），发布/集市/版本动作逐次请示；含反斜杠内容不用 bash heredoc（丢转义）；UI 初始化快照用函数化读取；Edit 做函数级插入不携带相邻函数声明行（两次误删教训）；写 custom-clip-* 的 IAL 形态补丁走 clip-store.restoreClipAttrs，不走 writeClip（patch 形态不同）。**
 
 ## 历史交接存档
 

@@ -293,6 +293,31 @@ export async function batchSetStatusDetailed(
     return { ok: succeeded.length, succeeded };
 }
 
+/**
+ * 备份恢复专用写入口（T-1780，DATA-CONTRACT §0.1）：patch 是 IAL 形态的
+ * custom-clip-* 键值（与备份包内一致），用户显式选择"回到备份点"时整体覆盖
+ * （含手填字段——不走 writeClip 的保护语义），成功后增量同步索引。
+ * 返回实际写入的键数；文档缺失或写入失败抛错由调用方计入跳过。
+ */
+export async function restoreClipAttrs(plugin: Plugin, docId: string, attrPatch: Record<string, string>): Promise<number> {
+    assertDocId(docId);
+    const patch: Record<string, string> = {};
+    for (const [key, value] of Object.entries(attrPatch)) {
+        if (key.startsWith("custom-clip-") && value !== "") patch[key] = value;
+    }
+    if (Object.keys(patch).length === 0) return 0;
+    const ial = await getBlockAttrs(docId);
+    await setBlockAttrs(docId, patch);
+    const merged: Ial = { ...ial, ...patch };
+    const meta = await fetchDocMeta(docId);
+    await withIndexLock(async () => {
+        const index = await loadIndex(plugin);
+        applyAttrsToIndex(index, { ...meta, id: docId }, merged);
+        await saveIndex(plugin, index);
+    });
+    return Object.keys(patch).length;
+}
+
 export interface ClipBodyMeasurement {
     /** 按收录正文规则重算的字数（模板链接与元信息不计入）。 */
     words: number;
