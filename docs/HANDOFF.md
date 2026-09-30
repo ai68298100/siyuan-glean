@@ -1,5 +1,13 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-09-30 UI 专项质感与美观复核）
+
+- 本轮只读 UI 复核记录见 [RESEARCH-ui-polish-audit-2026-09.md](RESEARCH-ui-polish-audit-2026-09.md)，覆盖 `src/index.scss`、`src/ui/*.svelte`、`UI-STANDARD.md` 和 `design/prototype.html`；没有修改 `src/`，没有驱动作者真实思源窗口。
+- 新增 UI 专项待办 T-1991–T-2030：令牌与表面层级、排版/间距/图标、操作主次、队列与卡片、三画布容器策略、看板窄宽、阅读伴生栏、对话框/设置、空态/加载/失败反馈、主题/动效/高对比、触控、统计图、视觉性能、CSS 兼容、原型同步、截图回归和发布材料。
+- 静态定位的代表性问题：行表操作区在普通状态长期占位；`StatsView` 的 spark 热柱使用 `class:hot` 而样式声明期待 `glean-tile__spark--hot`；ReaderTab 模式按钮缺少 `.glean-seg` 容器；阅读伴生栏固定 264px；Dock/今日拾遗标题截断过早；设置/导入器/统计仍有固定视觉 inline style；首启步骤条和实现不一致；`prefers-reduced-motion`、forced-colors 和集中式 focus-visible 规则尚未形成单一视觉门禁。以上均只入账，未开始开发。
+- 上一轮基线仍有效：`pnpm test` 132/132 通过；`pnpm check:svelte` 0 错误、39 条既有告警。UI 专项任务应先按 T-1991/T-2002 建立令牌与容器规则，再按 T-2017–T-2019 建立原型/截图/真机验收链。
+- 继续遵守作者工作协议：后续需求先入 `TODO.md` 并主动扩展同类事项；只有作者明确说“开始开发”或点具体任务号，才启动代码开发。发布/集市/版本动作仍逐次请示。
+
 ## 当前有效交接（2026-09-30 功能/UI/交互/流程复核）
 
 - 本轮只读复核记录见 [RESEARCH-functional-ui-flow-audit-2026-09.md](RESEARCH-functional-ui-flow-audit-2026-09.md)，没有修改 `src/` 功能代码。
