@@ -555,6 +555,35 @@ async function runFlow(client, workspace) {
     assert.ok(libraryCsv.includes("title"));
     assert.ok(libraryCsv.split("\r\n").length > 2);
     pass("T-1772 CSV 构建：BOM + 表头 + 数据行");
+
+    // T-1840 导入孤儿账本：模拟"文档已建未收录"→ 入账本 → 重试补收录 → 移出账本。
+    const importSvc = await import("../../src/services/import-service.ts");
+    const orphanDoc = await makeDoc("T1840 孤儿文章", "- [https://example.org/t1840](https://example.org/t1840)\n\n孤儿正文。");
+    await importSvc.saveImportOrphans(plugin, [
+        {
+            docId: orphanDoc,
+            notebookId: box,
+            format: "pocket-html",
+            row: {
+                title: "T1840 孤儿文章",
+                url: "https://example.org/t1840",
+                site: "example.org",
+                time: "20260930080000",
+                doneTime: "",
+                tags: ["技术"],
+                status: "inbox",
+                duplicate: false,
+            },
+        },
+    ]);
+    const orphanRetry = await importSvc.retryImportOrphans(plugin);
+    assert.equal(orphanRetry.restored, 1);
+    assert.equal(orphanRetry.remaining, 0);
+    const orphanAttrs = await client.apiChecked("/api/attr/getBlockAttrs", { id: orphanDoc });
+    assert.equal(orphanAttrs["custom-clip-status"], "inbox");
+    assert.equal(orphanAttrs["custom-clip-url"], "https://example.org/t1840");
+    assert.deepEqual(await importSvc.loadImportOrphans(plugin), []);
+    pass("T-1840 孤儿账本重试补收录：属性写全、账本清空");
 }
 
 async function main() {

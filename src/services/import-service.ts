@@ -95,6 +95,66 @@ export interface ImportSummary {
     skippedDuplicate: number;
     failed: number;
     docIds: string[];
+    /** 文档已创建但收录未完成的孤儿（T-1840）：已记入 import-orphans.json，可重试补收录 */
+    orphanCount: number;
+}
+
+/* ---------- 导入孤儿账本（T-1840，DATA-CONTRACT §0） ---------- */
+
+const ORPHANS_FILE = "import-orphans.json";
+
+export interface ImportOrphan {
+    docId: string;
+    notebookId: string;
+    format: ImportFormat;
+    row: ImportPreviewRow;
+}
+
+export async function loadImportOrphans(plugin: Plugin): Promise<ImportOrphan[]> {
+    try {
+        const raw = await plugin.loadData(ORPHANS_FILE);
+        if (!Array.isArray(raw)) return [];
+        return raw.filter((entry) => entry && typeof entry === "object" && typeof (entry as ImportOrphan).docId === "string");
+    } catch {
+        return [];
+    }
+}
+
+export async function saveImportOrphans(plugin: Plugin, orphans: ImportOrphan[]): Promise<void> {
+    await plugin.saveData(ORPHANS_FILE, orphans);
+}
+
+/** 执行重试：逐条对已创建文档补收录，成功即从账本移除。返回结算供 UI 反馈。 */
+export async function retryImportOrphans(
+    plugin: Plugin,
+    options: { onProgress?: (done: number, total: number) => void } = {}
+): Promise<{ restored: number; remaining: number }> {
+    const orphans = await loadImportOrphans(plugin);
+    const remaining: ImportOrphan[] = [];
+    let restored = 0;
+    for (let index = 0; index < orphans.length; index += 1) {
+        const orphan = orphans[index];
+        try {
+            const src = formatToSrc(orphan.format);
+            const captured = await captureClip(plugin, orphan.docId, {
+                url: orphan.row.url,
+                site: orphan.row.site || siteFromUrl(orphan.row.url),
+                src,
+                time: orphan.row.time || siyuanTimestamp(),
+                timeSource: orphan.row.time ? "source" : "capture",
+                status: orphan.row.status,
+                doneTime: orphan.row.status === "done" ? orphan.row.doneTime : "",
+                contentType: "link",
+            });
+            if (captured.captured || captured.attrs.status) restored += 1;
+            else remaining.push(orphan);
+        } catch {
+            remaining.push(orphan);
+        }
+        options.onProgress?.(index + 1, orphans.length);
+    }
+    await saveImportOrphans(plugin, remaining);
+    return { restored, remaining: remaining.length };
 }
 
 /** 执行导入：建文档 → 收录（写 URL/时间/站点）→ 外部标签写入 tags → 状态映射。 */
@@ -106,7 +166,8 @@ export async function runImport(
     const src = formatToSrc(options.format);
     // T-1988：目标文件夹规范化——拒绝越级（..）、空段与非法字符，不静默跨目录创建
     const folder = normalizeImportFolder(options.folder, "导入");
-    const summary: ImportSummary = { imported: 0, skippedDuplicate: 0, failed: 0, docIds: [] };
+    const summary: ImportSummary = { imported: 0, skippedDuplicate: 0, failed: 0, docIds: [], orphanCount: 0 };
+    const orphans: ImportOrphan[] = [];
     // 预览和执行之间库可能已变化；执行阶段重新查重，并把本批已创建 URL 记入集合。
     const existingUrls = await collectExistingUrls();
     const pending = rows.filter((row) => !row.duplicate);
@@ -155,12 +216,56 @@ export async function runImport(
                 summary.docIds.push(docId);
             } catch {
                 summary.failed += 1;
+                // T-1840：失败可能发生在"文档已创建、属性未写入"——若本批已为该 URL 建档
+                //（existingUrls 含 urlKey），记入孤儿账本供重试补收录，避免重跑重建重复文档。
+                if (existingUrls.has(urlKey) && urlKey) {
+                    orphans.push({ docId: "", notebookId: options.notebookId, format: options.format, row });
+                    summary.orphanCount = orphans.length;
+                }
             }
             done += 1;
             options.onProgress?.(done, total);
         }
     }
+    // 孤儿账本：docId 只有在建档成功后才可知——失败时回查本批新建文档补齐 ID
+    if (orphans.length > 0) {
+        await attachOrphanDocIds(orphans, options.notebookId, folder);
+        const known = orphans.filter((orphan) => orphan.docId);
+        const previous = await loadImportOrphans(plugin);
+        await saveImportOrphans(plugin, [...previous, ...known]);
+        summary.orphanCount = known.length;
+    }
     return summary;
+}
+
+/** 回查孤儿文档 ID：按标题+路径在目标笔记本定位本批新建、无读库属性的文档。 */
+async function attachOrphanDocIds(
+    orphans: ImportOrphan[],
+    notebookId: string,
+    folder: string
+): Promise<void> {
+    const { querySql, getBlockAttrs } = await import("../api/client");
+    const { ATTR } = await import("../domain/schema");
+    for (const orphan of orphans) {
+        if (orphan.docId) continue;
+        const title = sanitizeTitle(orphan.row.title || orphan.row.url);
+        const hPath = `/${folder}/${title}`;
+        try {
+            const rows = await querySql<{ id: string }>(
+                `SELECT id FROM blocks WHERE type = 'd' AND box = '${notebookId.replace(/'/g, "''")}' AND hpath = '${hPath.replace(/'/g, "''")}' LIMIT 5`
+            );
+            for (const row of rows) {
+                const ial = await getBlockAttrs(row.id);
+                // 只认无读库状态的文档为孤儿（有状态=已收录，跳过）
+                if (!ial[ATTR.status]) {
+                    orphan.docId = row.id;
+                    break;
+                }
+            }
+        } catch {
+            // 回查失败保持 docId 为空，账本里跳过该条（不误绑）
+        }
+    }
 }
 
 

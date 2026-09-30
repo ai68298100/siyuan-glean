@@ -710,7 +710,12 @@
                     {:else if resolveCarrier(context.contentType) === "link"}
                         <span class="glean-source-missing">{t(i18n, "clip.sourceMissing")}</span>
                     {/if}
-                    <button class="glean-btn glean-btn--ghost" disabled={snapping} onclick={() => void takeSnapshot()}>
+                    <button
+                        class="glean-btn glean-btn--ghost"
+                        disabled={snapping}
+                        title={context.snapshot ? t(i18n, "snapshot.open") : t(i18n, "snapshot.take")}
+                        onclick={() => void takeSnapshot()}
+                    >
                         {context.snapshot ? "⟐" : "📷"}
                     </button>
                     {#if ttsOn}

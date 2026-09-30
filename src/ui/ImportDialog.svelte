@@ -3,7 +3,7 @@
 import { onMount } from "svelte";
 import { showMessage } from "siyuan";
 import { listNotebooks, type NotebookMeta } from "../api/client";
-import { previewImport, runImport, type ImportPreview, type ImportSummary } from "../services/import-service";
+import { previewImport, runImport, loadImportOrphans, retryImportOrphans, type ImportPreview, type ImportSummary } from "../services/import-service";
 import { normalizeImportFolder } from "../domain/importers";
 import type { ImportFormat } from "../domain/importers";
 import { t } from "../libs/i18n";
@@ -46,7 +46,29 @@ onMount(() => {
         notebooks = items;
         if (!notebookId) notebookId = items[0]?.id ?? "";
     });
+    // T-1840：上次导入遗留的孤儿（文档已建未收录）提供重试入口
+    void loadImportOrphans(facade.pluginInstance).then((items) => (orphans = items.length));
 });
+
+let orphans = $state(0);
+let retryingOrphans = $state(false);
+
+async function retryOrphans(): Promise<void> {
+    retryingOrphans = true;
+    try {
+        const result = await retryImportOrphans(facade.pluginInstance);
+        showMessage(t(i18n, "import.orphansRetried", { n: result.restored, skip: result.remaining }), 4000);
+        if (result.restored > 0) facade.notifyDataChanged();
+    } catch (error) {
+        showMessage(String(error).slice(0, 140), 5000);
+    } finally {
+        retryingOrphans = false;
+        orphans = 0;
+        try {
+            orphans = (await loadImportOrphans(facade.pluginInstance)).length;
+        } catch { /* 保持 0 */ }
+    }
+}
 
 const importable = $derived(preview ? preview.rows.filter((row) => !row.duplicate).length : 0);
 
@@ -132,6 +154,17 @@ function resetToPick() {
             <div class="glean-dlg-head__sub">{t(i18n, "import.intro")}</div>
         </div>
     </div>
+
+    {#if orphans > 0 && (phase === "pick" || phase === "preview")}
+        <div class="glean-empty" style="padding:8px 12px">
+            <div class="glean-empty__hint">
+                {t(i18n, "import.orphansPending", { n: orphans })}
+                <button class="glean-linkish" disabled={retryingOrphans} onclick={() => void retryOrphans()}>
+                    {retryingOrphans ? t(i18n, "panel.loading") : t(i18n, "import.orphansRetry")} →
+                </button>
+            </div>
+        </div>
+    {/if}
 
     {#if phase === "pick" || phase === "preview"}
         <div class="glean-set-group">
@@ -228,6 +261,12 @@ function resetToPick() {
             <div class="glean-mstat"><div class="glean-mstat__n">{summary.skippedDuplicate}</div><div class="glean-mstat__l">{t(i18n, "import.dupCount")}</div></div>
             <div class="glean-mstat"><div class="glean-mstat__n">{summary.failed}</div><div class="glean-mstat__l">{t(i18n, "import.failed")}</div></div>
         </div>
+        {#if summary.orphanCount > 0}
+            <!-- T-1840：半成功结算——孤儿已入账本，可重开导入器重试补收录 -->
+            <div class="glean-empty" style="padding:8px 12px">
+                <div class="glean-empty__hint">{t(i18n, "import.orphansCreated", { n: summary.orphanCount })}</div>
+            </div>
+        {/if}
         <div class="glean-migrate__ops">
             <button class="glean-btn glean-btn--pri" onclick={() => void onClose()}>{t(i18n, "action.close")}</button>
         </div>

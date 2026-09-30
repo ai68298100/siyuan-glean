@@ -1,5 +1,12 @@
 # 进度（PROGRESS）
 
+## P1 功能线第七批（续跑口令驱动，2026-10-01）✅
+
+- [x] **T-1840 导入半成功恢复**（重活缺陷之首）：契约先行 DATA-CONTRACT §0 补 `import-orphans.json` 孤儿账本行。runImport 失败时按"建档成功"守卫记录 + hpath 回查补 docId；`retryImportOrphans` 逐条补收录、成功即移出账本；ImportDialog 挂载显示遗留孤儿「重试补收录」、done 阶段显示半成功结算。E2E 断言（账本→重试→属性写全→账本清空）。
+- [x] **T-1795 icon-only 按钮审计**：全局扫查（icon-only 按钮已普遍带 title），补齐最后一个缺口 ReaderTab 快照按钮（拍摄/打开双态 title）；「按钮标签可见性」规则入 UI-STANDARD §4.3。
+- [x] 门禁：check 0 错 0 告警、test **156/156**、build 通过、隔离 E2E **28/28**（+1）。未发布新版本。
+- 小坑：E2E 变量名 `importer` 与首轮导入声明冲突（同函数内重复声明），改名 `importSvc`；新服务函数漏 export（E2E 即时暴露）。
+
 ## P1 功能线第六批（续跑口令驱动，2026-10-01）✅
 
 - [x] **T-1794 面板头部文字化**（作者反馈）：头部三按钮（浮窗/整理/设置）加 `glean-icon-btn--labeled` 变体——宽画布（工作台 tab/独立浮窗）图标+文字，Dock 窄栏保留图标+title 不变。
