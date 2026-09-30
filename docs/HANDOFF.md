@@ -1,5 +1,16 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-09-30 **v1.1.0 已发布**——产品重整 S1–S4 与阅读体验全链）
+
+**作者已授权发版，v1.1.0 已上线**：https://github.com/ai68298100/siyuan-glean/releases/tag/v1.1.0 （package.zip 213KB 已附，公开可下载；tag v1.1.0 已推）。
+
+- 定版过程：package.json/plugin.json → 1.1.0；CHANGELOG「未发布」段回填 v1.1.0（2026-09-30）；RELEASE.md 历史表已补。
+- 门禁：清 dist 重建 → check:release **14/14** → check 0 错 / test 132/132 / 隔离 E2E **16/16** 全绿后才打 tag。
+- 发布方式：GitHub API（凭据取自系统凭据管理器 `git credential fill`，curl 走代理；匿名 API 有限流，带认证验证）。
+- **集市未提交**（需作者单独授权，流程见 RELEASE.md：fork bazaar → plugins.txt → PR）。
+- 发布后仍开放的事项：作者按 ACCEPTANCE.md 真机走查（发现问题走 v1.1.1+ 补丁）；T-1601 截图/GIF（集市材料，若要提交集市才需要）。
+- 注意：E2E 持久工作区 ~/SiYuan-Glean-E2E 有历史遗留空父文档「剪藏」（四篇演示文档的父），无害保留勿删。
+
 ## 当前有效交接（2026-09-30 验收驱动转型：验收手册 + 数据主权脚本化）
 
 开发侧任务池已清空，本轮完成转型准备，门禁全绿，未发布新版本：
