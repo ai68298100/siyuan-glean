@@ -2632,3 +2632,14 @@
     white-space: nowrap;
     max-width: 100%;
 }
+
+/* ---------- 头部按钮文字化（T-1794）：宽画布图标+文字，窄栏图标+title ---------- */
+.glean-icon-btn--labeled {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    width: auto;
+    padding: 0 8px;
+    font-size: 11.5px;
+}
+.glean-icon-btn--labeled svg { width: 13px; height: 13px; flex-shrink: 0; }

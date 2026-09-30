@@ -7,6 +7,7 @@ import { rebuildIndex } from "../services/clip-store";
 import { bindAllClipsToLibrary } from "../services/library-db";
 import { usageToday, loadAiLog, type AiLogEntry } from "../services/enrich-service";
 import { restoreBackup, previewRestore, backupFileName } from "../services/backup-service";
+import { suggestAiTagMerges, applyAiTagMerge, type AiTagMergePlan } from "../services/ai-tag-service";
 import { listCheckinItems, type CheckinItemOption } from "../services/checkin-bridge";
 import { testDirectChannel } from "../api/ai-direct";
 import { t } from "../libs/i18n";
@@ -75,6 +76,37 @@ let readerOpenInTab = $state(formInit.readerOpenInTab);
 let readerMode = $state<"read" | "edit">(formInit.readerMode);
 
 let aiLog = $state<AiLogEntry[] | null>(null);
+
+// T-1761 AI 标签规范化：扫描相似组建议 → 用户逐组确认合并（aiTags 非手填字段，合并是显式动作）
+let tagScanBusy = $state(false);
+let tagMergePlans = $state<AiTagMergePlan[] | null>(null);
+let tagMergeBusyKey = $state("");
+
+async function scanAiTags(): Promise<void> {
+    tagScanBusy = true;
+    try {
+        tagMergePlans = await suggestAiTagMerges(facade.pluginInstance);
+        if (tagMergePlans.length === 0) showMessage(t(i18n, "settings.aiTagsClean"), 3000);
+    } catch (error) {
+        showMessage(String(error).slice(0, 140), 5000);
+    } finally {
+        tagScanBusy = false;
+    }
+}
+
+async function mergeTagGroup(plan: AiTagMergePlan): Promise<void> {
+    tagMergeBusyKey = plan.variants.join("|");
+    try {
+        const ok = await applyAiTagMerge(facade.pluginInstance, plan.variants, plan.keep);
+        showMessage(t(i18n, "settings.aiTagsMerged", { n: ok }), 3000);
+        tagMergePlans = (tagMergePlans ?? []).filter((item) => item !== plan);
+        facade.notifyDataChanged();
+    } catch (error) {
+        showMessage(String(error).slice(0, 140), 5000);
+    } finally {
+        tagMergeBusyKey = "";
+    }
+}
 
 // T-1780 备份/恢复：导出经浏览器下载；恢复两步（选文件预览 → 确认执行）
 let backupBusy = $state(false);
@@ -535,6 +567,35 @@ async function doMountBoard() {
                 </button>
             </div>
             <!-- T-1780 一键备份/恢复（DATA-CONTRACT §0.1）：导出下载；恢复两步确认 -->
+            <!-- T-1761 AI 标签规范化：相似组建议 + 用户确认合并 -->
+            <div class="glean-set-row">
+                <div class="glean-set-row__lb">
+                    {t(i18n, "settings.aiTagsTitle")}
+                    <div class="glean-set-row__desc">{t(i18n, "settings.aiTagsDesc")}</div>
+                </div>
+                <button class="glean-btn" style="flex-shrink:0" disabled={tagScanBusy} onclick={() => void scanAiTags()}>
+                    {tagScanBusy ? t(i18n, "panel.loading") : t(i18n, "settings.aiTagsScan")}
+                </button>
+            </div>
+            {#if tagMergePlans && tagMergePlans.length > 0}
+                <div class="glean-set-row" style="flex-direction:column; align-items:stretch; gap:6px">
+                    {#each tagMergePlans as plan (plan.keep + plan.variants.join("|"))}
+                        <div class="glean-logrow" style="align-items:center">
+                            <span class="glean-logrow__msg" style="flex:1">
+                                {plan.variants.filter((v) => v !== plan.keep).join(" / ")}
+                                → <strong>{plan.keep}</strong>
+                                （{t(i18n, "settings.aiTagsAffected", { n: plan.affected })}）
+                            </span>
+                            <button
+                                class="glean-btn"
+                                style="flex-shrink:0"
+                                disabled={tagMergeBusyKey !== ""}
+                                onclick={() => void mergeTagGroup(plan)}
+                            >{tagMergeBusyKey === plan.variants.join("|") ? t(i18n, "panel.loading") : t(i18n, "settings.aiTagsMerge")}</button>
+                        </div>
+                    {/each}
+                </div>
+            {/if}
             <div class="glean-set-row">
                 <div class="glean-set-row__lb">
                     {t(i18n, "backup.export")}

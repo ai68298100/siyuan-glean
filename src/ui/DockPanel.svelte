@@ -677,14 +677,28 @@ function metaLine(entry: Row): string {
                 <div class="glean-brand__sub">{t(i18n, "panel.libraryCount", { n: totalClips })}</div>
             </div>
             <div class="glean-head-actions">
-                <button class="glean-icon-btn" title={t(i18n, "panel.popup")} onclick={() => openPopup()}>
-                    <svg><use href="#iconGleanPopup" /></svg>
+                <!-- T-1794（作者反馈）：宽画布（tab/浮窗）图标+文字提升可读性，Dock 窄栏保留图标+title -->
+                <button
+                    class="glean-icon-btn"
+                    class:glean-icon-btn--labeled={isTabCanvas}
+                    title={t(i18n, "panel.popup")}
+                    onclick={() => openPopup()}
+                >
+                    <svg><use href="#iconGleanPopup" /></svg>{#if isTabCanvas}<span>{t(i18n, "panel.popup")}</span>{/if}
                 </button>
-                <button class="glean-icon-btn" title={t(i18n, "panel.migrate")} onclick={() => facade.openMigrate()}>
-                    🧹
-                </button>
-                <button class="glean-icon-btn" title={t(i18n, "panel.settings")} onclick={() => facade.openSettings()}>
-                    <svg><use href="#iconGleanGear" /></svg>
+                <button
+                    class="glean-icon-btn"
+                    class:glean-icon-btn--labeled={isTabCanvas}
+                    title={t(i18n, "panel.migrate")}
+                    onclick={() => facade.openMigrate()}
+                >🧹{#if isTabCanvas}<span>{t(i18n, "panel.migrate")}</span>{/if}</button>
+                <button
+                    class="glean-icon-btn"
+                    class:glean-icon-btn--labeled={isTabCanvas}
+                    title={t(i18n, "panel.settings")}
+                    onclick={() => facade.openSettings()}
+                >
+                    <svg><use href="#iconGleanGear" /></svg>{#if isTabCanvas}<span>{t(i18n, "panel.settings")}</span>{/if}
                 </button>
             </div>
         </div>

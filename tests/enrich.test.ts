@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import {
     buildEnrichPrompt,
     extractJson,
+    findSimilarTagGroups,
     isLikelyDuplicate,
     parseEnrichResponse,
 } from "../src/domain/enrich.ts";
@@ -58,4 +59,23 @@ test("isLikelyDuplicate：词元重叠 ≥80% 判重", () => {
     assert.equal(isLikelyDuplicate("理解 CUDA 极简心智模型", "CUDA 极简心智模型 指南"), true);
     assert.equal(isLikelyDuplicate("完全不同的话题", "风马牛不相及的内容"), false);
     assert.equal(isLikelyDuplicate("", "任意"), false);
+});
+
+test("findSimilarTagGroups：归一化相等与包含关系成组，孤立标签不成组（T-1761）", () => {
+    const groups = findSimilarTagGroups([
+        "机器学习", "机器 学习", "机器学习基础", "ML", "深度学习", "前端",
+    ]);
+    // 归一化相等：机器学习 / 机器 学习；包含关系：机器学习 ⊂ 机器学习基础
+    assert.equal(groups.length, 1);
+    assert.equal(groups[0].keep, "机器学习基础");
+    assert.deepEqual([...groups[0].variants].sort(), ["机器 学习", "机器学习", "机器学习基础"].sort());
+});
+
+test("findSimilarTagGroups：短于 2 字的短标签不触发包含判定，空输入空组", () => {
+    assert.deepEqual(findSimilarTagGroups(["AI", "ML", "A", "B"]), []);
+    assert.deepEqual(findSimilarTagGroups([]), []);
+    // ML/AI 互不包含 → 不成组
+    const groups = findSimilarTagGroups(["人工智能", "AGI", "人工智能应用"]);
+    assert.equal(groups.length, 1);
+    assert.equal(groups[0].keep, "人工智能应用");
 });

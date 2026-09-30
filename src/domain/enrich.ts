@@ -113,3 +113,61 @@ function bigramsOf(title: string): Set<string> {
     }
     return grams;
 }
+
+/* ---------- AI 标签规范化（T-1761） ---------- */
+
+export interface AiTagMergeSuggestion {
+    /** 组内全部变体（含保留目标），归一化后互相相似 */
+    variants: string[];
+    /** 用户确认后保留的写法（默认组内最长/最先出现） */
+    keep: string;
+}
+
+/** 归一化：小写 + 去空白，比较用。 */
+function normalizeTag(tag: string): string {
+    return String(tag ?? "").trim().toLowerCase().replace(/\s+/g, "");
+}
+
+/**
+ * 找出互相相似的 AI 标签组（T-1761）：归一化相等，或一方包含另一方且短方 ≥2 字符
+ * （如 机器学习/ML 这类变体靠包含关系提示；无包含关系的同义词不猜，宁缺勿滥）。
+ * 返回组列表（每组 ≥2 个变体）；keep 默认取出现最早（输入顺序）的最长变体。
+ */
+export function findSimilarTagGroups(tags: string[]): AiTagMergeSuggestion[] {
+    const seen = new Map<string, string[]>();
+    const order: string[] = [];
+    for (const tag of tags) {
+        const key = normalizeTag(tag);
+        if (!key) continue;
+        if (!seen.has(key)) {
+            seen.set(key, []);
+            order.push(key);
+        }
+        const bucket = seen.get(key)!;
+        if (!bucket.includes(tag)) bucket.push(tag);
+    }
+    const keys = [...seen.keys()];
+    const assigned = new Set<string>();
+    const groups: AiTagMergeSuggestion[] = [];
+    for (let i = 0; i < keys.length; i += 1) {
+        const key = keys[i];
+        if (assigned.has(key)) continue;
+        const group = [key];
+        for (let j = i + 1; j < keys.length; j += 1) {
+            const other = keys[j];
+            if (assigned.has(other)) continue;
+            const [shorter, longer] = key.length <= other.length ? [key, other] : [other, key];
+            if (shorter.length >= 2 && longer.includes(shorter)) {
+                group.push(other);
+            }
+        }
+        if (group.length >= 2) {
+            for (const key of group) assigned.add(key);
+            const variants = [...new Set(group.flatMap((k) => seen.get(k) ?? []))];
+            // 保留目标：最长变体（信息量最大），同长取先出现
+            const keep = variants.reduce((best, cur) => (cur.length > best.length ? cur : best), variants[0]);
+            groups.push({ variants, keep });
+        }
+    }
+    return groups;
+}
