@@ -11,6 +11,13 @@
 - 发布后仍开放的事项：作者按 ACCEPTANCE.md 真机走查（发现问题走 v1.1.1+ 补丁）；T-1601 截图/GIF（集市材料，若要提交集市才需要）。
 - 注意：E2E 持久工作区 ~/SiYuan-Glean-E2E 有历史遗留空父文档「剪藏」（四篇演示文档的父），无害保留勿删。
 
+## 当前有效交接（2026-09-30 `siyuan-comment` 联动调研）
+
+- 已完成只读审计，调研文档为 [RESEARCH-siyuan-comment-integration-2026-09.md](RESEARCH-siyuan-comment-integration-2026-09.md)；未修改功能代码。
+- `siyuan-comment` v2.9.4 没有稳定跨插件公开 API。当前可用的研究结论是：未来只能通过内核只读查询读取 `custom-siyuan-comment`、`custom-comment-source`、来源块 `custom-comment-refs` 和批注块 Markdown；不能调用私有函数、私有 DOM/事件或写 `custom-comment-*`。
+- 批注可落在原文档、今日日记、指定文档和子文档，T-1917–T-1934 已登记版本/契约/spike、跨 root adapter、ReaderTab 路由、缺席降级、刷新、生命周期、性能、安全、上游 bridge 和现有宿主排除任务；本轮不启动开发。
+- 关键风险：`reading-context-controller.ts` 对 Protyle 事件广泛挂载，需优先验证外部批注弹层排除（T-1934）；内嵌 ReaderTab 是否能被外部插件识别必须真机 spike，失败回退原生页签。
+
 ## 当前有效交接（2026-09-30 验收驱动转型：验收手册 + 数据主权脚本化）
 
 开发侧任务池已清空，本轮完成转型准备，门禁全绿，未发布新版本：

@@ -391,3 +391,26 @@
 - [ ] T-1914（P1，研究+验收）解析回归评分与网页漂移监测：建立小规模公开/脱敏样本和人工“理想输出”，按标题/作者/日期/段落/图片/表格/链接加权并对漏段重罚；每次剪藏模板或解析规则变更跑评分，低于基线阻断发布并按使用量×缺失分排序修复，不把评分写入文章属性。
 - [ ] T-1915（P2，研究+UI）阅读 spotlight：参考 Inoreader active reading，允许用户在当前阅读视图临时输入关键词并高亮命中，支持关闭、大小写/中文边界、长文性能和移动端降级；只改视图投影，不写正文、不生成 AI 高亮。
 - [ ] T-1916（P2，研究+UI）时间线分组与局部布局：参考 Inoreader 按 feed/date 分组和按 feed/folder/tag 记忆布局，定义站点/日期/来源分组、折叠、排序和每视图 `ui-prefs`，与 T-1903 会话顺序、T-1846 保存查询分开。
+
+### `siyuan-comment` 联动与批注消费（T-1917 起；2026-09-30，只读调研入账）
+
+> 调研记录见 [RESEARCH-siyuan-comment-integration-2026-09.md](docs/RESEARCH-siyuan-comment-integration-2026-09.md)。本组只登记实施步骤，不启动开发。`siyuan-comment` v2.9.4 没有稳定跨插件公开 API；未来联动必须以思源内核只读数据为事实源，外部插件 UI 只通过已验证的正常思源入口使用。所有新字段先改 DATA-CONTRACT，所有新端点先 spike，仍按“实现 / 隔离验证 / 真机验收”三态记账。
+
+- [ ] T-1917（P1，研究+契约）外部批注版本基线：固定 `siyuan-comment` v2.9.4、`minAppVersion=3.8.4`、`disabledInPublish=true`、桌面/浏览器/移动端矩阵，记录 Release 包 hash、许可证、安装/禁用/卸载状态和字段变更观察；明确“已安装、已启用、当前文档可用、当前弹层存在”四个不同状态。
+- [ ] T-1918（P0，契约先行）扩展 DATA-CONTRACT §4 与 DECISIONS：定义 provider=`siyuan-comment` 的只读 DTO、批注正文与选中文字的区别、跨 `root_id` 的来源回链、`custom-comment-refs` 解析、孤儿/删除/移动/同步冲突语义、排序来源和版本漂移；明确本插件不写 `custom-comment-*`、不覆盖用户标签，不把外部 AI/标签自动写入 `custom-clip-*`。
+- [ ] T-1919（P0，先 spike）能力探测与运行态：在隔离内核验证 `/api/petal/loadPetals`（带 `frontend`）能否可靠区分已安装/已启用/版本/发布前端，评估可选的稳定 bridge；运行态至少有 `active`、`absent`、`unknown/unsupported` 三态。私有 DOM、调试全局函数、Dock 类型和内部事件只能作诊断线索，不能作硬依赖。
+- [ ] T-1920（P0，先 spike）v2.9.4 数据 fixture 与只读查询：真实创建“原文档底部、今日日记、指定目标文档、子文档、跨块/样式批注”样本，验证 `custom-siyuan-comment`、`custom-comment-source`、`custom-comment-refs`、批注 Markdown/kramdown、回复和高亮 DOM；保存脱敏 fixture、分页 SQL、IAL 精确解析和索引异步刷新结果，兼容 3.8.4+。
+- [ ] T-1921（P1，开发前设计）只读 adapter/read service：按文章根块先读本 root 批注，再解析来源块 `custom-comment-refs` 跨 root 分批取批注；输出 `commentBlockId/sourceBlockId/sourceRootId/commentRootId/selectedText/commentContent/created/seq/tag/replies/style/orphan`，精确去重、校验块 ID、区分来源和排序退化原因；查询失败保留可解释的 partial/unknown 状态。
+- [ ] T-1922（P1，性能+可靠性）外部批注派生索引与缓存：只在 `saveData` 保存可重建投影，不保存外部批注事实；设计分页、批量属性读取、缓存键、请求代次、Abort/取消、事件去抖、重启重建和 1k/10k 批注阈值，避免每条串行请求和慢结果覆盖新文档。
+- [ ] T-1923（P1，UI）ReaderTab/ReadingContext/HighlightView 外部批注只读展示：显示“外部批注”来源徽标、选中文字、批注正文、标签/回复数量、时间和孤儿原因；提供跳来源块、跳批注块、打开原生批注入口；禁止在本插件列表中编辑/删除外部批注，普通引述与 `custom-clip-highlight` 仍分别聚合，避免重复计数。
+- [ ] T-1924（P0，先 spike+真机）阅读路由与 Protyle 兼容：验证内嵌 ReaderTab 的 Protyle 是否被外部插件识别、下划线/弹窗/快捷键/批注 Dock 是否正常；兼容时优先让其接管正常界面，不兼容时回退原生思源页签并提示使用批注 Dock；移动端与 `disabledInPublish` 前端明确走回退路径，禁止私自 `new Protyle` 到外部弹层或改其 DOM 状态。
+- [ ] T-1925（P1，开发）插件缺席/禁用/版本不兼容降级：沿用现有选区→引述块、复制文本和基础高亮只读聚合；外部插件不可用时不重复造完整批注编辑器，动作失败静默降级并给可关闭的说明。
+- [ ] T-1926（P2，交互+文案）推荐安装与开启：在首启、设置和阅读空态提供集市/GitHub 安装链接、最低版本、权限/数据说明和“暂不推荐/不再提示”开关；区分已安装未启用与版本不符，推荐失败不阻断阅读；补 `zh_CN/en_US` 文案、a11y 和三画布布局。
+- [ ] T-1927（P1，可靠性）刷新协议：优先接入通用 `glean:data-changed`、Protyle 切换/销毁和内核重读；`siyuan-comment-updated` 等私有事件仅在版本校验后可选监听，必须有去抖、请求序号和卸载清理，事件缺失不能影响最终一致性。
+- [ ] T-1928（P1，生命周期矩阵）外部批注与归档、物理移动/删除、导入、导出、备份恢复的关系：验证来源块/批注块跨文档移动、目标文档删除、孤儿恢复、T-1866–1879 归档选项、T-1897 导入和 T-1908 导出的保留/提示/不支持规则；本插件不得借生命周期动作修复或清理外部属性。
+- [ ] T-1929（P1，兼容验收）外部插件版本与思源前端矩阵：覆盖 v2.9.4、升级/降级、未安装/禁用/卸载后重启，思源 3.8.x、桌面/浏览器/移动端/发布前端，批注存四种位置、跨块/删除源块/权限失败/同步冲突；逐项记录读取结果、降级动作和用户可恢复路径，挂接 BLOCKERS/ACCEPTANCE。
+- [ ] T-1930（P2，兼容研究）历史批注格式探测：研究旧版 `custom-quote-*`、`custom-<quoteId>`、`siyuan://blocks/<id>` 和当前 `custom-siyuan-comment` 的关系；若存在存量数据，设计只读识别/迁移提示和 unknown 状态，禁止把两套字段混写或把普通块误报为批注。
+- [ ] T-1931（P2，安全+质量）外部内容渲染与回链安全：对 Markdown、IAL、回复、标题、标签、`siyuan://` 回链和块 ID 做纯文本/受控渲染、协议白名单和转义；排除 `.block__popover`、`.siyuan-comment-*` 外部弹层，防止 XSS、错误挂载、重复读取和把批注内容伪装成文章属性。
+- [ ] T-1932（P2，上游协作）向 `HaoCeans/siyuan-comment` 提交公开 bridge 需求草案：请求版本化的 `capabilities`、只读 `getComments`、当前选区/来源块、打开批注面板等最小协议；记录无回应、协议变化或作者拒绝时的兼容策略，不把私有实现写成依赖。
+- [ ] T-1933（P2，AI/数据主权）外部批注 AI 解释、标签、闪卡的边界验收：默认只读展示，不自动计入本插件 AI 额度、摘要或标签；若未来提供显式复制/保存动作，沿 D-0013/D-0015 标注来源、隐私、额度和可撤销语义，并补失败静默降级。
+- [ ] T-1934（P0，现有链路缺陷待修）阅读上下文宿主排除：`src/ui/reading-context-controller.ts` 当前对 `loaded-protyle-*`/`switch-protyle` 事件统一挂载；先验证并排除 `.block__popover`、`[class*="siyuan-comment-"]`、`siyuan-comment-popover__protyle` 等外部批注弹层，补 loaded/switch/destroy 回归和真机检查，防止上下文误挂到批注编辑器。
