@@ -10,11 +10,42 @@ export interface UiPrefs {
     lastView: string;
     /** 首启引导已完成/已跳过 */
     onboardingDone: boolean;
+    /** 保存的筛选视图（T-1846）：仅筛选条件投影，不复制文章状态 */
+    savedFilters: SavedFilter[];
+}
+
+/** 保存的筛选视图（T-1846）：name 唯一性由 UI 保证，这里只做类型归一。 */
+export interface SavedFilter {
+    name: string;
+    filter: Record<string, string | boolean>;
 }
 
 const PREFS_FILE = "ui-prefs.json";
 
-const DEFAULTS: UiPrefs = { lastView: "", onboardingDone: false };
+const DEFAULTS: UiPrefs = { lastView: "", onboardingDone: false, savedFilters: [] };
+
+/** 归一化单条筛选投影：只保留字符串/布尔原语键。 */
+function normalizeFilterRecord(raw: unknown): Record<string, string | boolean> {
+    const out: Record<string, string | boolean> = {};
+    if (!raw || typeof raw !== "object") return out;
+    for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+        if (typeof value === "string") out[key] = value;
+        else if (typeof value === "boolean") out[key] = value;
+    }
+    return out;
+}
+
+function normalizeSavedFilters(raw: unknown): SavedFilter[] {
+    if (!Array.isArray(raw)) return [];
+    const out: SavedFilter[] = [];
+    for (const item of raw) {
+        if (!item || typeof item !== "object") continue;
+        const candidate = item as Partial<SavedFilter>;
+        if (typeof candidate.name !== "string" || !candidate.name.trim()) continue;
+        out.push({ name: candidate.name, filter: normalizeFilterRecord(candidate.filter) });
+    }
+    return out;
+}
 
 /** 偏好写队列（T-1955）：load→merge→save 的读改写必须串行，防止多入口并发保存互相覆盖。 */
 let prefsQueue: Promise<unknown> = Promise.resolve();
@@ -34,6 +65,7 @@ export async function loadUiPrefs(plugin: Plugin): Promise<UiPrefs> {
                 return {
                     lastView: typeof partial.lastView === "string" ? partial.lastView : "",
                     onboardingDone: partial.onboardingDone === true,
+                    savedFilters: normalizeSavedFilters(partial.savedFilters),
                 };
             }
         } catch { /* 忽略 */ }
@@ -60,6 +92,7 @@ async function loadUiPrefsUnlocked(plugin: Plugin): Promise<UiPrefs> {
             return {
                 lastView: typeof partial.lastView === "string" ? partial.lastView : "",
                 onboardingDone: partial.onboardingDone === true,
+                savedFilters: normalizeSavedFilters(partial.savedFilters),
             };
         }
     } catch { /* 忽略 */ }

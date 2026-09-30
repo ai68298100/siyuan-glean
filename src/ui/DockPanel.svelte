@@ -17,7 +17,7 @@ import QuotesView from "./QuotesView.svelte";
 import InboxSection from "./InboxSection.svelte";
 import ResurfaceView from "./ResurfaceView.svelte";
 import { archiveStaleCandidates } from "../services/resurface-service";
-import { loadUiPrefs, saveUiPrefs } from "../services/prefs";
+import { loadUiPrefs, saveUiPrefs, type SavedFilter } from "../services/prefs";
 import { ageDays } from "../domain/resurface.ts";
 import { recordReadingDone } from "../services/checkin-bridge";
 import { hasSourceAction, openTargetForCarrier, resolveCarrier, sourceUrlForCarrier } from "../domain/carrier";
@@ -324,20 +324,75 @@ $effect(() => {
 // 视图偏好持久化：挂载恢复 + 切换保存
 // T-1955：加载完成前不得保存——否则初始默认视图会把磁盘上的真实偏好覆盖掉
 let prefsLoaded = $state(false);
+// T-1846 保存筛选视图
+let savedFilters = $state<SavedFilter[]>([]);
+let savingFilterName = $state("");
 
 $effect(() => {
     void loadUiPrefs(facade.pluginInstance).then((prefs) => {
         const valid = views.some((item) => item.key === prefs.lastView);
         // 返回读库定位优先于异步恢复的上次视图，避免把 library 切回旧视图。
         if (valid && !focusRequested) view = prefs.lastView as PanelView;
+        savedFilters = prefs.savedFilters;
         prefsLoaded = true;
     });
 });
+
+/** 当前激活筛选的投影（仅含非空条件；T-1846）。 */
+function activeFilterRecord(): Record<string, string | boolean> {
+    const record: Record<string, string | boolean> = {};
+    if (activeQueue) record.status = activeQueue;
+    if (selectedSite) record.site = selectedSite;
+    if (selectedTag) record.tag = selectedTag;
+    if (selectedAiTag) record.aiTag = selectedAiTag;
+    if (selectedAuthor) record.author = selectedAuthor;
+    if (selectedSource) record.src = selectedSource;
+    if (selectedTimeSource) record.timeSource = selectedTimeSource;
+    if (selectedContentType) record.contentType = selectedContentType;
+    if (keyword.trim()) record.keyword = keyword.trim();
+    if (onlyFavorite) record.favoriteOnly = true;
+    return record;
+}
+
+function hasActiveFilter(): boolean {
+    return Object.keys(activeFilterRecord()).length > 0;
+}
+
+async function saveCurrentFilter(): Promise<void> {
+    if (!savingFilterName.trim() || !hasActiveFilter()) return;
+    const next = savedFilters.filter((item) => item.name !== savingFilterName.trim());
+    next.push({ name: savingFilterName.trim(), filter: activeFilterRecord() });
+    const merged = await saveUiPrefs(facade.pluginInstance, { savedFilters: next });
+    savedFilters = merged.savedFilters;
+    savingFilterName = "";
+    showMessage(t(i18n, "library.filterSaved"), 2500);
+}
 
 $effect(() => {
     if (!prefsLoaded) return;
     void saveUiPrefs(facade.pluginInstance, { lastView: view });
 });
+
+/** 应用保存的视图：把条件回填到筛选器（失效条件自然空结果，不报错）。 */
+function applySavedFilter(saved: SavedFilter): void {
+    const filter = saved.filter;
+    const status = typeof filter.status === "string" ? filter.status : "";
+    if (queues.includes(status as QueueKey)) activeQueue = status as QueueKey;
+    selectedSite = typeof filter.site === "string" ? filter.site : "";
+    selectedTag = typeof filter.tag === "string" ? filter.tag : "";
+    selectedAiTag = typeof filter.aiTag === "string" ? filter.aiTag : "";
+    selectedAuthor = typeof filter.author === "string" ? filter.author : "";
+    selectedSource = typeof filter.src === "string" ? filter.src : "";
+    selectedTimeSource = typeof filter.timeSource === "string" ? filter.timeSource : "";
+    selectedContentType = typeof filter.contentType === "string" ? filter.contentType : "";
+    keyword = typeof filter.keyword === "string" ? filter.keyword : "";
+    onlyFavorite = filter.favoriteOnly === true;
+}
+
+async function deleteSavedFilter(name: string): Promise<void> {
+    const merged = await saveUiPrefs(facade.pluginInstance, { savedFilters: savedFilters.filter((item) => item.name !== name) });
+    savedFilters = merged.savedFilters;
+}
 
 // 插件壳广播的数据变更（迁移完成、右键收录等）触发面板对账
 $effect(() => {
@@ -831,7 +886,43 @@ function metaLine(entry: Row): string {
                         title={t(i18n, "panel.favoriteOnly")}
                         onclick={() => (onlyFavorite = !onlyFavorite)}
                     >{onlyFavorite ? "★" : "☆"}</button>
+                    <!-- T-1846：保存当前筛选为命名视图 -->
+                    {#if hasActiveFilter()}
+                        <input
+                            class="glean-mini-input"
+                            type="text"
+                            placeholder={t(i18n, "library.saveFilterName")}
+                            aria-label={t(i18n, "library.saveFilter")}
+                            bind:value={savingFilterName}
+                            maxlength={30}
+                            onkeydown={(event) => {
+                                if (event.key === "Enter") {
+                                    event.preventDefault();
+                                    void saveCurrentFilter();
+                                }
+                            }}
+                        />
+                        <button
+                            class="glean-op-btn"
+                            title={t(i18n, "library.saveFilter")}
+                            disabled={!savingFilterName.trim()}
+                            onclick={() => void saveCurrentFilter()}
+                        >💾</button>
+                    {/if}
                 </div>
+                {#if savedFilters.length > 0}
+                    <!-- T-1846：保存的筛选视图 chips（点击应用 / × 删除） -->
+                    <div class="glean-quotes__chips">
+                        {#each savedFilters as saved (saved.name)}
+                            <span class="glean-quotes__chip">
+                                <button class="glean-quotes__facet" class:glean-quotes__facet--on={false} onclick={() => applySavedFilter(saved)}>
+                                    {saved.name}
+                                </button>
+                                <button class="glean-quotes__chip-x" title={t(i18n, "library.deleteFilter")} onclick={() => void deleteSavedFilter(saved.name)}>×</button>
+                            </span>
+                        {/each}
+                    </div>
+                {/if}
             {:else}
                 <button
                     class="glean-icon-btn"

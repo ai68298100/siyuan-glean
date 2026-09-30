@@ -2711,3 +2711,17 @@
     background: var(--glean-accent, var(--b3-theme-primary));
     transition: width 0.4s ease;
 }
+
+/* ---------- 保存筛选视图（T-1846） ---------- */
+.glean-quotes__chip { display: inline-flex; align-items: center; gap: 2px; }
+.glean-quotes__facet { border: 0; background: transparent; cursor: pointer; padding: 2px 4px; font-size: 11px; }
+.glean-quotes__chip-x {
+    border: 0;
+    background: transparent;
+    color: var(--b3-theme-on-surface);
+    opacity: .5;
+    cursor: pointer;
+    font-size: 11px;
+    padding: 0 2px;
+}
+.glean-quotes__chip-x:hover { opacity: 1; }
