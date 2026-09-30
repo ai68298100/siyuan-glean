@@ -19,6 +19,22 @@
         writeClip,
         type ReadingClipContext,
     } from "../services/clip-store";
+    /** 伴生栏收藏星标的本地态（context.favorite 由 readClipContext 投影） */
+    let favorite = $state(false);
+
+    /** T-1755：伴生栏收藏切换（favorite 非手填保护字段）。 */
+    async function toggleFavoriteFlag(): Promise<void> {
+        if (!context) return;
+        const next = !favorite;
+        try {
+            await writeClip(facade.pluginInstance, context.id, { favorite: next });
+            favorite = next;
+            facade.notifyDataChanged();
+        } catch (error) {
+            console.warn("[glean] 收藏切换失败:", error);
+            showMessage(t(i18n, "msg.actionFailed"), 3000);
+        }
+    }
     import { snapshotClip } from "../services/snapshot-service";
     import { recordReadingDone } from "../services/checkin-bridge";
     import { excerptFromSelection, insertQuoteExcerpt } from "../services/excerpt-service";
@@ -160,6 +176,7 @@
             const next = await readClipContext(id);
             if (seq !== contextSeq) return;
             context = next;
+            favorite = next?.favorite === true;
         } catch (error) {
             if (seq !== contextSeq) return;
             console.debug("[glean] 阅读页签读取上下文失败:", error);
@@ -533,7 +550,20 @@
     </div>
     {#if docId}
         <aside class="glean-reader__side" aria-label={t(i18n, "reader.title")}>
-            <div class="glean-reader__title" title={context?.title}>{context?.title || t(i18n, "panel.untitled")}</div>
+            <div class="glean-reader__titleline">
+                <div class="glean-reader__title" title={context?.title}>{context?.title || t(i18n, "panel.untitled")}</div>
+                {#if context}
+                    <!-- T-1755 收藏星标 -->
+                    <button
+                        class="glean-reader__fav"
+                        class:glean-reader__fav--on={favorite}
+                        role="switch"
+                        aria-checked={favorite}
+                        title={t(i18n, favorite ? "action.unfavorite" : "action.favorite")}
+                        onclick={() => void toggleFavoriteFlag()}
+                    >{favorite ? "★" : "☆"}</button>
+                {/if}
+            </div>
             <div class="glean-reader__meta">
                 <span class={`glean-carrier-badge glean-carrier-badge--${resolveCarrier(context?.contentType)}`}>
                     {carrierLabel(context?.contentType)}

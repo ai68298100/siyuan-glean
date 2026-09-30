@@ -60,6 +60,8 @@ export interface ReadingClipContext {
     snapshot?: string;
     priority?: number;
     rating?: number;
+    /** 用户显式收藏标记（T-1755） */
+    favorite?: boolean;
 }
 
 /** 编辑器上下文只读当前根块属性；旧索引不能冒充正在阅读的状态。 */
@@ -78,6 +80,7 @@ export async function readClipContext(docId: string): Promise<ReadingClipContext
         snapshot: attrs.snapshot ?? "",
         priority: attrs.priority ?? 3,
         rating: attrs.rating ?? 0,
+        favorite: attrs.favorite === true,
     };
 }
 

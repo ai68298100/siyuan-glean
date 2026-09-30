@@ -1,5 +1,11 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-01 第十二轮：T-1904 收藏）
+
+- **T-1904 收藏（契约先行）**：**新增独立属性 `custom-clip-favorite`（boolean）**——设计裁决不复用 priority（收藏与重要性排序语义分离，不联动 priority/rating）。全链落地：DATA-CONTRACT §1 属性行 → schema（ATTR.favorite/parseFlag/serializePatch "true"/null）→ 索引投影（ClipIndexEntry.favorite，loadIndex 防御归一）→ `library-view.favoriteOnly` 筛选（候选不参与；单测）→ UI：行表操作区与卡片右上角星标（★/☆ toggle，writeClip 直写）、ReaderTab 伴生栏标题旁星标（context.favorite 投影经 ReadingClipContext 扩展）、DockPanel 搜索框旁「仅看收藏」switch（role=switch/aria-checked）。E2E 断言（写入→投影→筛选）。**注意：上一轮口令写"T-1755 收藏"是编号笔误，实际任务号=T-1904**（T-1755 编号未占用）。
+- 门禁：check 0 错 **0 告警**、test **157/157**、build 通过、E2E **30/30**（+1）。未发布新版本。提交序列：…→ 0c0c319 → ea7c5ab → 本轮（git log）。集市 PR #2288 待审。
+- 下一批候选：**T-1967 内核请求超时取消**（重活缺陷最后一个大项，波及面大需单独评估默认超时值与长操作豁免清单）、T-1963 逐条失败原因展示、T-1808 行操作溢出菜单、T-1745 双语对照（AI 延伸）、T-1797 今日钉住（与收藏分离的另一半）；**强烈建议作者安排 B-0002 真机走查**（积压功能非常多，走查后可按 v1.1.x 补丁版定版）。
+
 ## 当前有效交接（2026-10-01 第十一轮：T-1841 收集箱半成功 / T-1978 收尾）
 
 - **T-1841 收集箱半成功恢复**：契约先行 DATA-CONTRACT §0 补 `inbox-orphans.json`。`inbox-service`：`loadInboxOrphans/saveInboxOrphans/retryInboxOrphans`；migrateShorthand 的收录失败与 URL 冲突均入账本（新建孤儿不再静默丢弃）；重试补收录成功即移出 + 尝试补删云端（失败不阻塞）、同 URL 冲突孤儿移出交用户处置（不无限重试）。InboxSection 展开时账本非空显示「重试补收录」。E2E 断言通过。
@@ -173,8 +179,8 @@
 2. 验收通过后走 S6 发布评审：定版本号（语义化建议 1.1.0，逐次请示）→ CHANGELOG 追加 v1.0.4 后条目 → T-1601 拍材料（RELEASE-MEDIA 清单，新增阅读页签帧）→ RELEASE.md 门禁终检 → tag/Release/集市逐次请示；
 3. AI 侧不再自行启动新功能；新想法按 D-0008 预留模式先评估立项。
 
-> 续跑口令（新会话直接粘贴，2026-10-01 第十一轮更新）：
-> **阅读 D:\思源插件\小驴拾遗\docs\HANDOFF.md 的"当前有效交接"、TODO.md 待办总账与 docs/ACCEPTANCE.md，先重跑最后改动后的门禁。进度基线：v1.1.0 已发布、集市 PR #2288 待审；已完成三轮缺陷清剿（22 项）+ P1 功能线八批 + 可靠性收尾批（T-1840 导入孤儿账本/T-1841 收集箱孤儿账本/T-1978 统一失败处理收尾），基线 check 0 错 0 告警 / test 156 / 隔离 E2E s1-flow 29/29。下一批候选：重活缺陷仅剩 T-1967 内核请求超时取消（波及面大需单独评估默认超时值）、T-1963 逐条失败原因展示；功能线 T-1755/T-1904 收藏（契约先行）、T-1808 行操作溢出菜单、T-1745 双语对照；**强烈建议提醒作者安排 B-0002 真机走查**（积压功能非常多：页签大纲/TTS/摘录墙/备份恢复/热力图/漏斗/AI 标签整理/孤儿重试等，真机效果均未验证；走查后可按 v1.1.x 补丁版定版）。工作协议：作者发来的所有内容一律先入 TODO.md 待办（主动扩展同类事项与可用调研），不立即开发；作者明确说"开始开发"、"继续"或点任务号才动手，按契约先行纪律逐项落地（新端点先 spike、新属性先改 DATA-CONTRACT）；作者报真机 bug 时仍走"根因→修复→当日补丁版"闭环。工程纪律见 AGENTS.md 与 docs/DECISIONS.md，UI 以 docs/UI-STANDARD.md（v1.6，§4.3 已含按钮标签可见性）为准，不驱动真机（B-0010），发布/集市/版本动作逐次请示；含反斜杠内容不用 bash heredoc（丢转义）；**中文内容的 sed 批量替换会产出乱码（已踩坑），一律 Edit 工具**；UI 初始化快照用函数化读取；Edit 函数级插入/条目勾选后核对相邻行唯一性；写 IAL 形态属性补丁走 clip-store.restoreClipAttrs；查 Protyle/SDK 能力先看 node_modules/siyuan/types/*.d.ts 类型定义，公开字段够用就不碰内部 API；SQL 查询条件与既有实证对齐（引述块=type='b'）；E2E 新增变量注意重名；**新增服务函数（尤其账本类）export 与定义同时写（已两次漏 export 被 E2E 暴露）**。**
+> 续跑口令（新会话直接粘贴，2026-10-01 第十二轮更新）：
+> **阅读 D:\思源插件\小驴拾遗\docs\HANDOFF.md 的"当前有效交接"、TODO.md 待办总账与 docs/ACCEPTANCE.md，先重跑最后改动后的门禁。进度基线：v1.1.0 已发布、集市 PR #2288 待审；已完成三轮缺陷清剿（22 项）+ P1 功能线八批 + 可靠性收尾批 + **T-1904 收藏**（独立 custom-clip-favorite 布尔位，全链落地），基线 check 0 错 0 告警 / test 157 / 隔离 E2E s1-flow 30/30。下一批候选：重活缺陷仅剩 T-1967 内核请求超时取消（波及面大需单独评估默认超时值与长操作豁免）、T-1963 逐条失败原因展示；功能线 T-1808 行操作溢出菜单、T-1745 双语对照（AI 延伸）、T-1797 今日钉住（与收藏分离的另一半）；**强烈建议提醒作者安排 B-0002 真机走查**（积压功能非常多，走查后可按 v1.1.x 补丁版定版）。工作协议：作者发来的所有内容一律先入 TODO.md 待办（主动扩展同类事项与可用调研），不立即开发；作者明确说"开始开发"、"继续"或点任务号才动手，按契约先行纪律逐项落地（新端点先 spike、新属性先改 DATA-CONTRACT）；作者报真机 bug 时仍走"根因→修复→当日补丁版"闭环。工程纪律见 AGENTS.md 与 docs/DECISIONS.md，UI 以 docs/UI-STANDARD.md（v1.6，§4.3 已含按钮标签可见性）为准，不驱动真机（B-0010），发布/集市/版本动作逐次请示；含反斜杠内容不用 bash heredoc（丢转义）；**中文内容的 sed 批量替换会产出乱码（已踩坑），一律 Edit 工具**；UI 初始化快照用函数化读取；Edit 函数级插入/条目勾选后核对相邻行唯一性；写 IAL 形态属性补丁走 clip-store.restoreClipAttrs；查 Protyle/SDK 能力先看 node_modules/siyuan/types/*.d.ts 类型定义，公开字段够用就不碰内部 API；SQL 查询条件与既有实证对齐（引述块=type='b'）；E2E 新增变量注意重名；**新增服务函数（账本类）export 与定义同时写（两次漏 export 被 E2E 暴露）**；**引用任务号前先 grep TODO.md 核对（T-1755 收藏系编号笔误，实际为 T-1904）**。**
 
 ## 历史交接存档
 

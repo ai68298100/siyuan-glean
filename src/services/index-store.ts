@@ -53,6 +53,8 @@ export interface ClipIndexEntry {
     minutes: number;
     priority: number;
     rating: number;
+    /** 用户显式收藏标记（T-1755）；缺省 false */
+    favorite: boolean;
     surfaced: string;
     summary: string;
     /** 单文件快照 assets 路径 */
@@ -153,6 +155,7 @@ export async function loadIndex(plugin: Plugin): Promise<GleanIndex> {
                 minutes: typeof value.minutes === "number" ? value.minutes : 0,
                 priority: typeof value.priority === "number" ? value.priority : 3,
                 rating: typeof value.rating === "number" ? value.rating : 0,
+                favorite: value.favorite === true,
                 surfaced: typeof value.surfaced === "string" ? value.surfaced : "",
                 summary: typeof value.summary === "string" ? value.summary : "",
                 snapshot: typeof value.snapshot === "string" ? value.snapshot : "",
@@ -225,6 +228,7 @@ export function applyAttrsToIndex(
             minutes: attrs.minutes ?? 0,
             priority: attrs.priority ?? 3,
             rating: attrs.rating ?? 0,
+            favorite: attrs.favorite === true,
             surfaced: attrs.lastSurfaced ?? "",
             summary: attrs.summary ?? "",
             snapshot: attrs.snapshot ?? "",

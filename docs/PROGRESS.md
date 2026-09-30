@@ -1,5 +1,9 @@
 # 进度（PROGRESS）
 
+## 收藏功能（续跑口令驱动，2026-10-01）✅
+
+- [x] **T-1904 收藏（契约先行）**：设计裁决=新增独立 `custom-clip-favorite` 布尔位（不复用 priority——收藏与重要性排序语义分离）。DATA-CONTRACT §1 补属性行；schema 序列化/解析；索引投影（favorite 字段）；`library-view.favoriteOnly` 筛选（候选不参与，单测）；行表/卡片/伴生栏星标 toggle（★/☆）+ 搜索框旁「仅看收藏」switch。E2E 断言（写入→投影→筛选全链）。注意：口令中的"T-1755 收藏"系编号笔误，实际任务号=T-1904。
+
 ## 可靠性收尾批（续跑口令驱动，2026-10-01）✅
 
 - [x] **T-1841 收集箱半成功恢复**：契约先行 DATA-CONTRACT §0 补 `inbox-orphans.json`。migrateShorthand 的收录失败（网络）与 URL 冲突均入账本（新建孤儿不再静默丢弃）；`retryInboxOrphans` 补收录成功即移出并尝试补删云端、同 URL 冲突孤儿移出交用户处置；InboxSection 遗留孤儿「重试补收录」入口。E2E 断言（账本→重试→src=inbox 属性写全→账本清空）。

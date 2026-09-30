@@ -609,6 +609,19 @@ async function runFlow(client, workspace) {
     assert.equal(inboxAttrs["custom-clip-src"], "inbox");
     assert.deepEqual(await inboxSvc.loadInboxOrphans(plugin), []);
     pass("T-1841 收集箱孤儿账本重试补收录：src=inbox 属性写全、账本清空");
+
+    // T-1755 收藏：写 favorite → 索引投影 → favoriteOnly 筛选。
+    const libraryView = await import("../../src/domain/library-view.ts");
+    const favIndex = await clip.reconcileIndex(newPlugin(), settings);
+    await clip.writeClip(plugin, fulltext, { favorite: true });
+    const favAttrs = await client.apiChecked("/api/attr/getBlockAttrs", { id: fulltext });
+    assert.equal(favAttrs["custom-clip-favorite"], "true");
+    const favIndexAfter = await clip.reconcileIndex(newPlugin(), settings);
+    assert.equal(favIndexAfter.clips[fulltext].favorite, true);
+    const favItems = Object.values(favIndexAfter.clips).map((entry) => ({ ...entry, kind: "clip" }));
+    const favFiltered = libraryView.filterAndSortLibrary(favItems, { favoriteOnly: true });
+    assert.deepEqual(favFiltered.map((item) => item.id), [fulltext]);
+    pass("T-1755 收藏写入与索引投影一致，favoriteOnly 筛选命中");
 }
 
 async function main() {

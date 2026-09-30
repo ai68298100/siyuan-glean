@@ -48,6 +48,8 @@ export const ATTR = {
     timeSource: "custom-clip-time-source",
     /** 用户确认“不是文章”后写入，避免候选扫描反复打扰。 */
     excluded: "custom-clip-excluded",
+    /** 用户显式收藏标记（T-1755/T-1904）：独立布尔位，与 priority 语义分离。 */
+    favorite: "custom-clip-favorite",
     /** 插件内部宿主文档标志；新建时写入，旧文档由候选规则回退推断。 */
     internal: "custom-clip-internal",
 } as const;
@@ -73,6 +75,7 @@ export interface ClipAttrs {
     contentType?: ClipContentType;
     timeSource?: ClipTimeSource;
     excluded?: boolean;
+    favorite?: boolean;
     internal?: boolean;
 }
 
@@ -173,6 +176,7 @@ export function parseClipAttrs(ial: Record<string, string | undefined>): ClipAtt
         // 旧数据没有来源标记；保留原时间且如实呈现为 legacy。
         timeSource: parseTimeSource(ial[ATTR.timeSource]) ?? (ial[ATTR.time] ? "legacy" : undefined),
         excluded: parseFlag(ial[ATTR.excluded]),
+        favorite: parseFlag(ial[ATTR.favorite]),
         internal: parseFlag(ial[ATTR.internal]),
     };
 }
@@ -229,6 +233,7 @@ export function serializePatch(patch: Partial<ClipAttrs> & { aiTags?: string[] |
     if (patch.contentType !== undefined) put(ATTR.contentType, patch.contentType ?? null);
     if (patch.timeSource !== undefined) put(ATTR.timeSource, patch.timeSource ?? null);
     if (patch.excluded !== undefined) put(ATTR.excluded, patch.excluded ? "true" : null);
+    if (patch.favorite !== undefined) put(ATTR.favorite, patch.favorite ? "true" : null);
     if (patch.internal !== undefined) put(ATTR.internal, patch.internal ? "true" : null);
     return out;
 }

@@ -2643,3 +2643,36 @@
     font-size: 11.5px;
 }
 .glean-icon-btn--labeled svg { width: 13px; height: 13px; flex-shrink: 0; }
+
+/* ---------- 收藏星标（T-1755） ---------- */
+.glean-search__fav {
+    border: 0;
+    background: transparent;
+    color: var(--b3-theme-on-surface);
+    opacity: .65;
+    font-size: 13px;
+    cursor: pointer;
+    padding: 0 2px;
+    flex-shrink: 0;
+}
+.glean-search__fav--on { color: var(--glean-accent, var(--b3-theme-primary)); opacity: 1; }
+.glean-card__fav {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    opacity: .55;
+}
+.glean-card__fav--on { color: var(--glean-accent, var(--b3-theme-primary)); opacity: 1; }
+.glean-reader__titleline { display: flex; align-items: flex-start; gap: 6px; }
+.glean-reader__titleline .glean-reader__title { flex: 1; min-width: 0; }
+.glean-reader__fav {
+    border: 0;
+    background: transparent;
+    color: var(--b3-theme-on-surface);
+    opacity: .6;
+    font-size: 15px;
+    cursor: pointer;
+    flex-shrink: 0;
+    padding: 0 2px;
+}
+.glean-reader__fav--on { color: var(--glean-accent, var(--b3-theme-primary)); opacity: 1; }

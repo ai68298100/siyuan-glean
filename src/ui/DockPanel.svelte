@@ -39,6 +39,7 @@ let loadError = $state(false);
 let index = $state<GleanIndex>({ version: 1, updatedAt: "", clips: {}, candidates: {} });
 let activeQueue = $state<ClipStatus>("inbox");
 let keyword = $state("");
+let onlyFavorite = $state(false);
 let sortBy = $state<LibrarySortKey>("time");
 let sortDirection = $state<LibrarySortDirection>("desc");
 let selectedSite = $state("");
@@ -104,6 +105,7 @@ const libraryItems = $derived.by<LibraryItem[]>(() => [
         minutes: entry.minutes,
         priority: entry.priority,
         rating: entry.rating,
+        favorite: entry.favorite === true,
     })),
     ...Object.values(index.candidates).map((entry) => ({ kind: "candidate" as const, ...entry })),
 ]);
@@ -119,6 +121,7 @@ const activeFilter = $derived({
     timeSource: selectedTimeSource,
     contentType: selectedContentType,
     keyword,
+    favoriteOnly: onlyFavorite,
     sortBy,
     direction: sortDirection,
     includeCandidates: activeQueue === "inbox",
@@ -522,6 +525,18 @@ async function setStatus(entry: ClipIndexEntry, status: ClipStatus) {
     }
 }
 
+/** T-1755 收藏：星标切换（favorite 非手填保护字段，用户显式动作直写）。 */
+async function toggleFavorite(entry: ClipIndexEntry): Promise<void> {
+    const next = !(entry.favorite === true);
+    try {
+        await writeClip(facade.pluginInstance, entry.id, { favorite: next });
+        await reload();
+    } catch (error) {
+        console.warn("[glean] 收藏切换失败:", error);
+        showMessage(t(i18n, "msg.actionFailed"), 3000);
+    }
+}
+
 async function startReading(entry: ClipIndexEntry) {
     if (entry.status === "reading") {
         openReading(entry);
@@ -722,6 +737,15 @@ function metaLine(entry: Row): string {
                         placeholder={t(i18n, "panel.searchPlaceholder")}
                         bind:value={keyword}
                     />
+                    <!-- T-1755：仅看收藏 toggle -->
+                    <button
+                        class="glean-search__fav"
+                        class:glean-search__fav--on={onlyFavorite}
+                        role="switch"
+                        aria-checked={onlyFavorite}
+                        title={t(i18n, "panel.favoriteOnly")}
+                        onclick={() => (onlyFavorite = !onlyFavorite)}
+                    >{onlyFavorite ? "★" : "☆"}</button>
                 </div>
             {:else}
                 <button
@@ -1002,6 +1026,11 @@ function metaLine(entry: Row): string {
                                         <div class="glean-drow__ops">
                                             <button
                                                 class="glean-op-btn"
+                                                title={t(i18n, entry.favorite ? "action.unfavorite" : "action.favorite")}
+                                                onclick={(e) => { e.stopPropagation(); void toggleFavorite(entry); }}
+                                            >{entry.favorite ? "★" : "☆"}</button>
+                                            <button
+                                                class="glean-op-btn"
                                                 title={snapshotLabel(entry)}
                                                 disabled={snappingId === entry.id}
                                                 onclick={(e) => { e.stopPropagation(); void takeSnapshot(entry); }}
@@ -1137,6 +1166,15 @@ function metaLine(entry: Row): string {
                             class:glean-card--candidate={entry.kind === "candidate"}
                             class:glean-card--selected={selection.has(entry.id)}
                         >
+                            {#if entry.kind === "clip"}
+                                <!-- T-1755 收藏星标：卡片级直写 -->
+                                <button
+                                    class="glean-op-btn glean-card__fav"
+                                    class:glean-card__fav--on={entry.favorite}
+                                    title={t(i18n, entry.favorite ? "action.unfavorite" : "action.favorite")}
+                                    onclick={(e) => { e.stopPropagation(); void toggleFavorite(entry); }}
+                                >{entry.favorite ? "★" : "☆"}</button>
+                            {/if}
                             <div class="glean-card__body" onclick={() => openDoc(entry.id)} onkeydown={activateOnKey(() => openDoc(entry.id))} role="button" tabindex="0">
                                 <div class="glean-card__title">{entry.title || t(i18n, "panel.untitled")}</div>
                                 <div class="glean-card__meta">

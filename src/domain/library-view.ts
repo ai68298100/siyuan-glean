@@ -30,6 +30,8 @@ export interface LibraryItem {
     minutes?: number;
     priority?: number;
     rating?: number;
+    /** 用户显式收藏标记（T-1755 投影）；候选无此字段 */
+    favorite?: boolean;
 }
 
 export interface LibraryFilter {
@@ -43,6 +45,8 @@ export interface LibraryFilter {
     timeSource?: string;
     contentType?: string;
     keyword?: string;
+    /** 仅看收藏（T-1755）；true 时只保留 favorite 条目 */
+    favoriteOnly?: boolean;
     sortBy?: LibrarySortKey;
     direction?: LibrarySortDirection;
     /** Candidates are only shown when the inbox view explicitly opts in. */
@@ -133,6 +137,8 @@ export function matchesLibraryFilter(item: LibraryItem, filter: LibraryFilter = 
     if (!matchesExact(item.src, filter.src)) return false;
     if (!matchesExact(item.timeSource, filter.timeSource)) return false;
     if (!matchesExact(item.contentType, filter.contentType)) return false;
+    // T-1755：仅看收藏（候选不参与收藏）
+    if (filter.favoriteOnly && !(item.kind === "clip" && item.favorite === true)) return false;
     const query = key(filter.keyword);
     return !query || searchableText(item).includes(query);
 }

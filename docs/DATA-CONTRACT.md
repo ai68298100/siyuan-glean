@@ -41,6 +41,7 @@
 | `custom-clip-minutes` | number | 预计本地阅读分钟 = round(words/400)，有正文至少 1；仅链接为 0，缺键表示未知，界面不显示伪精确 0 分钟 |
 | `custom-clip-priority` | number 1-5 | 手动优先级（重浮加权用，默认 3，用户手填字段） |
 | `custom-clip-rating` | number 0-5 | 读后评分（可选，用户手填字段） |
+| `custom-clip-favorite` | boolean | 用户显式收藏标记（T-1755/T-1904）：与 `priority`（重要性排序）语义分离——收藏是独立布尔位，不复用、不联动 priority/rating；仅由用户在卡片/行表/伴生栏的星标动作切换，缺键 = 未收藏；不参与手填保护（它本身即用户显式动作产物），不自动写入 |
 | `custom-clip-ai-tags` | string | AI 标签（逗号分割，与用户 `tags` 完全隔离，永不覆盖用户 tags） |
 | `custom-clip-summary` | string | AI 一句话摘要 |
 | `custom-clip-last-surfaced` | string | 最近一次被重浮的日期 `YYYYMMDD` |
