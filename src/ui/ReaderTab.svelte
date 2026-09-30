@@ -47,6 +47,7 @@
     import { nextSpeechRate } from "../domain/tts";
     import { speakText, stopSpeaking, ttsAvailable } from "../services/tts";
     import { anchorBlockInViewport, blockPosition, countDocBlocks, saveReadingPos } from "../services/reading-position";
+    import { settleReadingMinutes } from "../services/reading-time";
     import ClipStatusActions from "./ClipStatusActions.svelte";
     import ClipRankControls from "./ClipRankControls.svelte";
 
@@ -215,10 +216,29 @@
                 posSaveTimer = null;
             }
             void untrack(() => flushReadingPos());
+            // T-1747：页签销毁结算本次阅读时长（cleanup 闭包捕获的 docId 是本文档初值——正确：
+            // effect 依赖 docId，切文时旧 cleanup 先结算旧文档，新 effect 为新文档开新会话）
+            // svelte-ignore state_referenced_locally
+            void untrack(() => settleSessionFor(untrack(() => docId)));
+            resetSession();
             protyle?.destroy();
             protyle = null;
             // T-1744：页签销毁时停止朗读，不留悬挂的语音队列
             stopSpeech(false);
+        };
+    });
+
+    // T-1747：切文结算由 mount effect 的 docId 依赖处理（旧 cleanup 结算旧文档）；
+    // 这里只挂 visibilitychange 暂停/恢复与显示刷新。
+    $effect(() => {
+        const onVisibility = () => (document.hidden ? pauseSession() : resumeSession());
+        document.addEventListener("visibilitychange", onVisibility);
+        const timer = setInterval(() => {
+            sessionDisplay = Math.floor(sessionElapsedMs() / 60_000);
+        }, 30_000);
+        return () => {
+            document.removeEventListener("visibilitychange", onVisibility);
+            clearInterval(timer);
         };
     });
 
@@ -367,6 +387,46 @@
         }
     }
 
+    // T-1747 阅读计时：页签前台累计（visibilitychange 暂停），切文/销毁/标记已读结算。
+    let sessionStart = Date.now();
+    let pausedElapsed = 0;
+    let sessionDisplay = $state(0);
+
+    function pauseSession(): void {
+        if (sessionStart > 0) {
+            pausedElapsed += Date.now() - sessionStart;
+            sessionStart = 0;
+        }
+    }
+
+    function resumeSession(): void {
+        if (sessionStart === 0) sessionStart = Date.now();
+    }
+
+    function sessionElapsedMs(): number {
+        return pausedElapsed + (sessionStart > 0 ? Date.now() - sessionStart : 0);
+    }
+
+    /** 结算指定文档：累计 ≥1 分钟才写（增量累加，不足不写）。 */
+    async function settleSessionFor(targetDocId: string): Promise<void> {
+        const elapsed = sessionElapsedMs();
+        pauseSession();
+        pausedElapsed = 0;
+        resumeSession();
+        if (elapsed < 60_000 || !targetDocId) return;
+        try {
+            await settleReadingMinutes(facade.pluginInstance, targetDocId, Date.now() - elapsed);
+        } catch (error) {
+            console.debug("[glean] 阅读计时结算失败:", error);
+        }
+    }
+
+    function resetSession(): void {
+        sessionStart = Date.now();
+        pausedElapsed = 0;
+        sessionDisplay = 0;
+    }
+
     async function runTranslateFull(): Promise<void> {
         if (!context || aiBusy) return;
         aiBusy = "translateFull";
@@ -496,6 +556,8 @@
         const current = context;
         statusBusy = true;
         try {
+            // T-1747：标记已读前结算本次阅读时长（read-minutes 含最后一次会话）
+            if (status === "done") await settleSessionFor(current.id);
             const changed = await batchSetStatus(facade.pluginInstance, [current.id], status);
             if (changed !== 1) {
                 showMessage(t(i18n, "msg.statusFailed"), 3000);
@@ -527,6 +589,8 @@
         const current = context;
         statusBusy = true;
         try {
+            // T-1747：标记已读前结算本次阅读时长
+            await settleSessionFor(current.id);
             const changed = await batchSetStatus(facade.pluginInstance, [current.id], "done");
             if (changed !== 1) {
                 showMessage(t(i18n, "msg.statusFailed"), 3000);
@@ -650,6 +714,10 @@
                     {carrierLabel(context?.contentType)}
                 </span>
                 {#if context?.site}<span>{context.site}</span>{/if}
+                {#if sessionDisplay > 0}
+                    <!-- T-1747：本次会话阅读时长（会话状态，不落属性） -->
+                    <span>· {t(i18n, "reader.sessionMinutes", { n: sessionDisplay })}</span>
+                {/if}
             </div>
             {#if outline.length > 0}
                 <!-- T-1740 本文大纲：标题树 + 点击滚动定位 -->

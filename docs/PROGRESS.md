@@ -1,5 +1,10 @@
 # 进度（PROGRESS）
 
+## 阅读计时（续跑口令驱动，2026-10-01）✅
+
+- [x] **T-1747 真实阅读计时**（契约先行）：**契约裁决=新键 `custom-clip-read-minutes`**（number 累计，与 minutes 字数估算语义分离互不读写）。DATA-CONTRACT §1 契约行；`services/reading-time`（sessionMinutes 纯计算 2 单测 + settleReadingMinutes 增量累加/不足 1 分钟不写）+ ReaderTab 前台累计（visibilitychange 暂停恢复、切文由 mount cleanup 结算旧文档、销毁/标记已读结算）+ 伴生栏会话时长显示。E2E 累计语义断言（3+2→5、不足 1 分钟不写）。
+- [x] 门禁：check 0 错 0 告警、test **164/164**（+2）、build 通过、隔离 E2E **33/33**（+1）。未发布新版本；计时准确性（前后台切换/休眠）随 B-0002 真机。
+
 ## 阅读断点与进度（续跑口令驱动，2026-10-01）✅
 
 - [x] **T-1746 阅读断点与进度**（契约先行，同时关闭 T-1728 前置）：契约 §3.1a（`custom-clip-reading-pos` 块锚定 / 防抖 30s + 切文销毁写 / 原生编辑器不写 / last-writer / 归档不清除 / 丢失即从头无重建）。实现：`services/reading-position.ts`（视口锚定块、块计数、块序号、写入）+ ReaderTab 滚动捕获监听防抖写、切文/销毁立即落盘、续读 scrollIntoView、结构估计细进度条（**无百分比数字**）。E2E 断言（写入→readClipContext 投影→不进派生索引）。**滚动定位与进度准确性随 B-0002 真机**。

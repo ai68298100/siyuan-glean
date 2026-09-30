@@ -652,6 +652,24 @@ async function runFlow(client, workspace) {
     const posIndexData = await newPlugin().loadData("glean-index.json");
     assert.equal("readingPos" in (posIndexData?.clips?.[fulltext] ?? {}), false);
     pass("T-1746 阅读断点写入与上下文投影一致，不进派生索引");
+
+    // T-1747 阅读计时：settleReadingMinutes 累计语义（增量累加 + 不足 1 分钟不写）。
+    const readingTime = await import("../../src/services/reading-time.ts");
+    const t0 = Date.now() - 3 * 60_000; // 模拟 3 分钟前开始
+    const gained1 = await readingTime.settleReadingMinutes(plugin, fulltext, t0);
+    assert.equal(gained1, 3);
+    const firstMin = Number((await client.apiChecked("/api/attr/getBlockAttrs", { id: fulltext }))["custom-clip-read-minutes"]);
+    assert.equal(firstMin, 3);
+    // 二次结算 2 分钟 → 累计 5
+    const gained2 = await readingTime.settleReadingMinutes(plugin, fulltext, Date.now() - 2 * 60_000);
+    assert.equal(gained2, 2);
+    const secondMin = Number((await client.apiChecked("/api/attr/getBlockAttrs", { id: fulltext }))["custom-clip-read-minutes"]);
+    assert.equal(secondMin, 5);
+    // 不足 1 分钟不写
+    const gained3 = await readingTime.settleReadingMinutes(plugin, fulltext, Date.now() - 30_000);
+    assert.equal(gained3, 0);
+    assert.equal(Number((await client.apiChecked("/api/attr/getBlockAttrs", { id: fulltext }))["custom-clip-read-minutes"]), 5);
+    pass("T-1747 阅读计时累计语义：增量累加、不足 1 分钟不写");
 }
 
 async function main() {

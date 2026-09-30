@@ -44,6 +44,7 @@
 | `custom-clip-favorite` | boolean | 用户显式收藏标记（T-1755/T-1904）：与 `priority`（重要性排序）语义分离——收藏是独立布尔位，不复用、不联动 priority/rating；仅由用户在卡片/行表/伴生栏的星标动作切换，缺键 = 未收藏；不参与手填保护（它本身即用户显式动作产物），不自动写入 |
 | `custom-clip-pinned` | string `YYYYMMDD` | 用户钉住生效日（T-1797）：钉住当日重浮投影置顶优先出现，隔日自然回池（平静原则不变，无后台清理）；与收藏（长期标记）、今日钉住（当日临时置顶）语义分离；仅由用户钉住动作写入 |
 | `custom-clip-reading-pos` | string（思源块 ID） | 阅读断点（T-1746，T-1728 契约）：最后阅读位置锚定的**块 ID**（非百分比/偏移——块锚定跨设备与正文增删均可重定位）。仅内嵌阅读页签在滚动防抖（30s）与切文/销毁时写入；原生编辑器不写。缺键 = 无断点；归档不清除断点；跨设备 last-writer 无合并 |
+| `custom-clip-read-minutes` | number | 真实阅读分钟累计（T-1747 契约）：内嵌页签前台计时（可见状态累计，切文/销毁/标记已读时结算写入，增量累加不足 1 分钟不写）；与 `custom-clip-minutes`（字数估算）语义分离、互不读写；仅页签产生，批量/自动动作永不写；缺键 = 无真实阅读记录 |
 | `custom-clip-ai-tags` | string | AI 标签（逗号分割，与用户 `tags` 完全隔离，永不覆盖用户 tags） |
 | `custom-clip-summary` | string | AI 一句话摘要 |
 | `custom-clip-last-surfaced` | string | 最近一次被重浮的日期 `YYYYMMDD` |

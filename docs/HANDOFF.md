@@ -1,5 +1,13 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-01 第十八轮：T-1747 真实阅读计时）
+
+- **T-1747 真实阅读计时**（契约先行）：**契约裁决=新键 `custom-clip-read-minutes`**（number 累计，与 minutes 字数估算语义分离互不读写）。DATA-CONTRACT §1 契约行（可见状态累计/切文销毁标记已读结算/增量累加不足 1 分钟不写/批量自动动作永不写）。
+- 实现：`services/reading-time.ts`（`sessionMinutes` 纯计算 2 单测 + `settleReadingMinutes` 增量累加）；ReaderTab 前台累计（**visibilitychange 暂停/恢复**——hidden 停表不计后台；切文结算由 mount effect 的 docId 依赖处理：旧 cleanup 闭包捕获旧 docId 结算旧文档【语义正确，svelte-ignore state_referenced_locally 抑制】；销毁/标记已读 done 前结算）；伴生栏 meta 显示「本次阅读 N 分钟」（30s 刷新，纯会话状态）。
+- E2E 累计语义断言：3 分钟→写 3；再 2 分钟→累计 5；30 秒→不写。**计时准确性（休眠/前后台切换）随 B-0002 真机**。
+- 门禁：check 0 错 **0 告警**、test **164/164**、build 通过、E2E **33/33**（+1）。未发布新版本。提交序列：…→ 548b022 → c798933 → 本轮（git log）。集市 PR #2288 待审。
+- 下一批候选：契约先行组 **T-1811 作者属性组**（6 项含 AI 批量回填，大组建议分两轮：先契约+属性+分面，再回填）；缺陷 **T-1842 批量任务背压统一评估**（最后一个重活）；T-1746/T-1747 的真机项随 B-0002；**强烈建议作者安排 B-0002 真机走查**（积压非常多，走查后可按 v1.1.x 补丁版定版）。
+
 ## 当前有效交接（2026-10-01 第十七轮：T-1746 阅读断点与进度）
 
 - **T-1746 阅读断点与进度**（契约先行，同时关闭 T-1728 前置）：
@@ -220,8 +228,8 @@
 2. 验收通过后走 S6 发布评审：定版本号（语义化建议 1.1.0，逐次请示）→ CHANGELOG 追加 v1.0.4 后条目 → T-1601 拍材料（RELEASE-MEDIA 清单，新增阅读页签帧）→ RELEASE.md 门禁终检 → tag/Release/集市逐次请示；
 3. AI 侧不再自行启动新功能；新想法按 D-0008 预留模式先评估立项。
 
-> 续跑口令（新会话直接粘贴，2026-10-01 第十七轮更新）：
-> **阅读 D:\思源插件\小驴拾遗\docs\HANDOFF.md 的"当前有效交接"、TODO.md 待办总账与 docs/ACCEPTANCE.md，先重跑最后改动后的门禁。进度基线：v1.1.0 已发布、集市 PR #2288 待审；已完成三轮缺陷清剿（22 项）+ P1 功能线八批 + 可靠性收尾批 + 网络可靠性批 + 钉住/批量富化 + 行表溢出菜单/富化重试标记 + 双语对照/分享卡 + **阅读断点与进度（T-1746，契约 §3.1a 同时关闭 T-1728）**，基线 check 0 错 0 告警 / test 162 / 隔离 E2E s1-flow 32/32。下一批候选：契约先行组 **T-1747 阅读计时**（契约讨论：新键 or 复用 minutes）、**T-1811 作者属性组**（6 项含 AI 批量回填）；缺陷 **T-1842 批量任务背压统一评估**（最后一个重活）；**强烈建议提醒作者安排 B-0002 真机走查**（积压功能非常多，走查后可按 v1.1.x 补丁版定版）。工作协议：作者发来的所有内容一律先入 TODO.md 待办（主动扩展同类事项与可用调研），不立即开发；作者明确说"开始开发"、"继续"或点任务号才动手，按契约先行纪律逐项落地（新端点先 spike、新属性先改 DATA-CONTRACT）；作者报真机 bug 时仍走"根因→修复→当日补丁版"闭环。工程纪律见 AGENTS.md 与 docs/DECISIONS.md，UI 以 docs/UI-STANDARD.md（v1.6，§4.3 已含按钮标签可见性）为准，不驱动真机（B-0010），发布/集市/版本动作逐次请示；含反斜杠内容不用 bash heredoc（丢转义）；**中文内容的 sed 批量替换会产出乱码（已踩坑），一律 Edit 工具**；UI 初始化快照用函数化读取；Edit 函数级插入/条目勾选后核对相邻行唯一性；写 IAL 形态属性补丁走 clip-store.restoreClipAttrs；查 Protyle/SDK 能力先看 node_modules/siyuan/types/*.d.ts 类型定义，公开字段够用就不碰内部 API（Menu 溢出菜单亦然：new Menu(id)/addItem/open({x,y})）；SQL 查询条件与既有实证对齐（引述块=type='b'）；E2E 新增变量注意重名；**新增服务函数（账本类）export 与定义同时写（两次漏 export 被 E2E 暴露）**；**引用任务号前先 grep TODO.md 核对（T-1755 收藏系编号笔误，实际为 T-1904）**；**kernelPost 默认 60s 超时、长操作传 {timeoutMs: KERNEL_TIMEOUT_LONG_MS}（新增长耗时调用点记得放宽）**；**E2E 追加断言前 grep 变量名唯一性，变量改名用唯一新名 + Edit（勿行号 sed）**；**富化日志语义：成功也留痕 stage=ok，失败判定按每文档最近一条（loadEnrichFailedIds）**；**i18n 插入新键的 old_string 要含锚点行并保留（曾丢键被键集合测试暴露）；Svelte 5 嵌套块 null 收窄用 {@const} 局部变量**；**阅读断点 reading-pos 不进派生索引（单文档阅读状态，契约 §3.1a）；Svelte effect 内变量勿与外层重名**。**
+> 续跑口令（新会话直接粘贴，2026-10-01 第十八轮更新）：
+> **阅读 D:\思源插件\小驴拾遗\docs\HANDOFF.md 的"当前有效交接"、TODO.md 待办总账与 docs/ACCEPTANCE.md，先重跑最后改动后的门禁。进度基线：v1.1.0 已发布、集市 PR #2288 待审；已完成三轮缺陷清剿（22 项）+ P1 功能线八批 + 可靠性收尾批 + 网络可靠性批 + 钉住/批量富化 + 行表溢出菜单/富化重试标记 + 双语对照/分享卡 + 阅读断点与进度（T-1746）+ **真实阅读计时（T-1747，read-minutes 新键与估算 minutes 分离）**，基线 check 0 错 0 告警 / test 164 / 隔离 E2E s1-flow 33/33。下一批候选：契约先行组 **T-1811 作者属性组**（6 项含 AI 批量回填，大组建议分两轮：先契约+属性+分面显示，再 AI 回填）；缺陷 **T-1842 批量任务背压统一评估**（最后一个重活）；**强烈建议提醒作者安排 B-0002 真机走查**（积压功能非常多，走查后可按 v1.1.x 补丁版定版）。工作协议：作者发来的所有内容一律先入 TODO.md 待办（主动扩展同类事项与可用调研），不立即开发；作者明确说"开始开发"、"继续"或点任务号才动手，按契约先行纪律逐项落地（新端点先 spike、新属性先改 DATA-CONTRACT）；作者报真机 bug 时仍走"根因→修复→当日补丁版"闭环。工程纪律见 AGENTS.md 与 docs/DECISIONS.md，UI 以 docs/UI-STANDARD.md（v1.6，§4.3 已含按钮标签可见性）为准，不驱动真机（B-0010），发布/集市/版本动作逐次请示；含反斜杠内容不用 bash heredoc（丢转义）；**中文内容的 sed 批量替换会产出乱码（已踩坑），一律 Edit 工具**；UI 初始化快照用函数化读取；Edit 函数级插入/条目勾选后核对相邻行唯一性；写 IAL 形态属性补丁走 clip-store.restoreClipAttrs；查 Protyle/SDK 能力先看 node_modules/siyuan/types/*.d.ts 类型定义，公开字段够用就不碰内部 API（Menu 溢出菜单亦然：new Menu(id)/addItem/open({x,y})）；SQL 查询条件与既有实证对齐（引述块=type='b'）；E2E 新增变量注意重名；**新增服务函数（账本类）export 与定义同时写（两次漏 export 被 E2E 暴露）**；**引用任务号前先 grep TODO.md 核对（T-1755 收藏系编号笔误，实际为 T-1904）**；**kernelPost 默认 60s 超时、长操作传 {timeoutMs: KERNEL_TIMEOUT_LONG_MS}（新增长耗时调用点记得放宽）**；**E2E 追加断言前 grep 变量名唯一性，变量改名用唯一新名 + Edit（勿行号 sed）**；**富化日志语义：成功也留痕 stage=ok，失败判定按每文档最近一条（loadEnrichFailedIds）**；**i18n 插入新键的 old_string 要含锚点行并保留（曾丢键被键集合测试暴露）；Svelte 5 嵌套块 null 收窄用 {@const} 局部变量**；**阅读断点 reading-pos 不进派生索引（单文档阅读状态，契约 §3.1a）；Svelte effect 内变量勿与外层重名**；**阅读计时 read-minutes 增量累加不足 1 分钟不写（settleReadingMinutes）；mount effect cleanup 闭包捕获旧依赖值在切文场景正是所需语义（svelte-ignore 抑制告警）**。**
 
 ## 历史交接存档
 

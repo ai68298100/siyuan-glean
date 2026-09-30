@@ -411,6 +411,7 @@
   "reader.aiTranslateFull": "全文翻译",
   "reader.bilingualTitle": "双语对照 · 译文",
   "reader.readingProgress": "阅读进度（按已过内容块估计）",
+  "reader.sessionMinutes": "本次阅读 ${n} 分钟",
   "reader.outline": "本文大纲",
   "reader.outlineMiss": "未找到该标题位置（可能在折叠区内）",
   "reader.ttsSpeak": "朗读",
