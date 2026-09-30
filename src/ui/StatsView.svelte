@@ -5,7 +5,7 @@ import type { GleanFacade } from "../types";
 import { t } from "../libs/i18n";
 import type { GleanIndex } from "../services/index-store";
 import { buildStats, exportWeeklyReport } from "../services/stats-service";
-import type { ReadingStats } from "../domain/stats";
+import { readingHeatmap, type HeatmapGrid, type ReadingStats } from "../domain/stats";
 
 interface Props {
     facade: GleanFacade;
@@ -19,6 +19,26 @@ const i18n = $derived(facade.i18n);
 
 let stats = $state<ReadingStats | null>(null);
 let exporting = $state(false);
+
+const HEATMAP_WEEKS = 26;
+
+// T-1770：近半年阅读热力图（只认 doneTime，D-0028 契约）
+const heatmap = $derived.by<HeatmapGrid | null>(() => {
+    if (!stats) return null;
+    const doneTimes = Object.values(index.clips).map((clip) => clip.doneTime);
+    return readingHeatmap(doneTimes, HEATMAP_WEEKS);
+});
+
+function heatLevel(count: number, max: number): number {
+    if (count <= 0 || max <= 0) return 0;
+    // 四档强度（含零档）：按相对最大值的 1/4 分档，至少一档
+    return Math.min(4, 1 + Math.floor(((count - 1) / Math.max(max, 1)) * 4));
+}
+
+function heatCellLabel(cell: { date: string; count: number }): string {
+    const date = `${cell.date.slice(0, 4)}-${cell.date.slice(4, 6)}-${cell.date.slice(6, 8)}`;
+    return cell.count > 0 ? `${date} · ${t(i18n, "stats.heatDay", { n: cell.count })}` : date;
+}
 
 const spark = $derived.by<number[]>(() => {
     if (!stats) return [];
@@ -103,6 +123,31 @@ $effect(() => {
                     {#each stats.byTag as tag (tag.name)}
                         <span class="glean-tag">{tag.name} ×{tag.count}</span>
                     {/each}
+                </div>
+            </div>
+        {/if}
+
+        {#if heatmap && heatmap.totalDone > 0}
+            <div class="glean-sect">{t(i18n, "stats.heatmap", { n: HEATMAP_WEEKS })}</div>
+            <div class="glean-block glean-heat-block">
+                <!-- T-1770/T-1976：格子附 aria-label 文本替代，另给文字摘要，不单靠颜色表达事实 -->
+                <div class="glean-heat" role="img" aria-label={t(i18n, "stats.heatmapSummary", { total: heatmap.totalDone, days: heatmap.activeDays })}>
+                    {#each heatmap.cells as cell (cell.date)}
+                        <i
+                            class="glean-heat__cell glean-heat__cell--l{heatLevel(cell.count, heatmap.maxCount)}"
+                            title={heatCellLabel(cell)}
+                        ></i>
+                    {/each}
+                </div>
+                <div class="glean-heat__meta">
+                    <span>{t(i18n, "stats.heatmapSummary", { total: heatmap.totalDone, days: heatmap.activeDays })}</span>
+                    <span class="glean-heat__scale">
+                        <i class="glean-heat__cell glean-heat__cell--l0"></i>
+                        <i class="glean-heat__cell glean-heat__cell--l1"></i>
+                        <i class="glean-heat__cell glean-heat__cell--l2"></i>
+                        <i class="glean-heat__cell glean-heat__cell--l3"></i>
+                        <i class="glean-heat__cell glean-heat__cell--l4"></i>
+                    </span>
                 </div>
             </div>
         {/if}

@@ -2,7 +2,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { aggregateStats, buildWeeklyReportMarkdown, weeklyReportDocPath, type StatsInput } from "../src/domain/stats.ts";
+import { aggregateStats, buildWeeklyReportMarkdown, readingHeatmap, weeklyReportDocPath, type StatsInput } from "../src/domain/stats.ts";
 
 function item(partial: Partial<StatsInput>): StatsInput {
     return {
@@ -115,4 +115,35 @@ test("buildWeeklyReportMarkdown：含概览/已读列表/分布", () => {
     assert.ok(md.includes("深度文章"));
     assert.ok(md.includes("a.com"));
     assert.ok(md.includes("siyuan://blocks/"));
+});
+
+test("readingHeatmap：按 doneTime 聚合周列网格，当前周截断到今天（T-1770）", () => {
+    // 2026-09-29 是周二；3 周网格从 09-14（周一）开始，到 09-29 截断
+    const grid = readingHeatmap(
+        [
+            "20260929080000", // 今天
+            "20260929120000", // 今天第二篇
+            "20260928000000", // 昨天
+            "20260915000000", // 第一周
+            "bad-stamp",
+            "",
+        ],
+        3,
+        NOW
+    );
+    assert.equal(grid.cells.length, 16); // 09-14..09-29 = 14+2 天（两周 7 天 + 当前周 2 天）
+    assert.equal(grid.cells[0].date, "20260914");
+    const today = grid.cells[grid.cells.length - 1];
+    assert.equal(today.date, "20260929");
+    assert.equal(today.count, 2);
+    assert.equal(grid.maxCount, 2);
+    assert.equal(grid.activeDays, 3);
+    assert.equal(grid.totalDone, 4);
+});
+
+test("readingHeatmap：空输入给全零网格（当前周截断）", () => {
+    const grid = readingHeatmap([], 2, NOW); // 09-21（周一）..09-29 = 9 天
+    assert.equal(grid.cells.length, 9);
+    assert.equal(grid.maxCount, 0);
+    assert.equal(grid.totalDone, 0);
 });

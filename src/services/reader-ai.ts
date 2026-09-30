@@ -7,7 +7,7 @@
 import type { Plugin } from "siyuan";
 import { exportMdContent } from "../api/client";
 import { stripMarkdown } from "../domain/migrate";
-import { buildSummarizePrompt, buildTranslatePrompt } from "../domain/reader";
+import { buildAskPrompt, buildSummarizePrompt, buildTranslatePrompt, clampAskQuestion } from "../domain/reader";
 import { aiQuotaAvailable, callLLM, logAiEvent, recordAiUsage, runAiTask } from "./enrich-service";
 import { writeClip } from "./clip-store";
 import type { GleanSettings } from "./settings";
@@ -71,4 +71,34 @@ async function readerTranslateInner(plugin: Plugin, docId: string, text: string,
 /** 用户显式保存总结为 AI 摘要（既有 custom-clip-summary 属性；summary 非手填保护字段）。 */
 export async function saveReaderSummary(plugin: Plugin, docId: string, text: string): Promise<void> {
     await writeClip(plugin, docId, { summary: text });
+}
+
+/**
+ * "问这篇文章"（T-1760）：限定上下文=本文全文的单轮动作，不做追问、不做聊天窗
+ * （铁律 8/D-0030）。额度与富化/伴读共享（T-1883 租约），失败静默降级。
+ */
+export function readerAsk(plugin: Plugin, docId: string, question: string, settings: GleanSettings): Promise<ReaderAiOutcome> {
+    const normalized = clampAskQuestion(question);
+    if (!readerAiEnabled(settings)) return Promise.resolve({ ok: false, skipped: "off" });
+    if (!normalized) return Promise.resolve({ ok: false, skipped: "error" });
+    return runAiTask(() => readerAskInner(plugin, docId, normalized, settings));
+}
+
+async function readerAskInner(plugin: Plugin, docId: string, question: string, settings: GleanSettings): Promise<ReaderAiOutcome> {
+    if (!(await aiQuotaAvailable(plugin, settings))) return { ok: false, skipped: "cap" };
+    try {
+        const exported = await exportMdContent(docId);
+        const markdown = exported?.content ?? "";
+        const title = markdown.match(/^#\s+(.+)$/m)?.[1]?.trim() ?? "";
+        const llm = await callLLM(plugin, settings, buildAskPrompt(title, stripMarkdown(markdown), question));
+        if (!llm.ok) {
+            await logAiEvent(plugin, docId, "reader-ask", llm.reason || "调用失败");
+            return { ok: false, skipped: "error" };
+        }
+        await recordAiUsage(plugin);
+        return { ok: true, text: String(llm.text ?? "").trim() };
+    } catch (error) {
+        await logAiEvent(plugin, docId, "reader-ask", String((error as Error)?.message ?? error));
+        return { ok: false, skipped: "error" };
+    }
 }

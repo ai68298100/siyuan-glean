@@ -185,3 +185,59 @@ function formatWords(words: number): string {
     if (words >= 10_000) return `${(words / 10_000).toFixed(1)} 万`;
     return String(words);
 }
+
+/* ---------- 阅读热力图（T-1770） ---------- */
+
+export interface HeatmapCell {
+    /** 本地日期 YYYYMMDD */
+    date: string;
+    /** 当日显式完成篇数（D-0028：只认 doneTime） */
+    count: number;
+}
+
+export interface HeatmapGrid {
+    /** 旧→新、按列（周）排列的格子；当前周截断到今天 */
+    cells: HeatmapCell[];
+    /** 网格内最大单日完成数（分档用；全 0 时为 0） */
+    maxCount: number;
+    /** 有完成记录的天数 */
+    activeDays: number;
+    /** 网格覆盖的完成总数 */
+    totalDone: number;
+}
+
+/**
+ * 按可信完成时间生成热力图网格（列=周、行=周一..周日）。
+ * 只统计 14 位时间戳的 doneTime；未来的格子（当前周 tail）不出现在结果里。
+ */
+export function readingHeatmap(doneTimes: string[], weeks: number, now: Date = new Date()): HeatmapGrid {
+    const counts = new Map<string, number>();
+    for (const stamp of doneTimes) {
+        if (!/^\d{14}$/.test(stamp)) continue;
+        const key = stamp.slice(0, 8);
+        counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12);
+    // 列从周一开始（GitHub 风格）；当前列只画到今天，避免出现"未来"的空格子
+    const mondayOffset = (today.getDay() + 6) % 7;
+    const thisMonday = new Date(today);
+    thisMonday.setDate(thisMonday.getDate() - mondayOffset);
+    const start = new Date(thisMonday);
+    start.setDate(start.getDate() - (Math.max(1, weeks) - 1) * 7);
+
+    const cells: HeatmapCell[] = [];
+    let maxCount = 0;
+    let activeDays = 0;
+    let totalDone = 0;
+    for (const day = new Date(start); day <= today; day.setDate(day.getDate() + 1)) {
+        const key = siyuanDate(day);
+        const count = counts.get(key) ?? 0;
+        cells.push({ date: key, count });
+        if (count > maxCount) maxCount = count;
+        if (count > 0) {
+            activeDays += 1;
+            totalDone += count;
+        }
+    }
+    return { cells, maxCount, activeDays, totalDone };
+}

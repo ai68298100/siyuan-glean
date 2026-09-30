@@ -49,3 +49,26 @@ export function buildTranslatePrompt(text: string): string {
         String(text ?? "").slice(0, EXCERPT_MAX_LENGTH),
     ].join("\n");
 }
+
+/** 单字问题长度上限（T-1760：单轮动作，问题本身不该是一篇文章） */
+export const ASK_QUESTION_MAX_LENGTH = 500;
+
+/**
+ * "问这篇文章" prompt（T-1760）：限定上下文=本文全文，单轮、无追问、不做聊天窗。
+ * 只回答与文章相关的问题，拒绝展开成通用对话。
+ */
+export function buildAskPrompt(title: string, plain: string, question: string): string {
+    const heading = title.trim() ? `《${title.trim()}》` : "这篇文章";
+    const trimmed = String(question ?? "").replace(/\s+/g, " ").trim().slice(0, ASK_QUESTION_MAX_LENGTH);
+    return [
+        `请仅依据${heading}的内容回答问题。与文章无关的问题请直接说明只能回答文章相关内容。直接输出答案，不要前缀和客套。`,
+        "文章内容：",
+        String(plain ?? "").slice(0, 8000),
+        "问题：" + (trimmed || "这篇文章讲了什么？"),
+    ].join("\n");
+}
+
+/** 问句规范化：压缩空白并截断；空串表示没有有效问题。 */
+export function clampAskQuestion(question: string): string {
+    return String(question ?? "").replace(/\s+/g, " ").trim().slice(0, ASK_QUESTION_MAX_LENGTH);
+}

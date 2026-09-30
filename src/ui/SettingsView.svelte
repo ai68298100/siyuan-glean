@@ -20,28 +20,58 @@ let { facade }: Props = $props();
 const i18n = $derived(facade.i18n);
 
 let notebooks = $state<NotebookMeta[]>([]);
-let anchorNotebooks = $state<string[]>(facade.settings.anchorNotebooks);
-let aiEnrichMode = $state<"off" | "manual" | "auto">(facade.settings.ai.enrichMode);
-let aiDailyCap = $state(facade.settings.ai.enrichDailyCap);
-let aiDedup = $state(facade.settings.ai.dedupOnEnrich);
-let aiRelated = $state(facade.settings.ai.relatedWhileReading);
-let aiActions = $state(facade.settings.ai.presetActions);
+
+/**
+ * 表单编辑态 = 打开设置弹窗时刻的设置快照（T-1790）：
+ * 经函数读取 props 初始值，消除"顶层本地引用响应式值"告警，语义也更明确。
+ */
+function snapshotFormState() {
+    const s = facade.settings;
+    return {
+        anchorNotebooks: [...s.anchorNotebooks],
+        aiEnrichMode: s.ai.enrichMode,
+        aiDailyCap: s.ai.enrichDailyCap,
+        aiDedup: s.ai.dedupOnEnrich,
+        aiRelated: s.ai.relatedWhileReading,
+        aiActions: s.ai.presetActions,
+        dailyCount: s.resurface.dailyCount,
+        includeDone: s.resurface.includeDoneHighlights,
+        inboxQuota: s.inboxQuota,
+        staleDays: s.staleDays,
+        aiChannel: s.ai.channel,
+        customBaseUrl: s.ai.customBaseUrl,
+        customModel: s.ai.customModel,
+        customSecretName: s.ai.customSecretName,
+        checkinEnabled: s.integration.checkinEnabled,
+        checkinItemId: s.integration.checkinItemId,
+        readerOpenInTab: s.reader.openInTab,
+        readerMode: s.reader.defaultMode,
+    };
+}
+const formInit = snapshotFormState();
+
+let anchorNotebooks = $state<string[]>(formInit.anchorNotebooks);
+let aiEnrichMode = $state<"off" | "manual" | "auto">(formInit.aiEnrichMode);
+let aiDailyCap = $state(formInit.aiDailyCap);
+let aiDedup = $state(formInit.aiDedup);
+let aiRelated = $state(formInit.aiRelated);
+let aiActions = $state(formInit.aiActions);
 let usageCount = $state(0);
-let dailyCount = $state(facade.settings.resurface.dailyCount);
-let includeDone = $state(facade.settings.resurface.includeDoneHighlights);
-let inboxQuota = $state(facade.settings.inboxQuota);
-let staleDays = $state(facade.settings.staleDays);
+let dailyCount = $state(formInit.dailyCount);
+let includeDone = $state(formInit.includeDone);
+let inboxQuota = $state(formInit.inboxQuota);
+let staleDays = $state(formInit.staleDays);
 let boardBusy = $state(false);
-let aiChannel = $state<"siyuan" | "custom">(facade.settings.ai.channel);
-let customBaseUrl = $state(facade.settings.ai.customBaseUrl);
-let customModel = $state(facade.settings.ai.customModel);
-let customSecretName = $state(facade.settings.ai.customSecretName);
+let aiChannel = $state<"siyuan" | "custom">(formInit.aiChannel);
+let customBaseUrl = $state(formInit.customBaseUrl);
+let customModel = $state(formInit.customModel);
+let customSecretName = $state(formInit.customSecretName);
 let testBusy = $state(false);
-let checkinEnabled = $state(facade.settings.integration.checkinEnabled);
-let checkinItemId = $state(facade.settings.integration.checkinItemId);
+let checkinEnabled = $state(formInit.checkinEnabled);
+let checkinItemId = $state(formInit.checkinItemId);
 let checkinItems = $state<CheckinItemOption[]>([]);
-let readerOpenInTab = $state(facade.settings.reader.openInTab);
-let readerMode = $state<"read" | "edit">(facade.settings.reader.defaultMode);
+let readerOpenInTab = $state(formInit.readerOpenInTab);
+let readerMode = $state<"read" | "edit">(formInit.readerMode);
 
 let aiLog = $state<AiLogEntry[] | null>(null);
 
@@ -242,15 +272,15 @@ async function doMountBoard() {
                     {t(i18n, "settings.aiDedup")}
                     <div class="glean-set-row__desc">{t(i18n, "settings.aiDedupDesc")}</div>
                 </div>
-                <button class="glean-sw" class:glean-sw--on={aiDedup} onclick={() => void toggleAi("dedup")}></button>
+                <button class="glean-sw" class:glean-sw--on={aiDedup} role="switch" aria-checked={aiDedup} aria-label={t(i18n, "settings.aiDedup")} onclick={() => void toggleAi("dedup")}></button>
             </div>
             <div class="glean-set-row">
                 <div class="glean-set-row__lb">{t(i18n, "settings.aiRelated")}</div>
-                <button class="glean-sw" class:glean-sw--on={aiRelated} onclick={() => void toggleAi("related")}></button>
+                <button class="glean-sw" class:glean-sw--on={aiRelated} role="switch" aria-checked={aiRelated} aria-label={t(i18n, "settings.aiRelated")} onclick={() => void toggleAi("related")}></button>
             </div>
             <div class="glean-set-row">
                 <div class="glean-set-row__lb">{t(i18n, "settings.aiSummaryActions")}</div>
-                <button class="glean-sw" class:glean-sw--on={aiActions} onclick={() => void toggleAi("actions")}></button>
+                <button class="glean-sw" class:glean-sw--on={aiActions} role="switch" aria-checked={aiActions} aria-label={t(i18n, "settings.aiSummaryActions")} onclick={() => void toggleAi("actions")}></button>
             </div>
         </div>
     </div>
@@ -313,7 +343,7 @@ async function doMountBoard() {
             </div>
             <div class="glean-set-row">
                 <div class="glean-set-row__lb">{t(i18n, "settings.resurfaceIncludeDone")}</div>
-                <button class="glean-sw" class:glean-sw--on={includeDone} onclick={() => { includeDone = !includeDone; void save(); }}></button>
+                <button class="glean-sw" class:glean-sw--on={includeDone} role="switch" aria-checked={includeDone} aria-label={t(i18n, "settings.resurfaceIncludeDone")} onclick={() => { includeDone = !includeDone; void save(); }}></button>
             </div>
             <div class="glean-set-row">
                 <div class="glean-set-row__lb">{t(i18n, "settings.inboxQuota")}</div>
@@ -349,7 +379,7 @@ async function doMountBoard() {
                     {t(i18n, "settings.checkinEnable")}
                     <div class="glean-set-row__desc">{t(i18n, "settings.checkinEnableDesc")}</div>
                 </div>
-                <button class="glean-sw" class:glean-sw--on={checkinEnabled} onclick={() => void toggleCheckin()}></button>
+                <button class="glean-sw" class:glean-sw--on={checkinEnabled} role="switch" aria-checked={checkinEnabled} aria-label={t(i18n, "settings.checkinEnable")} onclick={() => void toggleCheckin()}></button>
             </div>
             {#if checkinEnabled}
                 <div class="glean-set-row">
@@ -381,6 +411,9 @@ async function doMountBoard() {
                 <button
                     class="glean-sw"
                     class:glean-sw--on={readerOpenInTab}
+                    role="switch"
+                    aria-checked={readerOpenInTab}
+                    aria-label={t(i18n, "settings.readerOpenInTab")}
                     title={t(i18n, "settings.readerOpenInTab")}
                     onclick={() => { readerOpenInTab = !readerOpenInTab; void save(); }}
                 ></button>

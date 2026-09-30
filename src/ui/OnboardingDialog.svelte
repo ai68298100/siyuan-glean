@@ -19,7 +19,11 @@ const i18n = $derived(facade.i18n);
 
 let step = $state(1);
 let notebooks = $state<NotebookMeta[]>([]);
-let anchorNotebooks = $state<string[]>(facade.settings.anchorNotebooks);
+/** 引导初值 = 打开弹窗时的锚点快照（T-1790：经函数读取 props，消除顶层本地引用）。 */
+function snapshotAnchorNotebooks(): string[] {
+    return [...facade.settings.anchorNotebooks];
+}
+let anchorNotebooks = $state<string[]>(snapshotAnchorNotebooks());
 
 let scanning = $state(false);
 let scanFailed = $state(false);

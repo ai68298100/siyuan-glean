@@ -25,7 +25,8 @@
     import { makeQuoteCard } from "../services/flashcard-service";
     import { findRelated } from "../services/enrich-service";
     import { pickNextUnread } from "../services/resurface-service";
-    import { readerAiEnabled, readerSummarize, readerTranslate, saveReaderSummary } from "../services/reader-ai";
+    import { readerAiEnabled, readerAsk, readerSummarize, readerTranslate, saveReaderSummary } from "../services/reader-ai";
+    import { clampAskQuestion } from "../domain/reader";
     import ClipStatusActions from "./ClipStatusActions.svelte";
     import ClipRankControls from "./ClipRankControls.svelte";
 
@@ -36,8 +37,16 @@
     let { facade }: Props = $props();
     const i18n = $derived(facade.i18n);
 
-    let docId = $state(facade.consumeReaderFocus());
-    let mode = $state<"read" | "edit">(facade.settings.reader.defaultMode);
+    /** 页签初值 = 挂载时刻的会话状态快照（T-1790：经函数读取 props，消除顶层本地引用）。 */
+    function readerInitState() {
+        return {
+            docId: facade.consumeReaderFocus(),
+            defaultMode: facade.settings.reader.defaultMode,
+        };
+    }
+    const readerInit = readerInitState();
+    let docId = $state(readerInit.docId);
+    let mode = $state<"read" | "edit">(readerInit.defaultMode);
     let protyleHost = $state<HTMLDivElement | null>(null);
     let context = $state<ReadingClipContext | null>(null);
     let measuring = $state(false);
@@ -59,9 +68,13 @@
             : t(i18n, "reader.aiChannelSiyuan")
     );
     let aiBusy = $state("");
-    let aiResult = $state<{ kind: "summarize" | "translate"; action: string; text: string } | null>(null);
+    let aiResult = $state<{ kind: "summarize" | "translate" | "ask"; action: string; text: string } | null>(null);
     let relatedItems = $state<Array<{ id: string; title: string }>>([]);
     let relatedShown = $state(false);
+
+    // T-1760 问这篇文章：单轮动作（无追问、不做聊天窗）；问题文本只是输入，不落任何存储
+    let askInput = $state("");
+    let askActionLabel = $derived(t(i18n, "reader.aiAsk"));
 
     function modeValue(value: "read" | "edit"): "preview" | "wysiwyg" {
         return value === "edit" ? "wysiwyg" : "preview";
@@ -136,6 +149,7 @@
         relatedShown = false;
         relatedItems = [];
         excerpt = null;
+        askInput = "";
     }
 
     async function quoteExcerpt(): Promise<void> {
@@ -211,6 +225,30 @@
             relatedItems = await findRelated(context.id, context.title);
             relatedShown = true;
             if (relatedItems.length === 0) showMessage(t(i18n, "reader.relatedNone"), 3000);
+        } finally {
+            aiBusy = "";
+        }
+    }
+
+    /** T-1760：单轮"问这篇文章"——本文全文为上下文，一次一问，结果卡可复制。 */
+    async function runAsk(): Promise<void> {
+        if (!context || aiBusy) return;
+        const question = clampAskQuestion(askInput);
+        if (!question) {
+            showMessage(t(i18n, "reader.askEmpty"), 2500);
+            return;
+        }
+        aiBusy = "ask";
+        try {
+            const outcome = await readerAsk(facade.pluginInstance, context.id, question, facade.settings);
+            if (outcome.ok && outcome.text) {
+                aiResult = { kind: "ask", action: askActionLabel, text: outcome.text };
+                askInput = "";
+            } else if (outcome.skipped === "cap") {
+                showMessage(t(i18n, "ai.capReached", { n: facade.settings.ai.enrichDailyCap }), 4000);
+            } else if (outcome.skipped !== "off") {
+                showMessage(t(i18n, "ai.enrichFailed"), 3000);
+            }
         } finally {
             aiBusy = "";
         }
@@ -504,6 +542,30 @@
                                     </button>
                                 {/if}
                             </div>
+                            {#if aiOn}
+                                <!-- T-1760 问这篇文章：单轮输入，无会话、无追问（不做聊天窗） -->
+                                <div class="glean-reader__ask">
+                                    <input
+                                        class="glean-mini-input glean-reader__ask-input"
+                                        type="text"
+                                        placeholder={t(i18n, "reader.askPlaceholder")}
+                                        aria-label={t(i18n, "reader.aiAsk")}
+                                        bind:value={askInput}
+                                        maxlength={500}
+                                        onkeydown={(event) => {
+                                            if (event.key === "Enter" && !aiBusy) {
+                                                event.preventDefault();
+                                                void runAsk();
+                                            }
+                                        }}
+                                    />
+                                    <button
+                                        class="glean-btn glean-btn--ghost"
+                                        disabled={Boolean(aiBusy)}
+                                        onclick={() => void runAsk()}
+                                    >{t(i18n, "reader.aiAsk")}</button>
+                                </div>
+                            {/if}
                             {#if aiResult}
                                 <div class="glean-reader__ai-card">
                                     <div class="glean-reader__ai-src">

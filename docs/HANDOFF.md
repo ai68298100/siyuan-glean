@@ -1,5 +1,15 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-01 第四轮：P1 功能线第一批 T-1770/T-1760/T-1790）
+
+- 缺陷清剿三轮收官后按续跑口令转 **P1 功能线**，本轮交付三项功能/质量项。
+- **T-1770 阅读热力图**：`domain/stats.readingHeatmap(doneTimes, weeks, now)` 纯函数——输入 doneTime 数组，输出周列网格（列=周、行=周一..周日、当前周截断到今天）+ maxCount/activeDays/totalDone；StatsView 渲染近 26 周网格（`.glean-heat` CSS grid auto-flow column，b3 主色 opacity 五档 `--l0..l4`），逐格 `role="img"` + aria-label 与文字摘要双通道（兼顾 T-1976 图表文本替代）。年度跨度只需调 HEATMAP_WEEKS。
+- **T-1760 问这篇文章**：`domain/reader.buildAskPrompt`（上下文=本文全文 8000 字截断、无关问题要求拒答、`clampAskQuestion` 500 字上限）+ `reader-ai.readerAsk`（runAiTask 租约、额度共享、失败静默写 ai-log）+ ReaderTab 伴生栏 AI 段新增单轮输入行（Enter 提交、aiResult.kind="ask" 结果卡带 AI 来源标记、切文清空）。**不做追问/会话/聊天窗**（铁律 8/D-0030）；选区上下文版本与 T-1726 翻译重叠暂不做。
+- **T-1790 a11y 清零**：svelte-check **39→0 告警**。修法沉淀：①可点击 div（role=button/tabindex）统一补 `onkeydown` Enter/Space（DockPanel 用 `activateOnKey(handler)` 辅助）；②看板拖放列补 `role="group"` + aria-label；③多选 `<label onclick>` 事件移入内部 input（label 保持无事件）；④六枚 `.glean-sw` 补 `role="switch"`/`aria-checked`/`aria-label`（T-1971 开关部分顺带完成）；⑤**25 条 `state_referenced_locally`（表单 `$state(facade.settings.x)` 初始化快照）经"快照函数化"消除**——把 props 读取包进 `function snapshotFormState()` 再在顶层调用，静态分析不再报且语义更显式；⑥bind:this 目标转 `$state`。
+- 门禁：check 0 错误 **0 告警**（历史最佳）、test **140/140**、build 通过、E2E **21/21**。未发布新版本。
+- 提交序列：0d70bfc（P0）→ a32d4ec（P1-I）→ f77e2f2（P1-II）→ 本轮（见 git log）。集市 PR #2288 待审。
+- 下一批功能线候选：T-1750 全库摘录墙（新视图+全库引述块查询，体量较大）、T-1780 一键备份恢复（契约先行改 DATA-CONTRACT）、T-1740 本文大纲（先 spike heading SQL/Protyle outline）、T-1744 TTS（桌面端 voice spike）、T-1771 月度回顾报告（复用周报管线，轻）。
+
 ## 当前有效交接（2026-10-01 第三轮：P1 可靠性批次 II T-1956/1957/1968/1984/1988/1989）
 
 - 按续跑口令继续，本轮清掉六项 P1 缺陷，未做新功能。剩余 P1 缺陷已不多且多为重活（半成功账本组 T-1840/1841/1963、T-1967 超时取消、T-1978 统一失败处理、T-1975 的 partial 展示），**建议下一轮转 P1 功能线**。
@@ -101,8 +111,8 @@
 2. 验收通过后走 S6 发布评审：定版本号（语义化建议 1.1.0，逐次请示）→ CHANGELOG 追加 v1.0.4 后条目 → T-1601 拍材料（RELEASE-MEDIA 清单，新增阅读页签帧）→ RELEASE.md 门禁终检 → tag/Release/集市逐次请示；
 3. AI 侧不再自行启动新功能；新想法按 D-0008 预留模式先评估立项。
 
-> 续跑口令（新会话直接粘贴，2026-10-01 第三轮更新）：
-> **阅读 D:\思源插件\小驴拾遗\docs\HANDOFF.md 的"当前有效交接"、TODO.md 待办总账与 docs/ACCEPTANCE.md，先重跑最后改动后的门禁。进度基线：v1.1.0 已发布、集市 PR #2288 待审；缺陷清剿三轮已完成——P0 批次（T-1881/1882/1883/1885/1979/1980/1987）、P1 可靠性批次 I（T-1839/1884/1955/1958/1961/1975/1981/1985/1990）、P1 可靠性批次 II（T-1956/1957/1968/1984/1988/1989），基线 check 0 错 / test 136 / 隔离 E2E s1-flow 21/21；剩余 P1 缺陷多为重活（半成功账本组 T-1840/1841/1963、T-1967 超时取消、T-1978 统一失败处理），建议下一轮转 P1 功能线：T-1740 本文大纲（先 spike Protyle outline/heading SQL）、T-1744 TTS（先 spike 桌面端 voice）、T-1750 全库摘录墙、T-1760 问这篇文章、T-1770 阅读热力图、T-1780 一键备份恢复（先改 DATA-CONTRACT）、T-1790 a11y 清零。工作协议：作者发来的所有内容一律先入 TODO.md 待办（主动扩展同类事项与可用调研），不立即开发；作者明确说"开始开发"、"继续"或点任务号才动手，按契约先行纪律逐项落地（新端点先 spike、新属性先改 DATA-CONTRACT）；作者报真机 bug 时仍走"根因→修复→当日补丁版"闭环。工程纪律见 AGENTS.md 与 docs/DECISIONS.md，UI 以 docs/UI-STANDARD.md（v1.6）为准，不驱动真机（B-0010），发布/集市/版本动作逐次请示；含反斜杠的代码/测试内容不用 bash heredoc 写入（丢转义，已两次踩坑）。**
+> 续跑口令（新会话直接粘贴，2026-10-01 第四轮更新）：
+> **阅读 D:\思源插件\小驴拾遗\docs\HANDOFF.md 的"当前有效交接"、TODO.md 待办总账与 docs/ACCEPTANCE.md，先重跑最后改动后的门禁。进度基线：v1.1.0 已发布、集市 PR #2288 待审；已完成三轮缺陷清剿（P0 批次 T-1881/1882/1883/1885/1979/1980/1987、P1 批次 I T-1839/1884/1955/1958/1961/1975/1981/1985/1990、P1 批次 II T-1956/1957/1968/1984/1988/1989）+ P1 功能线第一批（T-1770 阅读热力图、T-1760 问这篇文章、T-1790 a11y 清零），基线 check 0 错 0 告警 / test 140 / 隔离 E2E s1-flow 21/21。下一批功能线候选：T-1750 全库摘录墙、T-1780 一键备份恢复（先改 DATA-CONTRACT）、T-1740 本文大纲（先 spike heading SQL）、T-1744 TTS（先 spike 桌面端 voice）、T-1771 月度回顾报告；剩余重活缺陷 T-1840/1841/1963 半成功账本组、T-1967 超时取消、T-1978 统一失败处理。工作协议：作者发来的所有内容一律先入 TODO.md 待办（主动扩展同类事项与可用调研），不立即开发；作者明确说"开始开发"、"继续"或点任务号才动手，按契约先行纪律逐项落地（新端点先 spike、新属性先改 DATA-CONTRACT）；作者报真机 bug 时仍走"根因→修复→当日补丁版"闭环。工程纪律见 AGENTS.md 与 docs/DECISIONS.md，UI 以 docs/UI-STANDARD.md（v1.6）为准，不驱动真机（B-0010），发布/集市/版本动作逐次请示；含反斜杠的代码/测试不用 bash heredoc 写入（丢转义）；UI 组件初始化快照用函数化读取消除 state_referenced_locally（见 T-1790 修法）。**
 
 ## 历史交接存档
 

@@ -1,5 +1,15 @@
 # 进度（PROGRESS）
 
+## P1 功能线第一批（续跑口令驱动，2026-10-01）✅
+
+缺陷清剿三轮收官后转功能线，本轮三项（T-1770/T-1760/T-1790）：
+
+- [x] **T-1770 阅读热力图**：`domain/stats.readingHeatmap` 纯函数（按 doneTime 聚合周列网格、当前周截断、单测 2 组）+ StatsView 近 26 周热力图（b3 主色 opacity 五档、逐格 aria-label + 文字摘要，兼顾 T-1976）。
+- [x] **T-1760 问这篇文章**：`buildAskPrompt`（上下文=本文全文、无关问题拒答、问句 500 字上限）+ `readerAsk`（T-1883 租约队列、额度共享、失败静默）+ 伴生栏单轮输入行（Enter 提交、AI 来源标记结果卡、切文清空）。不做追问、不做聊天窗（铁律 8）。
+- [x] **T-1790 a11y 清零**：**svelte-check 0 告警达成**（39→0）——可点击卡片补键盘等价（Enter/Space 配对 role=button）、看板拖放列 role=group、多选 label 事件移入 input、六枚开关补 role=switch/aria-checked/aria-label（T-1971 开关部分顺带完成）、25 条 state_referenced_locally 经"初始化快照函数化"消除、fileInput 转 $state。
+- [x] i18n 新增双名键 7 个（stats.heatmap 系列 + reader.aiAsk 系列）。
+- [x] 门禁：check 0 错误 **0 告警**、test **140/140**（+4）、build 通过、隔离 E2E **21/21**。未发布新版本；真实 AI 效果待 B-0004，屏读器/键盘真机随 T-1858/B-0002。
+
 ## P1 可靠性批次 II（续跑口令驱动，2026-10-01）✅
 
 继续清剩余 P1 缺陷，本轮六项（T-1956/1957/1968/1984/1988/1989），未做新功能：

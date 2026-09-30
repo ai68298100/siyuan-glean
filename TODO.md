@@ -157,7 +157,7 @@
 
 ### AI 强化（T-1760 组）
 
-- [ ] T-1760（P1）"问这篇文章"单轮动作：限定上下文=本文/选区，动作+结果卡（与 D-0030"不做通用聊天窗"口径一致，单轮不追问）。
+- [x] T-1760（P1）"问这篇文章"单轮动作：限定上下文=本文/选区，动作+结果卡（与 D-0030"不做通用聊天窗"口径一致，单轮不追问）。（2026-10-01；`domain/reader.buildAskPrompt`（上下文=本文全文、无关问题拒答提示、问句 500 字上限）+ `reader-ai.readerAsk`（T-1883 租约队列、额度共享、失败静默）+ ReaderTab 伴生栏输入行（Enter 提交、结果卡同款 AI 来源标记、切文清空）；选区上下文版本暂不做——与 T-1726 翻译重叠；真实模型效果待 B-0004）
 - [ ] T-1761（P2）AI 标签规范化：富化时对照库内已有 AI 标签提示同义合并（如 机器学习/ML），用户确认后改写 custom-clip-ai-tags（非手填字段，但要展示 diff）。
 - [ ] T-1762（P2）批量富化：多选文章逐个入串行队列（额度统一把守，进度提示）。
 - [ ] T-1763（P2）富化失败重试入口：富化失败的卡显示可重试标记（数据已在 ai-log），一键重跑。
@@ -166,7 +166,7 @@
 
 ### 统计与回顾（T-1770 组）
 
-- [ ] T-1770（P1，远期池转正）阅读热力图：按 custom-clip-done-time 画年度热力图（D-0028 契约已就绪）。
+- [x] T-1770（P1，远期池转正）阅读热力图：按 custom-clip-done-time 画年度热力图（D-0028 契约已就绪）。（2026-10-01；`domain/stats.readingHeatmap` 纯函数（周列网格、当前周截断、2 组单测）+ StatsView 近 26 周热力图（b3 主色 opacity 五档、aria-label 逐格文本 + 文字摘要，兼顾 T-1976 图表文本替代）；年度跨度可后续调参数）
 - [ ] T-1771（P2）月度/年度回顾报告：本月读完 N 篇/M 万字/Top 站点与标签，Markdown 导出（复用周报管线）。
 - [ ] T-1772（P3）统计导出 CSV：读库全量属性表导出。
 - [ ] T-1773（P2）收录漏斗：候选→收录→完成各环节转化率一览（用现有候选/状态数据纯投影，不新增写入）。
@@ -246,7 +246,7 @@
 
 ### 工程质量（T-1790 组）
 
-- [ ] T-1790（P1）a11y 清零：39 条 svelte a11y 告警逐条修复（aria-label/role），目标 svelte-check 零告警。
+- [x] T-1790（P1）a11y 清零：39 条 svelte a11y 告警逐条修复（aria-label/role），目标 svelte-check 零告警。（2026-10-01；**0 告警达成**：可点击卡片补 onkeydown Enter/Space 等价（activateOnKey 配对 role=button），看板拖放列补 role=group+aria-label，多选 label 事件移入 input，六枚 .glean-sw 补 role=switch/aria-checked/aria-label（顺带完成 T-1971 的开关部分），25 条 state_referenced_locally 经"初始化快照函数化"消除（表单初值语义不变），fileInput 转 $state；屏读器/焦点顺序真机验收随 T-1858）
 - [ ] T-1791（P2）大库虚拟滚动：行表 1000+ 条时虚拟列表渲染（先实测当前性能定阈值）。
 - [ ] T-1792（P3）键盘完全可达：批量条/筛选器/卡片焦点管理与 Enter 激活。
 - [ ] T-1793（P2）i18n 文案终审：中英双语母语级润色一遍（术语表入 UI-STANDARD）。
@@ -460,7 +460,7 @@
 - [x] T-1968（P1，生命周期）对话框统一销毁：迁移、导入、设置、帮助、浮窗和阅读页签在插件 `onunload`、窗口关闭、异常和重载时卸载 Svelte 实例、事件监听、计时器和 pending 请求；验证不会向已销毁组件写状态。（2026-10-01；index.ts 增 `openDialogs` 登记表，六类弹窗统一入口 `openGleanDialog` + 关闭回执移除，onunload 逐个 close；Svelte 实例由 svelteDialog 的 destroyCallback 回收；pending 请求取消随 T-1967）
 - [ ] T-1969（P1，性能）大库对账与 AV 绑定预算：`indexFromScopes` 对候选逐篇串行导出 Markdown，`bindAllClipsToLibrary` 可能 O(n²)+逐行写入；用 1k/10k 文档测批量/并发上限、取消、跳过未变化行、内存与进度，衔接 T-1859/T-1911。
 - [ ] T-1970（P2，交互一致性）吃灰阈值统一：UI 徽章当前固定约 14 天，而设置 `staleDays` 控制超龄归档；决定徽章、候选清单、重浮理由和统计是否共用阈值，补修改设置后立即刷新、跨时区和未知时间样例。
-- [ ] T-1971（P1，无障碍）控件状态语义：为 `.glean-sw` 增加名称、`role=switch`、`aria-checked`；视图/队列/列表看板/排序方向/笔记本 chips/Inbox、AI 日志和超龄清单折叠补 `aria-current/pressed/expanded/controls`，让状态变化可被屏读器读取，衔接 T-1858/T-1889。
+- [ ] T-1971（P1，无障碍）控件状态语义：为 `.glean-sw` 增加名称、`role=switch`、`aria-checked`（✅ 开关部分已随 T-1790 完成，2026-10-01）；视图/队列/列表看板/排序方向/笔记本 chips/Inbox、AI 日志和超龄清单折叠补 `aria-current/pressed/expanded/controls`，让状态变化可被屏读器读取，衔接 T-1858/T-1889。
 - [ ] T-1972（P1，无障碍+表单）表单标签、描述和动态进度：Import/Migrate/Settings 的输入、select、文件选择器绑定 `label/for` 或 `aria-labelledby/describedby`；导入/迁移/AI/状态 toast 增加 `aria-live` 或 progressbar 的真实值，失败和取消可被读出，衔接 T-1858/T-1893。
 - [ ] T-1973（P1，视觉+键盘）全局 `focus-visible` 令牌：为图标钮、操作钮、rail、分段按钮、角色卡片、筛选器和拖放目标建立主题/高对比可见焦点环；补 Tab 顺序、Esc、焦点回收和宿主主题覆盖测试，衔接 T-1892。
 - [ ] T-1974（P1，响应式）画布断点守门：UI 标准规定 tab 约 600px、看板约 900px，但当前只按根类判断并可在窄 tab 强开看板；用 ResizeObserver/container query 在窄宽自动降级列表/动作 sheet，旋转和软键盘不截断主动作，衔接 T-1823/T-1826/T-1890。

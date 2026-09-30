@@ -254,6 +254,16 @@ function statusDotClass(status: string): string {
     return `glean-dot glean-dot--${status}`;
 }
 
+/** T-1790：可点击卡片的键盘等价（Enter/Space 激活），与 role="button" 配对。 */
+function activateOnKey(handler: () => void) {
+    return (event: KeyboardEvent) => {
+        if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            handler();
+        }
+    };
+}
+
 function staleText(time: string): string | null {
     const days = staleDays(time);
     return days === null ? null : t(i18n, "panel.staleDays", { n: days });
@@ -835,6 +845,8 @@ function metaLine(entry: Row): string {
                     <div
                         class="glean-kcol"
                         class:glean-kcol--over={dragOverCol === col.status}
+                        role="group"
+                        aria-label={col.label}
                         ondragover={(e) => { e.preventDefault(); dragOverCol = col.status; }}
                         ondragleave={() => { if (dragOverCol === col.status) dragOverCol = null; }}
                         ondrop={(e) => {
@@ -856,6 +868,7 @@ function metaLine(entry: Row): string {
                                 ondragstart={(e) => { dragId = entry.id; e.dataTransfer?.setData("text/plain", entry.id); }}
                                 ondragend={() => { dragId = ""; dragOverCol = null; }}
                                 onclick={() => openDoc(entry.id)}
+                                onkeydown={activateOnKey(() => openDoc(entry.id))}
                                 role="button"
                                 tabindex="0"
                             >
@@ -952,6 +965,7 @@ function metaLine(entry: Row): string {
                                         data-glean-clip-id={entry.id}
                                         class:glean-drow--selected={selection.has(entry.id)}
                                         onclick={() => openDoc(entry.id)}
+                                        onkeydown={activateOnKey(() => openDoc(entry.id))}
                                         role="button"
                                         tabindex="0"
                                     >
@@ -997,17 +1011,18 @@ function metaLine(entry: Row): string {
                                                  onStartReading={() => void startReading(entry)}
                                                  onSetStatus={(status) => void setStatus(entry, status)}
                                              />
-                                            <label onclick={(e) => e.stopPropagation()}>
+                                            <label>
                                                 <input
                                                     type="checkbox"
                                                     checked={selection.has(entry.id)}
+                                                    onclick={(e) => e.stopPropagation()}
                                                     onchange={(e) => toggleSelect(entry.id, e)}
                                                 />
                                             </label>
                                         </div>
                                     </div>
                                 {:else}
-                                    <div class="glean-drow" onclick={() => openDoc(entry.id)} role="button" tabindex="0">
+                                    <div class="glean-drow" onclick={() => openDoc(entry.id)} onkeydown={activateOnKey(() => openDoc(entry.id))} role="button" tabindex="0">
                                         <span class="glean-dot glean-dot--inbox"></span>
                                         <span class="glean-drow__ti">{entry.title || t(i18n, "panel.untitled")}</span>
                                         <span class="glean-drow__site" title={entry.url || entry.hpath}>{entry.site || candidateEvidence(entry)}</span>
@@ -1106,7 +1121,7 @@ function metaLine(entry: Row): string {
                             class:glean-card--candidate={entry.kind === "candidate"}
                             class:glean-card--selected={selection.has(entry.id)}
                         >
-                            <div class="glean-card__body" onclick={() => openDoc(entry.id)} role="button" tabindex="0">
+                            <div class="glean-card__body" onclick={() => openDoc(entry.id)} onkeydown={activateOnKey(() => openDoc(entry.id))} role="button" tabindex="0">
                                 <div class="glean-card__title">{entry.title || t(i18n, "panel.untitled")}</div>
                                 <div class="glean-card__meta">
                                     {#if entry.kind === "clip"}
@@ -1198,10 +1213,11 @@ function metaLine(entry: Row): string {
                                 />
                             {/if}
                             {#if entry.kind === "clip"}
-                                <label class="glean-card__check" onclick={(e) => e.stopPropagation()}>
+                                <label class="glean-card__check">
                                     <input
                                         type="checkbox"
                                         checked={selection.has(entry.id)}
+                                        onclick={(e) => e.stopPropagation()}
                                         onchange={(e) => toggleSelect(entry.id, e)}
                                     />
                                 </label>

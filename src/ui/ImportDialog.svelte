@@ -23,15 +23,23 @@ type Phase = "pick" | "preview" | "importing" | "done";
 let phase = $state<Phase>("pick");
 let format = $state<ImportFormat | "auto">("auto");
 let notebooks = $state<NotebookMeta[]>([]);
-let notebookId = $state(facade.settings.anchorNotebooks[0] ?? "");
-let folder = $state(t(i18n, "import.defaultFolder"));
+/** 弹窗初值 = 打开时刻的会话快照（T-1790：经函数读取 props/派生值，消除顶层本地引用）。 */
+function snapshotImportInit() {
+    return {
+        notebookId: facade.settings.anchorNotebooks[0] ?? "",
+        defaultFolder: t(facade.i18n, "import.defaultFolder"),
+    };
+}
+const importInit = snapshotImportInit();
+let notebookId = $state(importInit.notebookId);
+let folder = $state(importInit.defaultFolder);
 let preview = $state<ImportPreview | null>(null);
 let summary = $state<ImportSummary | null>(null);
 let busy = $state(false);
 let progress = $state(0);
 const PREVIEW_PAGE_SIZE = 50;
 let previewPage = $state(1);
-let fileInput: HTMLInputElement | null = null;
+let fileInput = $state<HTMLInputElement | null>(null);
 
 onMount(() => {
     void listNotebooks().then((items) => {

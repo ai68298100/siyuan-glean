@@ -152,7 +152,18 @@ function reasonText(reason: SurfaceReason): string {
             {#each picks as pick, index (pick.item.id)}
                 <article class="glean-surf-card" style="--glean-surf-index: {index}">
                     <div class="glean-surf__tag">✨ {t(i18n, "resurface.cardTag", { n: index + 1 })}</div>
-                    <div class="glean-surf__title" onclick={() => openDoc(pick.item.id)} role="button" tabindex="0">
+                    <div
+                        class="glean-surf__title"
+                        onclick={() => openDoc(pick.item.id)}
+                        onkeydown={(event) => {
+                            if (event.key === "Enter" || event.key === " ") {
+                                event.preventDefault();
+                                openDoc(pick.item.id);
+                            }
+                        }}
+                        role="button"
+                        tabindex="0"
+                    >
                         {pick.item.title || t(i18n, "panel.untitled")}
                     </div>
                     <div class="glean-surf__summary">{summaryText(pick)}</div>

@@ -2516,3 +2516,41 @@
     .glean-reading-context { align-items: flex-start; flex-direction: column; gap: 6px; }
     .glean-reading-context__actions { max-width: 100%; width: 100%; }
 }
+
+/* ---------- 阅读热力图（T-1770）：列=周、行=周一..周日；b3 变量 + 透明度阶梯，主题安全 ---------- */
+.glean-heat-block { display: flex; flex-direction: column; gap: 8px; }
+.glean-heat {
+    display: grid;
+    grid-template-rows: repeat(7, 11px);
+    grid-auto-flow: column;
+    grid-auto-columns: 11px;
+    gap: 3px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+}
+.glean-heat__cell {
+    display: inline-block;
+    width: 11px;
+    height: 11px;
+    border-radius: 2.5px;
+    background: var(--b3-theme-surface-lighter, var(--b3-theme-background-light));
+}
+.glean-heat__cell--l1 { background: color-mix(in srgb, var(--b3-theme-primary) 25%, transparent); }
+.glean-heat__cell--l2 { background: color-mix(in srgb, var(--b3-theme-primary) 45%, transparent); }
+.glean-heat__cell--l3 { background: color-mix(in srgb, var(--b3-theme-primary) 70%, transparent); }
+.glean-heat__cell--l4 { background: var(--b3-theme-primary); }
+.glean-heat__meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 11px;
+    color: var(--b3-theme-on-surface);
+    opacity: .78;
+}
+.glean-heat__scale { display: inline-flex; gap: 2px; }
+.glean-heat__scale .glean-heat__cell { width: 9px; height: 9px; }
+
+/* ---------- 问这篇文章（T-1760）：单轮输入行，无会话窗 ---------- */
+.glean-reader__ask { display: flex; gap: 6px; align-items: center; }
+.glean-reader__ask-input { flex: 1; min-width: 0; font-size: 12px; }
