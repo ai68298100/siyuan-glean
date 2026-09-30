@@ -279,7 +279,7 @@
 - [ ] T-1838（P1，验收）筛选/搜索/排序矩阵：覆盖多条件组合、零结果、清空筛选、稳定排序、标题/URL/用户标签/AI 标签边界、分面计数、筛选后批量操作，以及 Dock/工作台/看板/移动端的一致性；与 T-1807 的 UI 收敛分开记账。
 - [x] T-1839（P1，缺陷待开发）ReaderTab 上下文异步过期：`src/ui/ReaderTab.svelte` 的 `loadContext` 在快速切换文章时可能由旧请求覆盖新文档上下文；按原生 ReadingContext 的请求序号/取消语义补防护，并增加切换、销毁、外部属性变化时的回归验证。（2026-10-01；`contextSeq` 请求代次守卫，晚到旧结果丢弃；顺带删除重复的"读完并下一篇"按钮（T-1893 清单项）；切换/销毁回归随 B-0002）
 - [x] T-1840（P1，缺陷待开发）外部导入半成功恢复：`createDocWithMd` 成功而 `captureClip` 失败时，记录孤儿文档、URL 查重和重跑策略，避免重复创建；提供逐条失败原因、继续/跳过/清理裁决、取消/暂停/恢复和索引修复语义。（2026-10-01 主链交付：`import-orphans.json` 孤儿账本（DATA-CONTRACT §0 契约先行）；runImport 失败时按"建档成功"守卫记录 + hpath 回查补 docId；`retryImportOrphans` 逐条补收录成功即移出账本；ImportDialog 挂载显示遗留孤儿可重试、done 阶段显示半成功结算；E2E 断言（账本→重试→属性写全→账本清空）；逐条失败原因展示与清理裁决随 T-1963）
-- [ ] T-1841（P1，缺陷待开发）收集箱迁入半成功恢复：本地文档创建、属性写入、云端删除任一步失败时保留可重试身份；避免重复迁入，区分冲突文档、孤儿文档和云端删除失败，补断网/限流/登录过期验收。
+- [x] T-1841（P1，缺陷待开发）收集箱迁入半成功恢复：本地文档创建、属性写入、云端删除任一步失败时保留可重试身份；避免重复迁入，区分冲突文档、孤儿文档和云端删除失败，补断网/限流/登录过期验收。（2026-10-01 主链交付：`inbox-orphans.json` 孤儿账本（契约先行 DATA-CONTRACT §0）；migrateShorthand 的 captureClip 失败/URL 冲突均入账本（新建孤儿不再静默丢弃）；`retryInboxOrphans` 补收录成功即移出并尝试补删云端（删除失败不阻塞）、同 URL 冲突孤儿移出账本交用户处置；InboxSection 遗留孤儿重试入口；E2E 断言（账本→重试→src=inbox 属性写全→账本清空）；断网/限流/登录过期验收随 T-1854）
 - [ ] T-1842（P2，验收）批量任务可取消与背压：迁移、导入、收集箱、富化、批量状态、索引重建统一检查 Abort/暂停/恢复、进度单调性、队列串行度、重启续跑和部分失败报告，避免“界面完成但后台仍写入”。
 
 ### 工作台预览、阅读与内容质量
@@ -467,7 +467,7 @@
 - [x] T-1975（P1，一致性）HighlightView 请求代次：当前文档切换时 `listDocHighlights → findRelated → fetchTitle` 旧请求可能晚于新文档返回，覆盖引述、关联和制卡标题；增加请求序号/Abort/销毁守卫，并显示 partial/失败状态，参照 ReaderTab 的刷新协议。（2026-10-01；`loadSeq` 请求代次贯穿三段异步，晚到旧结果全链丢弃；partial/失败状态展示随 T-2008）
 - [ ] T-1976（P2，无障碍）统计图表文本替代：StatsView 的 spark/bar/tagcloud 不能只靠颜色和高度表达；提供可读摘要/表格、数值单位、空数据和导出文本，同时保留视觉图，衔接 T-1858/T-1913。
 - [ ] T-1977（P1，阅读交互）ReaderTab 模式切换回执：`setMode` 先改本地状态再调用 `protyle.switchMode`，切换失败会显示错误模式；加入成功回读/失败回滚、侧栏首焦点、标题层级和 AI/状态变化 live 区，纳入 T-1953 双栏旅程。
-- [ ] T-1978（P1，错误边界）命令与右键入口统一失败处理：`addCurrentDocToLibrary`、`onMenuContent`、`markCurrentStatus`、`openCurrentSource`、`readNextArticle` 和 `void openReaderTab` 存在未捕获 Promise；建立统一 action wrapper，记录脱敏诊断、显示可重试提示并在取消/失败时恢复按钮状态。
+- [x] T-1978（P1，错误边界）命令与右键入口统一失败处理：`addCurrentDocToLibrary`、`onMenuContent`、`markCurrentStatus`、`openCurrentSource`、`readNextArticle` 和 `void openReaderTab` 存在未捕获 Promise；建立统一 action wrapper，记录脱敏诊断、显示可重试提示并在取消/失败时恢复按钮状态。（2026-10-01 收尾完成：命令/右键入口由 T-1989 的 `guardAction` 接管；本轮补齐最后一个组件级缺口 `ClipStatusActions.invoke`（原 try/finally 无 catch）——catch 后给可重试提示并恢复 pending；全局无 unhandled rejection）
 - [x] T-1979（P0，流程缺陷）首启导入入口路由：`OnboardingDialog` 的 Pocket/Omnivore 入口当前经过 `finish(true)` 打开迁移器；改为显式打开 `ImportDialog`，关闭引导后保持正确的文件选择、笔记本选择和返回路径，补首启点击回归。（2026-10-01；`finishThenImport` 显式走 `facade.openImport()`，`finish` 收敛为纯完成；首启点击回归随 B-0002 真机）
 - [x] T-1980（P0，状态流）焦点编辑器与收录前置校验：`currentDocId()` 必须解析真正焦点的 Protyle；命令状态、来源、制卡和摘录动作在普通未收录文档上先提示/走显式收录，不得直接写 `status/doneTime` 绕过候选确认，补多编辑器和无焦点场景。（2026-10-01；`focusedEditor()` 按选区/焦点元素定位+回退，`markCurrentStatus` 未收录提示（i18n 双名 `msg.notInLibrary`），`batchSetStatusDetailed` 服务端跳过未收录；隔离 E2E 19/19 含守卫断言；多编辑器真机随 B-0002）
 - [x] T-1981（P1，UI 一致性）HighlightView 文档切换刷新：监听公开 Protyle 切换/销毁与 `glean:data-changed`，为引述/相关旧文加载增加请求序号、取消和销毁守卫；切换文章后不得残留上一篇内容，失败需保留可解释状态。（2026-10-01；监听 `glean:data-changed` 强制刷新（重置 lastDocId），请求代次同 T-1975；Protyle 原生切换事件监听待宿主事件梳理后补）

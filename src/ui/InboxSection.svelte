@@ -4,7 +4,7 @@ import { openTab, showMessage } from "siyuan";
 import type { GleanFacade } from "../types";
 import { t } from "../libs/i18n";
 import { removeShorthands, type Shorthand } from "../api/inbox";
-import { checkInbox, migrateShorthand } from "../services/inbox-service";
+import { checkInbox, loadInboxOrphans, migrateShorthand, retryInboxOrphans } from "../services/inbox-service";
 
 interface Props {
     facade: GleanFacade;
@@ -21,6 +21,29 @@ let expanded = $state(false);
 let items = $state<Shorthand[]>([]);
 let busyId = $state("");
 let duplicate = $state<{ item: Shorthand; existingId: string } | null>(null);
+// T-1841：收集箱孤儿（文档已建未收录）账本——重试补收录入口
+let orphans = $state(0);
+let retrying = $state(false);
+
+async function checkOrphans(): Promise<void> {
+    try {
+        orphans = (await loadInboxOrphans(facade.pluginInstance)).length;
+    } catch { /* 保持 0 */ }
+}
+
+async function retryOrphans(): Promise<void> {
+    retrying = true;
+    try {
+        const result = await retryInboxOrphans(facade.pluginInstance);
+        showMessage(t(i18n, "inbox.orphansRetried", { n: result.restored, skip: result.remaining }), 4000);
+        if (result.restored > 0) onMutated();
+    } catch (error) {
+        showMessage(String(error).slice(0, 140), 5000);
+    } finally {
+        retrying = false;
+        await checkOrphans();
+    }
+}
 
 async function refresh() {
     try {
@@ -36,6 +59,7 @@ async function refresh() {
 
 $effect(() => {
     void refresh();
+    void checkOrphans();
 });
 
 async function migrate(item: Shorthand, allowDuplicate = false) {
@@ -87,6 +111,15 @@ async function dismiss(item: Shorthand) {
             <span class="glean-inbox__arrow">{expanded ? "▾" : "▸"}</span>
         </button>
         {#if expanded}
+            {#if orphans > 0}
+                <!-- T-1841：上次迁入遗留的孤儿文档（已建未收录） -->
+                <div class="glean-inbox__empty">
+                    <div>{t(i18n, "inbox.orphansPending", { n: orphans })}</div>
+                    <button class="glean-cap-btn" disabled={retrying} onclick={() => void retryOrphans()}>
+                        {retrying ? t(i18n, "panel.loading") : t(i18n, "inbox.orphansRetry")}
+                    </button>
+                </div>
+            {/if}
             {#if items.length === 0}
                 <div class="glean-inbox__empty">{t(i18n, "inbox.empty")}</div>
             {:else}

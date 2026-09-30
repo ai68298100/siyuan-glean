@@ -5,6 +5,7 @@
      * 状态动作只通过父组件传入的回调落到 clip-store；这个组件不读写属性，
      * 因而可以在 Dock、桌面行表、看板和移动端共用同一套语义。
      */
+    import { showMessage } from "siyuan";
     import type { ClipStatus } from "../domain/schema";
     import type { I18nBundle } from "../libs/i18n";
     import { t } from "../libs/i18n";
@@ -25,6 +26,10 @@
         pending = true;
         try {
             await action();
+        } catch (error) {
+            // T-1978：动作失败给可重试提示，不产生 unhandled rejection
+            console.warn("[glean] 状态动作失败:", error);
+            showMessage(t(i18n, "msg.actionFailed"), 3000);
         } finally {
             pending = false;
         }

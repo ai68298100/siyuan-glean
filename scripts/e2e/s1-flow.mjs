@@ -584,6 +584,31 @@ async function runFlow(client, workspace) {
     assert.equal(orphanAttrs["custom-clip-url"], "https://example.org/t1840");
     assert.deepEqual(await importSvc.loadImportOrphans(plugin), []);
     pass("T-1840 孤儿账本重试补收录：属性写全、账本清空");
+
+    // T-1841 收集箱孤儿账本：同模式验证（模拟"文档已建未收录"→ 重试 → 账本清空）。
+    const inboxSvc = await import("../../src/services/inbox-service.ts");
+    const inboxOrphanDoc = await makeDoc("T1841 收集箱孤儿", "- [https://example.org/t1841](https://example.org/t1841)\n\n收集箱孤儿正文。");
+    await inboxSvc.saveInboxOrphans(plugin, [
+        {
+            docId: inboxOrphanDoc,
+            notebookId: box,
+            cloudId: "",
+            url: "https://example.org/t1841",
+            title: "T1841 收集箱孤儿",
+            desc: "",
+            markdown: "# T1841 收集箱孤儿\n\n- [https://example.org/t1841](https://example.org/t1841)\n\n收集箱孤儿正文。",
+            contentType: "link",
+            time: "20260930090000",
+        },
+    ]);
+    const inboxRetry = await inboxSvc.retryInboxOrphans(plugin);
+    assert.equal(inboxRetry.restored, 1);
+    assert.equal(inboxRetry.remaining, 0);
+    const inboxAttrs = await client.apiChecked("/api/attr/getBlockAttrs", { id: inboxOrphanDoc });
+    assert.equal(inboxAttrs["custom-clip-status"], "inbox");
+    assert.equal(inboxAttrs["custom-clip-src"], "inbox");
+    assert.deepEqual(await inboxSvc.loadInboxOrphans(plugin), []);
+    pass("T-1841 收集箱孤儿账本重试补收录：src=inbox 属性写全、账本清空");
 }
 
 async function main() {

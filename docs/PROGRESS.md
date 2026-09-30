@@ -1,5 +1,12 @@
 # 进度（PROGRESS）
 
+## 可靠性收尾批（续跑口令驱动，2026-10-01）✅
+
+- [x] **T-1841 收集箱半成功恢复**：契约先行 DATA-CONTRACT §0 补 `inbox-orphans.json`。migrateShorthand 的收录失败（网络）与 URL 冲突均入账本（新建孤儿不再静默丢弃）；`retryInboxOrphans` 补收录成功即移出并尝试补删云端、同 URL 冲突孤儿移出交用户处置；InboxSection 遗留孤儿「重试补收录」入口。E2E 断言（账本→重试→src=inbox 属性写全→账本清空）。
+- [x] **T-1978 统一失败处理收尾**：补齐最后一个组件级缺口 `ClipStatusActions.invoke`（原 try/finally 无 catch）——失败给可重试提示并恢复 pending。至此全局（命令/右键/组件）无 unhandled rejection。
+- [x] 门禁：check 0 错 0 告警、test **156/156**、build 通过、隔离 E2E **29/29**（+1）。未发布新版本。
+- 坑重演记录：新服务函数漏 export 第二次发生（saveInboxOrphans）——**新增账本类函数时 export 与定义同时写**，E2E 即时暴露兜住了。
+
 ## P1 功能线第七批（续跑口令驱动，2026-10-01）✅
 
 - [x] **T-1840 导入半成功恢复**（重活缺陷之首）：契约先行 DATA-CONTRACT §0 补 `import-orphans.json` 孤儿账本行。runImport 失败时按"建档成功"守卫记录 + hpath 回查补 docId；`retryImportOrphans` 逐条补收录、成功即移出账本；ImportDialog 挂载显示遗留孤儿「重试补收录」、done 阶段显示半成功结算。E2E 断言（账本→重试→属性写全→账本清空）。

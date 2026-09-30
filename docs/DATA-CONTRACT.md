@@ -12,6 +12,7 @@
 | 派生索引 `glean-index.json` | 插件 saveData | 随插件删除，可随时重建 |
 | 迁移任务进度 `migrate-progress.json` | 插件 saveData | 随插件删除；仅用于暂停、恢复与失败重试，文章属性仍是事实源 |
 | 导入孤儿账本 `import-orphans.json` | 插件 saveData | 随插件删除；记录"文档已创建但收录未完成"的条目（T-1840），重试补收录成功后移除；孤儿文档本身无 `custom-clip-*` 不会进读库 |
+| 收集箱孤儿账本 `inbox-orphans.json` | 插件 saveData | 随插件删除；收集箱迁入"文档已建但收录未完成/冲突"时记录（T-1841），重试补收录成功后移除并尝试补删云端条目 |
 | 插件设置 | 插件 saveData | 随插件删除 |
 
 ### 0.1 备份包（T-1780，用户显式动作）
