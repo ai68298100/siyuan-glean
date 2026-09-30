@@ -13,6 +13,7 @@ import { filterAndSortLibrary, libraryFacets, type LibraryItem, type LibrarySort
 import { loadIndex, type ClipIndexEntry, type CandidateEntry, type GleanIndex } from "../services/index-store";
 import StatsView from "./StatsView.svelte";
 import HighlightView from "./HighlightView.svelte";
+import QuotesView from "./QuotesView.svelte";
 import InboxSection from "./InboxSection.svelte";
 import ResurfaceView from "./ResurfaceView.svelte";
 import { archiveStaleCandidates } from "../services/resurface-service";
@@ -31,7 +32,7 @@ let { facade }: Props = $props();
 
 const i18n = $derived(facade.i18n);
 
-type PanelView = "resurface" | "library" | "stats" | "highlights";
+type PanelView = "resurface" | "library" | "stats" | "highlights" | "quotes";
 let view = $state<PanelView>("resurface");
 let loading = $state(true);
 let loadError = $state(false);
@@ -76,6 +77,7 @@ const views: { key: PanelView; labelKey: string }[] = [
     { key: "library", labelKey: "view.library" },
     { key: "stats", labelKey: "view.stats" },
     { key: "highlights", labelKey: "view.highlights" },
+    { key: "quotes", labelKey: "view.quotes" },
 ];
 
 type Row =
@@ -1243,6 +1245,8 @@ function metaLine(entry: Row): string {
         <ResurfaceView {facade} {index} onMutated={() => void reload()} />
     {:else if view === "stats"}
         <StatsView {facade} {index} onCaptured={() => void reload()} />
+    {:else if view === "quotes"}
+        <QuotesView {facade} {index} />
     {:else}
         <HighlightView {facade} />
     {/if}

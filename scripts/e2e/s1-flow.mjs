@@ -528,6 +528,27 @@ async function runFlow(client, workspace) {
     assert.ok(libraryQuotes.some((quote) => quote.rootId === fulltext));
     pass("T-1750/1752 地基：全库引述块查询覆盖摘录宿主文档");
 
+    // T-1752 摘录批量导出：映射 root 元数据后落盘汇总笔记（含原文回链）。
+    const quoteRoots = await highlights.listQuoteRoots(libraryQuotes.map((quote) => quote.rootId));
+    const quoteEntries = libraryQuotes.map((quote) => ({
+        id: quote.id,
+        rootId: quote.rootId,
+        text: quote.text,
+        title: quoteRoots.get(quote.rootId) || "",
+        site: "",
+        tags: [],
+        aiTags: [],
+    }));
+    const exportedQuoteDoc = await excerptMod.exportQuotesToDoc(quoteEntries, box);
+    assert.match(exportedQuoteDoc, /^[0-9]{14}-[0-9a-z]{7}$/);
+    await until("摘录导出文档进入 SQL 索引", async () => {
+        const rows = await client.apiChecked("/api/query/sql", {
+            stmt: `SELECT id FROM blocks WHERE type='d' AND box='${box}' AND hpath LIKE '/摘录导出/%'`,
+        });
+        return rows.some((row) => row.id === exportedQuoteDoc) ? rows : null;
+    });
+    pass("T-1752 摘录批量导出为汇总笔记并落盘");
+
     // T-1772 CSV：BOM + 表头 + 全量行。
     const libraryCsv = stats.buildLibraryCsv(recovered);
     assert.ok(libraryCsv.startsWith("\uFEFF"));

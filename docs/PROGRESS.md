@@ -1,5 +1,12 @@
 # 进度（PROGRESS）
 
+## P1 功能线第四批（续跑口令驱动，2026-10-01）✅
+
+- [x] **T-1750 全库摘录墙**：`domain/quotes` 纯函数（分面聚合/组合筛选/导出构造，3 组单测）+ **QuotesView 新面板视图**（第五视图 tab：关键词搜索 + 站点/用户标签/AI 标签分面点击筛选 + 可移除筛选 chip + 计数 + 单页 500 条截断提示 + 空态/失败态分流）；root 元数据 = 索引映射 + `listQuoteRoots` 补未收录文档标题；点击回链 openTab（doc.id=引述块 id，思源打开所在文档）。
+- [x] **T-1752 摘录批量导出**：按当前筛选结果一键导出为 `/摘录导出/时间戳` 汇总笔记（`quoteExportMarkdown` 逐条 siyuan:// 回链+来源行）；不写 custom-clip-*（无候选证据不进扫描）；E2E 落盘断言。
+- [x] 门禁：check 0 错 0 告警、test **149/149**（+3）、build 通过、隔离 E2E **27/27**（+1）。未发布新版本；摘录墙交互观感与块内精确定位随 B-0002。
+- 修档教训：Edit 插入条目时误复制了相邻 T-1751 行（立即发现 sed 删重）——TODO 勾选后 grep 核对相邻任务号唯一性。
+
 ## P1 功能线第三批（续跑口令驱动，2026-10-01）✅
 
 - [x] **T-1740 本文大纲**：`services/outline.ts` heading 查询（`type='h' ORDER BY sort`，无新端点，E2E 实证形状）+ ReaderTab 伴生栏可折叠大纲段（层级缩进归一）+ 点击定位走标准 DOM `scrollIntoView`（SDK 公开字段 IProtyle.element，查 node_modules/siyuan 类型确认，未用内部 API）。滚动真机随 B-0002。

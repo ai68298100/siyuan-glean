@@ -59,3 +59,17 @@ export async function listLibraryQuotes(limit = 500, offset = 0): Promise<Librar
         }))
         .filter((row) => row.text.length > 0);
 }
+
+/** 批量取所在文档标题（未收录文档的摘录也要有来源行；分批 IN 防超长语句）。 */
+export async function listQuoteRoots(rootIds: string[]): Promise<Map<string, string>> {
+    const titles = new Map<string, string>();
+    const unique = [...new Set(rootIds)].filter((id) => /^\d{14}-[0-9a-z]{7}$/.test(id));
+    for (let offset = 0; offset < unique.length; offset += 200) {
+        const batch = unique.slice(offset, offset + 200);
+        const rows = await querySql<{ id: string; content: string }>(
+            `SELECT id, content FROM blocks WHERE type = 'd' AND id IN (${batch.map((id) => `'${id}'`).join(",")})`
+        );
+        for (const row of rows) titles.set(row.id, row.content || "");
+    }
+    return titles;
+}
