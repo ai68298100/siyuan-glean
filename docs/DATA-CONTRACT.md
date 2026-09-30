@@ -161,7 +161,7 @@ V1 只做"当前文档高亮列表"侧栏（读文档子块：引述块 + 跟随
 | 语义搜索 | `/api/search/semanticSearchBlock` `{query, types:{d:true}, page, pageSize}` → `data.blocks`；**无 boxes 参数**；嵌入未启用时 code=0+空结果，**降级须先查 `embeddingStat().enabled`** |
 | AI | `/api/ai/chatGPT` 请求 **`{msg: string}`**（单字符串，apicontract.AIMessageRequest）→ data 为字符串；`chatGPTWithAction {ids, action}`；`editor/lsActions`（NoBody→{id,name,action}[]）/`saveAction {id?,name,action}`/`removeAction {id}`；无模型配置时非 0 code，调用方静默降级 |
 | 嵌入状态 | `/api/ai/embeddingStat` → `{total, indexed, pending, failed, ignoredByLen, ignoredByConfig, enabled}` |
-| 笔记本/文档 | `notebook/lsNotebooks` `filetree/createDocWithMd`（支持 `tags` 参数，落根块 IAL） `export/exportMdContent {id} → {hPath, content}` |
+| 笔记本/文档 | `notebook/lsNotebooks` `filetree/createDocWithMd`（支持 `tags` 参数，落根块 IAL） `export/exportMdContent {id} → {hPath, content}` `filetree/moveDocs` `filetree/removeDoc`（生命周期端点形状见 §7.5） |
 | 插件装载 | `/api/petal/loadPetals`；隔离内核测试前需 `/api/setting/setBazaar {trust:true}`（桌面集市信任门槛） |
 | 收集箱（后置） | `/api/inbox/getShorthands|getShorthand|removeShorthands`；事件 `open-menu-inbox` |
 | 智能体 | `plugin.addAgentCapability`（注册为 `plugin/frontend/siyuan-glean/<tool>`） |
@@ -176,3 +176,57 @@ V1 只做"当前文档高亮列表"侧栏（读文档子块：引述块 + 跟随
 `window.siyuanGlean = { version, listClips(filter), getClip(id), setClipStatus(id, status) }`。
 版本化：`window.siyuanGlean.apiVersion` 从 `1` 起；破坏性变更先升版本号并存 `docs/BRIDGE.md`（建立时）。
 兄弟插件协同（打卡阅读时长、雷切工作台组件）走各自公开 API，本插件不反向依赖。
+
+## 7. 归档生命周期：宿主移动与两级删除（T-1867，D-0032；2026-10-01）
+
+> 归档状态（`custom-clip-status=archived`）与文档物理位置**正交**。本节约束 T-1866–T-1879 组对文档的物理移动/删除；实现前内核端点必须先经 T-1868 spike 实证。
+
+### 7.1 概念三分
+
+| 概念 | 载体 | 可逆性 |
+|---|---|---|
+| 归档状态 | 根块 IAL `custom-clip-status=archived` | 随时可改，不动文档 |
+| 移入【归档】宿主 | 同笔记本、当前文章所在文件夹下的 `【归档】` 文档（T-1869 幂等创建） | 移动即可逆 |
+| 两级删除 | 默认=移入同目录 `【回收】` 宿主；二级=彻底删除（内核 removeDoc） | 回收可逆；彻底删除不可逆 |
+
+- 【归档】/【回收】宿主均为**同笔记本同目录**创建（作者需求原文：在当前文章所在文件夹下直接创建）；本组**不做跨笔记本移动**（跨本会复杂化快照 assets 与 box 投影，无需求驱动）。
+- 两级删除语义（T-1905 研究裁决落地）：「删除」默认移入【回收】宿主——无后台定时清理（平静原则 D-0008 同源），【回收】宿主由用户手动清理；「彻底删除」仅在二次确认后执行，思源数据历史（`.siyuan/history`）为最后兜底，插件不承诺恢复。
+
+### 7.2 移动不变式（T-1870 实现与验收基线）
+
+思源移动文档保留根块 ID 与根块 IAL，因此以下全部**随文档保留**，移动动作不得触碰：
+`custom-clip-*` 全部属性、用户标签（IAL.tags）、正文子块、引述块（摘录，摘录墙按 root_id 聚合不断链）、riff 闪卡（按块 ID）、AV 挂库绑定（按 rootID）、阅读断点与完成时间、外部打卡 externalRef（`glean:<docId>:<date>` 幂等键不变）。
+
+- 快照资产 `/{box}/assets/glean-*.html` 是**笔记本级独立文件**，移动文档不涉及；`custom-clip-snapshot` 为含 box 的绝对路径，同笔记本移动后引用不断。
+- 索引投影 `hpath`/`box` 随移动改变：移动成功后**定向刷新**对应索引条目（或由 reconcile 最终一致），不得留下旧 hpath 幽灵条目。
+- 重复移动幂等：文章已在目标宿主下时 no-op（T-1870）。
+
+### 7.3 彻底删除的留存/清理边界
+
+| 对象 | 边界 | 理由 |
+|---|---|---|
+| `custom-clip-*`/正文/引述块/闪卡 | 随文档消失，无清理动作 | 内核语义 |
+| 索引条目 | **必须**清除 | 防幽灵条目、URL 查重误报、候选复活（T-1873 验收） |
+| 快照资产文件 | **保留**，确认文案提示位置 | 用户资产，插件不得擅自清理 |
+| AV 挂库行 | **保留**，确认文案提示 | AV 是用户数据（D-0001 边界），不代删 |
+| 外部打卡历史 | **保留**，不回滚 | 历史是用户事实 |
+| 孤儿账本/备份条目 | 按各自既有语义自然失效 | 不新增清理动作 |
+
+- 彻底删除确认框必须列：标题、笔记本、路径、来源 URL，并标注不可逆与数据历史兜底提示；删除失败不得伪报成功；重试前必须重查目标文档仍存在（防误删同名新文档，T-1871）。
+
+### 7.4 宿主扫描豁免与恢复方向
+
+- `isInternalDocument`（domain/candidate-policy）增加：hpath 任一路径段为 `【归档】` 或 `【回收】` 的文档不进候选扫描/待收录（宿主本身与其子文档均豁免）；宿主文档创建时写 `custom-clip-internal=true` 双保险。
+- 恢复（从宿主移回活动队列）**不新增"原路径"隐式状态**：恢复动作默认文档留在宿主原地、仅改状态；物理移回原文件夹由用户显式选择（T-1872 细化）。
+
+### 7.5 依赖端点（T-1868 已实证，2026-10-01，隔离内核 v3.8.6；原始数据 `scripts/spike/lifecycle-spike-results.json`）
+
+| 端点 | 已实证形状 |
+|---|---|
+| 移动 | `/api/filetree/moveDocs` `{fromPaths: ["/<id>.sy"], toNotebook, toPath: "/<宿主id>.sy"}` —— **toPath 必须是目标宿主文档完整 path（带 `.sy`）**；去掉 `.sy` 的目录形态报 `block not found` |
+| 删除 | `/api/filetree/removeDoc` `{notebook, path: "/<id>.sy"}` → `code=0`；索引异步清空（轮询可用）；**删后 `getBlockAttrs` 返回 `code=0`+空对象（不报错）——判存在性只能靠 SQL**；同路径可立即重建新 ID |
+| 路径查询 | `blocks` 表 `path` 列 = 笔记本内相对路径 `/<timestamp>-<id>.sy`；`hpath`/`box` 同行可取 |
+| 失败语义 | 删除/移动不存在路径 → `code=-1 msg="block not found"`（明确报错，可作重试保护依据）；重复移动到同一宿主 `code=0`（幂等） |
+| 重名 | 同路径 `createDocWithMd` **不报错**、创建新文档且立即 SQL 查不到（索引异步）——宿主幂等创建（T-1869）必须先 SQL 查宿主存在性 |
+
+移动不变式（§7.2）已在内核层实证成立：ID/属性/正文子块保留、`hpath` 变为 `/【归档】/文章A`、重复移动幂等。

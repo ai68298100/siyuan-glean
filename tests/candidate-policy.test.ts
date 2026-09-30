@@ -80,3 +80,20 @@ test("思源导出的 YAML 前言不挤掉剪藏模板链接", () => {
     assert.equal(result.url, "https://example.com/post");
 });
 
+test("D-0032：归档/回收宿主路径段豁免候选扫描（宿主与其子文档均不误收）", () => {
+    const markdown = "# 收藏\n\nhttps://example.com/article\n\n正文";
+    const archived = inspectCandidate({ markdown, hpath: "/收集/【归档】/深度文章" });
+    assert.equal(archived.internal, true);
+    assert.equal(archived.eligible, false);
+    const recycled = inspectCandidate({ markdown, hpath: "/收集/【回收】/深度文章" });
+    assert.equal(recycled.internal, true);
+    assert.equal(recycled.eligible, false);
+    // 宿主文档本身（路径段即标题，无 URL 证据）同样豁免
+    const host = inspectCandidate({ title: "【归档】", hpath: "/收集/【归档】" });
+    assert.equal(host.internal, true);
+    // 普通文章不受影响
+    const normal = inspectCandidate({ markdown, hpath: "/收集/普通文章" });
+    assert.equal(normal.internal, false);
+    assert.equal(normal.eligible, true);
+});
+

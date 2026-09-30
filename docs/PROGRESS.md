@@ -1,5 +1,13 @@
 # 进度（PROGRESS）
 
+## 归档生命周期契约与端点实证（续跑口令驱动，2026-10-01）✅
+
+- [x] **T-1867 契约**：DATA-CONTRACT 新增 **§7 归档生命周期**（概念三分：归档状态/【归档】宿主/两级删除；移动不变式；彻底删除留存清理边界矩阵；宿主扫描豁免；端点实证）+ **DECISIONS D-0032**（宿主移动可逆、两级删除默认可恢复——T-1905 研究裁决落地）。
+- [x] **T-1868 spike**：`scripts/spike/lifecycle-spike.mjs` **7/7 通过**（隔离内核 v3.8.6）。关键实证：**moveDocs `toPath` 必须是宿主完整 path（带 `.sy`）**（去 `.sy` 目录形态 block not found）；移动不变式内核层成立（ID/属性/正文保留 + hpath 更新 + 重复移动幂等 code=0）；removeDoc code=0 索引异步清空、**删后 getBlockAttrs 返回 code=0+空对象（判存在性只能靠 SQL）**、同路径可立即重建；失败语义 code=-1 "block not found"；重名 createDocWithMd 静默新建且索引异步——T-1869 宿主幂等创建必须先 SQL 查。
+- [x] **§7.4 扫描豁免最小实现**：`isInternalDocument` 增加【归档】/【回收】路径段豁免（宿主与其子文档均不进候选扫描，单测 +1=172）。
+- [x] 门禁：check 0 错 0 告警、test **172/172**、build 通过、隔离 E2E 全过、lifecycle spike 7/7。未发布新版本。
+- 坑：spike 工作区复用会残留上轮重名文档污染 blocktree（moveDocs 误报 block not found）——spike 改为每轮 removeNotebook 重建笔记本。
+
 ## 摘录墙颜色筛选与导出色标（续跑口令驱动，2026-10-01）✅
 
 - [x] **T-1901 延伸二：颜色全链在摘录墙闭合**：domain `QuoteFilter.color` + `quoteFacets.colors` 分面 + `filterQuotes` 颜色匹配（单测）；`quoteExportMarkdown` 有色条目加【色名】前缀（单测 +1）；QuotesView 颜色分面 chips（色点 `glean-hl__color--*` 着色 + i18n 色名双语 4 键 `highlight.color.*`）+ 活性 chip 本地化；HighlightView 分享卡构造补 color 字段。

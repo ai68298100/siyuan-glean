@@ -1,5 +1,14 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-01 第三十一轮：归档生命周期契约 + 端点实证）
+
+- **T-1867 契约（P0 完成）**：DATA-CONTRACT 新增 **§7 归档生命周期**——概念三分（归档状态=纯属性 / 【归档】宿主=同目录幂等创建+移动即可逆 / 两级删除=默认移入【回收】宿主+彻底删除二级动作）；移动不变式（ID/属性/标签/正文/引述/闪卡/AV/断点/打卡键全保留，索引 hpath 定向刷新）；彻底删除留存边界矩阵（索引必须清、快照/AV 行/打卡历史保留并提示）；恢复不新增"原路径"隐式状态。**DECISIONS D-0032** 记裁决与理由（T-1905 研究落地：思源无回收 API，可恢复删除只能靠隔离宿主）。
+- **T-1868 spike（P0 完成）**：`scripts/spike/lifecycle-spike.mjs` **7/7**（隔离内核 v3.8.6，每轮 removeNotebook 重建防重名污染）。**关键实证：moveDocs `toPath` 必须是宿主完整 path（带 `.sy`）**，去 `.sy` 目录形态报 block not found；移动不变式内核层全部成立（ID/属性/正文保留+hpath 更新+重复移动幂等）；removeDoc code=0 索引异步清空、**删后 getBlockAttrs 返回 code=0+空对象（判存在性只能靠 SQL）**、同路径可立即重建；失败语义 code=-1 "block not found"；重名 createDocWithMd 静默新建且索引异步。形状已回写 DATA-CONTRACT §7.5 与 §5 端点表。
+- **§7.4 最小实现**：`isInternalDocument` 增加【归档】/【回收】路径段豁免（单测 +1=172）。
+- 坑：spike 工作区复用残留重名文档污染 blocktree（moveDocs 误报 block not found）——隔离 spike 每轮重建笔记本；官方 API 文档网络不可达时，隔离内核多形态试探是合规实证路径。
+- 门禁：check 0 错 **0 告警**、test **172/172**、build 通过、E2E 全过、lifecycle spike **7/7**。未发布新版本。提交序列：…→ 37d3baf → 本轮（git log）。集市 PR #2288 待审。
+- 下一批候选：**T-1869【归档】宿主幂等创建 → T-1870 归档移动语义 → T-1871 删除安全语义**（契约与端点已就绪，api 层包壳 moveDocs/removeDoc 后按 §7 实现；三选项 UI 入口=T-1866 随后统一接线）；重活缺陷已全清；**强烈建议作者安排 B-0002 真机走查**（积压非常多，走查后可按 v1.1.x 补丁版定版）。
+
 ## 当前有效交接（2026-10-01 第三十轮：摘录墙颜色筛选/导出色标）
 
 - **T-1901 延伸二：颜色全链在摘录墙闭合**：domain `QuoteFilter.color` + `quoteFacets.colors` 分面 + `filterQuotes` 颜色匹配（单测）；`quoteExportMarkdown` 有色条目加【色名】前缀（新单测）；QuotesView 颜色分面 chips（色点 `glean-hl__color--*` 着色 + i18n 色名）+ 活性 chip 本地化；i18n 新增 `highlight.color.yellow/red/blue/green` 双语 4 键（tests/i18n.test.ts 守门通过）。HighlightView 分享卡构造补 color 字段。引述块删除/高亮视图侧全库操作仍随 T-1753 后续。
