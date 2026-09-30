@@ -448,14 +448,12 @@
                     title={t(i18n, "reader.doneNextHint")}
                     onclick={() => void doneAndNext()}
                 >✓→ {t(i18n, "reader.doneNext")}</button>
-                <ClipRankControls
-                    {i18n}
-                    priority={context.priority}
-                    rating={context.rating}
+                <button
+                    class="glean-btn glean-btn--ghost"
                     disabled={statusBusy}
-                    onPriority={(value) => void setPriority(value)}
-                    onRating={(value) => void setRating(value)}
-                />
+                    title={t(i18n, "reader.doneNextHint")}
+                    onclick={() => void doneAndNext()}
+                >✓→ {t(i18n, "reader.doneNext")}</button>
                 {#if docId}
                     <div class="glean-reader__section">
                         <div class="glean-reader__section-title">{t(i18n, "reader.excerptTitle")}</div>
@@ -533,6 +531,19 @@
                                 </div>
                             {/if}
                         {/if}
+                    </div>
+                {/if}
+                {#if context}
+                    <div class="glean-reader__section">
+                        <div class="glean-reader__section-title">{t(i18n, "panel.rankTitle")}</div>
+                        <ClipRankControls
+                            {i18n}
+                            priority={context.priority}
+                            rating={context.rating}
+                            disabled={statusBusy}
+                            onPriority={(value) => void setPriority(value)}
+                            onRating={(value) => void setRating(value)}
+                        />
                     </div>
                 {/if}
                 <div class="glean-reader__ops">

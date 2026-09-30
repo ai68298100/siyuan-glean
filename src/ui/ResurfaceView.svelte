@@ -24,6 +24,8 @@ const daily = $derived(computeDailyFromIndex(index, facade.settings));
 const picks = $derived(daily.picks);
 const recentCount = $derived(daily.recentCount);
 let actingId = $state("");
+/** UX 审计 #10：本会话"开始阅读"过的文章回执（纯视图状态，不写属性）。 */
+let startedToday = $state<Array<{ id: string; title: string }>>([]);
 
 function openDoc(docId: string) {
     facade.openReadingDocument(docId);
@@ -56,7 +58,13 @@ async function act(pick: SurfacePick, action: "read" | "later" | "archive") {
     actingId = pick.item.id;
     try {
         await actOnSurface(facade.pluginInstance, pick.item.id, action);
-        if (action === "read") openReading(pick);
+        if (action === "read") {
+            startedToday = [
+                ...startedToday.filter((item) => item.id !== pick.item.id),
+                { id: pick.item.id, title: pick.item.title || t(i18n, "panel.untitled") },
+            ];
+            openReading(pick);
+        }
         onMutated();
     } catch (error) {
         showMessage(String(error).slice(0, 120), 4000);
@@ -115,13 +123,31 @@ function reasonText(reason: SurfaceReason): string {
                 {t(i18n, "panel.setupAnchor")}
             </button>
         </div>
-    {:else if picks.length === 0}
+    {:else if picks.length === 0 && startedToday.length === 0}
         <div class="glean-empty">
             <div class="glean-empty__art">🌱</div>
             <div class="glean-empty__title">{t(i18n, "resurface.allDone")}</div>
             <div class="glean-empty__hint">{t(i18n, "resurface.allDoneHint")}</div>
         </div>
     {:else}
+        {#if startedToday.length > 0}
+            <div class="glean-surf-started">
+                {#each startedToday as item (item.id)}
+                    <span class="glean-surf-started__item" title={item.title}>
+                        <span class="glean-surf-started__label">今天已开始</span>
+                        <span class="glean-surf-started__title">{item.title}</span>
+                        <button class="glean-surf-act" onclick={() => facade.openReadingDocument(item.id)}>
+                            {t(i18n, "resurface.continueReading")}
+                        </button>
+                    </span>
+                {/each}
+            </div>
+        {/if}
+        {#if picks.length === 0}
+            <div class="glean-empty" style="padding: 24px 12px">
+                <div class="glean-empty__hint">{t(i18n, "resurface.allDoneHint")}</div>
+            </div>
+        {/if}
         <div class="glean-surf">
             {#each picks as pick, index (pick.item.id)}
                 <article class="glean-surf-card" style="--glean-surf-index: {index}">

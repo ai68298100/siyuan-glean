@@ -31,7 +31,6 @@ let dailyCount = $state(facade.settings.resurface.dailyCount);
 let includeDone = $state(facade.settings.resurface.includeDoneHighlights);
 let inboxQuota = $state(facade.settings.inboxQuota);
 let staleDays = $state(facade.settings.staleDays);
-let batchSize = $state(facade.settings.migrateBatchSize);
 let boardBusy = $state(false);
 let aiChannel = $state<"siyuan" | "custom">(facade.settings.ai.channel);
 let customBaseUrl = $state(facade.settings.ai.customBaseUrl);
@@ -79,8 +78,8 @@ async function save() {
         resurface: { dailyCount, includeDoneHighlights: includeDone },
         inboxQuota,
         staleDays,
-        migrateBatchSize: batchSize,
-        // 本地状态显式入 patch；此前漏写 integration，打卡开关实际不持久化（本轮修复）
+        // migrateBatchSize 改在迁移器内调整（UX 审计 #7），不再经设置页保存
+        // 本地状态显式入 patch；此前漏写 integration，打卡开关实际不持久化（已修复）
         integration: { checkinEnabled, checkinItemId },
         reader: { openInTab: readerOpenInTab, defaultMode: readerMode },
     });
@@ -201,49 +200,6 @@ async function doMountBoard() {
         <div class="glean-set-group">
             <div class="glean-set-row">
                 <div class="glean-set-row__lb">
-                    {t(i18n, "settings.aiChannel")}
-                    <div class="glean-set-row__desc">{t(i18n, "settings.aiChannelDesc")}</div>
-                </div>
-            </div>
-            <div class="glean-set-row glean-seg-row">
-                <div class="glean-seg">
-                    <button
-                        class="glean-seg__btn"
-                        class:glean-seg__btn--on={aiChannel === "siyuan"}
-                        onclick={() => void setChannel("siyuan")}
-                    >{t(i18n, "settings.channelSiyuan")}</button>
-                    <button
-                        class="glean-seg__btn"
-                        class:glean-seg__btn--on={aiChannel === "custom"}
-                        onclick={() => void setChannel("custom")}
-                    >{t(i18n, "settings.channelCustom")}</button>
-                </div>
-            </div>
-            {#if aiChannel === "custom"}
-                <div class="glean-set-row">
-                    <div class="glean-set-row__lb">{t(i18n, "settings.customBaseUrl")}</div>
-                    <input class="glean-mini-input" style="width:220px; text-align:left" placeholder="https://…/v1" bind:value={customBaseUrl} onchange={() => void save()} />
-                </div>
-                <div class="glean-set-row">
-                    <div class="glean-set-row__lb">{t(i18n, "settings.customModel")}</div>
-                    <input class="glean-mini-input" style="width:180px; text-align:left" placeholder="free-model" bind:value={customModel} onchange={() => void save()} />
-                </div>
-                <div class="glean-set-row">
-                    <div class="glean-set-row__lb">
-                        {t(i18n, "settings.customSecretName")}
-                        <div class="glean-set-row__desc">{t(i18n, "settings.customSecretDesc")}</div>
-                    </div>
-                    <input class="glean-mini-input" style="width:160px; text-align:left" bind:value={customSecretName} onchange={() => void save()} />
-                </div>
-                <div class="glean-set-row">
-                    <div class="glean-set-row__lb">{t(i18n, "settings.testConnection")}</div>
-                    <button class="glean-btn" style="flex-shrink:0" disabled={testBusy} onclick={() => void testChannel()}>
-                        {testBusy ? t(i18n, "panel.loading") : t(i18n, "settings.testConnection")}
-                    </button>
-                </div>
-            {/if}
-            <div class="glean-set-row">
-                <div class="glean-set-row__lb">
                     {t(i18n, "settings.aiEnrichMode")}
                     <div class="glean-set-row__desc">{t(i18n, "settings.aiEnrichModeDesc")}</div>
                 </div>
@@ -300,6 +256,55 @@ async function doMountBoard() {
     </div>
 
     <div>
+        <div class="glean-set-title">{t(i18n, "settings.aiChannelGroup")}</div>
+        <div class="glean-set-group">
+            <div class="glean-set-row">
+                <div class="glean-set-row__lb">
+                    {t(i18n, "settings.aiChannel")}
+                    <div class="glean-set-row__desc">{t(i18n, "settings.aiChannelDesc")}</div>
+                </div>
+            </div>
+            <div class="glean-set-row glean-seg-row">
+                <div class="glean-seg">
+                    <button
+                        class="glean-seg__btn"
+                        class:glean-seg__btn--on={aiChannel === "siyuan"}
+                        onclick={() => void setChannel("siyuan")}
+                    >{t(i18n, "settings.channelSiyuan")}</button>
+                    <button
+                        class="glean-seg__btn"
+                        class:glean-seg__btn--on={aiChannel === "custom"}
+                        onclick={() => void setChannel("custom")}
+                    >{t(i18n, "settings.channelCustom")}</button>
+                </div>
+            </div>
+            {#if aiChannel === "custom"}
+                <div class="glean-set-row">
+                    <div class="glean-set-row__lb">{t(i18n, "settings.customBaseUrl")}</div>
+                    <input class="glean-mini-input" style="width:220px; text-align:left" placeholder="https://…/v1" bind:value={customBaseUrl} onchange={() => void save()} />
+                </div>
+                <div class="glean-set-row">
+                    <div class="glean-set-row__lb">{t(i18n, "settings.customModel")}</div>
+                    <input class="glean-mini-input" style="width:180px; text-align:left" placeholder="free-model" bind:value={customModel} onchange={() => void save()} />
+                </div>
+                <div class="glean-set-row">
+                    <div class="glean-set-row__lb">
+                        {t(i18n, "settings.customSecretName")}
+                        <div class="glean-set-row__desc">{t(i18n, "settings.customSecretDesc")}</div>
+                    </div>
+                    <input class="glean-mini-input" style="width:160px; text-align:left" bind:value={customSecretName} onchange={() => void save()} />
+                </div>
+                <div class="glean-set-row">
+                    <div class="glean-set-row__lb">{t(i18n, "settings.testConnection")}</div>
+                    <button class="glean-btn" style="flex-shrink:0" disabled={testBusy} onclick={() => void testChannel()}>
+                        {testBusy ? t(i18n, "panel.loading") : t(i18n, "settings.testConnection")}
+                    </button>
+                </div>
+            {/if}
+        </div>
+    </div>
+
+    <div>
         <div class="glean-set-title">{t(i18n, "settings.resurfaceGroup")}</div>
         <div class="glean-set-group">
             <div class="glean-set-row">
@@ -332,12 +337,6 @@ async function doMountBoard() {
                 <button class="glean-btn glean-btn--pri" style="flex-shrink:0" disabled={boardBusy} onclick={() => void doMountBoard()}>
                     {boardBusy ? t(i18n, "panel.loading") : t(i18n, "board.mountAction")}
                 </button>
-            </div>
-            <div class="glean-set-row">
-                <div class="glean-set-row__lb">
-                    {t(i18n, "migrate.batchSize")}
-                </div>
-                <input class="glean-mini-input" type="number" min="1" max="50" bind:value={batchSize} onchange={() => void save()} />
             </div>
         </div>
     </div>

@@ -44,6 +44,8 @@ let selectedSite = $state("");
 let selectedTag = $state("");
 /** AI 标签分面（T-1729）：独立于用户 tag，UI 带 ✨ 来源标记。 */
 let selectedAiTag = $state("");
+/** Dock 窄画布搜索默认折叠为图标（UX 审计 #8）；工作台/浮窗保持常驻。 */
+let searchOpen = $state(false);
 let selectedSource = $state("");
 let selectedTimeSource = $state("");
 let selectedContentType = $state("");
@@ -660,7 +662,7 @@ function metaLine(entry: Row): string {
                     <svg><use href="#iconGleanPopup" /></svg>
                 </button>
                 <button class="glean-icon-btn" title={t(i18n, "panel.migrate")} onclick={() => facade.openMigrate()}>
-                    <svg><use href="#iconGleanWheat" /></svg>
+                    🧹
                 </button>
                 <button class="glean-icon-btn" title={t(i18n, "panel.settings")} onclick={() => facade.openSettings()}>
                     <svg><use href="#iconGleanGear" /></svg>
@@ -679,14 +681,24 @@ function metaLine(entry: Row): string {
         </div>
 
         {#if view === "library"}
-            <div class="glean-search">
-                <svg class="glean-search__icon" viewBox="0 0 24 24"><path d="M10.5 3a7.5 7.5 0 0 1 5.9 12.1l4.2 4.2a1 1 0 0 1-1.4 1.4l-4.2-4.2A7.5 7.5 0 1 1 10.5 3zm0 2a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11z"/></svg>
-                <input
-                    type="text"
-                    placeholder={t(i18n, "panel.searchPlaceholder")}
-                    bind:value={keyword}
-                />
-            </div>
+            {#if isTabCanvas || searchOpen}
+                <div class="glean-search">
+                    <svg class="glean-search__icon" viewBox="0 0 24 24"><path d="M10.5 3a7.5 7.5 0 0 1 5.9 12.1l4.2 4.2a1 1 0 0 1-1.4 1.4l-4.2-4.2A7.5 7.5 0 1 1 10.5 3zm0 2a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11z"/></svg>
+                    <input
+                        type="text"
+                        placeholder={t(i18n, "panel.searchPlaceholder")}
+                        bind:value={keyword}
+                    />
+                </div>
+            {:else}
+                <button
+                    class="glean-icon-btn"
+                    title={t(i18n, "panel.searchPlaceholder")}
+                    onclick={() => (searchOpen = true)}
+                >
+                    <svg viewBox="0 0 24 24" style="width:14px;height:14px"><path d="M10.5 3a7.5 7.5 0 0 1 5.9 12.1l4.2 4.2a1 1 0 0 1-1.4 1.4l-4.2-4.2A7.5 7.5 0 1 1 10.5 3zm0 2a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11z"/></svg>
+                </button>
+            {/if}
         {/if}
     </header>
 
@@ -857,14 +869,6 @@ function metaLine(entry: Row): string {
                                         <span class="glean-source-missing">{t(i18n, "clip.sourceMissing")}</span>
                                     {/if}
                                 </div>
-                                <ClipRankControls
-                                    {i18n}
-                                    priority={entry.priority}
-                                    rating={entry.rating}
-                                    disabled={statusActionId === entry.id}
-                                    onPriority={(value) => void setPriority(entry, value)}
-                                    onRating={(value) => void setRating(entry, value)}
-                                />
                                 <ClipStatusActions
                                     {i18n}
                                     status={entry.status || "inbox"}
@@ -986,14 +990,6 @@ function metaLine(entry: Row): string {
                                                  onStartReading={() => void startReading(entry)}
                                                  onSetStatus={(status) => void setStatus(entry, status)}
                                              />
-                                             <ClipRankControls
-                                                 {i18n}
-                                                 priority={entry.priority}
-                                                 rating={entry.rating}
-                                                 disabled={statusActionId === entry.id}
-                                                 onPriority={(value) => void setPriority(entry, value)}
-                                                 onRating={(value) => void setRating(entry, value)}
-                                             />
                                             <label onclick={(e) => e.stopPropagation()}>
                                                 <input
                                                     type="checkbox"
@@ -1074,7 +1070,7 @@ function metaLine(entry: Row): string {
                         </div>
                     {/if}
                 {/if}
-                {#if candidateCount > 0 && activeQueue === "inbox"}
+                {#if candidateCount > 0}
                     <div class="glean-candidates">
                         <span>📥</span>
                         <span style="flex:1">{t(i18n, "panel.candidatesDetected", { n: candidateCount })}</span>

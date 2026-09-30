@@ -178,12 +178,16 @@ async function skip(): Promise<void> {
         <div class="glean-empty" style="padding: 10px 12px">
             <div class="glean-empty__hint">{t(i18n, "onboarding.doneHint")}</div>
         </div>
+        <div class="glean-empty" style="padding: 0 12px">
+            <div class="glean-empty__hint">
+                {t(i18n, "onboarding.importLink")}
+                <button class="glean-linkish" onclick={() => void finish(true)}>{t(i18n, "import.title")} →</button>
+            </div>
+        </div>
         <div class="glean-migrate__ops">
             {#if scannedCandidates > 0}
-                <button class="glean-btn glean-btn--ghost" onclick={() => void finish(true)}>{t(i18n, "import.title")}</button>
-                <button class="glean-btn" onclick={() => void finishByConfirmingCandidates()}>{t(i18n, "onboarding.ctaConfirm")}</button>
+                <button class="glean-btn glean-btn--pri" onclick={() => void finishByConfirmingCandidates()}>{t(i18n, "onboarding.ctaConfirm")}</button>
             {:else}
-                <button class="glean-btn glean-btn--ghost" onclick={() => void finish(true)}>{t(i18n, "import.title")}</button>
                 <button class="glean-btn glean-btn--pri" onclick={() => void finish(false)}>{t(i18n, "onboarding.finish")}</button>
             {/if}
         </div>

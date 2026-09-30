@@ -196,7 +196,7 @@
                     disabled={measuring}
                     title={t(i18n, "clip.bodyCheckHint")}
                     onclick={checkBody}
-                >⌕ {t(i18n, "clip.bodyCheck")}</button>
+                >⌕</button>
             {:else if bodyState === "missing"}
                 <span class="glean-reading-context__missing" title={t(i18n, "clip.bodyMissingHint")}>
                     {t(i18n, "clip.bodyMissing")}
@@ -206,7 +206,7 @@
                         class="glean-reading-context__source-btn glean-reading-context__reclip"
                         title={t(i18n, "clip.bodyMissingHint")}
                         onclick={recapture}
-                    >↻ {t(i18n, "clip.reclip")}</button>
+                    >↻</button>
                 {/if}
             {/if}
             <button class="glean-reading-context__back" onclick={backToLibrary}>

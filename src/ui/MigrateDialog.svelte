@@ -25,6 +25,15 @@ let { facade, onClose }: Props = $props();
 
 const i18n = $derived(facade.i18n);
 
+/** 每批写入条数（UX 审计 #7）：控件从设置页迁到执行现场，回填前就近调整。 */
+async function updateBatchSize(input: HTMLInputElement): Promise<void> {
+    const fallback = facade.settings.migrateBatchSize;
+    const parsed = Math.min(50, Math.max(1, Math.round(Number(input.value)) || fallback));
+    input.value = String(parsed);
+    if (parsed === fallback) return;
+    await facade.updateSettings({ ...facade.settings, migrateBatchSize: parsed });
+}
+
 type Phase = "intro" | "scanning" | "report" | "running" | "paused" | "done";
 type Step = 1 | 2 | 3;
 
@@ -298,6 +307,18 @@ function rowStateLabel(row: MigrateRow): string {
                 <option value="error">{t(i18n, "import.failed")}</option>
             </select>
             <button class="glean-btn glean-btn--ghost" onclick={() => void startScan()}>{t(i18n, "migrate.rescan")}</button>
+            <label style="display:inline-flex; align-items:center; gap:5px; font-size:11px; color:var(--b3-theme-on-surface)">
+                {t(i18n, "migrate.batchSize")}
+                <input
+                    class="glean-mini-input"
+                    type="number"
+                    min="1"
+                    max="50"
+                    style="width:64px"
+                    value={facade.settings.migrateBatchSize}
+                    onchange={(e) => void updateBatchSize(e.currentTarget)}
+                />
+            </label>
             <button class="glean-btn glean-btn--pri" onclick={() => void startRun(true)} disabled={rows.length === 0}>
                 {t(i18n, "migrate.run")}
             </button>

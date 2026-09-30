@@ -690,6 +690,50 @@
     &:hover { text-decoration: underline; }
 }
 
+/* UX 审计 #5：引导内文字链接（导入器降级） */
+.glean-linkish {
+    border: none;
+    background: transparent;
+    color: var(--b3-theme-primary);
+    font-size: inherit;
+    cursor: pointer;
+    padding: 0;
+
+    &:hover { text-decoration: underline; }
+}
+
+/* UX 审计 #10：今日拾遗"已开始"回执行 */
+.glean-surf-started {
+    margin: 0 12px 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.glean-surf-started__item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 10.5px;
+    color: var(--b3-theme-on-surface);
+    min-width: 0;
+}
+
+.glean-surf-started__label {
+    flex-shrink: 0;
+    opacity: 0.72;
+}
+
+.glean-surf-started__title {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-weight: 600;
+    color: var(--b3-theme-on-background);
+}
+
 .glean-card__check {
     position: absolute;
     top: 8px;
