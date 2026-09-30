@@ -41,7 +41,7 @@
     import { makeQuoteCard } from "../services/flashcard-service";
     import { findRelated } from "../services/enrich-service";
     import { pickNextUnread } from "../services/resurface-service";
-    import { readerAiEnabled, readerAsk, readerSummarize, readerTranslate, saveReaderSummary } from "../services/reader-ai";
+    import { readerAiEnabled, readerAsk, readerSummarize, readerTranslate, readerTranslateFull, saveReaderSummary } from "../services/reader-ai";
     import { clampAskQuestion } from "../domain/reader";
     import { fetchDocOutline, outlineIndent, type OutlineHeading } from "../services/outline";
     import { nextSpeechRate } from "../domain/tts";
@@ -87,7 +87,7 @@
             : t(i18n, "reader.aiChannelSiyuan")
     );
     let aiBusy = $state("");
-    let aiResult = $state<{ kind: "summarize" | "translate" | "ask"; action: string; text: string } | null>(null);
+    let aiResult = $state<{ kind: "summarize" | "translate" | "ask" | "translateFull"; action: string; text: string } | null>(null);
     let relatedItems = $state<Array<{ id: string; title: string }>>([]);
     let relatedShown = $state(false);
 
@@ -300,6 +300,27 @@
             const outcome = await readerTranslate(facade.pluginInstance, context.id, excerpt.text, facade.settings);
             if (outcome.ok && outcome.text) {
                 aiResult = { kind: "translate", action: t(i18n, "reader.aiTranslate"), text: outcome.text };
+            } else if (outcome.skipped === "cap") {
+                showMessage(t(i18n, "ai.capReached", { n: facade.settings.ai.enrichDailyCap }), 4000);
+            } else if (outcome.skipped !== "off") {
+                showMessage(t(i18n, "ai.enrichFailed"), 3000);
+            }
+        } finally {
+            aiBusy = "";
+        }
+    }
+
+    /** T-1745 双语对照：全文翻译（租约/额度共享），结果入对照块（可折叠、可复制）。 */
+    let translateFullOpen = $state(false);
+
+    async function runTranslateFull(): Promise<void> {
+        if (!context || aiBusy) return;
+        aiBusy = "translateFull";
+        try {
+            const outcome = await readerTranslateFull(facade.pluginInstance, context.id, facade.settings);
+            if (outcome.ok && outcome.text) {
+                aiResult = { kind: "translateFull", action: t(i18n, "reader.aiTranslateFull"), text: outcome.text };
+                translateFullOpen = true;
             } else if (outcome.skipped === "cap") {
                 showMessage(t(i18n, "ai.capReached", { n: facade.settings.ai.enrichDailyCap }), 4000);
             } else if (outcome.skipped !== "off") {
@@ -661,6 +682,12 @@
                                     title={excerpt?.text ? "" : t(i18n, "reader.excerptHint")}
                                     onclick={() => void runTranslate()}
                                 >文A {t(i18n, "reader.aiTranslate")}</button>
+                                <!-- T-1745 双语对照：全文翻译入对照块 -->
+                                <button
+                                    class="glean-btn glean-btn--ghost"
+                                    disabled={Boolean(aiBusy)}
+                                    onclick={() => void runTranslateFull()}
+                                >文A+ {t(i18n, "reader.aiTranslateFull")}</button>
                                 {#if relatedOn}
                                     <button class="glean-btn glean-btn--ghost" disabled={Boolean(aiBusy)} onclick={() => void runRelated()}>
                                         🔗 {t(i18n, "reader.aiRelated")}
@@ -707,6 +734,25 @@
                                             </button>
                                         {/if}
                                     </div>
+                                </div>
+                            {/if}
+                            {#if aiResult?.kind === "translateFull"}
+                                <!-- T-1745 双语对照块：全文译文折叠展示，可复制；AI 来源同标记 -->
+                                <div class="glean-reader__bilingual">
+                                    <button
+                                        class="glean-btn glean-btn--ghost glean-reader__bilingual-toggle"
+                                        aria-expanded={translateFullOpen}
+                                        onclick={() => (translateFullOpen = !translateFullOpen)}
+                                    >{translateFullOpen ? "▾" : "▸"} {t(i18n, "reader.bilingualTitle")}</button>
+                                    {#if translateFullOpen}
+                                        {@const fullText = aiResult.text}
+                                        <div class="glean-reader__bilingual-text">{fullText}</div>
+                                        <div class="glean-reader__ops">
+                                            <button class="glean-btn glean-btn--ghost" onclick={() => void copyText(fullText)}>
+                                                {t(i18n, "reader.copy")}
+                                            </button>
+                                        </div>
+                                    {/if}
                                 </div>
                             {/if}
                             {#if relatedShown && relatedItems.length > 0}

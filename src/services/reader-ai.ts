@@ -7,7 +7,12 @@
 import type { Plugin } from "siyuan";
 import { exportMdContent } from "../api/client";
 import { stripMarkdown } from "../domain/migrate";
-import { buildAskPrompt, buildSummarizePrompt, buildTranslatePrompt, clampAskQuestion } from "../domain/reader";
+import {
+    buildAskPrompt,
+    buildSummarizePrompt,
+    buildTranslatePrompt,
+    clampAskQuestion,
+} from "../domain/reader";
 import { aiQuotaAvailable, callLLM, logAiEvent, recordAiUsage, runAiTask } from "./enrich-service";
 import { writeClip } from "./clip-store";
 import type { GleanSettings } from "./settings";
@@ -99,6 +104,41 @@ async function readerAskInner(plugin: Plugin, docId: string, question: string, s
         return { ok: true, text: String(llm.text ?? "").trim() };
     } catch (error) {
         await logAiEvent(plugin, docId, "reader-ask", String((error as Error)?.message ?? error));
+        return { ok: false, skipped: "error" };
+    }
+}
+
+/**
+ * 全文翻译（T-1745 双语对照）：与选区翻译（readerTranslate）不同——上下文=本文全文，
+ * 结果供伴生栏"对照阅读"块展示。租约队列、额度共享、失败静默，与伴读动作同纪律。
+ */
+export function readerTranslateFull(
+    plugin: Plugin,
+    docId: string,
+    settings: GleanSettings
+): Promise<ReaderAiOutcome> {
+    if (!readerAiEnabled(settings)) return Promise.resolve({ ok: false, skipped: "off" });
+    return runAiTask(() => readerTranslateFullInner(plugin, docId, settings));
+}
+
+async function readerTranslateFullInner(
+    plugin: Plugin,
+    docId: string,
+    settings: GleanSettings
+): Promise<ReaderAiOutcome> {
+    if (!(await aiQuotaAvailable(plugin, settings))) return { ok: false, skipped: "cap" };
+    try {
+        const exported = await exportMdContent(docId);
+        const markdown = exported?.content ?? "";
+        const llm = await callLLM(plugin, settings, buildTranslatePrompt(stripMarkdown(markdown).slice(0, 8000)));
+        if (!llm.ok) {
+            await logAiEvent(plugin, docId, "reader-translate-full", llm.reason || "调用失败");
+            return { ok: false, skipped: "error" };
+        }
+        await recordAiUsage(plugin);
+        return { ok: true, text: String(llm.text ?? "").trim() };
+    } catch (error) {
+        await logAiEvent(plugin, docId, "reader-translate-full", String((error as Error)?.message ?? error));
         return { ok: false, skipped: "error" };
     }
 }

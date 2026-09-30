@@ -9,7 +9,7 @@ import { t } from "../libs/i18n";
 import type { GleanIndex } from "../services/index-store";
 import { listLibraryQuotes, listQuoteRoots } from "../services/highlights";
 import { exportQuotesToDoc } from "../services/excerpt-service";
-import { filterQuotes, quoteFacets, type QuoteEntry, type QuoteFilter } from "../domain/quotes";
+import { filterQuotes, formatQuoteShare, quoteFacets, type QuoteEntry, type QuoteFilter } from "../domain/quotes";
 
 interface Props {
     facade: GleanFacade;
@@ -84,6 +84,16 @@ function clearFilter(): void {
 
 function openRoot(quoteId: string): void {
     void openTab({ app: facade.pluginInstance.app, doc: { id: quoteId }, keepCursor: false });
+}
+
+/** T-1803 分享卡：复制格式化引用（引述+来源+回链）。 */
+async function copyQuoteShare(quote: QuoteEntry): Promise<void> {
+    try {
+        await navigator.clipboard.writeText(formatQuoteShare(quote));
+        showMessage(t(i18n, "reader.copied"), 2000);
+    } catch {
+        showMessage(t(i18n, "reader.actionFailed"), 2500);
+    }
 }
 
 async function doExport(): Promise<void> {
@@ -177,6 +187,12 @@ async function doExport(): Promise<void> {
                         <button class="glean-quote__src" title={quote.title || quote.rootId} onclick={() => openRoot(quote.id)}>
                             ↩ {quote.title || t(i18n, "panel.untitled")}{quote.site ? ` · ${quote.site}` : ""}
                         </button>
+                        <!-- T-1803 分享卡：复制格式化引用 -->
+                        <button
+                            class="glean-quote__src"
+                            title={t(i18n, "highlight.copyShare")}
+                            onclick={() => void copyQuoteShare(quote)}
+                        >⧉ {t(i18n, "highlight.copyShare")}</button>
                     </div>
                 </div>
             {:else}

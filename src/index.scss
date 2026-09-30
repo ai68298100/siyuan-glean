@@ -2680,3 +2680,19 @@
 /* ---------- 行表溢出菜单与富化失败标记（T-1808/T-1763） ---------- */
 .glean-op-btn--warn { color: var(--b3-theme-warning, #d97706); }
 .glean-op-btn--warn:hover { color: var(--b3-theme-warning, #d97706); }
+
+/* ---------- 双语对照块（T-1745） ---------- */
+.glean-reader__bilingual { display: flex; flex-direction: column; gap: 4px; }
+.glean-reader__bilingual-toggle { align-self: flex-start; font-size: 11.5px; padding: 2px 6px; }
+.glean-reader__bilingual-text {
+    max-height: 260px;
+    overflow-y: auto;
+    border: 1px solid var(--b3-border-color);
+    border-radius: 8px;
+    padding: 8px 10px;
+    background: var(--b3-theme-surface);
+    font-size: 12.5px;
+    line-height: 1.7;
+    white-space: pre-wrap;
+    color: var(--b3-theme-on-surface);
+}

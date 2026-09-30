@@ -2,7 +2,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { filterQuotes, quoteExportMarkdown, quoteFacets, type QuoteEntry } from "../src/domain/quotes.ts";
+import { filterQuotes, formatQuoteShare, quoteExportMarkdown, quoteFacets, type QuoteEntry } from "../src/domain/quotes.ts";
 
 function entry(partial: Partial<QuoteEntry>): QuoteEntry {
     return {
@@ -59,4 +59,13 @@ test("quoteExportMarkdown：逐条附原文回链", () => {
     assert.ok(md.includes("siyuan://blocks/20260101000001-bbbbbbb"));
     assert.ok(md.includes("深度文章（a.com）"));
     assert.ok(md.includes("未命名文档"));
+});
+
+test("formatQuoteShare：引述 + 来源 + 回链（T-1803）", () => {
+    const share = formatQuoteShare(entry({ text: "关键论点", title: "深度文章", site: "a.com", rootId: "20260101000001-bbbbbbb" }));
+    assert.ok(share.includes("> 关键论点"));
+    assert.ok(share.includes("—— 深度文章（a.com）"));
+    assert.ok(share.includes("siyuan://blocks/20260101000001-bbbbbbb"));
+    // 无站点时省略括号
+    assert.ok(formatQuoteShare(entry({ text: "x", title: "文" })).includes("—— 文"));
 });

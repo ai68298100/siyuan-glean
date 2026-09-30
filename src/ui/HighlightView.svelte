@@ -5,6 +5,7 @@ import type { GleanFacade } from "../types";
 import { t } from "../libs/i18n";
 import { listDocHighlights, type HighlightItem } from "../services/highlights";
 import { findRelated } from "../services/enrich-service";
+import { formatQuoteShare } from "../domain/quotes";
 import { makeQuoteCard } from "../services/flashcard-service";
 import { showMessage } from "siyuan";
 
@@ -104,6 +105,25 @@ function openDoc(docId: string) {
 function jumpToQuote(quoteBlockId: string): void {
     if (/^\d{14}-[0-9a-z]{7}$/.test(quoteBlockId)) openDoc(quoteBlockId);
 }
+
+/** T-1803 分享卡：复制格式化引用（rootId=当前文档，标题用已加载的 docTitle）。 */
+async function copyShare(item: HighlightItem): Promise<void> {
+    const share = formatQuoteShare({
+        id: item.id,
+        rootId: currentDocId,
+        text: item.text,
+        title: docTitle,
+        site: "",
+        tags: [],
+        aiTags: [],
+    });
+    try {
+        await navigator.clipboard.writeText(share);
+        showMessage(t(i18n, "reader.copied"), 2000);
+    } catch {
+        showMessage(t(i18n, "reader.actionFailed"), 2500);
+    }
+}
 </script>
 
 <div class="glean-panel">
@@ -132,6 +152,10 @@ function jumpToQuote(quoteBlockId: string): void {
                             <!-- T-1753：摘录时间（块更新时间投影） -->
                             <span class="glean-hl__time">{item.at.slice(4, 6)}/{item.at.slice(6, 8)} {item.at.slice(8, 10)}:{item.at.slice(10, 12)}</span>
                         {/if}
+                        <!-- T-1803 分享卡：复制为格式化引用（含来源与回链） -->
+                        <button class="glean-hl__card" title={t(i18n, "highlight.copyShare")} onclick={() => void copyShare(item)}>
+                            ⧉ {t(i18n, "highlight.copyShare")}
+                        </button>
                         <button class="glean-hl__card" title={t(i18n, "highlight.jumpTo")} onclick={() => jumpToQuote(item.id)}>
                             ↗ {t(i18n, "highlight.jumpTo")}
                         </button>

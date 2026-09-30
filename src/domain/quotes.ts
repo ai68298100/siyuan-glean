@@ -84,3 +84,12 @@ export function quoteExportMarkdown(entries: QuoteEntry[], rangeLabel: string, g
     lines.push("");
     return lines.join("\n");
 }
+
+/* ---------- 高亮分享卡（T-1803） ---------- */
+
+/** 格式化引用文本（复制用）：引述 + 来源行（标题/站点）+ 思源回链。 */
+export function formatQuoteShare(entry: QuoteEntry): string {
+    const title = entry.title || "未命名文档";
+    const source = entry.site ? `${title}（${entry.site}）` : title;
+    return [`> ${entry.text.replace(/\s+/g, " ")}`, `> —— ${source}`, `> ${`siyuan://blocks/${entry.rootId}`}`].join("\n");
+}
