@@ -79,7 +79,7 @@
     const bodyState = $derived(context ? fulltextBodyState(context.contentType, context.words) : "na");
 
     // T-1742 排版偏好：字号/行距三档（ui-prefs 持久化，纯视图状态）
-    let typography = $state<ReaderTypography>({ fontSize: "md", lineHeight: "normal" });
+    let typography = $state<ReaderTypography>({ fontSize: "md", lineHeight: "normal", width: "medium", theme: "follow" });
     $effect(() => {
         void loadUiPrefs(facade.pluginInstance).then((prefs) => {
             typography = prefs.readerTypography;
@@ -95,6 +95,18 @@
     function cycleLineHeight(): void {
         const order: ReaderTypography["lineHeight"][] = ["compact", "normal", "relaxed"];
         typography = { ...typography, lineHeight: order[(order.indexOf(typography.lineHeight) + 1) % order.length] };
+        void saveUiPrefs(facade.pluginInstance, { readerTypography: typography });
+    }
+
+    function cycleWidth(): void {
+        const order: ReaderTypography["width"][] = ["narrow", "medium", "wide"];
+        typography = { ...typography, width: order[(order.indexOf(typography.width) + 1) % order.length] };
+        void saveUiPrefs(facade.pluginInstance, { readerTypography: typography });
+    }
+
+    function cycleTheme(): void {
+        const order: ReaderTypography["theme"][] = ["follow", "paper", "sepia"];
+        typography = { ...typography, theme: order[(order.indexOf(typography.theme) + 1) % order.length] };
         void saveUiPrefs(facade.pluginInstance, { readerTypography: typography });
     }
 
@@ -804,7 +816,7 @@
     }
 </script>
 
-<div class="glean-reader glean-reader--font-{typography.fontSize} glean-reader--lh-{typography.lineHeight}">
+<div class="glean-reader glean-reader--font-{typography.fontSize} glean-reader--lh-{typography.lineHeight} glean-reader--w-{typography.width} glean-reader--theme-{typography.theme}">
     <div class="glean-reader__main">
         {#if docId}
             <div class="glean-reader__host" bind:this={protyleHost}></div>
@@ -881,7 +893,7 @@
                     title={t(i18n, "reader.editHint")}
                     onclick={() => setMode("edit")}
                 >{t(i18n, "reader.modeEdit")}</button>
-                <!-- T-1742 排版偏好：字号/行距循环（纯视图状态，ui-prefs 持久化） -->
+                <!-- T-1742/T-1743 排版偏好：字号/行距/栏宽/主题循环（纯视图状态，ui-prefs 持久化） -->
                 <button
                     class="glean-seg__btn"
                     title={t(i18n, "reader.typographyFont")}
@@ -892,6 +904,16 @@
                     title={t(i18n, "reader.typographyLine")}
                     onclick={() => cycleLineHeight()}
                 >{typography.lineHeight === "compact" ? "≡" : typography.lineHeight === "normal" ? "≣" : "☰"}</button>
+                <button
+                    class="glean-seg__btn"
+                    title={t(i18n, "reader.typographyWidth")}
+                    onclick={() => cycleWidth()}
+                >{typography.width === "narrow" ? "⇥⇤" : typography.width === "medium" ? "⇹" : "⟷"}</button>
+                <button
+                    class="glean-seg__btn"
+                    title={t(i18n, "reader.typographyTheme")}
+                    onclick={() => cycleTheme()}
+                >{typography.theme === "paper" ? "📄" : typography.theme === "sepia" ? "☕" : "◐"}</button>
             </div>
             {#if context}
                 <ClipStatusActions

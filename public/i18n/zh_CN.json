@@ -431,6 +431,8 @@
   "reader.hotkeyMode": "切换 阅读/编辑 模式",
   "reader.typographyFont": "切换字号（小/中/大）",
   "reader.typographyLine": "切换行距（紧/常规/松）",
+  "reader.typographyWidth": "切换栏宽（窄/中/宽）",
+  "reader.typographyTheme": "切换阅读主题（跟随/纸感/护眼）",
   "reader.bilingualTitle": "双语对照 · 译文",
   "reader.readingProgress": "阅读进度（按已过内容块估计）",
   "reader.sessionMinutes": "本次阅读 ${n} 分钟",

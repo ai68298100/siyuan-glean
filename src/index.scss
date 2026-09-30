@@ -2751,3 +2751,26 @@
 .glean-reader--lh-compact .glean-reader__main .protyle-content { line-height: 1.5; }
 .glean-reader--lh-normal .glean-reader__main .protyle-content { line-height: 1.75; }
 .glean-reader--lh-relaxed .glean-reader__main .protyle-content { line-height: 2; }
+
+/* ---------- 栏宽三档（T-1742 收尾） ---------- */
+.glean-reader--w-narrow .glean-reader__main .protyle-content { max-width: 42em; margin: 0 auto; }
+.glean-reader--w-medium .glean-reader__main .protyle-content { max-width: 58em; margin: 0 auto; }
+.glean-reader--w-wide .glean-reader__main .protyle-content { max-width: none; }
+
+/* ---------- 阅读主题（T-1743）：纸感/护眼，纯 CSS 作用于正文区域 ---------- */
+.glean-reader--theme-paper .glean-reader__main .protyle-content {
+    background: #faf6ef;
+    color: #3d3a34;
+}
+.glean-reader--theme-paper .glean-reader__main .protyle-content .b3-typography,
+.glean-reader--theme-paper .glean-reader__main .protyle-content .protyle-wysiwyg {
+    color: #3d3a34;
+}
+.glean-reader--theme-sepia .glean-reader__main .protyle-content {
+    background: #f4ecd8;
+    color: #5b4a3a;
+}
+.glean-reader--theme-sepia .glean-reader__main .protyle-content .b3-typography,
+.glean-reader--theme-sepia .glean-reader__main .protyle-content .protyle-wysiwyg {
+    color: #5b4a3a;
+}

@@ -1,5 +1,12 @@
 # 进度（PROGRESS）
 
+## 栏宽三档与阅读主题（续跑口令驱动，2026-10-01）✅
+
+- [x] **T-1742 栏宽三档（收尾）**：`ReaderTypography.width`（narrow/medium/wide）+ 宿主 `--w-*` class（正文 max-width 42/58em/不限居中）+ 循环按钮。
+- [x] **T-1743 阅读主题**：`ReaderTypography.theme`（follow/paper/sepia）+ 宿主 `--theme-*` 纯 CSS（纸感 #faf6ef / 护眼 #f4ecd8 作用于正文区域，**不写用户文档样式**）+ ◐/📄/☕ 循环按钮。随排版偏好持久化。
+- [x] 门禁：check 0 错 0 告警、test **169/169**、build 通过、隔离 E2E **31/31**。未发布新版本；真机观感随 B-0002。
+- 坑：DEFAULTS 字面量漏新增字段（TS 即时暴露）——**接口加字段时同步检查模块内所有字面量构造点**。
+
 ## 排版偏好与删除回收期研究（续跑口令驱动，2026-10-01）✅
 
 - [x] **T-1742 排版偏好**（字号/行距部分）：prefs `ReaderTypography`（fontSize sm/md/lg + lineHeight compact/normal/relaxed，归一化）+ ReaderTab 模式段旁 A/行距循环按钮（宿主根 class 三档应用）+ ui-prefs 持久化。栏宽三档留下轮。真机观感随 B-0002。

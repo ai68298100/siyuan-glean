@@ -16,13 +16,20 @@ export interface UiPrefs {
     readerTypography: ReaderTypography;
 }
 
-/** 阅读页签排版档位（T-1742）：纯视图状态，默认档跟随思源。 */
+/** 阅读页签排版档位（T-1742/T-1743）：纯视图状态，默认档跟随思源。 */
 export interface ReaderTypography {
     /** 字号档：sm / md / lg */
     fontSize: "sm" | "md" | "lg";
     /** 行距档：compact / normal / relaxed */
     lineHeight: "compact" | "normal" | "relaxed";
+    /** 栏宽档（T-1742 收尾）：narrow / medium / wide */
+    width: "narrow" | "medium" | "wide";
+    /** 阅读主题（T-1743）：follow（跟随思源）/ paper（纸感）/ sepia（护眼） */
+    theme: "follow" | "paper" | "sepia";
 }
+
+const WIDTHS = ["narrow", "medium", "wide"] as const;
+const THEMES = ["follow", "paper", "sepia"] as const;
 
 /** 保存的筛选视图（T-1846）：name 唯一性由 UI 保证，这里只做类型归一。 */
 export interface SavedFilter {
@@ -36,13 +43,13 @@ const DEFAULTS: UiPrefs = {
     lastView: "",
     onboardingDone: false,
     savedFilters: [],
-    readerTypography: { fontSize: "md", lineHeight: "normal" },
+    readerTypography: { fontSize: "md", lineHeight: "normal", width: "medium", theme: "follow" },
 };
 
 const FONT_SIZES = ["sm", "md", "lg"] as const;
 const LINE_HEIGHTS = ["compact", "normal", "relaxed"] as const;
 
-/** 归一化排版档位（T-1742）：非法值回落默认。 */
+/** 归一化排版档位（T-1742/T-1743）：非法值回落默认。 */
 function normalizeTypography(raw: unknown): ReaderTypography {
     const input = (raw ?? {}) as Partial<ReaderTypography>;
     return {
@@ -50,6 +57,8 @@ function normalizeTypography(raw: unknown): ReaderTypography {
         lineHeight: LINE_HEIGHTS.includes(input.lineHeight as never)
             ? (input.lineHeight as ReaderTypography["lineHeight"])
             : "normal",
+        width: WIDTHS.includes(input.width as never) ? (input.width as ReaderTypography["width"]) : "medium",
+        theme: THEMES.includes(input.theme as never) ? (input.theme as ReaderTypography["theme"]) : "follow",
     };
 }
 

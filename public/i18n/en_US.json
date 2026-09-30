@@ -431,6 +431,8 @@
   "reader.hotkeyMode": "Toggle read/edit mode",
   "reader.typographyFont": "Cycle font size (small/medium/large)",
   "reader.typographyLine": "Cycle line height (compact/normal/relaxed)",
+  "reader.typographyWidth": "Cycle content width (narrow/medium/wide)",
+  "reader.typographyTheme": "Cycle reading theme (follow/paper/sepia)",
   "reader.bilingualTitle": "Bilingual · translation",
   "reader.readingProgress": "Reading progress (estimated by blocks passed)",
   "reader.sessionMinutes": "Reading for ${n} min",
