@@ -430,6 +430,8 @@
   "reader.bilingualTitle": "双语对照 · 译文",
   "reader.readingProgress": "阅读进度（按已过内容块估计）",
   "reader.sessionMinutes": "本次阅读 ${n} 分钟",
+  "resurface.digest": "三篇速览",
+  "settings.httpWarning": "当前自定义通道使用明文 HTTP，API 请求内容在传输中未加密；密钥本身存于思源密钥库不受影响，请确认通道提供方可信",
   "reader.outline": "本文大纲",
   "reader.outlineMiss": "未找到该标题位置（可能在折叠区内）",
   "reader.ttsSpeak": "朗读",

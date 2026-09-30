@@ -5,6 +5,7 @@ import { showMessage } from "siyuan";
 import type { GleanFacade } from "../types";
 import { t } from "../libs/i18n";
 import { computeDailyFromIndex, actOnSurface } from "../services/resurface-service";
+import { dailyDigest, readerAiEnabled } from "../services/reader-ai";
 import type { GleanIndex } from "../services/index-store";
 import { type SurfacePick, type SurfaceReason } from "../domain/resurface";
 import { hasSourceAction, openTargetForCarrier, resolveCarrier, sourceUrlForCarrier } from "../domain/carrier";
@@ -24,6 +25,42 @@ const daily = $derived(computeDailyFromIndex(index, facade.settings));
 const picks = $derived(daily.picks);
 const recentCount = $derived(daily.recentCount);
 let actingId = $state("");
+
+// T-1764 AI 每日简报：三篇速览（手动触发、额度共享、会话状态仅复制）
+let digestBusy = $state(false);
+let digestText = $state("");
+const digestOn = $derived(readerAiEnabled(facade.settings) && !facade.isMobile);
+
+async function generateDigest(): Promise<void> {
+    if (digestBusy || picks.length === 0) return;
+    digestBusy = true;
+    try {
+        const items = picks.slice(0, 3).map((pick) => ({
+            title: pick.item.title || "",
+            site: pick.item.site || "",
+            summary: pick.item.summary || "",
+        }));
+        const outcome = await dailyDigest(facade.pluginInstance, items, facade.settings);
+        if (outcome.ok && outcome.text) {
+            digestText = outcome.text;
+        } else if (outcome.skipped === "cap") {
+            showMessage(t(i18n, "ai.capReached", { n: facade.settings.ai.enrichDailyCap }), 4000);
+        } else if (outcome.skipped !== "off") {
+            showMessage(t(i18n, "ai.enrichFailed"), 3000);
+        }
+    } finally {
+        digestBusy = false;
+    }
+}
+
+async function copyDigest(): Promise<void> {
+    try {
+        await navigator.clipboard.writeText(digestText);
+        showMessage(t(i18n, "reader.copied"), 2000);
+    } catch {
+        showMessage(t(i18n, "reader.actionFailed"), 2500);
+    }
+}
 /** UX 审计 #10：本会话"开始阅读"过的文章回执（纯视图状态，不写属性）。 */
 let startedToday = $state<Array<{ id: string; title: string }>>([]);
 
@@ -131,6 +168,22 @@ function reasonText(reason: SurfaceReason): string {
             <div class="glean-empty__hint">{t(i18n, "resurface.allDoneHint")}</div>
         </div>
     {:else}
+        {#if digestOn && picks.length > 0}
+            <!-- T-1764 AI 每日简报：三篇速览（手动、额度、会话状态仅复制） -->
+            <div class="glean-surf-digest">
+                {#if digestText}
+                    <div class="glean-surf-digest__text">{digestText}</div>
+                    <div class="glean-surf__acts">
+                        <button class="glean-surf-act" onclick={() => void copyDigest()}>{t(i18n, "reader.copy")}</button>
+                        <button class="glean-surf-act" onclick={() => (digestText = "")}>{t(i18n, "action.close")}</button>
+                    </div>
+                {:else}
+                    <button class="glean-surf-act" disabled={digestBusy} onclick={() => void generateDigest()}>
+                        {digestBusy ? t(i18n, "panel.loading") : `✨ ${t(i18n, "resurface.digest")}`}
+                    </button>
+                {/if}
+            </div>
+        {/if}
         {#if startedToday.length > 0}
             <div class="glean-surf-started">
                 {#each startedToday as item (item.id)}

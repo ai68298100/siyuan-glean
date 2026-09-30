@@ -430,6 +430,8 @@
   "reader.bilingualTitle": "Bilingual · translation",
   "reader.readingProgress": "Reading progress (estimated by blocks passed)",
   "reader.sessionMinutes": "Reading for ${n} min",
+  "resurface.digest": "3-article digest",
+  "settings.httpWarning": "This custom channel uses plain HTTP; API traffic is not encrypted in transit. Your secret itself stays in SiYuan's key store — make sure the provider is trustworthy",
   "reader.outline": "Outline",
   "reader.outlineMiss": "Heading not found (it may be inside a collapsed block)",
   "reader.ttsSpeak": "Read aloud",

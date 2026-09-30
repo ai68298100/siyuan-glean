@@ -2725,3 +2725,21 @@
     padding: 0 2px;
 }
 .glean-quotes__chip-x:hover { opacity: 1; }
+
+/* ---------- 每日简报速览卡（T-1764） ---------- */
+.glean-surf-digest {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    border: 1px solid var(--b3-border-color);
+    border-radius: 8px;
+    padding: 8px 10px;
+    background: var(--b3-theme-surface);
+    margin-bottom: 8px;
+}
+.glean-surf-digest__text {
+    font-size: 12.5px;
+    line-height: 1.7;
+    color: var(--b3-theme-on-surface);
+    white-space: pre-wrap;
+}

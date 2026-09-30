@@ -224,3 +224,28 @@ export function parseQuestionResponse(raw: string): string | null {
     if (!text || text.length > 120) return null;
     return text;
 }
+
+/* ---------- AI 每日简报（T-1764） ---------- */
+
+export interface DigestItem {
+    title: string;
+    site: string;
+    /** 摘要（无则空串，prompt 里以"（无摘要）"占位） */
+    summary: string;
+}
+
+/**
+ * 每日简报 prompt（T-1764）：基于今日拾遗前 3 篇的标题/站点/摘要，
+ * 生成一段 150 字内的串联速览。只输出速览正文。
+ */
+export function buildDailyDigestPrompt(items: DigestItem[]): string {
+    const lines = items.map(
+        (item, index) => `${index + 1}. 《${String(item.title ?? "").trim()}》（${String(item.site ?? "").trim() || "未知来源"}）：${String(item.summary ?? "").trim() || "（无摘要）"}`
+    );
+    return [
+        "以下是与今日阅读清单中的 3 篇文章的标题、来源与摘要。",
+        "请生成一段不超过 150 字的串联速览，概括这批文章共同覆盖的主题与各自看点，",
+        "语气平实，不夸张，不要逐篇机械罗列。只输出速览正文。",
+        ...lines,
+    ].join("\n");
+}

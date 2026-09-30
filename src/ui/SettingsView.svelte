@@ -469,6 +469,12 @@ async function doMountBoard() {
                     <div class="glean-set-row__lb">{t(i18n, "settings.customBaseUrl")}</div>
                     <input class="glean-mini-input" style="width:220px; text-align:left" placeholder="https://…/v1" bind:value={customBaseUrl} onchange={() => void save()} />
                 </div>
+                {#if customBaseUrl.trim().toLowerCase().startsWith("http://")}
+                    <!-- T-1765：明文 HTTP 通道警示（密钥经思源密钥库，但传输明文需告知） -->
+                    <div class="glean-set-row" style="font-size:11.5px; color:var(--b3-theme-warning, #d97706)">
+                        ⚠ {t(i18n, "settings.httpWarning")}
+                    </div>
+                {/if}
                 <div class="glean-set-row">
                     <div class="glean-set-row__lb">{t(i18n, "settings.customModel")}</div>
                     <input class="glean-mini-input" style="width:180px; text-align:left" placeholder="free-model" bind:value={customModel} onchange={() => void save()} />

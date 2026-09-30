@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 
 import {
     buildAuthorPrompt,
+    buildDailyDigestPrompt,
     buildEnrichPrompt,
     buildQuestionCardPrompt,
     extractJson,
@@ -104,4 +105,16 @@ test("buildQuestionCardPrompt/parseQuestionResponse：问句卡指令与清洗�
     assert.equal(parseQuestionResponse("「这个问题是什么？」"), "这个问题是什么？");
     assert.equal(parseQuestionResponse(""), null);
     assert.equal(parseQuestionResponse("x".repeat(150)), null);
+});
+
+test("buildDailyDigestPrompt：三篇速览指令与无摘要占位（T-1764）", () => {
+    const prompt = buildDailyDigestPrompt([
+        { title: "文章一", site: "a.com", summary: "摘要一" },
+        { title: "文章二", site: "", summary: "" },
+        { title: "文章三", site: "c.com", summary: "摘要三" },
+    ]);
+    assert.ok(prompt.includes("1. 《文章一》（a.com）：摘要一"));
+    assert.ok(prompt.includes("2. 《文章二》（未知来源）：（无摘要）"));
+    assert.ok(prompt.includes("150 字"));
+    assert.ok(prompt.includes("只输出速览正文"));
 });

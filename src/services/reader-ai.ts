@@ -13,7 +13,7 @@ import {
     buildTranslatePrompt,
     clampAskQuestion,
 } from "../domain/reader";
-import { buildQuestionCardPrompt } from "../domain/enrich";
+import { buildDailyDigestPrompt, buildQuestionCardPrompt } from "../domain/enrich";
 import { aiQuotaAvailable, callLLM, logAiEvent, recordAiUsage, runAiTask } from "./enrich-service";
 import { writeClip } from "./clip-store";
 import type { GleanSettings } from "./settings";
@@ -166,6 +166,40 @@ export function inferQuestionCard(
             return { ok: true, text: String(llm.text ?? "").trim() };
         } catch (error) {
             await logAiEvent(plugin, quote.slice(0, 20), "question-card", String((error as Error)?.message ?? error));
+            return { ok: false, skipped: "error" };
+        }
+    });
+}
+
+/**
+ * AI 每日简报（T-1764）：基于今日拾遗前 3 篇的标题/来源/摘要生成串联速览。
+ * 租约队列/额度共享/失败静默；结果为会话状态，仅复制不落属性。
+ */
+export interface DigestInputItem {
+    title: string;
+    site: string;
+    summary: string;
+}
+
+export function dailyDigest(
+    plugin: Plugin,
+    items: DigestInputItem[],
+    settings: GleanSettings
+): Promise<ReaderAiOutcome> {
+    if (!readerAiEnabled(settings)) return Promise.resolve({ ok: false, skipped: "off" });
+    if (items.length === 0) return Promise.resolve({ ok: false, skipped: "error" });
+    return runAiTask(async () => {
+        if (!(await aiQuotaAvailable(plugin, settings))) return { ok: false, skipped: "cap" };
+        try {
+            const llm = await callLLM(plugin, settings, buildDailyDigestPrompt(items.slice(0, 3)));
+            if (!llm.ok) {
+                await logAiEvent(plugin, "daily-digest", "daily-digest", llm.reason || "调用失败");
+                return { ok: false, skipped: "error" };
+            }
+            await recordAiUsage(plugin);
+            return { ok: true, text: String(llm.text ?? "").trim() };
+        } catch (error) {
+            await logAiEvent(plugin, "daily-digest", "daily-digest", String((error as Error)?.message ?? error));
             return { ok: false, skipped: "error" };
         }
     });
