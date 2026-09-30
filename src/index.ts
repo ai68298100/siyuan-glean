@@ -653,7 +653,7 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
                 "把小驴拾遗读库中超过保留期（默认 " + this.settings.staleDays + " 天）未读的新剪藏/稍后读文章归档。",
             inputSchema: schema,
             handler: async () => {
-                const { reconcileIndex, batchSetStatus } = await import("./services/clip-store");
+                const { reconcileIndex, batchSetStatusDetailed } = await import("./services/clip-store");
                 const index = await reconcileIndex(this, this.settings);
                 const cutoff = Date.now() - this.settings.staleDays * 86_400_000;
                 const stale = Object.values(index.clips).filter((clip) => {
@@ -666,8 +666,16 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
                     ).getTime();
                     return captured < cutoff;
                 });
-                await batchSetStatus(this, stale.map((clip) => clip.id), "archived");
-                return { structuredContent: { archived: stale.length }, result: "已归档 " + stale.length + " 篇超龄文章" };
+                // T-1985：报告真实结算而非候选长度——写入失败的 ID 必须暴露，写后对账刷新索引。
+                const settled = await batchSetStatusDetailed(this, stale.map((clip) => clip.id), "archived");
+                const failedIds = stale.map((clip) => clip.id).filter((id) => !settled.succeeded.includes(id));
+                if (settled.ok > 0) this.notifyDataChanged();
+                return {
+                    structuredContent: { requested: stale.length, archived: settled.ok, failedIds },
+                    result: failedIds.length === 0
+                        ? "已归档 " + settled.ok + " 篇超龄文章"
+                        : "已归档 " + settled.ok + "/" + stale.length + " 篇超龄文章；失败 " + failedIds.length + " 篇可重试",
+                };
             },
         });
         this.addAgentCapability({

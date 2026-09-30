@@ -305,15 +305,20 @@ $effect(() => {
 });
 
 // 视图偏好持久化：挂载恢复 + 切换保存
+// T-1955：加载完成前不得保存——否则初始默认视图会把磁盘上的真实偏好覆盖掉
+let prefsLoaded = $state(false);
+
 $effect(() => {
     void loadUiPrefs(facade.pluginInstance).then((prefs) => {
         const valid = views.some((item) => item.key === prefs.lastView);
         // 返回读库定位优先于异步恢复的上次视图，避免把 library 切回旧视图。
         if (valid && !focusRequested) view = prefs.lastView as PanelView;
+        prefsLoaded = true;
     });
 });
 
 $effect(() => {
+    if (!prefsLoaded) return;
     void saveUiPrefs(facade.pluginInstance, { lastView: view });
 });
 

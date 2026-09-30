@@ -445,6 +445,39 @@ async function runFlow(client, workspace) {
     const userCardAttrs = await client.apiChecked("/api/attr/getBlockAttrs", { id: userCardDoc });
     assert.equal(userCardAttrs["custom-clip-internal"], undefined);
     pass("T-1987 闪卡宿主复用要求 internal 身份，同名用户文档不被写入");
+
+    // T-1958 周报幂等：同周重复生成定位同一宿主文档，不堆积同名文档。
+    const stats = await import("../../src/services/stats-service.ts");
+    const weeklyIndex = await clip.reconcileIndex(newPlugin(), settings);
+    const weekly1 = await stats.exportWeeklyReport(weeklyIndex, settings, plugin);
+    await until("周报宿主进入 SQL 索引", async () => {
+        const rows = await client.apiChecked("/api/query/sql", {
+            stmt: `SELECT id FROM blocks WHERE type='d' AND box='${box}' AND hpath LIKE '/读库周报/%'`,
+        });
+        return rows.some((row) => row.id === weekly1) ? rows : null;
+    });
+    const weekly2 = await stats.exportWeeklyReport(weeklyIndex, settings, plugin);
+    assert.equal(weekly2, weekly1);
+    const weeklyRows = await client.apiChecked("/api/query/sql", {
+        stmt: `SELECT id FROM blocks WHERE type='d' AND box='${box}' AND hpath LIKE '/读库周报/%'`,
+    });
+    assert.equal(weeklyRows.length, 1);
+    pass("T-1958 同周重复生成周报定位同一文档，不堆积同名宿主");
+
+    // T-1990 损坏索引：坏文件保留、增量写不覆盖、对账重建后恢复落盘。
+    const indexStore = await import("../../src/services/index-store.ts");
+    const indexPath = path.join(workspace, "glean-s1-service-data", "glean-index.json");
+    fs.writeFileSync(indexPath, "{broken json!!");
+    const corruptedPlugin = newPlugin();
+    const loadedCorrupt = await indexStore.loadIndex(corruptedPlugin);
+    assert.equal(Object.keys(loadedCorrupt.clips).length, 0);
+    await clip.writeClip(corruptedPlugin, fulltext, { rating: 4 });
+    assert.equal(fs.readFileSync(indexPath, "utf8"), "{broken json!!", "损坏期间增量写不得覆盖原文件");
+    const recovered = await clip.reconcileIndex(corruptedPlugin, settings);
+    assert.equal(recovered.clips[fulltext].status, "later");
+    const rawAfter = JSON.parse(fs.readFileSync(indexPath, "utf8"));
+    assert.equal(rawAfter.clips[fulltext].status, "later");
+    pass("T-1990 损坏索引保留原文件，增量写被拦截，对账重建恢复");
 }
 
 async function main() {

@@ -1,5 +1,19 @@
 # 进度（PROGRESS）
 
+## P1 可靠性批次（续跑口令驱动，2026-10-01）✅
+
+P0 清完后按待办优先级继续，清掉九项 P1 可靠性/一致性缺陷（T-1839/1884/1955/1958/1961/1975/1981/1985/1990），未做新功能：
+
+- [x] **T-1990 索引校验与坏文件隔离**：`loadIndex` 枚举白名单（status 脏条目丢弃、contentType/timeSource/evidence/missing 过滤），坏 JSON 置 `indexCorrupted` 拒绝一切落盘（原文件保留）直到对账/重建完整扫描后合法覆盖。E2E 全链断言：坏文件→增量写被拦→reconcile 恢复。
+- [x] **T-1884 属性批读完整性**：`indexFromScopes` 返回 missingIds，属性批读缺失任何文档时对账/重建放弃保存并抛错，旧索引保留。
+- [x] **T-1985 archive_stale 真实结算**：改用 `batchSetStatusDetailed`，返回 `{requested, archived, failedIds}`，失败篇可重试。
+- [x] **T-1961 SQL ID 注入边界**：clip-store `DOC_ID_UNSAFE` 拒绝列表（引号/分号/空白/注释符等不进 SQL 不落写入），`writeClip` 入口断言、`fetchDocMeta`/HighlightView 拼接前拦截。
+- [x] **T-1839 ReaderTab 竞态**：`loadContext` 加 `contextSeq` 代次守卫；顺带删除重复的"读完并下一篇"按钮（T-1893 清单项）。
+- [x] **T-1975/T-1981 HighlightView**：`loadSeq` 代次贯穿引述/相关旧文/标题三段异步；监听 `glean:data-changed` 强制刷新。
+- [x] **T-1955 偏好竞态**：prefs 全部读写入串行队列（load→merge→save 原子）；DockPanel 加 `prefsLoaded` 屏障，加载完成前不保存。
+- [x] **T-1958 周报幂等定位**（部分）：同周重复生成先查 `/读库周报/{title}` 复用同一文档 ID，不堆积；内容更新语义待 createDocWithMd 覆盖行为实证。
+- [x] 门禁：check 0 错误/39 告警、test **135/135**、build 通过、隔离 E2E **21/21**（+2：周报幂等、损坏索引全链）。教训：ID 边界校验选"拒绝注入向量"而非严格格式白名单，测试 harness 短 ID 才能共存；新端点（getFile）未 spike 不引入。真机项统一随 B-0002。
+
 ## P0 缺陷批次修复（作者指令"按待办计划开发"，2026-10-01）✅
 
 按待办优先级清掉可靠性/数据主权七项 P0（T-1881/1882/1883/1885/1979/1980/1987），未做新功能：

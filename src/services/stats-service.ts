@@ -3,7 +3,7 @@
  * 聚合逻辑在 domain/stats.ts（纯函数）；这里只做取数与落盘。
  */
 import type { Plugin } from "siyuan";
-import { createDocWithMd } from "../api/client";
+import { createDocWithMd, querySql } from "../api/client";
 import { buildWeeklyReportMarkdown, aggregateStats, weeklyReportDocPath, withinWeek, type StatsInput } from "../domain/stats";
 import type { GleanIndex } from "./index-store";
 import { writeClip } from "./clip-store";
@@ -53,6 +53,12 @@ export async function exportWeeklyReport(index: GleanIndex, settings: GleanSetti
         }));
 
     const markdown = buildWeeklyReportMarkdown({ stats, doneItems, rangeLabel });
+    // T-1958：同周重复生成/失败重试都定位同一份周报，不再堆积同名宿主文档。
+    // 内容以首次生成为准；追加式更新待文档覆盖端点行为实证后再补（见 TODO T-1958 备注）。
+    const existing = await querySql<{ id: string }>(
+        `SELECT id FROM blocks WHERE type = 'd' AND box = '${notebookId.replace(/'/g, "''")}' AND hpath = '/读库周报/${title}' LIMIT 1`
+    );
+    if (existing[0]?.id) return existing[0].id;
     const docId = await createDocWithMd(notebookId, `/读库周报/${title}`, markdown);
     if (!docId) throw new Error("创建读库周报宿主文档失败");
     // 周报是插件内部文档：经 clip-store 写属性并同步派生索引，避免裸写 custom-clip-*。

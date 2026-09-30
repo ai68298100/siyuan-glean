@@ -67,10 +67,17 @@
         return value === "edit" ? "wysiwyg" : "preview";
     }
 
+    // T-1839：请求代次守卫——快速切换文章时丢弃晚到的旧上下文，旧结果不覆盖新文档
+    let contextSeq = 0;
+
     async function loadContext(id: string): Promise<void> {
+        const seq = ++contextSeq;
         try {
-            context = await readClipContext(id);
+            const next = await readClipContext(id);
+            if (seq !== contextSeq) return;
+            context = next;
         } catch (error) {
+            if (seq !== contextSeq) return;
             console.debug("[glean] 阅读页签读取上下文失败:", error);
             context = null;
         }
@@ -442,12 +449,6 @@
                     onStartReading={() => void startReading()}
                     onSetStatus={(status) => void writeStatus(status)}
                 />
-                <button
-                    class="glean-btn glean-btn--ghost"
-                    disabled={statusBusy}
-                    title={t(i18n, "reader.doneNextHint")}
-                    onclick={() => void doneAndNext()}
-                >✓→ {t(i18n, "reader.doneNext")}</button>
                 <button
                     class="glean-btn glean-btn--ghost"
                     disabled={statusBusy}

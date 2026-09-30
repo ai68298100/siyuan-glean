@@ -30,7 +30,7 @@ import {
 } from "../domain/schema";
 import { inspectClipMarkdown } from "../domain/content";
 import { normalizeUrl } from "../domain/url";
-import { applyAttrsToIndex, emptyIndex, loadIndex, saveIndex, withIndexLock, type GleanIndex } from "./index-store";
+import { applyAttrsToIndex, confirmIndexRebuilt, emptyIndex, loadIndex, saveIndex, withIndexLock, type GleanIndex } from "./index-store";
 import type { GleanSettings } from "./settings";
 
 export interface DocMeta {
@@ -105,6 +105,17 @@ export interface WriteClipResult {
     skippedKeys: string[];
 }
 
+/** 写入路径的文档 ID 边界（T-1961）：真实内核 ID 恒为 \d{14}-[0-9a-z]{7}；
+ * 拼接前拒绝注入向量字符（引号/分号/空白/注释符等），异常输入不进 SQL、不落属性。 */
+const DOC_ID_UNSAFE = /['"\\;()\s/]|--/;
+
+function assertDocId(docId: string): string {
+    if (!docId || DOC_ID_UNSAFE.test(docId)) {
+        throw new Error(`非法文档 ID，拒绝写入: ${String(docId).slice(0, 8)}…`);
+    }
+    return docId;
+}
+
 /** 与已有读库文章比较 URL；返回冲突文章的轻量元数据。 */
 export async function findClipUrlConflict(url: string, exceptDocId?: string): Promise<DocMeta | null> {
     const key = normalizeUrl(url);
@@ -142,6 +153,7 @@ export async function writeClip(
     patch: Partial<ClipAttrs> & { aiTags?: string[] | null },
     options: WriteClipOptions = {}
 ): Promise<WriteClipResult> {
+    assertDocId(docId);
     const ial = await getBlockAttrs(docId);
     const serialized = serializePatch(patch);
 
@@ -313,6 +325,8 @@ export async function measureClipBody(plugin: Plugin, docId: string): Promise<Cl
 /* ---------- 查询 ---------- */
 
 async function fetchDocMeta(docId: string): Promise<DocMeta> {
+    // T-1961：查询拼接前拒绝注入向量，异常 ID 不进 SQL，直接按空元数据处理
+    if (!docId || DOC_ID_UNSAFE.test(docId)) return { id: docId, title: "", hpath: "", box: "", updated: "" };
     const rows = await querySql<DocRow>(
         `SELECT id, content AS title, hpath, box, updated FROM blocks WHERE id = '${docId}' AND type = 'd' LIMIT 1`
     );
@@ -432,15 +446,22 @@ export async function scanDocScopes(settings: GleanSettings, pageSize = SCAN_PAG
 /**
  * 将一次完整范围扫描投影为索引。调用方必须先让 scanDocScopes() 成功读完三类范围，
  * 然后才传入这里；因此缺页、查询失败或属性读取失败都不会把旧索引误清空。
+ * 返回 missingIds（T-1884）：批读属性时缺失的文档 ID——调用方必须放弃保存新索引，
+ * 避免把"单行属性异常"投影成"文档从库中消失"。
  */
-async function indexFromScopes(scopes: ScanDocScopes): Promise<GleanIndex> {
+async function indexFromScopes(scopes: ScanDocScopes): Promise<{ index: GleanIndex; missingIds: string[] }> {
     const index = emptyIndex();
     const ids = scopes.all.map((row) => row.id);
     const attrPairs = await batchGetClipAttrsForIndex(ids);
     const attrsById = new Map(attrPairs.map((pair) => [pair.id, pair.attrs]));
+    const missingIds: string[] = [];
     for (const row of scopes.all) {
         const ial = attrsById.get(row.id);
-        if (!ial) continue;
+        if (!ial) {
+            // 扫描到、属性批读却缺失：单行异常。保守起见整个投影作废（见 reconcileIndex）。
+            missingIds.push(row.id);
+            continue;
+        }
         const exactTags = row.tag || ial.tags || "";
         let probe = inspectCandidate({
             ial,
@@ -467,7 +488,7 @@ async function indexFromScopes(scopes: ScanDocScopes): Promise<GleanIndex> {
         }
         applyAttrsToIndex(index, rowToMeta(row), ial, probe);
     }
-    return index;
+    return { index, missingIds };
 }
 
 /** 避免一次属性请求装进整个读库；一页失败会中止投影并保留旧索引。 */
@@ -489,7 +510,13 @@ export async function reconcileIndex(plugin: Plugin, settings: GleanSettings): P
     if (reconcileInFlight) return reconcileInFlight;
     reconcileInFlight = withIndexLock(async () => {
         const scopes = await scanDocScopes(settings);
-        const index = await indexFromScopes(scopes);
+        const { index, missingIds } = await indexFromScopes(scopes);
+        // T-1884：属性批读缺失任何文档 → 放弃保存，保留旧索引并向上报告
+        if (missingIds.length > 0) {
+            throw new Error(`属性读取不完整（缺失 ${missingIds.length} 篇，如 ${missingIds[0]}），已保留上次索引`);
+        }
+        // 完整扫描成功 = 合法覆盖（T-1990）：解除损坏标记后再落盘
+        confirmIndexRebuilt();
         return saveIndex(plugin, index);
     }).finally(() => {
         reconcileInFlight = null;
@@ -505,7 +532,11 @@ function rowToMeta(row: DocRow): DocMeta {
 export async function rebuildIndex(plugin: Plugin, settings: GleanSettings): Promise<GleanIndex> {
     return withIndexLock(async () => {
         const scopes = await scanDocScopes(settings);
-        const index = await indexFromScopes(scopes);
+        const { index, missingIds } = await indexFromScopes(scopes);
+        if (missingIds.length > 0) {
+            throw new Error(`属性读取不完整（缺失 ${missingIds.length} 篇），已保留上次索引`);
+        }
+        confirmIndexRebuilt();
         return saveIndex(plugin, index);
     });
 }

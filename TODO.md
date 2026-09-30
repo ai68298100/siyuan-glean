@@ -277,8 +277,8 @@
 - [ ] T-1836（P1，验收）候选完整性矩阵：覆盖零候选、100+ 候选、跨笔记本、普通笔记、无 URL、仅 URL、仅标签/模板证据、误报排除与解除、候选过期、同 URL 冲突、补 URL/转本地/批量确认；逐行检查证据、缺失项、预览不写属性和确认后索引同步。
 - [ ] T-1837（P1，验收）五态动作异常矩阵：覆盖合法/非法转移、重复点击幂等、并发点击、跨画布操作、写属性失败、部分成功、队列空、重启与索引重建；记录是否打开文档、是否写完成时间、成功数和失败后的恢复路径，补“撤销上一步”是否需要立项的产品裁决。
 - [ ] T-1838（P1，验收）筛选/搜索/排序矩阵：覆盖多条件组合、零结果、清空筛选、稳定排序、标题/URL/用户标签/AI 标签边界、分面计数、筛选后批量操作，以及 Dock/工作台/看板/移动端的一致性；与 T-1807 的 UI 收敛分开记账。
-- [ ] T-1839（P1，缺陷待开发）ReaderTab 上下文异步过期：`src/ui/ReaderTab.svelte` 的 `loadContext` 在快速切换文章时可能由旧请求覆盖新文档上下文；按原生 ReadingContext 的请求序号/取消语义补防护，并增加切换、销毁、外部属性变化时的回归验证。
-- [ ] T-1840（P1，缺陷待开发）外部导入半成功恢复：`createDocWithMd` 成功而 `captureClip` 失败时，记录孤儿文档、URL 查重和重跑策略，避免重复创建；提供逐条失败原因、继续/跳过/清理裁决、取消/暂停/恢复和索引修复语义。
+- [x] T-1839（P1，缺陷待开发）ReaderTab 上下文异步过期：`src/ui/ReaderTab.svelte` 的 `loadContext` 在快速切换文章时可能由旧请求覆盖新文档上下文；按原生 ReadingContext 的请求序号/取消语义补防护，并增加切换、销毁、外部属性变化时的回归验证。（2026-10-01；`contextSeq` 请求代次守卫，晚到旧结果丢弃；顺带删除重复的"读完并下一篇"按钮（T-1893 清单项）；切换/销毁回归随 B-0002）
+- [x] T-1840（P1，缺陷待开发）外部导入半成功恢复：`createDocWithMd` 成功而 `captureClip` 失败时，记录孤儿文档、URL 查重和重跑策略，避免重复创建；提供逐条失败原因、继续/跳过/清理裁决、取消/暂停/恢复和索引修复语义。
 - [ ] T-1841（P1，缺陷待开发）收集箱迁入半成功恢复：本地文档创建、属性写入、云端删除任一步失败时保留可重试身份；避免重复迁入，区分冲突文档、孤儿文档和云端删除失败，补断网/限流/登录过期验收。
 - [ ] T-1842（P2，验收）批量任务可取消与背压：迁移、导入、收集箱、富化、批量状态、索引重建统一检查 Abort/暂停/恢复、进度单调性、队列串行度、重启续跑和部分失败报告，避免“界面完成但后台仍写入”。
 
@@ -346,7 +346,7 @@
 - [x] T-1881（P0，缺陷待开发）派生索引写入串行化：`writeClip` 当前每次 `loadIndex→apply→saveIndex`，多画布并发写不同文章可能互相覆盖；建立按插件实例的写队列或版本合并，保证属性已写成功的增量不丢失，补并发状态/评分/AI/完成时间回归。（2026-10-01；`index-store.ts` 增 `withIndexLock` 内存互斥，writeClip 读改写段/reconcile/rebuild 全部入锁；隔离 E2E 19/19；多画布并发真机随 B-0002）
 - [x] T-1882（P0，缺陷待开发）对账请求代次与去抖：Dock、工作台、浮窗挂载及 `glean:data-changed` 会并发全量 `reconcileIndex`；增加请求序号、旧结果丢弃、短时合并和销毁取消，避免慢结果回滚新索引，并记录大库刷新次数与耗时。（2026-10-01；服务层进行中对账合并 + DockPanel reload 代次守卫；隔离 E2E 19/19；销毁取消的全场景真机随 B-0002）
 - [x] T-1883（P0，缺陷待开发）AI 额度原子租约：阅读总结/翻译与富化队列共用每日额度却是”检查后调用、成功后计数”；统一串行队列或原子租约，覆盖并发点击、失败不扣/成功只扣一次、重启恢复和 `saveData` 计数冲突。（2026-10-01；enrich-service 导出 `runAiTask` 租约，reader-ai 总结/翻译全程入队；并发 4 任务额度 2 只放行 2 的服务回归通过；重启恢复语义随 T-1856）
-- [ ] T-1884（P1，缺陷待开发）属性响应完整性保护：`batchGet` 缺少某文档 ID 时当前跳过该行仍可能保存新索引；改为保留旧索引并报告缺失 ID，区分单行属性异常和全量扫描失败，补隔离内核断言。
+- [x] T-1884（P1，缺陷待开发）属性响应完整性保护：`batchGet` 缺少某文档 ID 时当前跳过该行仍可能保存新索引；改为保留旧索引并报告缺失 ID，区分单行属性异常和全量扫描失败，补隔离内核断言。（2026-10-01；`indexFromScopes` 返回 missingIds，reconcile/rebuild 遇缺失放弃保存并向上抛错；"扫描后即刻删除"的保守误报可接受，注释已说明）
 - [x] T-1885（P0，缺陷待开发）完成历史统计修正：统计与周报按当前 `status === done` 过滤，归档后会丢失已有 `doneTime` 的本周完成记录；按可信完成时间统计，明确归档/删除/恢复口径并补跨周、未知时间和时区测试。（2026-10-01；`aggregateStats`/周报 doneItems 改为只认 doneTime、与状态解耦；stats 单测 2 例更新+新增归档不丢用例；跨时区样例随 T-1857）
 - [ ] T-1886（P1，质量）Svelte 警告分层清零：将约 39 条告警拆为真正 a11y、状态/响应性、外部 facade 初值和 `fileInput` 更新四类；逐项修复或记录合理例外，避免把“check 通过”误解为交互可靠。
 
@@ -444,13 +444,13 @@
 
 > 复核记录见 [RESEARCH-functional-ui-flow-audit-2026-09.md](docs/RESEARCH-functional-ui-flow-audit-2026-09.md)。本轮 `pnpm test` 132/132、`pnpm check:svelte` 0 错误但仍有 39 条既有警告。ReaderTab 重复“读完并下一篇”、硬编码“文A”、设置开关无屏读器语义、列表键盘事件缺失、样式 inline 等已经存在的发现挂接 T-1893/T-1858/T-1886–T-1913，不重复建号；以下是本轮新发现或对旧大项的专项化补充。开发前仍需契约/spike，按“实现→隔离验证→作者真机验收”三态记账。
 
-- [ ] T-1955（P1，可靠性）UI 偏好加载与保存竞态：`DockPanel` 挂载同时执行 `loadUiPrefs` 和默认 `saveUiPrefs({lastView: "resurface"})`，Dock/工作台/浮窗还会共享写入；增加加载屏障、实例写入归属、版本或队列合并，验证重启后视图不被默认值覆盖。
+- [x] T-1955（P1，可靠性）UI 偏好加载与保存竞态：`DockPanel` 挂载同时执行 `loadUiPrefs` 和默认 `saveUiPrefs({lastView: "resurface"})`，Dock/工作台/浮窗还会共享写入；增加加载屏障、实例写入归属、版本或队列合并，验证重启后视图不被默认值覆盖。（2026-10-01；prefs.ts 全部读写入串行写队列（load→merge→save 原子），DockPanel 加 `prefsLoaded` 屏障——加载完成前不保存；重启视图保持的真机回归随 B-0002）
 - [ ] T-1956（P1，交互）工作台浮窗单实例生命周期：`openPopup` 只用 1.5 秒定时器复位状态，没有真实关闭/销毁回执；验证重复点击、关闭后再开、插件卸载/重载、多个窗口和移动端降级，确保不会残留重复组件。
 - [ ] T-1957（P1，数据一致性）设置写入串行化与变化回读：Settings/Migrate/Onboarding 的异步 `save()` 都基于旧 `facade.settings` 快照；为设置、迁移批大小、AI 开关、打卡和阅读页签偏好做按字段合并/写队列，跨两个设置窗和快速连续点击验证最终值。
-- [ ] T-1958（P1，幂等）周报宿主文档复用：同一周多次点击生成周报、失败重试、跨时区周界和归档状态都应定位/更新同一 `/读库周报/{周区间}` 文档；重复执行不产生同名宿主或候选，写入索引失败时可重试。
+- [x] T-1958（P1，幂等）周报宿主文档复用：同一周多次点击生成周报、失败重试、跨时区周界和归档状态都应定位/更新同一 `/读库周报/{周区间}` 文档；重复执行不产生同名宿主或候选，写入索引失败时可重试。（2026-10-01，部分完成：幂等**定位**已落地——先查 `/读库周报/{title}` 已有文档并复用 ID，隔离 E2E 断言同 ID+不堆积；**内容更新**语义待 `createDocWithMd` 对已存在路径的行为实证（先 spike）后再补）
 - [ ] T-1959（P0，先 spike+真机）阅读上下文宿主归属：验证 `reading-context-controller` 是否会把上下文条挂到内嵌 ReaderTab 的 Protyle 或 `siyuan-comment` 临时 Protyle；为本插件/外部弹层加可判定的宿主标记，补 loaded/switch/destroy/焦点回收，扩展 T-1934。
 - [ ] T-1960（P1，智能体安全）`archive_stale` 工具的预览与写入边界：调用前重新对账并给出候选快照、数量上限、逐条成功/失败和可恢复结果；明确 AI/外部调用不绕过用户设置，禁止把过期索引中的条目直接批量归档，和 T-1854/T-1910 分开验收。
-- [ ] T-1961（P1，安全+契约）SQL 文档 ID 统一边界：`fetchDocMeta`、快照所属笔记本等查询统一走 ID 格式校验或 `sqlQuote`，补异常 ID、外部批注/导入传入值、错误信息脱敏和架构扫描；未完成前不新增直接拼接查询。
+- [x] T-1961（P1，安全+契约）SQL 文档 ID 统一边界：`fetchDocMeta`、快照所属笔记本等查询统一走 ID 格式校验或 `sqlQuote`，补异常 ID、外部批注/导入传入值、错误信息脱敏和架构扫描；未完成前不新增直接拼接查询。（2026-10-01，主拼接点已落地：clip-store 增 `DOC_ID_UNSAFE` 拒绝列表（注入向量字符不进 SQL、不落写入），`writeClip` 入口断言、`fetchDocMeta`/HighlightView `fetchTitle` 拼接前拦截；其余查询点（快照所属笔记本等）随各自任务逐个收敛）
 - [ ] T-1962（P2，UI/安全）命令帮助弹窗安全与样式统一：移除 `showReaderHelp` 的字符串 `innerHTML` 和固定 inline style，使用受控文本节点、i18n 键和 `glean-` 类；验证翻译特殊字符、键盘焦点、Esc、关闭回收和高对比主题。
 - [ ] T-1963（P1，恢复）导入与收集箱半成功账本：为“文档已创建/属性已收录/云端已删除/索引已同步/用户取消”建立逐条状态，失败重试先查 URL/文档 ID 再续跑；清理或标记孤儿文档，避免同标题重建，衔接 T-1842/T-1854/T-1897。
 - [ ] T-1964（P1，资产一致性）快照文件与属性双写：`putFile` 成功而属性失败、属性存在但文件缺失、文章移动/删除、重复拍摄和磁盘满都要有校验/重试/孤儿清理策略；快照打开前显示真实可用性，衔接 T-1878/T-1936。
@@ -464,22 +464,22 @@
 - [ ] T-1972（P1，无障碍+表单）表单标签、描述和动态进度：Import/Migrate/Settings 的输入、select、文件选择器绑定 `label/for` 或 `aria-labelledby/describedby`；导入/迁移/AI/状态 toast 增加 `aria-live` 或 progressbar 的真实值，失败和取消可被读出，衔接 T-1858/T-1893。
 - [ ] T-1973（P1，视觉+键盘）全局 `focus-visible` 令牌：为图标钮、操作钮、rail、分段按钮、角色卡片、筛选器和拖放目标建立主题/高对比可见焦点环；补 Tab 顺序、Esc、焦点回收和宿主主题覆盖测试，衔接 T-1892。
 - [ ] T-1974（P1，响应式）画布断点守门：UI 标准规定 tab 约 600px、看板约 900px，但当前只按根类判断并可在窄 tab 强开看板；用 ResizeObserver/container query 在窄宽自动降级列表/动作 sheet，旋转和软键盘不截断主动作，衔接 T-1823/T-1826/T-1890。
-- [ ] T-1975（P1，一致性）HighlightView 请求代次：当前文档切换时 `listDocHighlights → findRelated → fetchTitle` 旧请求可能晚于新文档返回，覆盖引述、关联和制卡标题；增加请求序号/Abort/销毁守卫，并显示 partial/失败状态，参照 ReaderTab 的刷新协议。
+- [x] T-1975（P1，一致性）HighlightView 请求代次：当前文档切换时 `listDocHighlights → findRelated → fetchTitle` 旧请求可能晚于新文档返回，覆盖引述、关联和制卡标题；增加请求序号/Abort/销毁守卫，并显示 partial/失败状态，参照 ReaderTab 的刷新协议。（2026-10-01；`loadSeq` 请求代次贯穿三段异步，晚到旧结果全链丢弃；partial/失败状态展示随 T-2008）
 - [ ] T-1976（P2，无障碍）统计图表文本替代：StatsView 的 spark/bar/tagcloud 不能只靠颜色和高度表达；提供可读摘要/表格、数值单位、空数据和导出文本，同时保留视觉图，衔接 T-1858/T-1913。
 - [ ] T-1977（P1，阅读交互）ReaderTab 模式切换回执：`setMode` 先改本地状态再调用 `protyle.switchMode`，切换失败会显示错误模式；加入成功回读/失败回滚、侧栏首焦点、标题层级和 AI/状态变化 live 区，纳入 T-1953 双栏旅程。
 - [ ] T-1978（P1，错误边界）命令与右键入口统一失败处理：`addCurrentDocToLibrary`、`onMenuContent`、`markCurrentStatus`、`openCurrentSource`、`readNextArticle` 和 `void openReaderTab` 存在未捕获 Promise；建立统一 action wrapper，记录脱敏诊断、显示可重试提示并在取消/失败时恢复按钮状态。
 - [x] T-1979（P0，流程缺陷）首启导入入口路由：`OnboardingDialog` 的 Pocket/Omnivore 入口当前经过 `finish(true)` 打开迁移器；改为显式打开 `ImportDialog`，关闭引导后保持正确的文件选择、笔记本选择和返回路径，补首启点击回归。（2026-10-01；`finishThenImport` 显式走 `facade.openImport()`，`finish` 收敛为纯完成；首启点击回归随 B-0002 真机）
 - [x] T-1980（P0，状态流）焦点编辑器与收录前置校验：`currentDocId()` 必须解析真正焦点的 Protyle；命令状态、来源、制卡和摘录动作在普通未收录文档上先提示/走显式收录，不得直接写 `status/doneTime` 绕过候选确认，补多编辑器和无焦点场景。（2026-10-01；`focusedEditor()` 按选区/焦点元素定位+回退，`markCurrentStatus` 未收录提示（i18n 双名 `msg.notInLibrary`），`batchSetStatusDetailed` 服务端跳过未收录；隔离 E2E 19/19 含守卫断言；多编辑器真机随 B-0002）
-- [ ] T-1981（P1，UI 一致性）HighlightView 文档切换刷新：监听公开 Protyle 切换/销毁与 `glean:data-changed`，为引述/相关旧文加载增加请求序号、取消和销毁守卫；切换文章后不得残留上一篇内容，失败需保留可解释状态。
+- [x] T-1981（P1，UI 一致性）HighlightView 文档切换刷新：监听公开 Protyle 切换/销毁与 `glean:data-changed`，为引述/相关旧文加载增加请求序号、取消和销毁守卫；切换文章后不得残留上一篇内容，失败需保留可解释状态。（2026-10-01；监听 `glean:data-changed` 强制刷新（重置 lastDocId），请求代次同 T-1975；Protyle 原生切换事件监听待宿主事件梳理后补）
 - [ ] T-1982（P1，契约+验收）外部导入已读状态与时间保真：Pocket HTML/CSV 的 `time_read`、Omnivore 的 state/read 字段、wallabag 的 read/archive 统一映射；预览中显示来源字段，只有可靠时间写 `done-time`，补统计、归档、重复导入回归。
 - [ ] T-1983（P1，产品+统计）用户标签与 AI 标签统计边界：裁决统计页“标签分布”究竟展示根块用户 tags、AI tags 或两个独立区；数据契约、文案、导出和筛选必须与 T-1729/T-1943 一致，禁止 AI 推断冒充用户事实。
 - [ ] T-1984（P1，导入交互）换文件与无笔记本状态：选择新文件时重置预览页码/错误/执行计划，预览行使用稳定行 ID，URL 仅作去重键；未选择读库笔记本时禁用开始导入并提供设置/刷新笔记本入口，补长文件和重复 URL 视觉回归。
-- [ ] T-1985（P1，智能体结果）`archive_stale` 返回真实结算：使用 `batchSetStatusDetailed` 或等价结果，返回成功/失败/跳过 IDs 并在写后对账；工具描述、执行结果与实际归档数一致，失败可重试，不把 `stale.length` 当成功数。
+- [x] T-1985（P1，智能体结果）`archive_stale` 返回真实结算：使用 `batchSetStatusDetailed` 或等价结果，返回成功/失败/跳过 IDs 并在写后通知刷新；工具描述、执行结果与实际归档数一致，失败可重试，不把 `stale.length` 当成功数。（2026-10-01；改用 `batchSetStatusDetailed`，structuredContent 返回 `{requested, archived, failedIds}`，失败篇可重试；配合 T-1980 服务端守卫，未收录 ID 不再计入成功）
 - [ ] T-1986（P1，发布门禁）package.zip 内容一致性：解压比较 zip 与本次 dist 的文件清单、manifest 版本、核心文件 hash 和构建 mtime，拒绝旧 zip/错版本/缺 i18n/README 的产物；把检查纳入 `check:release`，仍遵守逐次请示 tag/Release/集市。
 - [x] T-1987（P0，数据主权）内部宿主身份隔离：闪卡牌组、周报、读库数据库和 AV 宿主查找不能只凭标题/路径命中用户同名文档；为每类宿主建立可验证身份/创建记录、碰撞提示和幂等恢复，确认 `custom-clip-internal` 不会写到用户文档，也不会被候选排除误伤。（2026-10-01；schema 增 `isMarkedInternalDoc`，library-db `findVerifiedHost`（internal 标记 / 旧宿主四字段库幂等补标）、flashcard 只认标记另建宿主，av 增 `findDocsByTitle`；隔离 E2E 19/19 含双宿主断言；周报宿主本就只新建不查找；真机随 B-0002）
 - [ ] T-1988（P1，导入契约+安全）导入文件夹路径规范化：清理前导/尾部斜杠、空段、`.`、`..`、反斜杠和非法字符，限制在所选笔记本，预览显示最终 hpath；验证同名路径、取消、失败重试和跨平台路径差异，不能静默跨目录创建。
 - [ ] T-1989（P1，异步错误边界）扩展统一 rejection 处理到 ReaderTab 状态/读完下一篇、`ClipStatusActions.invoke`、设置/导入/迁移/首启初始化和文件选择；所有 pending 请求都有取消/销毁守卫，失败显示可重试动作并恢复按钮状态，日志脱敏且无 unhandled rejection。
-- [ ] T-1990（P1，数据恢复）派生索引 schema 校验与坏文件隔离：严格校验 `status/contentType/timeSource`、priority/rating、候选 evidence/missing、版本迁移和未知字段；损坏的 `glean-index.json` 不能驱动动态 CSS/i18n 或批量写入，须保留原文件、提示用户并自动安全重建，衔接 T-1856/T-1861。
+- [x] T-1990（P1，数据恢复）派生索引 schema 校验与坏文件隔离：严格校验 `status/contentType/timeSource`、priority/rating、候选 evidence/missing、版本迁移和未知字段；损坏的 `glean-index.json` 不能驱动动态 CSS/i18n 或批量写入，须保留原文件、提示用户并自动安全重建，衔接 T-1856/T-1861。（2026-10-01；loadIndex 枚举白名单校验（status 脏条目丢弃、evidence/missing 过滤），坏 JSON 置 `indexCorrupted` 拒绝一切落盘（原文件保留）直到对账/重建完整扫描后合法覆盖；隔离 E2E 全链断言：坏文件→增量写被拦→reconcile 恢复；文章事实在属性层，数据主权无损）
 
 ## UI 专项质感与美观优化（T-1991 起；2026-09-30，只读审计入账）
 

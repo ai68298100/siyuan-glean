@@ -25,11 +25,25 @@ let cardingKey = $state("");
 
 const currentDocId = $derived(facade.currentDocId());
 
+// T-1975：请求代次守卫——切换文档时丢弃晚到的旧结果，引述/相关旧文/标题不串文
+let loadSeq = 0;
+
 $effect(() => {
     void loadHighlights(currentDocId);
 });
 
+// T-1981：数据变更后强制刷新（摘录插入/删除、属性变化），不残留上一篇内容
+$effect(() => {
+    const onData = () => {
+        lastDocId = "";
+        void loadHighlights(currentDocId);
+    };
+    document.addEventListener("glean:data-changed", onData);
+    return () => document.removeEventListener("glean:data-changed", onData);
+});
+
 async function loadHighlights(docId: string) {
+    const seq = ++loadSeq;
     if (!docId) {
         items = [];
         related = [];
@@ -39,21 +53,30 @@ async function loadHighlights(docId: string) {
     if (docId === lastDocId && !loading) return;
     loading = true;
     try {
-        items = await listDocHighlights(docId);
+        const nextItems = await listDocHighlights(docId);
+        if (seq !== loadSeq) return;
+        items = nextItems;
         lastDocId = docId;
         // T-1301 相关旧文：嵌入未启用时返回空（区块整体隐藏，UI-STANDARD §5.6）
-        const query = items[0]?.text || docId;
-        related = await findRelated(docId, query);
-        docTitle = await fetchTitle(docId);
+        const query = nextItems[0]?.text || docId;
+        const nextRelated = await findRelated(docId, query);
+        if (seq !== loadSeq) return;
+        related = nextRelated;
+        const nextTitle = await fetchTitle(docId);
+        if (seq !== loadSeq) return;
+        docTitle = nextTitle;
     } catch {
+        if (seq !== loadSeq) return;
         items = [];
         related = [];
     } finally {
-        loading = false;
+        if (seq === loadSeq) loading = false;
     }
 }
 
 async function fetchTitle(docId: string): Promise<string> {
+    // T-1961：拼接查询前拒绝注入向量（单引号已另行转义），异常 ID 按无标题处理
+    if (!docId || /['"\\;()\s/]|--/.test(docId)) return "";
     const { querySql } = await import("../api/client");
     const rows = await querySql<{ content: string }>("SELECT content FROM blocks WHERE id = '" + docId.replace(/'/g, "''") + "' LIMIT 1");
     return rows[0]?.content ?? "";
