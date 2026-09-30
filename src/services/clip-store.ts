@@ -277,9 +277,12 @@ export async function batchSetStatusDetailed(
     plugin: Plugin,
     docIds: string[],
     status: ClipStatus,
+    options: { signal?: { aborted: boolean } } = {}
 ): Promise<{ ok: number; succeeded: string[] }> {
     const succeeded: string[] = [];
     for (const docId of docIds) {
+        // T-1842：背压检查点——取消后立即返回部分结算（已写成的保留）
+        if (options.signal?.aborted) break;
         try {
             // T-1980 收录前置：未收录的普通文档不得被状态动作直接写属性（绕过候选确认）；
             // 批量来源（超龄清单/看板/智能体）的 ID 都来自索引，理论上已收录，

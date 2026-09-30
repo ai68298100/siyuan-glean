@@ -10,13 +10,16 @@ export interface FlashcardContent {
     back: string;
 }
 
-/** 由引文与来源构造卡面文案。front 截 60 字；back 含完整引文与来源。 */
-export function buildQuoteCard(docTitle: string, quote: string): FlashcardContent {
+/**
+ * 由引文与来源构造卡面文案。front 截 60 字；back 含完整引文与来源。
+ * frontOverride（T-1751）：AI 问句卡面覆盖默认模板 front。
+ */
+export function buildQuoteCard(docTitle: string, quote: string, frontOverride?: string): FlashcardContent {
     const trimmed = quote.trim().replace(/\s+/g, " ");
     const excerpt = trimmed.length > 60 ? trimmed.slice(0, 57) + "…" : trimmed;
     const source = docTitle ? `《${docTitle}》` : "来源文章";
     return {
-        front: `「${excerpt}」——还记得它出自哪篇文章、讲什么吗？`,
+        front: frontOverride?.trim() ? frontOverride.trim() : `「${excerpt}」——还记得它出自哪篇文章、讲什么吗？`,
         back: `${source}\n${trimmed}`,
     };
 }

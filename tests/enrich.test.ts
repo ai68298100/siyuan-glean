@@ -5,11 +5,13 @@ import assert from "node:assert/strict";
 import {
     buildAuthorPrompt,
     buildEnrichPrompt,
+    buildQuestionCardPrompt,
     extractJson,
     findSimilarTagGroups,
     isLikelyDuplicate,
     parseAuthorResponse,
     parseEnrichResponse,
+    parseQuestionResponse,
 } from "../src/domain/enrich.ts";
 
 test("buildEnrichPrompt：含标题与正文截断", () => {
@@ -92,4 +94,14 @@ test("buildAuthorPrompt/parseAuthorResponse：作者推断指令与结果清洗�
     assert.equal(parseAuthorResponse("未知"), null);
     assert.equal(parseAuthorResponse(""), null);
     assert.equal(parseAuthorResponse("a".repeat(50)), null); // 超上限拒绝
+});
+
+test("buildQuestionCardPrompt/parseQuestionResponse：问句卡指令与清洗（T-1751）", () => {
+    const prompt = buildQuestionCardPrompt("间隔重复提升记忆留存。");
+    assert.ok(prompt.includes("间隔复习"));
+    assert.ok(prompt.includes("间隔重复提升记忆留存。"));
+    assert.equal(parseQuestionResponse("1. 间隔重复为什么有效？"), "间隔重复为什么有效？");
+    assert.equal(parseQuestionResponse("「这个问题是什么？」"), "这个问题是什么？");
+    assert.equal(parseQuestionResponse(""), null);
+    assert.equal(parseQuestionResponse("x".repeat(150)), null);
 });

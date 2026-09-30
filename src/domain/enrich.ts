@@ -201,3 +201,26 @@ export function parseAuthorResponse(raw: string): string | null {
     if (/[\r\n]/.test(text)) return null;
     return text;
 }
+
+/* ---------- AI 问句制卡（T-1751） ---------- */
+
+/**
+ * 问句卡 prompt（T-1751）：基于引文生成一条"回忆提问"（问句卡面），
+ * 帮助间隔复习时主动回忆而非再认。只输出问句本身。
+ */
+export function buildQuestionCardPrompt(quote: string): string {
+    return [
+        "请基于以下引文生成一条简短的回忆提问（问句卡面），",
+        "帮助读者在间隔复习时凭这一问题主动回忆引文的核心内容。",
+        "只输出问句本身，不要答案、编号或解释，30 字以内。",
+        "引文：",
+        String(quote ?? "").slice(0, 2000),
+    ].join("\n");
+}
+
+/** 解析问句响应：去掉引号与编号前缀；空返回 null。 */
+export function parseQuestionResponse(raw: string): string | null {
+    const text = String(raw ?? "").trim().replace(/^\d+[.、）)]\s*/, "").replace(/^["'“”「]|["'“”」]$/g, "").trim();
+    if (!text || text.length > 120) return null;
+    return text;
+}

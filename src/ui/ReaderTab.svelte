@@ -41,7 +41,7 @@
     import { makeQuoteCard } from "../services/flashcard-service";
     import { findRelated } from "../services/enrich-service";
     import { pickNextUnread } from "../services/resurface-service";
-    import { readerAiEnabled, readerAsk, readerSummarize, readerTranslate, readerTranslateFull, saveReaderSummary } from "../services/reader-ai";
+    import { readerAiEnabled, readerAsk, readerSummarize, readerTranslate, readerTranslateFull, inferQuestionCard, saveReaderSummary } from "../services/reader-ai";
     import { clampAskQuestion } from "../domain/reader";
     import { fetchDocOutline, outlineIndent, type OutlineHeading } from "../services/outline";
     import { nextSpeechRate } from "../domain/tts";
@@ -445,6 +445,38 @@
         }
     }
 
+    // T-1751 AI 问句制卡：AI 生成回忆问句 → 用户可改 → 确认入卡（写入由用户触发）。
+    let questionDraft = $state("");
+    let questionBusy = $state(false);
+
+    async function generateQuestion(): Promise<void> {
+        if (!excerpt?.text || questionBusy) return;
+        questionBusy = true;
+        try {
+            const outcome = await inferQuestionCard(facade.pluginInstance, excerpt.text, facade.settings);
+            if (outcome.ok && outcome.text) {
+                questionDraft = outcome.text;
+            } else if (outcome.skipped === "cap") {
+                showMessage(t(i18n, "ai.capReached", { n: facade.settings.ai.enrichDailyCap }), 4000);
+            } else if (outcome.skipped !== "off") {
+                showMessage(t(i18n, "ai.enrichFailed"), 3000);
+            }
+        } finally {
+            questionBusy = false;
+        }
+    }
+
+    async function makeQuestionCard(): Promise<void> {
+        if (!context || !excerpt?.text || !questionDraft.trim()) return;
+        try {
+            await makeQuoteCard(facade.settings, context.title, excerpt.text, facade.pluginInstance, questionDraft.trim());
+            showMessage(t(i18n, "flashcard.done"), 3000);
+            questionDraft = "";
+        } catch (error) {
+            showMessage(String(error).slice(0, 120), 4000);
+        }
+    }
+
     async function runRelated(): Promise<void> {
         if (!context || aiBusy) return;
         aiBusy = "related";
@@ -787,10 +819,34 @@
                                 <button class="glean-btn glean-btn--ghost" onclick={() => void cardFromExcerpt()}>
                                     {t(i18n, "flashcard.make")}
                                 </button>
+                                {#if aiOn}
+                                    <!-- T-1751 AI 问句制卡：生成回忆问句 → 可改 → 确认入卡 -->
+                                    <button
+                                        class="glean-btn glean-btn--ghost"
+                                        disabled={questionBusy || !excerpt.text}
+                                        title={t(i18n, "reader.questionCardHint")}
+                                        onclick={() => void generateQuestion()}
+                                    >{questionBusy ? "…" : "❓"} {t(i18n, "reader.questionCard")}</button>
+                                {/if}
                                 <button class="glean-btn glean-btn--ghost" onclick={() => void copyExcerpt()}>
                                     {t(i18n, "reader.copy")}
                                 </button>
                             </div>
+                            {#if questionDraft.trim()}
+                                <!-- T-1751：AI 问句草稿（可改）→ 确认入卡 -->
+                                <div class="glean-reader__ask">
+                                    <input
+                                        class="glean-mini-input glean-reader__ask-input"
+                                        type="text"
+                                        bind:value={questionDraft}
+                                        maxlength={120}
+                                        aria-label={t(i18n, "reader.questionCard")}
+                                    />
+                                    <button class="glean-btn glean-btn--ghost" onclick={() => void makeQuestionCard()}>
+                                        {t(i18n, "reader.questionCardMake")}
+                                    </button>
+                                </div>
+                            {/if}
                         {:else}
                             <div class="glean-reader__hint">{t(i18n, "reader.excerptHint")}</div>
                         {/if}

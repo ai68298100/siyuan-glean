@@ -176,7 +176,9 @@ async function doArchiveStale() {
     archivingStale = true;
     try {
         const ids = stalePool.filter((entry) => staleSelected.has(entry.id)).map((entry) => entry.id);
-        const result = await archiveStaleCandidates(facade.pluginInstance, ids);
+        const signal = batchAbortStart();
+        const result = await archiveStaleCandidates(facade.pluginInstance, ids, { signal });
+        if (batchAbort?.aborted) showMessage(t(i18n, "action.batchCancelled"), 2500);
         showMessage(t(i18n, "panel.staleArchived", { n: result.ok }), 3000);
         stalePreviewOpen = false;
         await reload();
@@ -543,12 +545,14 @@ $effect(() => {
 async function batchEnrich(): Promise<void> {
     if (selection.size === 0 || batchEnriching) return;
     batchEnriching = true;
+    const signal = batchAbortStart();
     const ids = [...selection];
     let ok = 0;
     let capped = 0;
     let failed = 0;
     try {
         for (let index = 0; index < ids.length; index += 1) {
+            if (signal.aborted) break;
             showMessage(t(i18n, "ai.batchProgress", { done: index, total: ids.length }), 2500);
             const outcome = await enrichClip(facade.pluginInstance, ids[index], facade.settings);
             if (outcome.ok) ok += 1;
@@ -620,12 +624,25 @@ function toggleSelect(id: string, event: Event) {
     selection = next;
 }
 
+// T-1842：批量任务取消句柄（批量状态/批量富化/超龄归档共享一个取消态）
+let batchAbort = $state<{ aborted: boolean } | null>(null);
+
+function batchAbortStart(): { aborted: boolean } {
+    batchAbort = { aborted: false };
+    return batchAbort;
+}
+
+function batchAbortCancel(): void {
+    if (batchAbort) batchAbort.aborted = true;
+}
+
 async function batchApply(status: ClipStatus) {
     if (selection.size === 0) return;
     const total = selection.size;
     let result: { ok: number; succeeded: string[] };
     try {
-        result = await batchSetStatusDetailed(facade.pluginInstance, [...selection], status);
+        const signal = batchAbortStart();
+        result = await batchSetStatusDetailed(facade.pluginInstance, [...selection], status, { signal });
         await reload();
     } catch (error) {
         console.warn("[glean] 批量状态变更失败:", error);
@@ -643,6 +660,7 @@ async function batchApply(status: ClipStatus) {
         )));
     }
     showMessage(t(i18n, "msg.statusBatchResult", { ok: result.ok, total }), 3500);
+    if (batchAbort?.aborted) showMessage(t(i18n, "action.batchCancelled"), 2500);
     if (result.ok === total) selection = new Set();
 }
 
@@ -1354,10 +1372,14 @@ function metaLine(entry: Row): string {
                         <button class="glean-bb" onclick={() => void batchApply("reading")}>{t(i18n, "status.reading")}</button>
                         <button class="glean-bb" onclick={() => void batchApply("done")}>{t(i18n, "status.done")}</button>
                         <button class="glean-bb glean-bb--pri" onclick={() => void batchApply("archived")}>{t(i18n, "action.batchArchive")}</button>
-                        <!-- T-1762 批量富化：串行队列 + 额度统一把守 -->
-                        <button class="glean-bb" disabled={batchEnriching} onclick={() => void batchEnrich()}>
-                            {batchEnriching ? t(i18n, "panel.loading") : `✨ ${t(i18n, "ai.batchEnrich")}`}
-                        </button>
+                        <!-- T-1762 批量富化：串行队列 + 额度统一把守 + T-1842 可取消 -->
+                        {#if batchEnriching}
+                            <button class="glean-bb" onclick={() => batchAbortCancel()}>{t(i18n, "action.cancel")}</button>
+                        {:else}
+                            <button class="glean-bb" onclick={() => void batchEnrich()}>
+                                ✨ {t(i18n, "ai.batchEnrich")}
+                            </button>
+                        {/if}
                         <button class="glean-bb" onclick={() => (selection = new Set())}>✕</button>
                     </div>
                 </footer>

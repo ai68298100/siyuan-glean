@@ -1,5 +1,12 @@
 # 进度（PROGRESS）
 
+## 批量取消与 AI 问句卡（续跑口令驱动，2026-10-01）✅
+
+- [x] **T-1842 批量任务背压**（最后一个重活）：`batchSetStatusDetailed`/`archiveStaleCandidates` 增 signal 检查点（取消保留部分结算）；DockPanel 批量条/批量富化/超龄归档共享 batchAbort 取消态，取消回执「已取消（保留已完成部分）」；导入器 importing 阶段新增取消按钮（孤儿入账本可重试）。既有能力确认：迁移器暂停恢复 ✓、富化串行队列 ✓、进度单调 ✓。收集箱逐条与索引重建不提供取消（前者单条短、后者中断无害）。断网/重启 E2E 随 T-1855。
+- [x] **T-1751 AI 问句制卡**：`buildQuestionCardPrompt/parseQuestionResponse`（回忆问句生成/清洗，单测）+ `inferQuestionCard`（租约/额度共享）+ 摘录段「❓ AI 问句卡」→ 草稿可改 →「制卡」确认入卡（`makeQuoteCard` 增 frontOverride）。写入由用户触发。
+- [x] 门禁：check 0 错 0 告警、test **167/167**（+1）、build 通过、隔离 E2E **31/31**（问句卡走 AI 无新增 E2E）。未发布新版本；问句质量随 B-0004。
+- 坑：新函数定义写了两处（重复声明 svelte-check 即时暴露）；`buildQuestionCardPrompt` 放错域文件导致 import 错——**新纯函数先确认落点域文件再 import**。
+
 ## 作者回填与 rail 作者组（续跑口令驱动，2026-10-01）✅
 
 - [x] **T-1813 作者回填**：`domain/enrich.buildAuthorPrompt/parseAuthorResponse`（作者名线索提取/结果清洗——引号/前缀剥离、"未知"拒绝、超长拒绝，单测）+ `services/author-service`（缺作者扫描 Top100、单篇 AI 推断租约队列额度共享、用户确认写入经 writeClip）+ 设置-维护「补全来源作者」区（逐条：标题+可编辑草稿+✨推断+写入，手动填写亦可，Top20 分批显示）。真实模型推断质量随 B-0004。

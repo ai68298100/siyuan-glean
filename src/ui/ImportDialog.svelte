@@ -52,6 +52,8 @@ onMount(() => {
 
 let orphans = $state(0);
 let retryingOrphans = $state(false);
+// T-1842：导入执行取消句柄
+let importAbort = $state<{ aborted: boolean } | null>(null);
 
 async function retryOrphans(): Promise<void> {
     retryingOrphans = true;
@@ -117,11 +119,13 @@ async function startImport() {
     busy = true;
     progress = 0;
     const rows = preview.rows.filter((row) => !row.duplicate);
+    importAbort = { aborted: false };
     try {
         summary = await runImport(facade.pluginInstance, rows, {
             notebookId,
             folder: folder.trim() || t(i18n, "import.defaultFolder"),
             format: preview.format ?? "pocket-html",
+            signal: importAbort,
             onProgress: (done, total) => {
                 progress = total > 0 ? Math.round((done / total) * 100) : 100;
             },
@@ -133,7 +137,13 @@ async function startImport() {
         phase = "preview";
     } finally {
         busy = false;
+        importAbort = null;
     }
+}
+
+/** T-1842：取消导入——已建文档保留（孤儿入账本可重试），进度停止。 */
+function cancelImport(): void {
+    if (importAbort) importAbort.aborted = true;
 }
 
 function resetToPick() {
@@ -254,6 +264,10 @@ function resetToPick() {
         <div>
             <div class="glean-progress"><div class="glean-progress__bar" style={`width:${progress}%`}></div></div>
             <div class="glean-prog-meta"><span>{t(i18n, "import.importing")}</span><span>{progress}%</span></div>
+            <!-- T-1842：导入可取消（已建文档入孤儿账本可重试） -->
+            <div class="glean-migrate__ops">
+                <button class="glean-btn glean-btn--ghost" onclick={() => cancelImport()}>{t(i18n, "action.cancel")}</button>
+            </div>
         </div>
     {:else if phase === "done" && summary}
         <div class="glean-mstats">

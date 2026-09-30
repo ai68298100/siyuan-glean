@@ -88,14 +88,16 @@ export function staleCandidatesFromIndex(index: GleanIndex, settings: GleanSetti
 
 /**
  * 按用户勾选的显式清单批量归档（T-1710）。逐篇写并统计真实成功数；
- * 不再"先扫后全归"，清单之外的篇目不受影响。
+ * 不再"先扫后全归"，清单之外的篇目不受影响。T-1842：支持取消（部分结算保留）。
  */
 export async function archiveStaleCandidates(
     plugin: Plugin,
-    docIds: string[]
+    docIds: string[],
+    options: { signal?: { aborted: boolean } } = {}
 ): Promise<{ ok: number; succeeded: string[] }> {
     const succeeded: string[] = [];
     for (const docId of docIds) {
+        if (options.signal?.aborted) break;
         try {
             await writeClip(plugin, docId, { status: "archived" }, { force: true });
             succeeded.push(docId);

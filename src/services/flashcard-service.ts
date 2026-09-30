@@ -57,9 +57,11 @@ export async function makeQuoteCard(
     docTitle: string,
     quote: string,
     plugin: Plugin,
+    /** T-1751：AI 问句卡面覆盖默认 front 模板。 */
+    frontOverride?: string
 ): Promise<{ cardBlockId: string }> {
     const { deckId, hostDocId } = await ensureFlashcardDeck(settings, plugin);
-    const content = buildQuoteCard(docTitle, quote);
+    const content = buildQuoteCard(docTitle, quote, frontOverride);
     const dom = buildFlashcardDom(content.front, content.back);
     await insertBlockDom(hostDocId, dom);
     // 列表项 id 经 SQL 找回（最新插入的一枚）

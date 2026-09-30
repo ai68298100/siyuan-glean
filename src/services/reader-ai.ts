@@ -13,6 +13,7 @@ import {
     buildTranslatePrompt,
     clampAskQuestion,
 } from "../domain/reader";
+import { buildQuestionCardPrompt } from "../domain/enrich";
 import { aiQuotaAvailable, callLLM, logAiEvent, recordAiUsage, runAiTask } from "./enrich-service";
 import { writeClip } from "./clip-store";
 import type { GleanSettings } from "./settings";
@@ -141,4 +142,31 @@ async function readerTranslateFullInner(
         await logAiEvent(plugin, docId, "reader-translate-full", String((error as Error)?.message ?? error));
         return { ok: false, skipped: "error" };
     }
+}
+
+/**
+ * AI 问句制卡（T-1751）：基于摘录生成回忆问句卡面。
+ * 只生成建议——用户在确认输入框可改后调用 makeQuoteCard 入卡（写入由用户触发）。
+ */
+export function inferQuestionCard(
+    plugin: Plugin,
+    quote: string,
+    settings: GleanSettings
+): Promise<ReaderAiOutcome> {
+    if (!readerAiEnabled(settings)) return Promise.resolve({ ok: false, skipped: "off" });
+    return runAiTask(async () => {
+        if (!(await aiQuotaAvailable(plugin, settings))) return { ok: false, skipped: "cap" };
+        try {
+            const llm = await callLLM(plugin, settings, buildQuestionCardPrompt(quote));
+            if (!llm.ok) {
+                await logAiEvent(plugin, quote.slice(0, 20), "question-card", llm.reason || "调用失败");
+                return { ok: false, skipped: "error" };
+            }
+            await recordAiUsage(plugin);
+            return { ok: true, text: String(llm.text ?? "").trim() };
+        } catch (error) {
+            await logAiEvent(plugin, quote.slice(0, 20), "question-card", String((error as Error)?.message ?? error));
+            return { ok: false, skipped: "error" };
+        }
+    });
 }
