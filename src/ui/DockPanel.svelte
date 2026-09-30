@@ -525,6 +525,34 @@ async function setStatus(entry: ClipIndexEntry, status: ClipStatus) {
     }
 }
 
+/** T-1762 批量富化：多选逐篇入串行队列（额度统一把守），进度与结算真实反馈。 */
+let batchEnriching = $state(false);
+
+async function batchEnrich(): Promise<void> {
+    if (selection.size === 0 || batchEnriching) return;
+    batchEnriching = true;
+    const ids = [...selection];
+    let ok = 0;
+    let capped = 0;
+    let failed = 0;
+    try {
+        for (let index = 0; index < ids.length; index += 1) {
+            showMessage(t(i18n, "ai.batchProgress", { done: index, total: ids.length }), 2500);
+            const outcome = await enrichClip(facade.pluginInstance, ids[index], facade.settings);
+            if (outcome.ok) ok += 1;
+            else if (outcome.skipped === "cap") capped += 1;
+            else failed += 1;
+        }
+        showMessage(t(i18n, "ai.batchDone", { ok, capped, failed }), 4500);
+        await reload();
+    } catch (error) {
+        console.warn("[glean] 批量富化失败:", error);
+        showMessage(t(i18n, "ai.enrichFailed"), 3500);
+    } finally {
+        batchEnriching = false;
+    }
+}
+
 /** T-1755 收藏：星标切换（favorite 非手填保护字段，用户显式动作直写）。 */
 async function toggleFavorite(entry: ClipIndexEntry): Promise<void> {
     const next = !(entry.favorite === true);
@@ -1288,6 +1316,10 @@ function metaLine(entry: Row): string {
                         <button class="glean-bb" onclick={() => void batchApply("reading")}>{t(i18n, "status.reading")}</button>
                         <button class="glean-bb" onclick={() => void batchApply("done")}>{t(i18n, "status.done")}</button>
                         <button class="glean-bb glean-bb--pri" onclick={() => void batchApply("archived")}>{t(i18n, "action.batchArchive")}</button>
+                        <!-- T-1762 批量富化：串行队列 + 额度统一把守 -->
+                        <button class="glean-bb" disabled={batchEnriching} onclick={() => void batchEnrich()}>
+                            {batchEnriching ? t(i18n, "panel.loading") : `✨ ${t(i18n, "ai.batchEnrich")}`}
+                        </button>
                         <button class="glean-bb" onclick={() => (selection = new Set())}>✕</button>
                     </div>
                 </footer>

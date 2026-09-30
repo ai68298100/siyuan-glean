@@ -31,6 +31,7 @@ function indexToSurfaceItems(index: GleanIndex): SurfaceItem[] {
         aiTags: clip.aiTags,
         lastSurfaced: clip.surfaced,
         summary: clip.summary,
+        pinned: clip.pinned,
         contentType: clip.contentType,
         url: clip.url,
         site: clip.site,
@@ -64,16 +65,19 @@ export async function computeDaily(plugin: Plugin, settings: GleanSettings): Pro
     return computeDailyFromIndex(await loadIndex(plugin), settings);
 }
 
-export type SurfaceAction = "read" | "later" | "archive";
+export type SurfaceAction = "read" | "later" | "archive" | "pin";
 
-/** 重浮卡行动：落状态 + 写 last-surfaced（当天幂等），返回下一位（由视图重算）。 */
+/** 重浮卡行动：落状态 + 写 last-surfaced（当天幂等），返回下一位（由视图重算）。
+ * "pin"（T-1797）：写 pinned=今日（YYYYMMDD），当日重浮置顶；隔日自然回池，无需取消。 */
 export async function actOnSurface(plugin: Plugin, docId: string, action: SurfaceAction): Promise<void> {
     const patch =
         action === "read"
             ? { status: "reading" as const, lastSurfaced: todayStamp() }
             : action === "archive"
               ? { status: "archived" as const, lastSurfaced: todayStamp() }
-              : { lastSurfaced: todayStamp() };
+              : action === "pin"
+                ? { pinned: todayStamp().slice(0, 8) }
+                : { lastSurfaced: todayStamp() };
     await writeClip(plugin, docId, patch, { force: true });
 }
 

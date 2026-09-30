@@ -1,5 +1,12 @@
 # 进度（PROGRESS）
 
+## 钉住与批量富化（续跑口令驱动，2026-10-01）✅
+
+- [x] **T-1797 钉住今日**（契约先行）：**新增 `custom-clip-pinned`（YYYYMMDD 生效日）**——与收藏（长期标记）、priority（重要性）三方语义分离。DATA-CONTRACT §1 属性行；schema/索引投影；`pickDaily` 钉住当日置顶优先（占每日名额、不参与多样性降权、**覆盖"改天"过滤**——钉住是强意图）+ 隔日自然回池（平静原则不变，无后台清理）；`actOnSurface("pin")`；今日拾遗卡 📌 按钮。1 组单测 + E2E（置顶首位/属性索引一致）。
+- [x] **T-1762 批量富化**：批量条「✨ 批量富化」——逐篇 enrichClip（复用 T-1883 租约队列，额度统一把守），进度 toast + 真实结算（成功/额度满跳过/失败）。
+- [x] 门禁：check 0 错 0 告警、test **161/161**（+1）、build 通过、隔离 E2E **31/31**（+1）。未发布新版本。
+- 坑重演（第二次）：E2E 变量名 `resurface` 与早期声明冲突，且中途 sed 按行号误改早期导入名——已全部恢复；**E2E 追加断言前先 grep 变量名唯一性**。
+
 ## 网络可靠性批（续跑口令驱动，2026-10-01）✅
 
 - [x] **T-1967 内核请求超时**：`kernelPost` 默认 60s 超时兜底（settled 守卫：超时 reject 后迟到响应丢弃，不二次 settle 不抛 unhandled）；`KERNEL_TIMEOUT_LONG_MS=180s` 放宽长操作（SQL 分页/批量属性/exportMdContent/exportHTML/putFile 快照上传）。3 组单测（stub fetchPost：超时 reject/迟到丢弃/正常路径）。**取消语义说明**：fetchPost 回调模式无底层取消能力，本轮做"放弃等待"；Abort 需内核侧支持，随 T-1855。断网/重启 E2E 同上。

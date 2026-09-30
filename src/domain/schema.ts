@@ -50,6 +50,8 @@ export const ATTR = {
     excluded: "custom-clip-excluded",
     /** 用户显式收藏标记（T-1755/T-1904）：独立布尔位，与 priority 语义分离。 */
     favorite: "custom-clip-favorite",
+    /** 用户钉住生效日 YYYYMMDD（T-1797）：当日重浮置顶，隔日自然回池。 */
+    pinned: "custom-clip-pinned",
     /** 插件内部宿主文档标志；新建时写入，旧文档由候选规则回退推断。 */
     internal: "custom-clip-internal",
 } as const;
@@ -76,6 +78,8 @@ export interface ClipAttrs {
     timeSource?: ClipTimeSource;
     excluded?: boolean;
     favorite?: boolean;
+    /** 钉住生效日 YYYYMMDD（T-1797）；缺键 = 未钉住 */
+    pinned?: string;
     internal?: boolean;
 }
 
@@ -177,6 +181,7 @@ export function parseClipAttrs(ial: Record<string, string | undefined>): ClipAtt
         timeSource: parseTimeSource(ial[ATTR.timeSource]) ?? (ial[ATTR.time] ? "legacy" : undefined),
         excluded: parseFlag(ial[ATTR.excluded]),
         favorite: parseFlag(ial[ATTR.favorite]),
+        pinned: optionalString(ial[ATTR.pinned]),
         internal: parseFlag(ial[ATTR.internal]),
     };
 }
@@ -234,6 +239,7 @@ export function serializePatch(patch: Partial<ClipAttrs> & { aiTags?: string[] |
     if (patch.timeSource !== undefined) put(ATTR.timeSource, patch.timeSource ?? null);
     if (patch.excluded !== undefined) put(ATTR.excluded, patch.excluded ? "true" : null);
     if (patch.favorite !== undefined) put(ATTR.favorite, patch.favorite ? "true" : null);
+    if (patch.pinned !== undefined) put(ATTR.pinned, patch.pinned || null);
     if (patch.internal !== undefined) put(ATTR.internal, patch.internal ? "true" : null);
     return out;
 }

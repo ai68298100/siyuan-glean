@@ -53,7 +53,7 @@ function carrierLabel(pick: SurfacePick): string {
     return t(i18n, `clip.type.${resolveCarrier(pick.item.contentType)}`);
 }
 
-async function act(pick: SurfacePick, action: "read" | "later" | "archive") {
+async function act(pick: SurfacePick, action: "read" | "later" | "archive" | "pin") {
     if (actingId) return;
     actingId = pick.item.id;
     try {
@@ -65,6 +65,7 @@ async function act(pick: SurfacePick, action: "read" | "later" | "archive") {
             ];
             openReading(pick);
         }
+        if (action === "pin") showMessage(t(i18n, "resurface.pinned"), 2500);
         onMutated();
     } catch (error) {
         showMessage(String(error).slice(0, 120), 4000);
@@ -192,6 +193,13 @@ function reasonText(reason: SurfaceReason): string {
                         <button class="glean-surf-act" disabled={actingId === pick.item.id} onclick={() => void act(pick, "later")}>
                             {t(i18n, "resurface.later")}
                         </button>
+                        <!-- T-1797 钉住：当日置顶，隔日自然回池 -->
+                        <button
+                            class="glean-surf-act"
+                            disabled={actingId === pick.item.id}
+                            title={t(i18n, "resurface.pinHint")}
+                            onclick={() => void act(pick, "pin")}
+                        >📌 {t(i18n, "resurface.pin")}</button>
                         <button class="glean-surf-act" disabled={actingId === pick.item.id} onclick={() => void act(pick, "archive")}>
                             {t(i18n, "resurface.archive")}
                         </button>

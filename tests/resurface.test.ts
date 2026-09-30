@@ -145,3 +145,20 @@ test("surfaceReasons：与近 7 天重浮无标签重叠才算主题新鲜", () 
     // 近期没有重浮历史时没有可比对象，不给新鲜理由
     assert.ok(!surfaceReasons(target, [], NOW).some((reason) => reason.kind === "freshTopic"));
 });
+
+test("pickDaily：钉住当日置顶优先且覆盖改天过滤，隔日自然回池（T-1797）", () => {
+    const now = new Date(2026, 8, 29, 12, 0, 0);
+    const base = { title: "t", status: "inbox" as const, priority: 3, time: "20260901000000", aiTags: [] };
+    const pool = [
+        { ...base, id: "20260101000000-aaaaaaa", pinned: "20260929" },       // 钉住当日
+        { ...base, id: "20260101000001-aaaaaaa", lastSurfaced: "20260929" }, // 今天已"改天"
+        { ...base, id: "20260101000002-aaaaaaa" },                            // 普通高优
+    ];
+    const picks = pickDaily(pool, [], { count: 3, includeDone: false, now });
+    // 钉住置顶第一；"改天"被钉住语义覆盖的场景仅对钉住项生效
+    assert.equal(picks[0].item.id, "20260101000000-aaaaaaa");
+    // 隔日（pinned 不匹配今天）自然回池
+    const tomorrow = new Date(2026, 8, 30, 12, 0, 0);
+    const nextDay = pickDaily(pool, [], { count: 3, includeDone: false, now: tomorrow });
+    assert.equal(nextDay.some((pick) => pick.item.id === "20260101000000-aaaaaaa"), true);
+});

@@ -622,6 +622,18 @@ async function runFlow(client, workspace) {
     const favFiltered = libraryView.filterAndSortLibrary(favItems, { favoriteOnly: true });
     assert.deepEqual(favFiltered.map((item) => item.id), [fulltext]);
     pass("T-1755 收藏写入与索引投影一致，favoriteOnly 筛选命中");
+
+    // T-1797 钉住：actOnSurface("pin") → 属性/索引投影 → computeDaily 置顶首位。
+    const resurfaceLate = await import("../../src/services/resurface-service.ts");
+    await resurfaceLate.actOnSurface(plugin, local, "pin");
+    const pinnedAttrs = await client.apiChecked("/api/attr/getBlockAttrs", { id: local });
+    assert.match(pinnedAttrs["custom-clip-pinned"], /^\d{8}$/);
+    const afterPinIndex = await clip.reconcileIndex(newPlugin(), settings);
+    assert.match(afterPinIndex.clips[local].pinned, /^\d{8}$/);
+    const afterPin = resurfaceLate.computeDailyFromIndex(afterPinIndex, settings);
+    assert.equal(afterPin.picks.some((pick) => pick.item.id === local), true);
+    assert.equal(afterPin.picks[0].item.id, local, "钉住的篇目应置顶首位");
+    pass("T-1797 钉住当日置顶首位（覆盖改天），属性与索引一致");
 }
 
 async function main() {

@@ -42,6 +42,7 @@
 | `custom-clip-priority` | number 1-5 | 手动优先级（重浮加权用，默认 3，用户手填字段） |
 | `custom-clip-rating` | number 0-5 | 读后评分（可选，用户手填字段） |
 | `custom-clip-favorite` | boolean | 用户显式收藏标记（T-1755/T-1904）：与 `priority`（重要性排序）语义分离——收藏是独立布尔位，不复用、不联动 priority/rating；仅由用户在卡片/行表/伴生栏的星标动作切换，缺键 = 未收藏；不参与手填保护（它本身即用户显式动作产物），不自动写入 |
+| `custom-clip-pinned` | string `YYYYMMDD` | 用户钉住生效日（T-1797）：钉住当日重浮投影置顶优先出现，隔日自然回池（平静原则不变，无后台清理）；与收藏（长期标记）、今日钉住（当日临时置顶）语义分离；仅由用户钉住动作写入 |
 | `custom-clip-ai-tags` | string | AI 标签（逗号分割，与用户 `tags` 完全隔离，永不覆盖用户 tags） |
 | `custom-clip-summary` | string | AI 一句话摘要 |
 | `custom-clip-last-surfaced` | string | 最近一次被重浮的日期 `YYYYMMDD` |
