@@ -481,6 +481,7 @@
   "library.filterSite": "站点",
   "library.filterTag": "用户标签",
   "library.filterAiTag": "✨ AI 标签",
+  "library.filterAuthor": "作者",
   "library.filterAiTagHint": "AI 标签由模型生成，独立于你的用户标签分面",
   "library.filterSource": "收录来源",
   "library.filterTimeSource": "时间来源",

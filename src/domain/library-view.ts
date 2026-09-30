@@ -30,6 +30,8 @@ export interface LibraryItem {
     minutes?: number;
     priority?: number;
     rating?: number;
+    /** 来源作者（T-1811 投影）；候选无此字段 */
+    author?: string;
     /** 用户显式收藏标记（T-1755 投影）；候选无此字段 */
     favorite?: boolean;
 }
@@ -45,6 +47,8 @@ export interface LibraryFilter {
     timeSource?: string;
     contentType?: string;
     keyword?: string;
+    /** 来源作者筛选（T-1812）；空/缺省 = 不筛选 */
+    author?: string;
     /** 仅看收藏（T-1755）；true 时只保留 favorite 条目 */
     favoriteOnly?: boolean;
     sortBy?: LibrarySortKey;
@@ -63,6 +67,8 @@ export interface LibraryFacets {
     tags: LibraryFacet[];
     /** AI 标签分面（T-1729）：独立于用户 tags，UI 显示 AI 来源标记。 */
     aiTags: LibraryFacet[];
+    /** 来源作者分面（T-1812）。 */
+    authors: LibraryFacet[];
     sources: LibraryFacet[];
     timeSources: LibraryFacet[];
     contentTypes: LibraryFacet[];
@@ -137,6 +143,8 @@ export function matchesLibraryFilter(item: LibraryItem, filter: LibraryFilter = 
     if (!matchesExact(item.src, filter.src)) return false;
     if (!matchesExact(item.timeSource, filter.timeSource)) return false;
     if (!matchesExact(item.contentType, filter.contentType)) return false;
+    // T-1812：作者筛选（候选无作者字段，天然不命中）
+    if (!matchesExact(item.author, filter.author)) return false;
     // T-1755：仅看收藏（候选不参与收藏）
     if (filter.favoriteOnly && !(item.kind === "clip" && item.favorite === true)) return false;
     const query = key(filter.keyword);
@@ -190,6 +198,7 @@ function facetsFromMap(map: Map<string, LibraryFacet>): LibraryFacet[] {
 /** 从同一条目集合生成筛选控件的真实分面计数。 */
 export function libraryFacets(items: readonly LibraryItem[]): LibraryFacets {
     const sites = new Map<string, LibraryFacet>();
+    const authors = new Map<string, LibraryFacet>();
     const tags = new Map<string, LibraryFacet>();
     const aiTags = new Map<string, LibraryFacet>();
     const sources = new Map<string, LibraryFacet>();
@@ -198,6 +207,7 @@ export function libraryFacets(items: readonly LibraryItem[]): LibraryFacets {
     for (const item of items) {
         if (item.kind !== "clip") continue;
         addFacet(sites, item.site);
+        addFacet(authors, item.author);
         for (const tag of item.tags ?? []) addFacet(tags, tag);
         for (const tag of item.aiTags ?? []) addFacet(aiTags, tag);
         addFacet(sources, item.src);
@@ -206,6 +216,7 @@ export function libraryFacets(items: readonly LibraryItem[]): LibraryFacets {
     }
     return {
         sites: facetsFromMap(sites),
+        authors: facetsFromMap(authors),
         tags: facetsFromMap(tags),
         aiTags: facetsFromMap(aiTags),
         sources: facetsFromMap(sources),

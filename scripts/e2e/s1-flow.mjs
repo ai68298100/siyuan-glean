@@ -670,6 +670,19 @@ async function runFlow(client, workspace) {
     assert.equal(gained3, 0);
     assert.equal(Number((await client.apiChecked("/api/attr/getBlockAttrs", { id: fulltext }))["custom-clip-read-minutes"]), 5);
     pass("T-1747 阅读计时累计语义：增量累加、不足 1 分钟不写");
+
+    // T-1811/T-1812 来源作者：写 author → 索引投影 → 作者筛选/分面。
+    await clip.writeClip(plugin, fulltext, { author: "测试作者" });
+    const authorAttrs = await client.apiChecked("/api/attr/getBlockAttrs", { id: fulltext });
+    assert.equal(authorAttrs["custom-clip-author"], "测试作者");
+    const authorIndex = await clip.reconcileIndex(newPlugin(), settings);
+    assert.equal(authorIndex.clips[fulltext].author, "测试作者");
+    const authorItems = Object.values(authorIndex.clips).map((entry) => ({ ...entry, kind: "clip" }));
+    const authorFiltered = library.filterAndSortLibrary(authorItems, { author: "测试作者" });
+    assert.deepEqual(authorFiltered.map((item) => item.id), [fulltext]);
+    const authorFacets = library.libraryFacets(authorItems);
+    assert.ok(authorFacets.authors.some((facet) => facet.value === "测试作者"));
+    pass("T-1811/T-1812 作者属性投影与作者筛选/分面命中");
 }
 
 async function main() {

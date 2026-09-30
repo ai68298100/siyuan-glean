@@ -1,5 +1,12 @@
 # 进度（PROGRESS）
 
+## 作者属性组第一轮（续跑口令驱动，2026-10-01）✅
+
+- [x] **T-1811 来源作者属性**（契约先行）：DATA-CONTRACT §1 `custom-clip-author`（**用户可改可覆盖类**——不进手填保护、captureClip 不写、写入仅用户编辑与 AI 确认）；schema 序列化/解析 + 索引投影 + 行表/卡片「站点 · 作者」显示。AI 推断回填（T-1813）与内联编辑留下轮。
+- [x] **T-1812 作者分面（部分）**：`library-view` author 筛选 + `facets.authors` 分面（单测）+ 两处筛选器「作者」select；rail 作者组与站点→作者钻取留下轮（依赖 T-1804 折叠策略）。
+- [x] E2E 断言：author 写入→投影→作者筛选/分面命中。
+- [x] 门禁：check 0 错 0 告警、test **165/165**（+1）、build 通过、隔离 E2E **34/34**（+1）。未发布新版本。
+
 ## 阅读计时（续跑口令驱动，2026-10-01）✅
 
 - [x] **T-1747 真实阅读计时**（契约先行）：**契约裁决=新键 `custom-clip-read-minutes`**（number 累计，与 minutes 字数估算语义分离互不读写）。DATA-CONTRACT §1 契约行；`services/reading-time`（sessionMinutes 纯计算 2 单测 + settleReadingMinutes 增量累加/不足 1 分钟不写）+ ReaderTab 前台累计（visibilitychange 暂停恢复、切文由 mount cleanup 结算旧文档、销毁/标记已读结算）+ 伴生栏会话时长显示。E2E 累计语义断言（3+2→5、不足 1 分钟不写）。

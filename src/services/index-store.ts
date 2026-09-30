@@ -42,6 +42,8 @@ export interface ClipIndexEntry {
     status: ClipStatus | "";
     url: string;
     site: string;
+    /** 来源作者（T-1811 投影）；空串 = 未知 */
+    author: string;
     /** 思源根块 IAL.tags 的只读投影；不是 custom-clip-* 属性。 */
     tags: string[];
     /** 收录入口（custom-clip-src），用于来源筛选。 */
@@ -149,6 +151,7 @@ export async function loadIndex(plugin: Plugin): Promise<GleanIndex> {
                 status,
                 url: typeof value.url === "string" ? value.url : "",
                 site: typeof value.site === "string" ? value.site : "",
+                author: typeof value.author === "string" ? value.author : "",
                 tags: Array.isArray(value.tags) ? value.tags.filter((tag): tag is string => typeof tag === "string") : [],
                 src: typeof value.src === "string" ? value.src : "",
                 time: typeof value.time === "string" ? value.time : "",
@@ -223,6 +226,7 @@ export function applyAttrsToIndex(
             status: attrs.status ?? "",
             url: attrs.url ?? "",
             site: attrs.site ?? "",
+            author: attrs.author ?? "",
             tags: parseUserTags(ial.tags),
             src: attrs.src ?? "",
             time: attrs.time ?? "",

@@ -30,6 +30,8 @@ export type ClipTimeSource = (typeof CLIP_TIME_SOURCES)[number];
 export const ATTR = {
     url: "custom-clip-url",
     site: "custom-clip-site",
+    /** 来源作者（T-1811）：公众号/频道/专栏作者名，用户可改可覆盖类。 */
+    author: "custom-clip-author",
     time: "custom-clip-time",
     status: "custom-clip-status",
     /** 最近一次显式标记读完的时刻；缺键 = 完成时间未知（D-0028）。 */
@@ -66,6 +68,8 @@ export type AttrKey = (typeof ATTR)[keyof typeof ATTR];
 export interface ClipAttrs {
     url?: string;
     site?: string;
+    /** 来源作者（T-1811）；缺键 = 未知作者 */
+    author?: string;
     time?: string;
     status?: ClipStatus;
     doneTime?: string;
@@ -172,6 +176,7 @@ export function parseClipAttrs(ial: Record<string, string | undefined>): ClipAtt
     return {
         url: optionalString(ial[ATTR.url]),
         site: optionalString(ial[ATTR.site]),
+        author: optionalString(ial[ATTR.author]),
         time: optionalString(ial[ATTR.time]),
         status: parseStatus(ial[ATTR.status]),
         doneTime: optionalString(ial[ATTR.doneTime]),
@@ -233,6 +238,7 @@ export function serializePatch(patch: Partial<ClipAttrs> & { aiTags?: string[] |
     };
     if (patch.url !== undefined) put(ATTR.url, patch.url || null);
     if (patch.site !== undefined) put(ATTR.site, patch.site || null);
+    if (patch.author !== undefined) put(ATTR.author, patch.author || null);
     if (patch.time !== undefined) put(ATTR.time, patch.time || null);
     if (patch.status !== undefined) put(ATTR.status, patch.status ?? null);
     if (patch.doneTime !== undefined) put(ATTR.doneTime, patch.doneTime || null);

@@ -481,6 +481,7 @@
   "library.filterSite": "Site",
   "library.filterTag": "User tags",
   "library.filterAiTag": "✨ AI tags",
+  "library.filterAuthor": "Author",
   "library.filterAiTagHint": "AI tags are model-generated and separate from your own tag facets",
   "library.filterSource": "Added from",
   "library.filterTimeSource": "Time source",

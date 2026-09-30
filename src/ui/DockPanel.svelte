@@ -46,6 +46,7 @@ let selectedSite = $state("");
 let selectedTag = $state("");
 /** AI 标签分面（T-1729）：独立于用户 tag，UI 带 ✨ 来源标记。 */
 let selectedAiTag = $state("");
+let selectedAuthor = $state("");
 /** Dock 窄画布搜索默认折叠为图标（UX 审计 #8）；工作台/浮窗保持常驻。 */
 let searchOpen = $state(false);
 let selectedSource = $state("");
@@ -117,6 +118,7 @@ const activeFilter = $derived({
     site: selectedSite,
     tag: selectedTag,
     aiTag: selectedAiTag,
+    author: selectedAuthor,
     src: selectedSource,
     timeSource: selectedTimeSource,
     contentType: selectedContentType,
@@ -212,6 +214,7 @@ function selectQueue(queue: QueueKey): void {
     selectedSite = "";
     selectedTag = "";
     selectedAiTag = "";
+    selectedAuthor = "";
     selectedSource = "";
     selectedTimeSource = "";
     selectedContentType = "";
@@ -222,10 +225,12 @@ function clearFilters(): void {
     selectedSite = "";
     selectedTag = "";
     selectedAiTag = "";
+    selectedAuthor = "";
     selectedSource = "";
     selectedTimeSource = "";
     selectedContentType = "";
     keyword = "";
+    onlyFavorite = false;
 }
 
 const hasFilters = $derived(Boolean(selectedSite || selectedTag || selectedAiTag || selectedSource || selectedTimeSource || selectedContentType || keyword.trim()));
@@ -857,6 +862,10 @@ function metaLine(entry: Row): string {
                     {#each facets.tags as facet (facet.value)}<option value={facet.value}>#{facet.value} · {facet.count}</option>{/each}
                 </select>
                 <select class="b3-select glean-filter" aria-label={t(i18n, "library.filterAiTag")} bind:value={selectedAiTag}>
+                <select class="b3-select glean-filter" aria-label={t(i18n, "library.filterAuthor")} bind:value={selectedAuthor}>
+                    <option value="">{t(i18n, "library.filterAuthor")}</option>
+                    {#each facets.authors as facet (facet.value)}<option value={facet.value}>{facet.value} · {facet.count}</option>{/each}
+                </select>
                     <option value="">{t(i18n, "library.filterAiTag")}</option>
                     {#each facets.aiTags as facet (facet.value)}<option value={facet.value}>✨{facet.value} · {facet.count}</option>{/each}
                 </select>
@@ -911,6 +920,10 @@ function metaLine(entry: Row): string {
                     </select>
                     <select class="b3-select glean-filter" aria-label={t(i18n, "library.filterAiTag")} bind:value={selectedAiTag}>
                         <option value="">{t(i18n, "library.filterAiTag")}</option>
+                    <select class="b3-select glean-filter" aria-label={t(i18n, "library.filterAuthor")} bind:value={selectedAuthor}>
+                        <option value="">{t(i18n, "library.filterAuthor")}</option>
+                        {#each facets.authors as facet (facet.value)}<option value={facet.value}>{facet.value} · {facet.count}</option>{/each}
+                    </select>
                         {#each facets.aiTags as facet (facet.value)}<option value={facet.value}>✨{facet.value} · {facet.count}</option>{/each}
                     </select>
                     <select class="b3-select glean-filter" aria-label={t(i18n, "library.filterSource")} bind:value={selectedSource}>
@@ -1073,7 +1086,7 @@ function metaLine(entry: Row): string {
                                     >
                                         <span class={statusDotClass(entry.status)}></span>
                                         <span class="glean-drow__ti">{entry.title || t(i18n, "panel.untitled")}</span>
-                                        <span class="glean-drow__site">{entry.site || t(i18n, "panel.unknownSite")}</span>
+                                        <span class="glean-drow__site" title={entry.author ? `${entry.site || ""} · ${entry.author}` : entry.site}>{entry.site || t(i18n, "panel.unknownSite")}{entry.author ? ` · ${entry.author}` : ""}</span>
                                          <span class={carrierClass(entry)} title={entry.contentType === "link" && !hasSourceAction(entry.contentType, entry.url) ? t(i18n, "clip.sourceMissing") : carrierLabel(entry)}>{carrierLabel(entry)}</span>
                                         {#if entry.contentType === "link" && !hasSourceAction(entry.contentType, entry.url)}
                                             <span class="glean-source-missing">{t(i18n, "clip.sourceMissing")}</span>
@@ -1225,7 +1238,7 @@ function metaLine(entry: Row): string {
                                         <span class={statusDotClass(entry.status)}></span>
                                     {/if}
                                     {#if entry.kind === "clip" && entry.site}
-                                        <span class="glean-card__site">{entry.site}</span>
+                                        <span class="glean-card__site" title={entry.author ? `${entry.site} · ${entry.author}` : entry.site}>{entry.site}{entry.author ? ` · ${entry.author}` : ""}</span>
                                     {:else if entry.kind === "candidate"}
                                         <span title={entry.url || entry.hpath}>{entry.site || candidateEvidence(entry)}</span>
                                     {/if}
