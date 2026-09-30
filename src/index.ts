@@ -45,6 +45,10 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
     private lastReadingDocId = "";
     private pendingLibraryDocId = "";
     private pendingReaderDocId = "";
+    /** 打开中的插件弹窗（T-1968）：onunload 时统一销毁，Svelte 实例由 svelteDialog 回收 */
+    private openDialogs: Array<{ close: () => void }> = [];
+    /** 工作台浮窗单实例（T-1956）：关闭回执前重复点击不创建第二个 */
+    private workbenchPopup: { close: () => void } | null = null;
 
     constructor(options: { app: unknown; name: string; displayName: string; i18n: I18nBundle }) {
         super(options as never);
@@ -116,7 +120,7 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
 
         this.addCommand({
             langKey: "cmd.addToList",
-            callback: () => void this.addCurrentDocToLibrary(),
+            callback: () => this.guardAction("addToList", () => this.addCurrentDocToLibrary()),
         });
 
         this.addCommand({
@@ -126,16 +130,16 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
 
         this.addCommand({
             langKey: "cmd.makeCard",
-            callback: () => void this.makeCardFromSelection(),
+            callback: () => this.guardAction("makeCard", () => this.makeCardFromSelection()),
         });
 
         // T-1724：命令面板阅读动作（低风险单篇动作；快捷键在思源 设置→快捷键 自定义）
-        this.addCommand({ langKey: "cmd.markDone", callback: () => void this.markCurrentStatus("done") });
-        this.addCommand({ langKey: "cmd.readNext", callback: () => void this.readNextArticle() });
-        this.addCommand({ langKey: "cmd.markLater", callback: () => void this.markCurrentStatus("later") });
-        this.addCommand({ langKey: "cmd.archiveCurrent", callback: () => void this.markCurrentStatus("archived") });
-        this.addCommand({ langKey: "cmd.openSource", callback: () => void this.openCurrentSource() });
-        this.addCommand({ langKey: "cmd.excerptQuote", callback: () => void this.excerptQuoteFromSelection() });
+        this.addCommand({ langKey: "cmd.markDone", callback: () => this.guardAction("markDone", () => this.markCurrentStatus("done")) });
+        this.addCommand({ langKey: "cmd.readNext", callback: () => this.guardAction("readNext", () => this.readNextArticle()) });
+        this.addCommand({ langKey: "cmd.markLater", callback: () => this.guardAction("markLater", () => this.markCurrentStatus("later")) });
+        this.addCommand({ langKey: "cmd.archiveCurrent", callback: () => this.guardAction("archiveCurrent", () => this.markCurrentStatus("archived")) });
+        this.addCommand({ langKey: "cmd.openSource", callback: () => this.guardAction("openSource", () => this.openCurrentSource()) });
+        this.addCommand({ langKey: "cmd.excerptQuote", callback: () => this.guardAction("excerptQuote", () => this.excerptQuoteFromSelection()) });
         this.addCommand({ langKey: "cmd.readerHelp", callback: () => this.showReaderHelp() });
 
         // 右键菜单"加入读库"（收录入口三件套之一）
@@ -221,12 +225,28 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
             unmount(this.dockInstance);
             this.dockInstance = null;
         }
+        // T-1968：卸载时统一销毁打开中的弹窗（迁移/导入/设置/引导/帮助/浮窗）
+        for (const dialog of this.openDialogs) {
+            try {
+                dialog.close();
+            } catch { /* 已被思源销毁的弹窗忽略 */ }
+        }
+        this.openDialogs = [];
+        this.workbenchPopup = null;
     }
 
     /* ---------- GleanFacade ---------- */
 
+    /** 设置写队列（T-1957）：多弹窗并发保存时逐个落盘，patch 合并基准=队列内的最新设置，
+     * 避免基于旧快照的全量展开互相覆盖（配合调用方只传变化字段）。 */
+    private settingsQueue: Promise<void> = Promise.resolve();
+
     async updateSettings(patch: Partial<GleanSettings>): Promise<void> {
-        this.settings = await saveSettings(this, { ...this.settings, ...patch });
+        const run = this.settingsQueue.then(async () => {
+            this.settings = await saveSettings(this, { ...this.settings, ...patch });
+        });
+        this.settingsQueue = run.catch(() => undefined);
+        await run;
         this.notifyDataChanged();
     }
 
@@ -376,6 +396,22 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
         return id;
     }
 
+    /** T-1989：命令/右键动作统一错误边界——脱敏留痕 + 可重试提示，不产生 unhandled rejection。 */
+    private guardAction(name: string, action: () => Promise<unknown> | void): void {
+        try {
+            const result = action();
+            if (result instanceof Promise) {
+                void result.catch((error) => {
+                    console.warn(`[glean] ${name} 失败:`, error);
+                    showMessage(t(this.i18n, "msg.actionFailed"), 3500);
+                });
+            }
+        } catch (error) {
+            console.warn(`[glean] ${name} 失败:`, error);
+            showMessage(t(this.i18n, "msg.actionFailed"), 3500);
+        }
+    }
+
     /** 当前文档显式改状态（读完/稍后/归档）；done 走同一打卡桥钩子。 */
     async markCurrentStatus(status: "done" | "later" | "archived"): Promise<void> {
         const id = this.requireCurrentDoc();
@@ -461,7 +497,15 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
             list +
             `</div>`;
         void import("./libs/dialog").then(({ simpleDialog }) => {
-            simpleDialog({ title: t(this.i18n, "help.title"), ele: wrap, width: "520px" });
+            const entry = simpleDialog({
+                title: t(this.i18n, "help.title"),
+                ele: wrap,
+                width: "520px",
+                callback: () => {
+                    this.openDialogs = this.openDialogs.filter((item) => item.close !== entry.close);
+                },
+            });
+            this.openDialogs.push(entry);
         });
     }
 
@@ -575,7 +619,7 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
             id: "glean-add-to-library",
             iconHTML: "",
             label: `${t(this.i18n, "pluginName")}：${t(this.i18n, "action.addToInbox")}`,
-            click: async () => {
+            click: () => this.guardAction("addToLibrary", async () => {
                 const result = await captureDocument(this, rootId, { src: "manual" });
                 showMessage(
                     result.conflict
@@ -585,7 +629,7 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
                 );
                 if (result.captured) autoEnrich(this, rootId, this.settings);
                 this.notifyDataChanged();
-            },
+            }),
         });
     };
 
@@ -701,7 +745,7 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
     }
 
     openOnboarding(): void {
-        svelteDialog({
+        this.openGleanDialog({
             title: t(this.i18n, "onboarding.title"),
             component: OnboardingDialog,
             props: { facade: this },
@@ -710,22 +754,45 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
         });
     }
 
-    /** 工作台弹出为独立浮窗（全宽画布第三形态） */
+    /**
+     * 统一弹窗入口：记录打开中的实例供 onunload 销毁（T-1968）；
+     * 关闭回执（思源 destroyCallback）负责从登记表移除。
+     */
+    private openGleanDialog(args: Parameters<typeof svelteDialog>[0]): void {
+        const entry = svelteDialog({
+            ...args,
+            callback: () => {
+                this.openDialogs = this.openDialogs.filter((item) => item.close !== close);
+                if (args.callback) args.callback();
+            },
+        });
+        const close = entry.close;
+        this.openDialogs.push({ close });
+    }
+
+    /** 工作台弹出为独立浮窗（全宽画布第三形态）；已有浮窗时忽略重复点击（T-1956）。 */
     openWorkbenchPopup(): void {
-        svelteDialog({
+        if (this.workbenchPopup) return;
+        const entry = svelteDialog({
             title: t(this.i18n, "workbench.popupTitle"),
             component: DockPanel,
             props: { facade: this },
             width: "1020px",
             height: "680px",
             containerClass: "glean-tab-root",
+            callback: () => {
+                this.workbenchPopup = null;
+                this.openDialogs = this.openDialogs.filter((item) => item.close !== entry.close);
+            },
         });
+        this.workbenchPopup = entry;
+        this.openDialogs.push(entry);
     }
 
     /* ---------- 弹窗 ---------- */
 
     openMigrate(): void {
-        svelteDialog({
+        this.openGleanDialog({
             title: t(this.i18n, "migrate.title"),
             component: MigrateDialog,
             props: { facade: this },
@@ -735,7 +802,7 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
     }
 
     openImport(): void {
-        svelteDialog({
+        this.openGleanDialog({
             title: t(this.i18n, "import.title"),
             component: ImportDialog,
             props: { facade: this },
@@ -745,7 +812,7 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
     }
 
     openSettings(): void {
-        svelteDialog({
+        this.openGleanDialog({
             title: t(this.i18n, "settings.title"),
             component: SettingsView,
             props: { facade: this },

@@ -1,5 +1,19 @@
 # 进度（PROGRESS）
 
+## P1 可靠性批次 II（续跑口令驱动，2026-10-01）✅
+
+继续清剩余 P1 缺陷，本轮六项（T-1956/1957/1968/1984/1988/1989），未做新功能：
+
+- [x] **T-1988 导入路径规范化**：domain 增 `normalizeImportFolder` 纯函数（反斜杠归一、空段/`.`/`..` 丢弃、逐段清理非法字符；单测 10 断言），runImport 接线；预览区显示最终落点。
+- [x] **T-1984 导入状态**：换文件重置预览页码/执行现场；预览行 key 改稳定分页索引；无笔记本禁用开始键 + 「打开设置」入口。
+- [x] **T-1957 设置串行化**：`updateSettings` 写队列（patch 合并基准=队列内最新设置）；引导/迁移器调用点改为只传变化字段——并发保存不再互相覆盖。
+- [x] **T-1956 浮窗单实例**：壳层 `workbenchPopup` 守卫 + 真实 destroyCallback 关闭回执；DockPanel 删除 1.5s 定时器猜测。
+- [x] **T-1968 对话框统一销毁**：`openDialogs` 登记表 + 统一入口 `openGleanDialog`（六类弹窗），onunload 逐个 close。
+- [x] **T-1989 错误边界**：`guardAction` wrapper 接管命令面板 7 动作 + 右键收录——脱敏留痕 + 可重试提示，无 unhandled rejection。
+- [x] i18n 新键 5 个双名同步（action.openSettings / import.targetPath / import.noNotebook / msg.actionFailed 等）。
+- [x] 门禁：check 0 错误/39 告警、test **136/136**（+1）、build 通过、隔离 E2E **21/21**。未发布新版本；真机项统一随 B-0002。
+- 教训：heredoc 写含 `\\` 的正则会丢转义（本次代码与测试双双踩中，改用 Edit 修复）——含反斜杠的内容一律不用 heredoc。
+
 ## P1 可靠性批次（续跑口令驱动，2026-10-01）✅
 
 P0 清完后按待办优先级继续，清掉九项 P1 可靠性/一致性缺陷（T-1839/1884/1955/1958/1961/1975/1981/1985/1990），未做新功能：

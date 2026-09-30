@@ -4,6 +4,7 @@ import { onMount } from "svelte";
 import { showMessage } from "siyuan";
 import { listNotebooks, type NotebookMeta } from "../api/client";
 import { previewImport, runImport, type ImportPreview, type ImportSummary } from "../services/import-service";
+import { normalizeImportFolder } from "../domain/importers";
 import type { ImportFormat } from "../domain/importers";
 import { t } from "../libs/i18n";
 import type { GleanFacade } from "../types";
@@ -41,11 +42,18 @@ onMount(() => {
 
 const importable = $derived(preview ? preview.rows.filter((row) => !row.duplicate).length : 0);
 
+// T-1988：预览区显示最终落点（规范化后的目标路径），不静默跨目录创建
+const targetFolder = $derived(normalizeImportFolder(folder, t(i18n, "import.defaultFolder")));
+const targetPathLabel = $derived.by(() => {
+    const notebookName = notebooks.find((item) => item.id === notebookId)?.name ?? "";
+    return notebookName ? `${notebookName}/${targetFolder}/` : `${targetFolder}/`;
+});
+const startIndex = $derived((previewPage - 1) * PREVIEW_PAGE_SIZE);
+
 const previewPageCount = $derived(preview ? Math.max(1, Math.ceil(preview.rows.length / PREVIEW_PAGE_SIZE)) : 1);
 const pagedRows = $derived.by(() => {
     if (!preview) return [];
-    const start = (previewPage - 1) * PREVIEW_PAGE_SIZE;
-    return preview.rows.slice(start, start + PREVIEW_PAGE_SIZE);
+    return preview.rows.slice(startIndex, startIndex + PREVIEW_PAGE_SIZE);
 });
 
 function pickFile() {
@@ -59,7 +67,11 @@ async function onFileChosen(event: Event) {
     busy = true;
     try {
         const content = await file.text();
-        preview = await previewImport(content, format);
+        const next = await previewImport(content, format);
+        // T-1984：换文件必须重置预览分页与执行现场，旧文件的页码/进度不残留
+        preview = next;
+        summary = null;
+        previewPage = 1;
         phase = "preview";
     } catch (error) {
         showMessage(String(error).slice(0, 140), 5000);
@@ -162,8 +174,11 @@ function resetToPick() {
             <div class="glean-mstat"><div class="glean-mstat__n">{preview.duplicateCount}</div><div class="glean-mstat__l">{t(i18n, "import.dupCount")}</div></div>
             <div class="glean-mstat"><div class="glean-mstat__n">{preview.rows.length}</div><div class="glean-mstat__l">{t(i18n, "import.parsedCount")}</div></div>
         </div>
+        <div class="glean-empty" style="padding:4px 12px">
+            <div class="glean-empty__hint">{t(i18n, "import.targetPath", { path: targetPathLabel })}</div>
+        </div>
         <div class="glean-mtable">
-            {#each pagedRows as row (row.url)}
+            {#each pagedRows as row, index (startIndex + index)}
                 <div class="glean-mrow">
                     <span class="glean-mrow__ti">{row.title || row.url}</span>
                     <span class="glean-mrow__url">{row.site || "—"}</span>
@@ -180,9 +195,17 @@ function resetToPick() {
                 <button class="glean-btn glean-btn--ghost" style="font-size:11px; padding:4px 10px" disabled={previewPage >= previewPageCount} onclick={() => (previewPage += 1)}>{t(i18n, "import.nextPage")} →</button>
             </div>
         {/if}
+        {#if !notebookId}
+            <div class="glean-empty" style="padding:10px 12px">
+                <div class="glean-empty__hint">
+                    {t(i18n, "import.noNotebook")}
+                    <button class="glean-linkish" onclick={() => facade.openSettings()}>{t(i18n, "action.openSettings")} →</button>
+                </div>
+            </div>
+        {/if}
         <div class="glean-migrate__ops">
             <button class="glean-btn glean-btn--ghost" onclick={resetToPick}>{t(i18n, "migrate.rescan")}</button>
-            <button class="glean-btn glean-btn--pri" disabled={importable === 0} onclick={() => void startImport()}>
+            <button class="glean-btn glean-btn--pri" disabled={importable === 0 || !notebookId} onclick={() => void startImport()}>
                 {t(i18n, "import.start")}
             </button>
         </div>

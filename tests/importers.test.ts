@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 
 import {
     detectFormat,
+    normalizeImportFolder,
     parseCsv,
     parseImport,
     parseOmnivoreJson,
@@ -156,4 +157,18 @@ test("parseImport auto + 文件内 URL 去重", () => {
 test("parseImport：全部无效输入返回空而不抛错", () => {
     const result = parseImport("not parseable", "auto");
     assert.equal(result.items.length, 0);
+});
+
+test("normalizeImportFolder：清理斜杠/空段/越级/非法字符（T-1988）", () => {
+    assert.equal(normalizeImportFolder("/导入/"), "导入");
+    assert.equal(normalizeImportFolder("a//b"), "a/b");
+    assert.equal(normalizeImportFolder("../外部"), "外部");
+    assert.equal(normalizeImportFolder("a/./../b"), "a/b");
+    assert.equal(normalizeImportFolder(".."), "导入");
+    assert.equal(normalizeImportFolder("."), "导入");
+    assert.equal(normalizeImportFolder("  "), "导入");
+    assert.equal(normalizeImportFolder("a\\b"), "a/b");
+    assert.equal(normalizeImportFolder('文件:名?'), "文件 名");
+    assert.equal(normalizeImportFolder('文/件:名?'), "文/件 名");
+    assert.equal(normalizeImportFolder("web-clip"), "web-clip");
 });

@@ -59,15 +59,10 @@ let enrichingId = $state("");
 let statusActionId = $state("");
 let pendingFocusId = $state("");
 let focusRequested = false;
-let popupOpen = $state(false);
 
-/** 工作台弹出为独立浮窗（全宽画布，独立于 dock/tab）。 */
+/** 工作台弹出为独立浮窗；单实例由壳层守卫（T-1956：真实关闭回执，非定时器猜测）。 */
 function openPopup() {
-    if (popupOpen) return;
-    popupOpen = true;
     facade.openWorkbenchPopup();
-    // 弹窗关闭时机未知，保守复位
-    window.setTimeout(() => (popupOpen = false), 1500);
 }
 let snappingId = $state("");
 let archivingStale = $state(false);

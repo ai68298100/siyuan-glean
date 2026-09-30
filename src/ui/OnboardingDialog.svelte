@@ -39,8 +39,8 @@ function toggleNotebook(id: string) {
 
 async function persist(): Promise<void> {
     // T-1709 后首启不再询问 AI：enrichMode 保持默认 manual（D-0013），能力卡引导稍后在设置开启。
+    // T-1957：只传本向导变化字段，避免旧快照展开覆盖并发保存的其他设置。
     await facade.updateSettings({
-        ...facade.settings,
         anchorNotebooks: [...anchorNotebooks],
     });
 }

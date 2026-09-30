@@ -317,3 +317,20 @@ export function parseImport(raw: string, format: ImportFormat | "auto"): ParseRe
         default: return { format: "pocket-html", items: [], dropped: 0 };
     }
 }
+
+/* ---------- 目标路径（T-1988） ---------- */
+
+/**
+ * 导入目标文件夹规范化（T-1988）：反斜杠归一为斜杠后拆段，
+ * 丢弃空段、`.` 与 `..`（不允许越出所选笔记本），逐段清理文件名非法字符。
+ * 返回不含首尾斜杠的段路径；输入没有任何有效段时返回 fallback。
+ */
+export function normalizeImportFolder(raw: string, fallback = "导入"): string {
+    const segments = String(raw ?? "")
+        .replace(/\\/g, "/")
+        .split("/")
+        .map((segment) => segment.replace(/[/\\:<>|?*"~]/g, " ").replace(/\s+/g, " ").trim())
+        .filter((segment) => segment.length > 0 && segment !== "." && segment !== "..");
+    if (segments.length === 0) return fallback;
+    return segments.join("/");
+}

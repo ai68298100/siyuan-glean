@@ -31,7 +31,8 @@ async function updateBatchSize(input: HTMLInputElement): Promise<void> {
     const parsed = Math.min(50, Math.max(1, Math.round(Number(input.value)) || fallback));
     input.value = String(parsed);
     if (parsed === fallback) return;
-    await facade.updateSettings({ ...facade.settings, migrateBatchSize: parsed });
+    // T-1957：只传变化字段，避免旧快照覆盖并发保存的其他设置
+    await facade.updateSettings({ migrateBatchSize: parsed });
 }
 
 type Phase = "intro" | "scanning" | "report" | "running" | "paused" | "done";

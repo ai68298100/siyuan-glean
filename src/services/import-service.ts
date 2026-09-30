@@ -11,6 +11,7 @@ import { siteFromUrl } from "../domain/schema";
 import type { ImportFormat, ImportedItem, ParseResult } from "../domain/importers";
 import { parseImport } from "../domain/importers";
 import { normalizeUrl } from "../domain/url";
+import { normalizeImportFolder } from "../domain/importers";
 import { batchReadClipAttrs, captureClip, listClipDocs } from "./clip-store";
 
 export interface ImportPreviewRow {
@@ -103,6 +104,8 @@ export async function runImport(
     options: ImportOptions
 ): Promise<ImportSummary> {
     const src = formatToSrc(options.format);
+    // T-1988：目标文件夹规范化——拒绝越级（..）、空段与非法字符，不静默跨目录创建
+    const folder = normalizeImportFolder(options.folder, "导入");
     const summary: ImportSummary = { imported: 0, skippedDuplicate: 0, failed: 0, docIds: [] };
     // 预览和执行之间库可能已变化；执行阶段重新查重，并把本批已创建 URL 记入集合。
     const existingUrls = await collectExistingUrls();
@@ -124,7 +127,7 @@ export async function runImport(
             }
             try {
                 const title = row.title || row.url;
-                const hPath = `/${options.folder}/${sanitizeTitle(title)}`;
+                const hPath = `/${folder}/${sanitizeTitle(title)}`;
                 const markdown = buildImportMarkdown(title, row.url, row.site, row.time, row.tags, row.doneTime);
                 // createDocWithMd 的 tags 参数已在隔离内核 spike 验证会落到新文档根块。
                 const docId = await createDocWithMd(options.notebookId, hPath, markdown, row.tags.join(","));

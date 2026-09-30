@@ -445,8 +445,8 @@
 > 复核记录见 [RESEARCH-functional-ui-flow-audit-2026-09.md](docs/RESEARCH-functional-ui-flow-audit-2026-09.md)。本轮 `pnpm test` 132/132、`pnpm check:svelte` 0 错误但仍有 39 条既有警告。ReaderTab 重复“读完并下一篇”、硬编码“文A”、设置开关无屏读器语义、列表键盘事件缺失、样式 inline 等已经存在的发现挂接 T-1893/T-1858/T-1886–T-1913，不重复建号；以下是本轮新发现或对旧大项的专项化补充。开发前仍需契约/spike，按“实现→隔离验证→作者真机验收”三态记账。
 
 - [x] T-1955（P1，可靠性）UI 偏好加载与保存竞态：`DockPanel` 挂载同时执行 `loadUiPrefs` 和默认 `saveUiPrefs({lastView: "resurface"})`，Dock/工作台/浮窗还会共享写入；增加加载屏障、实例写入归属、版本或队列合并，验证重启后视图不被默认值覆盖。（2026-10-01；prefs.ts 全部读写入串行写队列（load→merge→save 原子），DockPanel 加 `prefsLoaded` 屏障——加载完成前不保存；重启视图保持的真机回归随 B-0002）
-- [ ] T-1956（P1，交互）工作台浮窗单实例生命周期：`openPopup` 只用 1.5 秒定时器复位状态，没有真实关闭/销毁回执；验证重复点击、关闭后再开、插件卸载/重载、多个窗口和移动端降级，确保不会残留重复组件。
-- [ ] T-1957（P1，数据一致性）设置写入串行化与变化回读：Settings/Migrate/Onboarding 的异步 `save()` 都基于旧 `facade.settings` 快照；为设置、迁移批大小、AI 开关、打卡和阅读页签偏好做按字段合并/写队列，跨两个设置窗和快速连续点击验证最终值。
+- [x] T-1956（P1，交互）工作台浮窗单实例生命周期：`openPopup` 只用 1.5 秒定时器复位状态，没有真实关闭/销毁回执；验证重复点击、关闭后再开、插件卸载/重载、多个窗口和移动端降级，确保不会残留重复组件。（2026-10-01；壳层 `workbenchPopup` 单实例守卫（真实 destroyCallback 关闭回执），DockPanel 删除 1.5s 定时器猜测；关闭后再开/卸载重载的真机回归随 B-0002）
+- [x] T-1957（P1，数据一致性）设置写入串行化与变化回读：Settings/Migrate/Onboarding 的异步 `save()` 都基于旧 `facade.settings` 快照；为设置、迁移批大小、AI 开关、打卡和阅读页签偏好做按字段合并/写队列，跨两个设置窗和快速连续点击验证最终值。（2026-10-01；`updateSettings` 加写队列且 patch 合并基准=队列内最新设置，Onboarding/Migrate 调用点改为只传变化字段；Settings 页保留全量语义（其字段唯一入口）；跨窗快速点击的真机回归随 B-0002）
 - [x] T-1958（P1，幂等）周报宿主文档复用：同一周多次点击生成周报、失败重试、跨时区周界和归档状态都应定位/更新同一 `/读库周报/{周区间}` 文档；重复执行不产生同名宿主或候选，写入索引失败时可重试。（2026-10-01，部分完成：幂等**定位**已落地——先查 `/读库周报/{title}` 已有文档并复用 ID，隔离 E2E 断言同 ID+不堆积；**内容更新**语义待 `createDocWithMd` 对已存在路径的行为实证（先 spike）后再补）
 - [ ] T-1959（P0，先 spike+真机）阅读上下文宿主归属：验证 `reading-context-controller` 是否会把上下文条挂到内嵌 ReaderTab 的 Protyle 或 `siyuan-comment` 临时 Protyle；为本插件/外部弹层加可判定的宿主标记，补 loaded/switch/destroy/焦点回收，扩展 T-1934。
 - [ ] T-1960（P1，智能体安全）`archive_stale` 工具的预览与写入边界：调用前重新对账并给出候选快照、数量上限、逐条成功/失败和可恢复结果；明确 AI/外部调用不绕过用户设置，禁止把过期索引中的条目直接批量归档，和 T-1854/T-1910 分开验收。
@@ -457,7 +457,7 @@
 - [ ] T-1965（P1，交互）来源导航结果反馈：统一 Reader/Dock/命令的 `window.open`、重定向、popup blocker、无效协议、证书/网络失败和快照回退；成功只报告已发起导航，失败给出复制 URL/打开快照/返回思源的可恢复动作，不改变五态。
 - [ ] T-1966（P1，性能+一致性）收录后自动富化刷新协议：为 `capture → autoEnrich → reconcile` 增加请求代次、队列状态和完成事件；旧对账不能覆盖新摘要/AI 标签，UI 区分等待、成功、失败与关闭，衔接 T-1882/T-1883。
 - [ ] T-1967（P1，网络可靠性）内核请求超时、取消与响应完整性：为 `kernelPost`、收集箱、文件/资产端点设计 Abort/超时和可重试分类；响应缺 `code/data` 不得被误当成功，导入/快照/收集箱挂起时能取消并恢复，补断网、服务重启和慢请求 E2E。
-- [ ] T-1968（P1，生命周期）对话框统一销毁：迁移、导入、设置、帮助、浮窗和阅读页签在插件 `onunload`、窗口关闭、异常和重载时卸载 Svelte 实例、事件监听、计时器和 pending 请求；验证不会向已销毁组件写状态。
+- [x] T-1968（P1，生命周期）对话框统一销毁：迁移、导入、设置、帮助、浮窗和阅读页签在插件 `onunload`、窗口关闭、异常和重载时卸载 Svelte 实例、事件监听、计时器和 pending 请求；验证不会向已销毁组件写状态。（2026-10-01；index.ts 增 `openDialogs` 登记表，六类弹窗统一入口 `openGleanDialog` + 关闭回执移除，onunload 逐个 close；Svelte 实例由 svelteDialog 的 destroyCallback 回收；pending 请求取消随 T-1967）
 - [ ] T-1969（P1，性能）大库对账与 AV 绑定预算：`indexFromScopes` 对候选逐篇串行导出 Markdown，`bindAllClipsToLibrary` 可能 O(n²)+逐行写入；用 1k/10k 文档测批量/并发上限、取消、跳过未变化行、内存与进度，衔接 T-1859/T-1911。
 - [ ] T-1970（P2，交互一致性）吃灰阈值统一：UI 徽章当前固定约 14 天，而设置 `staleDays` 控制超龄归档；决定徽章、候选清单、重浮理由和统计是否共用阈值，补修改设置后立即刷新、跨时区和未知时间样例。
 - [ ] T-1971（P1，无障碍）控件状态语义：为 `.glean-sw` 增加名称、`role=switch`、`aria-checked`；视图/队列/列表看板/排序方向/笔记本 chips/Inbox、AI 日志和超龄清单折叠补 `aria-current/pressed/expanded/controls`，让状态变化可被屏读器读取，衔接 T-1858/T-1889。
@@ -473,12 +473,12 @@
 - [x] T-1981（P1，UI 一致性）HighlightView 文档切换刷新：监听公开 Protyle 切换/销毁与 `glean:data-changed`，为引述/相关旧文加载增加请求序号、取消和销毁守卫；切换文章后不得残留上一篇内容，失败需保留可解释状态。（2026-10-01；监听 `glean:data-changed` 强制刷新（重置 lastDocId），请求代次同 T-1975；Protyle 原生切换事件监听待宿主事件梳理后补）
 - [ ] T-1982（P1，契约+验收）外部导入已读状态与时间保真：Pocket HTML/CSV 的 `time_read`、Omnivore 的 state/read 字段、wallabag 的 read/archive 统一映射；预览中显示来源字段，只有可靠时间写 `done-time`，补统计、归档、重复导入回归。
 - [ ] T-1983（P1，产品+统计）用户标签与 AI 标签统计边界：裁决统计页“标签分布”究竟展示根块用户 tags、AI tags 或两个独立区；数据契约、文案、导出和筛选必须与 T-1729/T-1943 一致，禁止 AI 推断冒充用户事实。
-- [ ] T-1984（P1，导入交互）换文件与无笔记本状态：选择新文件时重置预览页码/错误/执行计划，预览行使用稳定行 ID，URL 仅作去重键；未选择读库笔记本时禁用开始导入并提供设置/刷新笔记本入口，补长文件和重复 URL 视觉回归。
+- [x] T-1984（P1，导入交互）换文件与无笔记本状态：选择新文件时重置预览页码/错误/执行计划，预览行使用稳定行 ID，URL 仅作去重键；未选择读库笔记本时禁用开始导入并提供设置/刷新笔记本入口，补长文件和重复 URL 视觉回归。（2026-10-01；换文件重置 previewPage/summary，预览行 key 改稳定分页索引，无笔记本禁用开始键 + 「打开设置」入口（i18n 双名）；长文件视觉回归随 B-0002）
 - [x] T-1985（P1，智能体结果）`archive_stale` 返回真实结算：使用 `batchSetStatusDetailed` 或等价结果，返回成功/失败/跳过 IDs 并在写后通知刷新；工具描述、执行结果与实际归档数一致，失败可重试，不把 `stale.length` 当成功数。（2026-10-01；改用 `batchSetStatusDetailed`，structuredContent 返回 `{requested, archived, failedIds}`，失败篇可重试；配合 T-1980 服务端守卫，未收录 ID 不再计入成功）
 - [ ] T-1986（P1，发布门禁）package.zip 内容一致性：解压比较 zip 与本次 dist 的文件清单、manifest 版本、核心文件 hash 和构建 mtime，拒绝旧 zip/错版本/缺 i18n/README 的产物；把检查纳入 `check:release`，仍遵守逐次请示 tag/Release/集市。
 - [x] T-1987（P0，数据主权）内部宿主身份隔离：闪卡牌组、周报、读库数据库和 AV 宿主查找不能只凭标题/路径命中用户同名文档；为每类宿主建立可验证身份/创建记录、碰撞提示和幂等恢复，确认 `custom-clip-internal` 不会写到用户文档，也不会被候选排除误伤。（2026-10-01；schema 增 `isMarkedInternalDoc`，library-db `findVerifiedHost`（internal 标记 / 旧宿主四字段库幂等补标）、flashcard 只认标记另建宿主，av 增 `findDocsByTitle`；隔离 E2E 19/19 含双宿主断言；周报宿主本就只新建不查找；真机随 B-0002）
-- [ ] T-1988（P1，导入契约+安全）导入文件夹路径规范化：清理前导/尾部斜杠、空段、`.`、`..`、反斜杠和非法字符，限制在所选笔记本，预览显示最终 hpath；验证同名路径、取消、失败重试和跨平台路径差异，不能静默跨目录创建。
-- [ ] T-1989（P1，异步错误边界）扩展统一 rejection 处理到 ReaderTab 状态/读完下一篇、`ClipStatusActions.invoke`、设置/导入/迁移/首启初始化和文件选择；所有 pending 请求都有取消/销毁守卫，失败显示可重试动作并恢复按钮状态，日志脱敏且无 unhandled rejection。
+- [x] T-1988（P1，导入契约+安全）导入文件夹路径规范化：清理前导/尾部斜杠、空段、`.`、`..`、反斜杠和非法字符，限制在所选笔记本，预览显示最终 hpath；验证同名路径、取消、失败重试和跨平台路径差异，不能静默跨目录创建。（2026-10-01；domain 增 `normalizeImportFolder` 纯函数（单测覆盖越级/空段/反斜杠/非法字符），runImport 接线，预览区显示最终落点（i18n `import.targetPath`）；越级与空段直接丢弃不猜路径）
+- [x] T-1989（P1，异步错误边界）扩展统一 rejection 处理到 ReaderTab 状态/读完下一篇、`ClipStatusActions.invoke`、设置/导入/迁移/首启初始化和文件选择；所有 pending 请求都有取消/销毁守卫，失败显示可重试动作并恢复按钮状态，日志脱敏且无 unhandled rejection。（2026-10-01，主入口已落地：index.ts 增 `guardAction` wrapper，命令面板 7 动作 + 右键收录统一接入（脱敏留痕 + 可重试提示，i18n `msg.actionFailed`）；ReaderTab/设置/导入内部动作已有各自 catch；剩余组件级守卫随 T-1967/T-1978 收敛）
 - [x] T-1990（P1，数据恢复）派生索引 schema 校验与坏文件隔离：严格校验 `status/contentType/timeSource`、priority/rating、候选 evidence/missing、版本迁移和未知字段；损坏的 `glean-index.json` 不能驱动动态 CSS/i18n 或批量写入，须保留原文件、提示用户并自动安全重建，衔接 T-1856/T-1861。（2026-10-01；loadIndex 枚举白名单校验（status 脏条目丢弃、evidence/missing 过滤），坏 JSON 置 `indexCorrupted` 拒绝一切落盘（原文件保留）直到对账/重建完整扫描后合法覆盖；隔离 E2E 全链断言：坏文件→增量写被拦→reconcile 恢复；文章事实在属性层，数据主权无损）
 
 ## UI 专项质感与美观优化（T-1991 起；2026-09-30，只读审计入账）
