@@ -7,7 +7,7 @@
  */
 import type { Plugin } from "siyuan";
 import { getShorthands, removeShorthands, type Shorthand, type ShorthandsPage } from "../api/inbox";
-import { createDocWithMd } from "../api/client";
+import { createDocWithMd, querySql } from "../api/client";
 import { siteFromUrl } from "../domain/schema";
 import { captureClip, findClipUrlConflict, type DocMeta } from "./clip-store";
 
@@ -41,16 +41,27 @@ export async function saveInboxOrphans(plugin: Plugin, orphans: InboxOrphan[]): 
     await plugin.saveData(ORPHANS_FILE, orphans);
 }
 
-/** 重试补收录：成功后移出账本并尝试补删云端条目（删除失败不影响结算）。 */
+/** 重试补收录：成功后移出账本并尝试补删云端条目（删除失败不影响结算）。
+ *  文档已被删除时账本条目自然失效（T-1878）——getBlockAttrs 对已删块返回空对象
+ *  不报错，必须 SQL 判存在，否则无限重试。 */
 export async function retryInboxOrphans(
     plugin: Plugin,
     options: { onProgress?: (done: number, total: number) => void } = {}
-): Promise<{ restored: number; remaining: number }> {
+): Promise<{ restored: number; remaining: number; expired: number }> {
     const orphans = await loadInboxOrphans(plugin);
     const remaining: InboxOrphan[] = [];
     let restored = 0;
+    let expired = 0;
     for (let index = 0; index < orphans.length; index += 1) {
         const orphan = orphans[index];
+        const existsRows = await querySql<{ id: string }>(
+            `SELECT id FROM blocks WHERE type = 'd' AND id = '${orphan.docId.replace(/'/g, "''")}' LIMIT 1`
+        );
+        if (!existsRows[0]) {
+            expired += 1;
+            options.onProgress?.(index + 1, orphans.length);
+            continue;
+        }
         try {
             const captured = await captureClip(plugin, orphan.docId, {
                 url: orphan.url || undefined,
@@ -79,7 +90,7 @@ export async function retryInboxOrphans(
         options.onProgress?.(index + 1, orphans.length);
     }
     await saveInboxOrphans(plugin, remaining);
-    return { restored, remaining: remaining.length };
+    return { restored, remaining: remaining.length, expired };
 }
 
 /** 收集箱可用性探测：available=false 时 UI 整块隐藏。 */

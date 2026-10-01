@@ -59,7 +59,11 @@ async function retryOrphans(): Promise<void> {
     retryingOrphans = true;
     try {
         const result = await retryImportOrphans(facade.pluginInstance);
-        showMessage(t(i18n, "import.orphansRetried", { n: result.restored, skip: result.remaining }), 4000);
+        // t() 只支持平占位符——后缀条件拼接在调用处（修复既有条件模板不求值缺陷）
+        let message = t(i18n, "import.orphansRetried", { n: result.restored });
+        if (result.remaining > 0) message += t(i18n, "msg.remainSuffix", { n: result.remaining });
+        if (result.expired > 0) message += t(i18n, "msg.expiredSuffix", { n: result.expired });
+        showMessage(message, 4000);
         if (result.restored > 0) facade.notifyDataChanged();
     } catch (error) {
         showMessage(String(error).slice(0, 140), 5000);

@@ -559,6 +559,11 @@ async function runFlow(client, workspace) {
     // T-1840 导入孤儿账本：模拟"文档已建未收录"→ 入账本 → 重试补收录 → 移出账本。
     const importSvc = await import("../../src/services/import-service.ts");
     const orphanDoc = await makeDoc("T1840 孤儿文章", "- [https://example.org/t1840](https://example.org/t1840)\n\n孤儿正文。");
+    // 账本重试的存在性检查依赖 SQL 索引——新建文档必须先等 SQL 收敛（内核异步）
+    await until("T1840 孤儿文档入 SQL", async () => {
+        const rows = await client.apiChecked("/api/query/sql", { stmt: `SELECT id FROM blocks WHERE type='d' AND id='${orphanDoc}'` });
+        return rows[0]?.id ? true : null;
+    });
     await importSvc.saveImportOrphans(plugin, [
         {
             docId: orphanDoc,
@@ -588,6 +593,10 @@ async function runFlow(client, workspace) {
     // T-1841 收集箱孤儿账本：同模式验证（模拟"文档已建未收录"→ 重试 → 账本清空）。
     const inboxSvc = await import("../../src/services/inbox-service.ts");
     const inboxOrphanDoc = await makeDoc("T1841 收集箱孤儿", "- [https://example.org/t1841](https://example.org/t1841)\n\n收集箱孤儿正文。");
+    await until("T1841 孤儿文档入 SQL", async () => {
+        const rows = await client.apiChecked("/api/query/sql", { stmt: `SELECT id FROM blocks WHERE type='d' AND id='${inboxOrphanDoc}'` });
+        return rows[0]?.id ? true : null;
+    });
     await inboxSvc.saveInboxOrphans(plugin, [
         {
             docId: inboxOrphanDoc,
@@ -609,6 +618,28 @@ async function runFlow(client, workspace) {
     assert.equal(inboxAttrs["custom-clip-src"], "inbox");
     assert.deepEqual(await inboxSvc.loadInboxOrphans(plugin), []);
     pass("T-1841 收集箱孤儿账本重试补收录：src=inbox 属性写全、账本清空");
+
+    // T-1878 孤儿账本失效：文档被彻底删除后，账本条目自然失效（expired 计数、不再无限重试）。
+    const expDoc = await makeDoc("T1878 已删孤儿", "- [https://example.org/t1878](https://example.org/t1878)\n\n待删除孤儿。");
+    const importSvcAgain = await import("../../src/services/import-service.ts");
+    await until("T1878 孤儿文档入 SQL", async () => {
+        const rows = await client.apiChecked("/api/query/sql", { stmt: `SELECT id FROM blocks WHERE type='d' AND id='${expDoc}'` });
+        return rows[0]?.id ? true : null;
+    });
+    await importSvcAgain.saveImportOrphans(plugin, [
+        { docId: expDoc, notebookId: box, format: "pocket-html", row: { title: "T1878 已删孤儿", url: "https://example.org/t1878", site: "example.org", time: "20261001090000", doneTime: "", tags: [], status: "inbox" } },
+    ]);
+    const expRow = await client.apiChecked("/api/query/sql", { stmt: `SELECT path FROM blocks WHERE type='d' AND id='${expDoc}'` });
+    await client.apiChecked("/api/filetree/removeDoc", { notebook: box, path: expRow[0].path });
+    await until("T1878 孤儿文档从 SQL 消失", async () => {
+        const rows = await client.apiChecked("/api/query/sql", { stmt: `SELECT id FROM blocks WHERE type='d' AND id='${expDoc}'` });
+        return rows[0]?.id ? null : true;
+    });
+    const expiredRetry = await importSvcAgain.retryImportOrphans(plugin);
+    assert.equal(expiredRetry.expired, 1, "已删文档的账本条目计入 expired");
+    assert.equal(expiredRetry.restored, 0);
+    assert.deepEqual(await importSvcAgain.loadImportOrphans(plugin), [], "失效条目从账本移除，不再无限重试");
+    pass("T-1878 孤儿账本失效：文档删除后条目自然过期（expired 计数、账本清空）");
 
     // T-1755 收藏：写 favorite → 索引投影 → favoriteOnly 筛选。
     const libraryView = await import("../../src/domain/library-view.ts");

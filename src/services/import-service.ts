@@ -5,7 +5,7 @@
  * 标签落位：外部标签写入文档根块 IAL 的 tags（用户标签位，不用 ai-tags）——尊重"标签是用户的"。
  */
 import type { Plugin } from "siyuan";
-import { createDocWithMd } from "../api/client";
+import { createDocWithMd, querySql } from "../api/client";
 import { ATTR, siyuanTimestamp } from "../domain/schema";
 import { siteFromUrl } from "../domain/schema";
 import type { ImportFormat, ImportedItem, ParseResult } from "../domain/importers";
@@ -132,16 +132,27 @@ export async function saveImportOrphans(plugin: Plugin, orphans: ImportOrphan[])
     await plugin.saveData(ORPHANS_FILE, orphans);
 }
 
-/** 执行重试：逐条对已创建文档补收录，成功即从账本移除。返回结算供 UI 反馈。 */
+/** 执行重试：逐条对已创建文档补收录，成功即从账本移除。返回结算供 UI 反馈。
+ *  文档已被删除（如经归档生命周期彻底删除）时账本条目自然失效（T-1878），
+ *  不再无限重试——getBlockAttrs 对已删块返回空对象不报错，必须 SQL 判存在。 */
 export async function retryImportOrphans(
     plugin: Plugin,
     options: { onProgress?: (done: number, total: number) => void } = {}
-): Promise<{ restored: number; remaining: number }> {
+): Promise<{ restored: number; remaining: number; expired: number }> {
     const orphans = await loadImportOrphans(plugin);
     const remaining: ImportOrphan[] = [];
     let restored = 0;
+    let expired = 0;
     for (let index = 0; index < orphans.length; index += 1) {
         const orphan = orphans[index];
+        const existsRows = await querySql<{ id: string }>(
+            `SELECT id FROM blocks WHERE type = 'd' AND id = '${orphan.docId.replace(/'/g, "''")}' LIMIT 1`
+        );
+        if (!existsRows[0]) {
+            expired += 1;
+            options.onProgress?.(index + 1, orphans.length);
+            continue;
+        }
         try {
             const src = formatToSrc(orphan.format);
             const captured = await captureClip(plugin, orphan.docId, {
@@ -162,7 +173,7 @@ export async function retryImportOrphans(
         options.onProgress?.(index + 1, orphans.length);
     }
     await saveImportOrphans(plugin, remaining);
-    return { restored, remaining: remaining.length };
+    return { restored, remaining: remaining.length, expired };
 }
 
 /** 执行导入：建文档 → 收录（写 URL/时间/站点）→ 外部标签写入 tags → 状态映射。 */
