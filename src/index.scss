@@ -394,9 +394,11 @@
     color: var(--b3-theme-on-surface);
     white-space: nowrap;
 
-    &--fulltext { color: var(--glean-st-reading); background: rgba(139, 92, 246, 0.12); }
-    &--link { color: var(--glean-st-inbox); background: rgba(245, 158, 11, 0.12); }
-    &--local { color: var(--glean-st-done); background: rgba(16, 185, 129, 0.12); }
+    /* T-2028 载体分色：载体用中性底+图标区分，五态颜色只表达文章状态；
+       图标为辅助，文字 label（clip.type.*）在图标缺失时仍是完整回退 */
+    &--fulltext::before { content: "📄 "; }
+    &--link::before { content: "🔗 "; }
+    &--local::before { content: "📂 "; }
 }
 
 .glean-source-missing,

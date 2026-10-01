@@ -1,5 +1,10 @@
 # 进度（PROGRESS）
 
+## 载体与五态分色（续跑口令驱动，2026-10-01）✅
+
+- [x] **T-2028 载体分色**：`.glean-carrier-badge` 删除三态彩色复用（紫/琥珀/绿→五态专用），统一中性底+on-surface 文字+载体图标（📄/🔗/📂）；文字 label 天然回退。深浅色自动适配。高对比随 B-0002。
+- [x] 门禁：check 0 错 0 告警、build 通过、E2E 全过。未发布新版本。
+
 ## 统计卡语义染色修正（续跑口令驱动，2026-10-01）✅
 
 - [x] **T-2027 语义色修正**：`.glean-mstat--ok/--pending/--skip/--manual/--err` modifier 替换 nth-child 排位染色——**修复实错**：回填阶段"失败"数原无错误色、扫描阶段"需人工"被染成待处理琥珀；MigrateDialog 两处 + OnboardingDialog 三处全接线。真机对比度随 B-0002。
