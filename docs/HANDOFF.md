@@ -1,5 +1,12 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-01 第四十五轮：T-2023 首启 stepper + T-2024 标题截断策略）
+
+- **stepper（T-2023 最小版）**：Onboarding 头部下三步指示（`.glean-onb-steps`——当前实心主色光环/已完成绿淡实/未到空心，`aria-current` + `onboarding.stepN/stepsLabel` 双语键），纯展示方向感不改导入路由语义；扫描中/失败/跳过的状态卡表达随 B-0002 后按需补。
+- **标题截断统一策略（T-2024）**：行内单行 ellipsis（dock 卡片/行表，密度优先）+ 卡面 2 行 clamp（看板卡/阅读标题原已有；本轮补今日拾遗 `.glean-surf__title` 2 行 clamp + overflow-wrap anywhere）。
+- 门禁：check 0 错 **0 告警**、build 通过、E2E 全过。未发布新版本。提交序列：…→ 2c65b12 → 本轮（git log）。集市 PR #2288 待审。
+- 下一批候选：UI 组可离线 P1 已全部清完（T-2013/2022/2023/2024/2027/2028/2030）；剩余任务依赖真机或原型（T-2025 行表换行需原型对照、T-2017 原型同步、验收矩阵）；**请作者安排 B-0002 真机走查**（可走查面已覆盖：归档全链/会话重排/宽幅形态/空态/语义色/stepper，走查后定版 v1.1.x + T-1879 用户说明 + 当日补丁闭环）。
+
 ## 当前有效交接（2026-10-01 第四十四轮：T-2022 阅读模式段 parity）
 
 - **模式段 parity（T-2022）**：ReaderTab 模式容器挂 `.glean-seg`（胶囊轨道与 Settings/Dock 同形态）+ `.glean-reader__mode` 改 flex-wrap 窄宽回流 + `setMode` 切换失败 try/catch 回滚选中态并反馈（原 switchMode 异常未捕获、选中态假成功）+ `.glean-seg__btn:focus-visible` 焦点环（Settings/Dock 同惠）。

@@ -517,6 +517,8 @@
   "ai.testFail": "连接失败：${message}",
   "workbench.title": "拾遗工作台",
   "onboarding.title": "欢迎使用小驴拾遗",
+  "onboarding.stepsLabel": "引导进度",
+  "onboarding.stepN": "第 ${n} 步",
   "onboarding.welcomeTitle": "三步开始你的阅读库",
   "onboarding.welcomeBody": "把思源里剪藏/导入后吃灰的文章捡回来：状态分拣、AI 摘要标签、每日重浮。全部数据存在你的文档上，卸载不丢。",
   "onboarding.next": "下一步",

@@ -517,6 +517,8 @@
   "ai.testFail": "Connection failed: ${message}",
   "workbench.title": "Glean Workbench",
   "onboarding.title": "Welcome to Lv Glean",
+  "onboarding.stepsLabel": "Setup progress",
+  "onboarding.stepN": "Step ${n}",
   "onboarding.welcomeTitle": "Three steps to your reading library",
   "onboarding.welcomeBody": "Pick up dusty clippings in SiYuan: status triage, AI summaries & tags, daily resurfacing. All data lives on your documents — nothing lost on uninstall.",
   "onboarding.next": "Next",

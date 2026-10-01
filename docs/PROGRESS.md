@@ -1,5 +1,11 @@
 # 进度（PROGRESS）
 
+## 首启 stepper 与标题截断策略（续跑口令驱动，2026-10-01）✅
+
+- [x] **T-2023 最小版**：Onboarding 三步 stepper（当前实心光环/已完成绿淡实/未到空心，aria-current + 双语 stepN 键），纯展示方向感不改导入路由语义；扫描中/失败状态卡随 B-0002 后按需补。
+- [x] **T-2024 统一策略**：行内单行 ellipsis（dock 卡片/行表——密度优先）+ 卡面 2 行 clamp（看板卡/阅读标题原已有，本轮补今日拾遗标题 + overflow-wrap anywhere）。
+- [x] 门禁：check 0 错 0 告警、build 通过、E2E 全过。未发布新版本；中英文长标题真机验收随 B-0002。
+
 ## 阅读模式段 parity（续跑口令驱动，2026-10-01）✅
 
 - [x] **T-2022**：ReaderTab 模式容器挂 `.glean-seg`（与 Settings/Dock 同形态）+ 窄宽 flex-wrap 回流 + `setMode` 切换失败回滚+反馈（原未捕获异常）+ `.glean-seg__btn:focus-visible` 焦点环（三画布统一）。

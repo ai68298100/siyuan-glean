@@ -117,6 +117,19 @@ async function skip(): Promise<void> {
         </div>
     </div>
 
+    <!-- T-2023：步骤方向感（纯展示，不改导入路由语义） -->
+    <div class="glean-onb-steps" role="group" aria-label={t(i18n, "onboarding.stepsLabel")}>
+        {#each [1, 2, 3] as s (s)}
+            <span
+                class="glean-onb-step"
+                class:glean-onb-step--done={s < step}
+                class:glean-onb-step--now={s === step}
+                aria-current={s === step ? "step" : undefined}
+                aria-label={t(i18n, "onboarding.stepN", { n: s })}
+            ></span>
+        {/each}
+    </div>
+
     {#if step === 1}
         <div class="glean-onb-hero">
             <div class="glean-empty__art">🌾</div>
