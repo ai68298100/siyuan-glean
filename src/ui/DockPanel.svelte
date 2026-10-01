@@ -1175,6 +1175,7 @@ function metaLine(entry: Row): string {
                         {#each col.items as entry (entry.id)}
                             <div
                                 class="glean-kcard"
+                                class:glean-dim--archived={entry.status === "archived"}
                                 data-glean-clip-id={entry.id}
                                 draggable="true"
                                 ondragstart={(e) => { dragId = entry.id; e.dataTransfer?.setData("text/plain", entry.id); }}
@@ -1287,6 +1288,7 @@ function metaLine(entry: Row): string {
                                         class="glean-drow"
                                         data-glean-clip-id={entry.id}
                                         class:glean-drow--selected={selection.has(entry.id)}
+                                        class:glean-dim--archived={entry.status === "archived"}
                                         onclick={() => openDoc(entry.id)}
                                         onkeydown={activateOnKey(() => openDoc(entry.id))}
                                         role="button"

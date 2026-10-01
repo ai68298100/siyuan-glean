@@ -2123,8 +2123,11 @@
     &.glean-st-badge--later { background: rgba(59, 130, 246, 0.13); color: var(--glean-st-later); }
     &.glean-st-badge--reading { background: rgba(139, 92, 246, 0.13); color: var(--glean-st-reading); }
     &.glean-st-badge--done { background: rgba(16, 185, 129, 0.13); color: var(--glean-st-done); }
-    &.glean-st-badge--archived { background: rgba(128, 128, 128, 0.12); color: var(--b3-theme-on-surface); }
+    &.glean-st-badge--archived { background: rgba(148, 163, 184, 0.14); color: var(--glean-st-arch); }
 }
+
+/* T-2030 归档降级：看板卡/行表 archived 统一降透明度（可辨识但退出视觉主层） */
+.glean-dim--archived { opacity: 0.68; }
 
 /* 相关旧文（T-1301，AI 元素带 ✨ 前缀，UI-STANDARD §5.6） */
 .glean-rel {

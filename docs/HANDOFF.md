@@ -1,5 +1,11 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-01 第四十二轮：T-2030 归档状态令牌统一）
+
+- **令牌统一（T-2030）**：`glean-st-badge--archived` 底/字改消费 `--glean-st-arch`（原回退 on-surface 普通灰）；看板卡与行表 archived 行加 `.glean-dim--archived` 降透明度 0.68（退出视觉主层仍可辨识、选中/拖拽不受影响）。状态点与看板列头 dot 原已消费 token，无需改。
+- 门禁：check 0 错 **0 告警**、build 通过、E2E 全过。未发布新版本。提交序列：…→ 070333e → 本轮（git log）。集市 PR #2288 待审。
+- 下一批候选：UI 组可离线项剩 T-2022 ReaderTab 模式段 parity、T-2013 统计 spark 类名映射（含 `.glean-spark` 类名/样式映射排查）；**B-0002 真机走查仍是定版 v1.1.x 唯一实质瓶颈**。
+
 ## 当前有效交接（2026-10-01 第四十一轮：T-2028 载体与五态分色）
 
 - **载体分色（T-2028）**：`.glean-carrier-badge` 删除 fulltext/link/local 三态对五态颜色（紫/琥珀/绿）的复用，统一中性底+on-surface 文字+`::before` 载体图标（📄 全文/🔗 链接/📂 本地）；图标是辅助，文字 label `clip.type.*` 在图标缺失时完整回退；b3 变量自动适配深浅色。五态颜色现在只表达文章状态。ResurfaceView/DockPanel 各处徽章同 CSS 生效，组件零改动。
