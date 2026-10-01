@@ -645,9 +645,17 @@
 
     function setMode(next: "read" | "edit"): void {
         if (mode === next || !protyle) return;
+        const previous = mode;
         mode = next;
-        protyle.switchMode(modeValue(next));
-        showMessage(t(i18n, next === "edit" ? "reader.editHint" : "reader.readHint"), 2500);
+        try {
+            protyle.switchMode(modeValue(next));
+            showMessage(t(i18n, next === "edit" ? "reader.editHint" : "reader.readHint"), 2500);
+        } catch (error) {
+            // T-2022 切换失败：回滚选中态并给可重试反馈，不静默
+            mode = previous;
+            console.warn("[glean] 阅读模式切换失败:", error);
+            showMessage(t(i18n, "msg.actionFailed"), 3000);
+        }
     }
 
     function openSource(): void {
@@ -880,7 +888,8 @@
                     onclick={() => (outlineOpen = !outlineOpen)}
                 >{outlineOpen ? "▾" : "▸"} {t(i18n, "reader.outline")}</button>
             {/if}
-            <div class="glean-reader__mode" role="group" aria-label={t(i18n, "settings.readerMode")}>
+            <!-- T-2022 parity：挂 .glean-seg 容器（胶囊轨道/padding），与 Settings/Dock 同一控件形态 -->
+            <div class="glean-seg glean-reader__mode" role="group" aria-label={t(i18n, "settings.readerMode")}>
                 <button
                     class="glean-seg__btn"
                     class:glean-seg__btn--on={mode === "read"}

@@ -579,8 +579,7 @@
 }
 
 .glean-reader__mode {
-    display: flex;
-    gap: 4px;
+    flex-wrap: wrap;
 }
 
 .glean-reader__ops {
@@ -1825,6 +1824,12 @@
     border-radius: 999px;
     cursor: pointer;
     transition: all 0.2s var(--glean-ease-out);
+
+    /* T-2022：键盘焦点环（三画布 seg 统一） */
+    &:focus-visible {
+        outline: 2px solid var(--b3-theme-primary);
+        outline-offset: 1px;
+    }
 
     &.glean-seg__btn--on {
         background: var(--b3-theme-surface);

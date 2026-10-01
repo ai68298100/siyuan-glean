@@ -1,5 +1,10 @@
 # 进度（PROGRESS）
 
+## 阅读模式段 parity（续跑口令驱动，2026-10-01）✅
+
+- [x] **T-2022**：ReaderTab 模式容器挂 `.glean-seg`（与 Settings/Dock 同形态）+ 窄宽 flex-wrap 回流 + `setMode` 切换失败回滚+反馈（原未捕获异常）+ `.glean-seg__btn:focus-visible` 焦点环（三画布统一）。
+- [x] 门禁：check 0 错 0 告警、build 通过、E2E 全过（首次 build 遇 Windows 偶发进程崩溃 0xC0000409，重跑全绿，产物正常）。未发布新版本；深浅截图随 B-0002。
+
 ## 统计 spark 类名映射修正（续跑口令驱动，2026-10-01）✅
 
 - [x] **T-2013 核心缺陷**：spark 热柱渲染类名 `hot` 与 scss `.glean-tile__spark--hot` 不匹配——"今日高亮"渐变样式自上线从未生效；类名修正 + 柱子补 `title` 日期+数量标签（颜色/高度不再单独表达事实）。其余项（柱高/空数据/超长标签）经查无恙。

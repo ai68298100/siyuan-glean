@@ -1,5 +1,12 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-01 第四十四轮：T-2022 阅读模式段 parity）
+
+- **模式段 parity（T-2022）**：ReaderTab 模式容器挂 `.glean-seg`（胶囊轨道与 Settings/Dock 同形态）+ `.glean-reader__mode` 改 flex-wrap 窄宽回流 + `setMode` 切换失败 try/catch 回滚选中态并反馈（原 switchMode 异常未捕获、选中态假成功）+ `.glean-seg__btn:focus-visible` 焦点环（Settings/Dock 同惠）。
+- 坑：build 首跑遇 Windows 偶发进程崩溃（exit 0xC0000409），重跑即绿非编译错误——偶发环境故障重跑确认即可。
+- 门禁：check 0 错 **0 告警**、build 通过、E2E 全过。未发布新版本。提交序列：…→ 6d8a43f → 本轮（git log）。集市 PR #2288 待审。
+- 下一批候选：UI 组可离线 P1 已清完；剩余多为真机/原型驱动（T-2023 Onboarding stepper、T-2024 标题截断等）；**B-0002 真机走查仍是定版 v1.1.x 唯一实质瓶颈**。
+
 ## 当前有效交接（2026-10-01 第四十三轮：T-2013 spark 类名映射修正）
 
 - **spark 热柱修复（T-2013 核心缺陷）**：渲染类名 `hot` 与 scss `.glean-tile__spark--hot` 不匹配——**"今日高亮"渐变+光晕样式自上线从未生效**（恒灰色柱）。类名修正 + 每根柱补 `title`（日期+数量，复用 stats.heatDay 键）——颜色/高度不再单独表达事实。柱高/空数据/超长标签经查无恙。
