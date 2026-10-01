@@ -166,9 +166,10 @@ async function skip(): Promise<void> {
             </div>
         {:else}
             <div class="glean-mstats">
-                <div class="glean-mstat"><div class="glean-mstat__n">{scannedClips}</div><div class="glean-mstat__l">{t(i18n, "onboarding.previewClips")}</div></div>
-                <div class="glean-mstat"><div class="glean-mstat__n">{scannedCandidates}</div><div class="glean-mstat__l">{t(i18n, "onboarding.previewCandidates")}</div></div>
-                <div class="glean-mstat"><div class="glean-mstat__n">{candidatesMissingUrl}</div><div class="glean-mstat__l">{t(i18n, "onboarding.previewMissingUrl")}</div></div>
+                <!-- T-2027：语义染色 modifier，不按排位 -->
+                <div class="glean-mstat glean-mstat--ok"><div class="glean-mstat__n">{scannedClips}</div><div class="glean-mstat__l">{t(i18n, "onboarding.previewClips")}</div></div>
+                <div class="glean-mstat glean-mstat--skip"><div class="glean-mstat__n">{scannedCandidates}</div><div class="glean-mstat__l">{t(i18n, "onboarding.previewCandidates")}</div></div>
+                <div class="glean-mstat glean-mstat--pending"><div class="glean-mstat__n">{candidatesMissingUrl}</div><div class="glean-mstat__l">{t(i18n, "onboarding.previewMissingUrl")}</div></div>
             </div>
             <div class="glean-empty" style="padding: 12px">
                 <div class="glean-empty__hint">{t(i18n, "onboarding.previewNote")}</div>

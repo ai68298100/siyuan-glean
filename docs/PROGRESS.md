@@ -1,5 +1,10 @@
 # 进度（PROGRESS）
 
+## 统计卡语义染色修正（续跑口令驱动，2026-10-01）✅
+
+- [x] **T-2027 语义色修正**：`.glean-mstat--ok/--pending/--skip/--manual/--err` modifier 替换 nth-child 排位染色——**修复实错**：回填阶段"失败"数原无错误色、扫描阶段"需人工"被染成待处理琥珀；MigrateDialog 两处 + OnboardingDialog 三处全接线。真机对比度随 B-0002。
+- [x] 门禁：check 0 错 0 告警、build 通过、E2E 全过。未发布新版本。
+
 ## 宽画布空态居中（续跑口令驱动，2026-10-01）✅
 
 - [x] **T-1825 空态居中**：`.glean-tab-root` 宽幅块内 `.glean-empty` 跨全栅格列 + max-width 居中——修复宽画布下空态"左对齐窄列+右侧空白"观感；窄 Dock/移动端不受影响。真机观感随 B-0002。

@@ -1,5 +1,11 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-01 第四十轮：T-2027 统计卡语义染色修正）
+
+- **语义色修正（T-2027）**：`.glean-mstat` 排位染色（nth-child）改为语义 modifier `--ok/--pending/--skip/--manual/--err`（ok=done 绿/pending=inbox 琥珀/skip=中性/manual=reading 紫/err=theme-error 红）；MigrateDialog 扫描报告/回填两处 + OnboardingDialog 预览三处全接线。**修复实错**：回填阶段"失败"数原排位第 3 无错误色、扫描阶段"需人工"被误染待处理琥珀。
+- 门禁：check 0 错 **0 告警**、build 通过、E2E 全过。未发布新版本。提交序列：…→ def0876 → 本轮（git log）。集市 PR #2288 待审。
+- 下一批候选：UI 组同域可离线项——**T-2028 载体与五态分色**（下一个 P1，fulltext/link/local 不再复用五态色）、T-2022 ReaderTab 模式段 parity、T-2013 统计 spark 类名映射；**B-0002 真机走查仍是定版 v1.1.x 唯一实质瓶颈**。
+
 ## 当前有效交接（2026-10-01 第三十九轮：T-1825 宽画布空态居中）
 
 - **空态居中（T-1825）**：`.glean-tab-root` 宽幅块内 `.glean-empty` 加 `grid-column: 1/-1` + `max-width: 520px` 水平居中——修复宽画布栅格容器中空态卡"左对齐窄列+右侧空白"的坏观感；非 grid 上下文无副作用，窄 Dock/移动端不受影响。纯 CSS。与 T-1824 同域收尾。

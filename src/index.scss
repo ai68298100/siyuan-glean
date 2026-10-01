@@ -1441,9 +1441,12 @@
             margin-top: 2px;
         }
 
-        &:nth-child(1) .glean-mstat__n { color: var(--glean-st-done); }
-        &:nth-child(2) .glean-mstat__n { color: var(--b3-theme-on-surface); }
-        &:nth-child(3) .glean-mstat__n { color: var(--glean-st-inbox); }
+        /* T-2027 语义染色：按卡语义 modifier，不按排位（同义颜色跨阶段一致） */
+        &.glean-mstat--ok .glean-mstat__n { color: var(--glean-st-done); }
+        &.glean-mstat--pending .glean-mstat__n { color: var(--glean-st-inbox); }
+        &.glean-mstat--skip .glean-mstat__n { color: var(--b3-theme-on-surface); }
+        &.glean-mstat--manual .glean-mstat__n { color: var(--glean-st-reading); }
+        &.glean-mstat--err .glean-mstat__n { color: var(--b3-theme-error); }
     }
 }
 
