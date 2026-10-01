@@ -19,6 +19,7 @@ import InboxSection from "./InboxSection.svelte";
 import ResurfaceView from "./ResurfaceView.svelte";
 import { archiveStaleCandidates } from "../services/resurface-service";
 import { loadUiPrefs, saveUiPrefs, type SavedFilter } from "../services/prefs";
+import { pinToSessionTop, moveWithinSession, shuffleIds } from "../domain/session-order";
 import { ageDays } from "../domain/resurface.ts";
 import { recordReadingDone } from "../services/checkin-bridge";
 import { hasSourceAction, openTargetForCarrier, resolveCarrier, sourceUrlForCarrier } from "../domain/carrier";
@@ -43,6 +44,8 @@ let keyword = $state("");
 let onlyFavorite = $state(false);
 let sortBy = $state<LibrarySortKey>("time");
 let sortDirection = $state<LibrarySortDirection>("desc");
+/** T-1903 会话顺序状态（ui-prefs 持久化，跨画布共享、重启保留）。 */
+let sessionOrder = $state<{ order: string[]; seed: number }>({ order: [], seed: 0 });
 let selectedSite = $state("");
 let selectedTag = $state("");
 /** AI 标签分面（T-1729）：独立于用户 tag，UI 带 ✨ 来源标记。 */
@@ -128,6 +131,7 @@ const activeFilter = $derived({
     sortBy,
     direction: sortDirection,
     includeCandidates: activeQueue === "inbox",
+    sessionOrder: sortBy === "session" ? sessionOrder.order : undefined,
 });
 
 const rows = $derived.by<Row[]>(() => {
@@ -335,9 +339,24 @@ $effect(() => {
         // 返回读库定位优先于异步恢复的上次视图，避免把 library 切回旧视图。
         if (valid && !focusRequested) view = prefs.lastView as PanelView;
         savedFilters = prefs.savedFilters;
+        sessionOrder = prefs.sessionOrder;
         prefsLoaded = true;
     });
 });
+
+/** 写回会话顺序（prefsQueue 语义由 saveUiPrefs 内部锁保证）。 */
+async function persistSessionOrder(next: { order: string[]; seed: number }): Promise<void> {
+    sessionOrder = next;
+    await saveUiPrefs(facade.pluginInstance, { sessionOrder: next });
+}
+
+/** T-1903 会话洗牌：对当前筛选结果全集按新种子洗牌，order 中不在当前视图的条目保留追加尾部。 */
+async function shuffleSession(): Promise<void> {
+    const ids = rows.map((row) => row.id);
+    const seed = Date.now();
+    const kept = sessionOrder.order.filter((id) => !ids.includes(id));
+    await persistSessionOrder({ order: [...shuffleIds(ids, seed), ...kept], seed });
+}
 
 /** 当前激活筛选的投影（仅含非空条件；T-1846）。 */
 function activeFilterRecord(): Record<string, string | boolean> {
@@ -703,6 +722,21 @@ function openRowMenu(entry: ClipIndexEntry, event: MouseEvent): void {
                 click: () => openSource(entry),
             });
         }
+        // T-1903 会话重排：仅自定义（会话）排序模式下显示；顺序只写 ui-prefs 不写文章属性
+        if (sortBy === "session") {
+            menu.addItem({
+                label: "📌 " + t(i18n, "action.sessionPin"),
+                click: () => void persistSessionOrder({ ...sessionOrder, order: pinToSessionTop(sessionOrder.order, entry.id) }),
+            });
+            menu.addItem({
+                label: "↑ " + t(i18n, "action.sessionUp"),
+                click: () => void persistSessionOrder({ ...sessionOrder, order: moveWithinSession(sessionOrder.order, entry.id, -1) }),
+            });
+            menu.addItem({
+                label: "↓ " + t(i18n, "action.sessionDown"),
+                click: () => void persistSessionOrder({ ...sessionOrder, order: moveWithinSession(sessionOrder.order, entry.id, 1) }),
+            });
+        }
         menu.open({ x: event.clientX, y: event.clientY });
     })();
 }
@@ -1041,8 +1075,13 @@ function metaLine(entry: Row): string {
                     <option value="priority">{t(i18n, "action.sortPriority")}</option>
                     <option value="rating">{t(i18n, "library.sortRating")}</option>
                     <option value="title">{t(i18n, "library.sortTitle")}</option>
+                    <option value="session">{t(i18n, "library.sortSession")}</option>
                 </select>
-                <button class="glean-filter-dir" aria-label={t(i18n, "library.toggleDirection")} title={t(i18n, "library.toggleDirection")} onclick={() => (sortDirection = sortDirection === "desc" ? "asc" : "desc")}>{sortDirection === "desc" ? "↓" : "↑"}</button>
+                {#if sortBy === "session"}
+                    <button class="glean-filter-dir" aria-label={t(i18n, "action.sessionShuffle")} title={t(i18n, "action.sessionShuffle")} onclick={() => void shuffleSession()}>🔀</button>
+                {:else}
+                    <button class="glean-filter-dir" aria-label={t(i18n, "library.toggleDirection")} title={t(i18n, "library.toggleDirection")} onclick={() => (sortDirection = sortDirection === "desc" ? "asc" : "desc")}>{sortDirection === "desc" ? "↓" : "↑"}</button>
+                {/if}
                 {#if hasFilters}<button class="glean-filter-clear" onclick={clearFilters}>{t(i18n, "library.clearFilters")}</button>{/if}
             </div>
         {/if}
@@ -1098,8 +1137,13 @@ function metaLine(entry: Row): string {
                         <option value="priority">{t(i18n, "action.sortPriority")}</option>
                         <option value="rating">{t(i18n, "library.sortRating")}</option>
                         <option value="title">{t(i18n, "library.sortTitle")}</option>
+                        <option value="session">{t(i18n, "library.sortSession")}</option>
                     </select>
-                    <button class="glean-filter-dir" aria-label={t(i18n, "library.toggleDirection")} title={t(i18n, "library.toggleDirection")} onclick={() => (sortDirection = sortDirection === "desc" ? "asc" : "desc")}>{sortDirection === "desc" ? "↓" : "↑"}</button>
+                    {#if sortBy === "session"}
+                        <button class="glean-filter-dir" aria-label={t(i18n, "action.sessionShuffle")} title={t(i18n, "action.sessionShuffle")} onclick={() => void shuffleSession()}>🔀</button>
+                    {:else}
+                        <button class="glean-filter-dir" aria-label={t(i18n, "library.toggleDirection")} title={t(i18n, "library.toggleDirection")} onclick={() => (sortDirection = sortDirection === "desc" ? "asc" : "desc")}>{sortDirection === "desc" ? "↓" : "↑"}</button>
+                    {/if}
                     {#if hasFilters}<button class="glean-filter-clear" onclick={clearFilters}>{t(i18n, "library.clearFilters")}</button>{/if}
                 </div>
             </div>

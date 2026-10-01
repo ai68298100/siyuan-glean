@@ -14,6 +14,8 @@ export interface UiPrefs {
     savedFilters: SavedFilter[];
     /** 阅读页签排版（T-1742）：字号/行距三档档位 */
     readerTypography: ReaderTypography;
+    /** 会话阅读队列顺序（T-1903）：跨画布共享、重启保留 */
+    sessionOrder: SessionOrderState;
 }
 
 /** 阅读页签排版档位（T-1742/T-1743）：纯视图状态，默认档跟随思源。 */
@@ -37,6 +39,20 @@ export interface SavedFilter {
     filter: Record<string, string | boolean>;
 }
 
+/** 会话阅读队列顺序（T-1903，D-0034）：docId 列表 + 洗牌种子；只存 ui-prefs，不写文章属性。 */
+export interface SessionOrderState {
+    order: string[];
+    seed: number;
+}
+
+/** 归一化会话顺序：非法形状回落空序；id 只留字符串并去重。 */
+export function normalizeSessionOrder(raw: unknown): SessionOrderState {
+    const input = (raw ?? {}) as Partial<SessionOrderState>;
+    const order = Array.isArray(input.order) ? [...new Set(input.order.filter((id): id is string => typeof id === "string" && id.length > 0))] : [];
+    const seed = Number.isSafeInteger(input.seed) ? (input.seed as number) : 0;
+    return { order, seed };
+}
+
 const PREFS_FILE = "ui-prefs.json";
 
 const DEFAULTS: UiPrefs = {
@@ -44,6 +60,7 @@ const DEFAULTS: UiPrefs = {
     onboardingDone: false,
     savedFilters: [],
     readerTypography: { fontSize: "md", lineHeight: "normal", width: "medium", theme: "follow" },
+    sessionOrder: { order: [], seed: 0 },
 };
 
 const FONT_SIZES = ["sm", "md", "lg"] as const;
@@ -105,6 +122,7 @@ export async function loadUiPrefs(plugin: Plugin): Promise<UiPrefs> {
                     onboardingDone: partial.onboardingDone === true,
                     savedFilters: normalizeSavedFilters(partial.savedFilters),
                     readerTypography: normalizeTypography(partial.readerTypography),
+                    sessionOrder: normalizeSessionOrder(partial.sessionOrder),
                 };
             }
         } catch { /* 忽略 */ }
@@ -127,14 +145,15 @@ async function loadUiPrefsUnlocked(plugin: Plugin): Promise<UiPrefs> {
     try {
         const raw = await plugin.loadData(PREFS_FILE);
         if (raw && typeof raw === "object") {
-            const partial = raw as Partial<UiPrefs>;
-            return {
-                lastView: typeof partial.lastView === "string" ? partial.lastView : "",
-                onboardingDone: partial.onboardingDone === true,
-                savedFilters: normalizeSavedFilters(partial.savedFilters),
-                readerTypography: normalizeTypography(partial.readerTypography),
-            };
-        }
-    } catch { /* 忽略 */ }
-    return { ...DEFAULTS };
-}
+                const partial = raw as Partial<UiPrefs>;
+                return {
+                    lastView: typeof partial.lastView === "string" ? partial.lastView : "",
+                    onboardingDone: partial.onboardingDone === true,
+                    savedFilters: normalizeSavedFilters(partial.savedFilters),
+                    readerTypography: normalizeTypography(partial.readerTypography),
+                    sessionOrder: normalizeSessionOrder(partial.sessionOrder),
+                };
+            }
+        } catch { /* 忽略 */ }
+        return { ...DEFAULTS };
+    }

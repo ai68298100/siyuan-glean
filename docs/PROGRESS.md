@@ -1,5 +1,11 @@
 # 进度（PROGRESS）
 
+## 会话阅读队列重排（续跑口令驱动，2026-10-01）✅
+
+- [x] **T-1903 最小版**：**D-0034**——顺序只存 `sessionOrder={order,seed}`（ui-prefs），永不写 priority/文章属性；`domain/session-order.ts` 纯函数（投影/置顶/邻位移动/种子洗牌，单测 3 组）+ library-view `sortBy="session"` + prefs 归一化 + DockPanel 接线（排序下拉两处加「自定义（会话）」、行溢出菜单置顶/上移/下移、session 模式下方向按钮换 🔀 洗牌）。跨画布即时共享、重启保留。
+- [x] 门禁：check 0 错 0 告警、test **182/182**（+3）、build 通过、E2E 全过。未发布新版本；拖拽 handle/触控降级随 B-0002 后评估。
+- 坑：Svelte `$derived` 投影引用了声明在后的 `$state`（TS 报 used before declaration）——组件状态声明集中在状态区，函数可后置。
+
 ## 归档资产研究与孤儿账本失效修复（续跑口令驱动，2026-10-01）✅
 
 - [x] **T-1878 研究**：docs/RESEARCH-archive-assets.md——11 类关联对象（属性/标签/正文/引述/闪卡/快照/AV 行/打卡事件/外部回链/派生索引/孤儿账本）×移动/删除×规则的结论表，全部本仓实证。关键结论：快照 HTML 彻底删除后成永久孤儿资产（保留+提示）；宿主删除递归连带是快照孤儿主路径。

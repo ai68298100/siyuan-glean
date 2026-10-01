@@ -6,9 +6,11 @@
  * 不会改变文章状态。
  */
 import type { ClipContentType, ClipSource, ClipStatus, ClipTimeSource } from "./schema.ts";
+import { applySessionOrder } from "./session-order.ts";
 
 export type LibraryItemKind = "clip" | "candidate";
-export type LibrarySortKey = "time" | "updated" | "words" | "priority" | "rating" | "title";
+/** "session"（T-1903，D-0034）：按 ui-prefs 的会话顺序展示；direction 不适用（忽略）。 */
+export type LibrarySortKey = "time" | "updated" | "words" | "priority" | "rating" | "title" | "session";
 export type LibrarySortDirection = "asc" | "desc";
 
 export interface LibraryItem {
@@ -55,6 +57,8 @@ export interface LibraryFilter {
     direction?: LibrarySortDirection;
     /** Candidates are only shown when the inbox view explicitly opts in. */
     includeCandidates?: boolean;
+    /** 会话顺序（T-1903）：sortBy="session" 时按此 docId 序展示；domain 不读 prefs，由调用方传入 */
+    sessionOrder?: string[];
 }
 
 export interface LibraryFacet {
@@ -175,11 +179,17 @@ function compareItems(a: LibraryItem, b: LibraryItem, sortBy: LibrarySortKey, di
 
 /**
  * 应用统一筛选和排序。返回新数组，不改变传入索引或条目，也不写任何属性。
+ * sortBy="session"（T-1903）：先按默认 time desc 建立基底序，再按 sessionOrder 投影
+ * （order 内按相对次序在前，未入列追加尾部）；direction 对 session 无效。
  */
 export function filterAndSortLibrary(items: readonly LibraryItem[], filter: LibraryFilter = {}): LibraryItem[] {
     const sortBy = filter.sortBy ?? "time";
     const direction = filter.direction ?? (sortBy === "title" ? "asc" : "desc");
-    return items.filter((item) => matchesLibraryFilter(item, filter)).sort((a, b) => compareItems(a, b, sortBy, direction));
+    const filtered = items.filter((item) => matchesLibraryFilter(item, filter));
+    if (sortBy === "session") {
+        return applySessionOrder(filtered.sort((a, b) => compareItems(a, b, "time", "desc")), filter.sessionOrder ?? []);
+    }
+    return filtered.sort((a, b) => compareItems(a, b, sortBy, direction));
 }
 
 function addFacet(map: Map<string, LibraryFacet>, value: string | undefined): void {

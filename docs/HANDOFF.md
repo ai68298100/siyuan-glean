@@ -1,5 +1,13 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-01 第三十七轮：T-1903 会话队列重排最小版）
+
+- **会话阅读队列重排（D-0034）**：读库排序新增「自定义（会话）」——顺序只存 `ui-prefs.json` 的 `sessionOrder={order: docId[], seed}`，**永不写 priority/文章属性**；`domain/session-order.ts` 纯函数（applySessionOrder 投影：order 内按相对次序在前、未入列追加尾部、已删 ID 自然失效；pinToSessionTop/moveWithinSession/shuffleIds 种子可复现，单测 3 组）→ `library-view` sortBy="session"（domain 不读 prefs，调用方传 order）→ DockPanel：排序下拉两处加选项、行溢出菜单「会话置顶/上移/下移」（仅 session 模式显示）、session 模式下方向按钮换 🔀 洗牌（当前筛选全集洗牌，视图外 order 条目保留追加尾部）。跨画布即时共享、重启保留。
+- 拖拽 handle/左右滑触控降级随 B-0002 真机走查后评估（溢出菜单模式本身触控可用）。
+- 坑：Svelte `$derived` 引用声明在后的 `$state` 报 used before declaration——组件状态声明集中状态区。
+- 门禁：check 0 错 **0 告警**、test **182/182**、build 通过、E2E 全过。未发布新版本。提交序列：…→ b939125 → 本轮（git log）。集市 PR #2288 待审。
+- 下一批候选：功能线剩余大项已不多（T-1916 时间线分组、T-1824 摘录墙宽幅形态等 P2）；**强烈建议作者安排 B-0002 真机走查**（归档生命周期全链 + 会话重排可走查，走查后定版 v1.1.x）；T-1879 用户说明待真机后写。
+
 ## 当前有效交接（2026-10-01 第三十六轮：T-1878 资产研究 + 孤儿账本失效修复）
 
 - **T-1878 研究完成**：docs/RESEARCH-archive-assets.md 对象级结论表（11 类对象）。快照 HTML 在彻底删除/宿主递归删除后成**永久孤儿资产**（内核对 assets 无 GC）——规则=保留+确认文案提示，不做自动清理；后续可选项（快照清理动作/AV 孤儿检测）P3 只入账。
