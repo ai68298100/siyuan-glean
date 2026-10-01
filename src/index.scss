@@ -1939,6 +1939,14 @@
         break-inside: avoid;
     }
 
+    /* T-1825 宽画布空态居中：空态卡在栅格容器中跨全列并水平居中（非 grid 上下文无副作用） */
+    .glean-empty {
+        grid-column: 1 / -1;
+        max-width: 520px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+
     .glean-bento {
         grid-template-columns: repeat(4, 1fr);
     }

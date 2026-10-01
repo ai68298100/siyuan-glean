@@ -1,5 +1,10 @@
 # 进度（PROGRESS）
 
+## 宽画布空态居中（续跑口令驱动，2026-10-01）✅
+
+- [x] **T-1825 空态居中**：`.glean-tab-root` 宽幅块内 `.glean-empty` 跨全栅格列 + max-width 居中——修复宽画布下空态"左对齐窄列+右侧空白"观感；窄 Dock/移动端不受影响。真机观感随 B-0002。
+- [x] 门禁：check 0 错 0 告警、build 通过、E2E 全过。未发布新版本。
+
 ## 摘录墙/高亮宽幅双栏（续跑口令驱动，2026-10-01）✅
 
 - [x] **T-1824 宽幅形态**：HighlightView 列表补 `.glean-hl-list` 容器 + `.glean-tab-root` 宽幅块内摘录墙/高亮列表改 `auto-fill minmax(320px,1fr)` 自适应栅格（宽画布 2–3 栏，卡片 break-inside 防截断）；窄 Dock/移动端不受影响。真机观感随 B-0002。
