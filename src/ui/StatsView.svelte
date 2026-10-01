@@ -63,6 +63,15 @@ function heatCellLabel(cell: { date: string; count: number }): string {
     return cell.count > 0 ? `${date} · ${t(i18n, "stats.heatDay", { n: cell.count })}` : date;
 }
 
+/** spark 柱的可读标签（T-2013：日期+数量，颜色/高度不单独表达事实）。 */
+function sparkLabel(i: number): string {
+    const day = new Date(Date.now() - (6 - i) * 86_400_000);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const date = `${day.getFullYear()}-${pad(day.getMonth() + 1)}-${pad(day.getDate())}`;
+    const count = stats?.dailyCaptured[i] ?? 0;
+    return count > 0 ? `${date} · ${t(i18n, "stats.heatDay", { n: count })}` : date;
+}
+
 const spark = $derived.by<number[]>(() => {
     if (!stats) return [];
     const daily = stats.dailyCaptured;
@@ -126,7 +135,8 @@ $effect(() => {
                 <div class="glean-tile__v">{stats.total}</div>
                 <div class="glean-tile__spark">
                     {#each spark as height, i (i)}
-                        <i class:hot={i >= 4} style={`height:${Math.round(height * 100)}%`}></i>
+                        <!-- T-2013：类名与 scss 映射修正（原 hot 从不命中）；title 提供可读标签 -->
+                        <i class:glean-tile__spark--hot={i >= 4} title={sparkLabel(i)} style={`height:${Math.round(height * 100)}%`}></i>
                     {/each}
                 </div>
             </div>
