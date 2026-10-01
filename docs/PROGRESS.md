@@ -1,5 +1,10 @@
 # 进度（PROGRESS）
 
+## 摘录墙/高亮宽幅双栏（续跑口令驱动，2026-10-01）✅
+
+- [x] **T-1824 宽幅形态**：HighlightView 列表补 `.glean-hl-list` 容器 + `.glean-tab-root` 宽幅块内摘录墙/高亮列表改 `auto-fill minmax(320px,1fr)` 自适应栅格（宽画布 2–3 栏，卡片 break-inside 防截断）；窄 Dock/移动端不受影响。真机观感随 B-0002。
+- [x] 门禁：check 0 错 0 告警、test **182/182**、build 通过、E2E 全过。未发布新版本。
+
 ## 会话阅读队列重排（续跑口令驱动，2026-10-01）✅
 
 - [x] **T-1903 最小版**：**D-0034**——顺序只存 `sessionOrder={order,seed}`（ui-prefs），永不写 priority/文章属性；`domain/session-order.ts` 纯函数（投影/置顶/邻位移动/种子洗牌，单测 3 组）+ library-view `sortBy="session"` + prefs 归一化 + DockPanel 接线（排序下拉两处加「自定义（会话）」、行溢出菜单置顶/上移/下移、session 模式下方向按钮换 🔀 洗牌）。跨画布即时共享、重启保留。

@@ -1,5 +1,11 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-01 第三十八轮：T-1824 摘录墙/高亮宽幅双栏）
+
+- **宽幅形态（T-1824）**：工作台/浮窗宽画布（`.glean-tab-root`）下，摘录墙（`.glean-quotes`）与高亮列表（新增 `.glean-hl-list` 容器）改 `repeat(auto-fill, minmax(320px, 1fr))` 自适应栅格 + 卡片 break-inside 防截断——宽画布自适应 2–3 栏；窄 Dock/移动端无 tab-root 容器不受影响（保持纵向单栏）。纯 CSS + 一个容器 div，无逻辑改动。
+- 门禁：check 0 错 **0 告警**、test **182/182**、build 通过、E2E 全过。未发布新版本。提交序列：…→ 033f15e → 本轮（git log）。集市 PR #2288 待审。
+- 下一批候选：P2 轻项（T-1825 宽画布空态居中与 T-1824 同域可顺手、T-2017 原型同步等 UI 组）；功能线大项基本清完；**强烈建议作者安排 B-0002 真机走查**（归档全链/会话重排/宽幅形态可一次走查，走查后定版 v1.1.x + T-1879 用户说明）。
+
 ## 当前有效交接（2026-10-01 第三十七轮：T-1903 会话队列重排最小版）
 
 - **会话阅读队列重排（D-0034）**：读库排序新增「自定义（会话）」——顺序只存 `ui-prefs.json` 的 `sessionOrder={order: docId[], seed}`，**永不写 priority/文章属性**；`domain/session-order.ts` 纯函数（applySessionOrder 投影：order 内按相对次序在前、未入列追加尾部、已删 ID 自然失效；pinToSessionTop/moveWithinSession/shuffleIds 种子可复现，单测 3 组）→ `library-view` sortBy="session"（domain 不读 prefs，调用方传 order）→ DockPanel：排序下拉两处加选项、行溢出菜单「会话置顶/上移/下移」（仅 session 模式显示）、session 模式下方向按钮换 🔀 洗牌（当前筛选全集洗牌，视图外 order 条目保留追加尾部）。跨画布即时共享、重启保留。

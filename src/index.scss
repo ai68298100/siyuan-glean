@@ -1925,6 +1925,20 @@
         align-content: start;
     }
 
+    /* T-1824 宽幅形态：摘录墙/高亮列表自适应双栏（窄画布不受影响） */
+    .glean-quotes,
+    .glean-hl-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        gap: 6px;
+        align-items: start;
+    }
+
+    .glean-quote,
+    .glean-hl {
+        break-inside: avoid;
+    }
+
     .glean-bento {
         grid-template-columns: repeat(4, 1fr);
     }
@@ -2610,6 +2624,8 @@
 .glean-quotes__count { font-size: 11px; color: var(--b3-theme-on-surface); opacity: .7; margin-left: auto; }
 .glean-quotes__truncated { font-size: 11px; color: var(--b3-theme-on-surface); opacity: .7; margin-bottom: 6px; }
 .glean-quotes { display: flex; flex-direction: column; gap: 6px; }
+/* T-1824：高亮列表容器（窄画布纵向；宽画布在 .glean-tab-root 内改双栏栅格） */
+.glean-hl-list { display: flex; flex-direction: column; gap: 6px; }
 .glean-quote {
     border: 1px solid var(--b3-border-color);
     border-left: 3px solid var(--b3-theme-primary);

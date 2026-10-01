@@ -167,7 +167,9 @@ async function copyShare(item: HighlightItem): Promise<void> {
                 <div class="glean-empty__hint">{t(i18n, "highlight.emptyHint")}</div>
             </div>
         {:else}
-            {#each items as item (item.id)}
+            <!-- T-1824：列表容器（宽画布下双栏栅格，窄画布保持纵向） -->
+            <div class="glean-hl-list">
+                {#each items as item (item.id)}
                 <div class="glean-hl">
                     <div class="glean-hl__q">{item.text}</div>
                     <div class="glean-hl__m">
@@ -196,7 +198,8 @@ async function copyShare(item: HighlightItem): Promise<void> {
                         >🎴 {t(i18n, "flashcard.make")}</button>
                     </div>
                 </div>
-            {/each}
+                {/each}
+            </div>
             {#if related.length > 0}
                 <div class="glean-sect" style="margin-top:6px">✨ {t(i18n, "ai.relatedTitle")}</div>
                 {#each related as rel (rel.id)}
