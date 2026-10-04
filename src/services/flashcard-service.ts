@@ -13,6 +13,10 @@ import {
 import { writeClip } from "./clip-store";
 import { activeAiSettings, aiQuotaAvailable, callLLM, enqueueEnrich, logAiEvent, recordAiUsage } from "./enrich-service";
 import type { GleanSettings } from "./settings";
+import {
+    advanceFlashcardRecovery, createFlashcardRecovery, FLASHCARD_RECOVERY_FILE, parseFlashcardRecovery,
+    type FlashcardRecovery,
+} from "../domain/flashcard-recovery";
 
 const DECK_NAME = "拾遗卡片";
 const DECK_DOC_TITLE = "拾遗卡片";
@@ -30,7 +34,7 @@ export interface FlashcardSession {
     cancelled: boolean;
 }
 
-export type FlashcardSaveReason = FlashcardValidation | "busy" | "cancelled" | "sourceChanged" | "readFailed" | "setupFailed" | "registerFailed" | "insertUnknown";
+export type FlashcardSaveReason = FlashcardValidation | "busy" | "cancelled" | "sourceChanged" | "readFailed" | "setupFailed" | "registerFailed" | "insertUnknown" | "recoveryPending" | "recoveryReadFailed" | "checkpointFailed";
 export interface FlashcardSaveOutcome {
     ok: boolean;
     reason?: FlashcardSaveReason;
@@ -39,6 +43,92 @@ export interface FlashcardSaveOutcome {
 }
 
 export type QuestionCardReason = "off" | "cap" | "invalid" | "error" | "busy" | "cancelled" | "sourceChanged" | "readFailed";
+
+export type FlashcardRecoveryReason = "invalid" | "readFailed" | "missing" | "registerFailed" | "checkpointFailed" | "clearFailed";
+export interface FlashcardRecoveryResult {
+    ok: boolean;
+    reason?: FlashcardRecoveryReason;
+    recovery?: FlashcardRecovery;
+    registered?: boolean;
+}
+
+export class FlashcardRecoveryError extends Error {
+    readonly reason: FlashcardRecoveryReason;
+    constructor(reason: FlashcardRecoveryReason) { super(reason); this.reason = reason; }
+}
+
+function checkStorageResponse(response: unknown): void {
+    if (response && typeof response === "object" && "code" in response && (response as { code: unknown }).code !== 0) throw new Error("flashcard recovery storage rejected");
+}
+
+export async function loadFlashcardRecovery(plugin: Plugin): Promise<FlashcardRecovery | null> {
+    let raw: unknown;
+    try { raw = await plugin.loadData(FLASHCARD_RECOVERY_FILE); } catch { throw new FlashcardRecoveryError("readFailed"); }
+    try { return parseFlashcardRecovery(raw); } catch { throw new FlashcardRecoveryError("invalid"); }
+}
+
+export async function saveFlashcardRecovery(plugin: Plugin, recovery: FlashcardRecovery): Promise<FlashcardRecovery> {
+    const copy = parseFlashcardRecovery(recovery);
+    if (!copy) throw new FlashcardRecoveryError("invalid");
+    try {
+        checkStorageResponse(await plugin.saveData(FLASHCARD_RECOVERY_FILE, copy));
+        const readback = parseFlashcardRecovery(await plugin.loadData(FLASHCARD_RECOVERY_FILE));
+        if (JSON.stringify(readback) !== JSON.stringify(copy)) throw new Error("flashcard recovery readback changed");
+        return copy;
+    } catch (error) {
+        if (error instanceof FlashcardRecoveryError) throw error;
+        throw new FlashcardRecoveryError("checkpointFailed");
+    }
+}
+
+export async function clearFlashcardRecovery(plugin: Plugin, confirmed = false): Promise<void> {
+    if (!confirmed) throw new FlashcardRecoveryError("clearFailed");
+    try {
+        checkStorageResponse(await plugin.removeData(FLASHCARD_RECOVERY_FILE));
+        if (parseFlashcardRecovery(await plugin.loadData(FLASHCARD_RECOVERY_FILE)) !== null) throw new Error("flashcard recovery remains");
+    } catch (error) {
+        if (error instanceof FlashcardRecoveryError) throw error;
+        throw new FlashcardRecoveryError("clearFailed");
+    }
+}
+
+async function exactCardExists(recovery: FlashcardRecovery): Promise<boolean> {
+    let rows: Array<{ id: string; root_id: string; type: string }>;
+    try {
+        rows = await querySql<{ id: string; root_id: string; type: string }>(`SELECT id, root_id, type FROM blocks WHERE id='${recovery.cardBlockId}' LIMIT 1`);
+    } catch { throw new FlashcardRecoveryError("readFailed"); }
+    return rows.some((row) => row.id === recovery.cardBlockId && row.root_id === recovery.hostDocId && row.type === "i");
+}
+
+export async function resumeFlashcardRecovery(plugin: Plugin): Promise<FlashcardRecoveryResult> {
+    let recovery = await loadFlashcardRecovery(plugin);
+    if (!recovery) return { ok: true };
+    if (recovery.phase === "registered") {
+        await clearFlashcardRecovery(plugin, true);
+        return { ok: true, recovery, registered: true };
+    }
+    if (!(await exactCardExists(recovery))) return { ok: false, reason: "missing", recovery };
+    if (recovery.phase === "insert-intent") {
+        recovery = await saveFlashcardRecovery(plugin, advanceFlashcardRecovery(recovery, "inserted"));
+    }
+    try {
+        await addRiffCards(recovery.deckId, [recovery.cardBlockId]);
+    } catch {
+        return { ok: false, reason: "registerFailed", recovery };
+    }
+    const registered = advanceFlashcardRecovery(recovery, "registered");
+    try {
+        recovery = await saveFlashcardRecovery(plugin, registered);
+    } catch {
+        return { ok: false, reason: "checkpointFailed", recovery: registered, registered: true };
+    }
+    try {
+        await clearFlashcardRecovery(plugin, true);
+    } catch {
+        return { ok: false, reason: "clearFailed", recovery, registered: true };
+    }
+    return { ok: true, recovery, registered: true };
+}
 
 export function createFlashcardSession(source: FlashcardSource): FlashcardSession {
     return {
@@ -173,6 +263,9 @@ export async function confirmFlashcard(
     session.busy = true;
     try {
         if (session.state === "ready") {
+            let existingRecovery: FlashcardRecovery | null;
+            try { existingRecovery = await loadFlashcardRecovery(plugin); } catch { return { ok: false, reason: "recoveryReadFailed" }; }
+            if (existingRecovery) return { ok: false, reason: "recoveryPending", hostDocId: existingRecovery.hostDocId, cardBlockId: existingRecovery.cardBlockId };
             const draft = { front: content.front.trim(), back: content.back.trim() };
             const sourceIssue = await verifySource(session.source);
             if (sourceIssue) return { ok: false, reason: sourceIssue };
@@ -189,19 +282,46 @@ export async function confirmFlashcard(
             if (finalSourceIssue) return { ok: false, reason: finalSourceIssue };
             if (session.cancelled) return { ok: false, reason: "cancelled" };
             const requestedId = newNodeId();
+            session.cardBlockId = requestedId;
+            let recovery: FlashcardRecovery;
+            try {
+                recovery = await saveFlashcardRecovery(plugin, createFlashcardRecovery(session.deckId, session.hostDocId, requestedId));
+            } catch {
+                return { ok: false, reason: "checkpointFailed", hostDocId: session.hostDocId, cardBlockId: requestedId };
+            }
             try {
                 await insertBlockDomIds(session.hostDocId, buildFlashcardDom(draft.front, draft.back, requestedId));
-                session.cardBlockId = requestedId;
                 session.draft = draft;
                 session.state = "inserted";
             } catch {
                 session.state = "unknown";
                 return { ok: false, reason: "insertUnknown", hostDocId: session.hostDocId };
             }
+            try {
+                recovery = await saveFlashcardRecovery(plugin, advanceFlashcardRecovery(recovery, "inserted"));
+            } catch {
+                return { ok: false, reason: "checkpointFailed", cardBlockId: session.cardBlockId, hostDocId: session.hostDocId };
+            }
+        }
+        let recovery: FlashcardRecovery | null;
+        try {
+            recovery = await loadFlashcardRecovery(plugin);
+            if (!recovery || recovery.cardBlockId !== session.cardBlockId || recovery.hostDocId !== session.hostDocId || recovery.deckId !== session.deckId) {
+                return { ok: false, reason: "recoveryReadFailed", cardBlockId: session.cardBlockId, hostDocId: session.hostDocId };
+            }
+            if (recovery.phase === "insert-intent") recovery = await saveFlashcardRecovery(plugin, advanceFlashcardRecovery(recovery, "inserted"));
+        } catch (error) {
+            return { ok: false, reason: error instanceof FlashcardRecoveryError && error.reason === "checkpointFailed" ? "checkpointFailed" : "recoveryReadFailed", cardBlockId: session.cardBlockId, hostDocId: session.hostDocId };
         }
         try {
             await addRiffCards(session.deckId, [session.cardBlockId]);
             session.state = "saved";
+            try {
+                await saveFlashcardRecovery(plugin, advanceFlashcardRecovery(recovery, "registered"));
+                await clearFlashcardRecovery(plugin, true);
+            } catch {
+                // 登记已成功；保留已登记检查点供设置页清理，避免把成功误报为失败。
+            }
             return { ok: true, cardBlockId: session.cardBlockId, hostDocId: session.hostDocId };
         } catch {
             return { ok: false, reason: "registerFailed", cardBlockId: session.cardBlockId, hostDocId: session.hostDocId };

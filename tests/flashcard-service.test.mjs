@@ -16,7 +16,8 @@ registerHooks({
     },
 });
 
-const { createFlashcardSession, cancelFlashcardSession, confirmFlashcard, draftQuestionCard, questionCardEnabled, ensureFlashcardDeck } = await import("../src/services/flashcard-service.ts");
+const { createFlashcardSession, cancelFlashcardSession, confirmFlashcard, draftQuestionCard, questionCardEnabled, ensureFlashcardDeck, loadFlashcardRecovery, resumeFlashcardRecovery, saveFlashcardRecovery, clearFlashcardRecovery } = await import("../src/services/flashcard-service.ts");
+const { createFlashcardRecovery } = await import("../src/domain/flashcard-recovery.ts");
 const { DEFAULT_SETTINGS } = await import("../src/services/settings.ts");
 const { enqueueEnrich, usageToday } = await import("../src/services/enrich-service.ts");
 const { readerTranslate } = await import("../src/services/reader-ai.ts");
@@ -40,7 +41,7 @@ function harness() {
     settings.anchorNotebooks = ["test-box"];
     settings.ai.questionCardEnabled = true;
     const state = {
-        hostExists: true, decks: [{ id: "test-deck", name: "拾遗卡片" }],
+        hostExists: true, decks: [{ id: "test-deck", name: "拾遗卡片" }], recoveryCardId: "20261004120000-eeeeeee", recoveryCardExists: true,
         sourceExists: true, sourceType: "d", blockExists: true, blockRoot: docId,
         deckFailure: false, insertFailure: false, emptyTransaction: false, riffFailure: false, modelFailure: false,
         answer: '{"front":"这段引文的证据是什么？","back":"证据来自这段引文。"}',
@@ -48,6 +49,7 @@ function harness() {
     const hooks = {};
     const plugin = {
         settings,
+        async removeData(name) { await hooks.removeData?.(name); files.delete(name); },
         async loadData(name) { await hooks.loadData?.(name); return structuredClone(files.get(name)); },
         async saveData(name, value) { await hooks.saveData?.(name, value); files.set(name, structuredClone(value)); },
     };
@@ -57,6 +59,7 @@ function harness() {
         switch (route) {
             case "/api/query/sql": {
                 if (/content='拾遗卡片'/.test(body.stmt)) return { code: 0, data: state.hostExists ? [{ id: hostId }] : [] };
+                if (/SELECT id, root_id, type FROM blocks WHERE id=/.test(body.stmt)) return { code: 0, data: state.recoveryCardExists ? [{ id: state.recoveryCardId, root_id: hostId, type: "i" }] : [] };
                 if (body.stmt.includes(`id='${blockId}'`)) return { code: 0, data: state.blockExists ? [{ id: blockId, root_id: state.blockRoot }] : [] };
                 const id = body.stmt.includes(hostId) ? hostId : docId;
                 return { code: 0, data: id === docId && !state.sourceExists ? [] : [{ id, type: id === docId ? state.sourceType : "d", title: "来源文章", content: "来源文章", box: "test-box", hpath: "/来源文章", updated: "20261004120000" }] };
@@ -155,6 +158,31 @@ test("riff 登记失败后只重试已知 ID，编辑不会再次插入，不泄
     assert.equal(fixture.count(inserts), 1);
     const attempts = fixture.calls.filter((call) => call.route === registrations);
     assert.deepEqual(attempts[0].body, attempts[1].body);
+});
+
+test("跨重载只核对检查点中的确切卡片块并恢复登记", async () => {
+    const fixture = harness();
+    const recovery = createFlashcardRecovery("test-deck", hostId, fixture.state.recoveryCardId, new Date("2026-10-05T08:00:00.000Z"));
+    await saveFlashcardRecovery(fixture.plugin, recovery);
+    const result = await resumeFlashcardRecovery(fixture.plugin);
+    assert.equal(result.ok, true);
+    assert.equal(result.registered, true);
+    assert.equal(await loadFlashcardRecovery(fixture.plugin), null);
+    assert.deepEqual(fixture.calls.filter((call) => call.route === registrations).map((call) => call.body), [{ deckID: "test-deck", blockIDs: [fixture.state.recoveryCardId] }]);
+    assert.equal(fixture.calls.some((call) => call.route === inserts), false);
+});
+
+test("跨重载找不到确切卡片时不登记，用户可明确清理检查点", async () => {
+    const fixture = harness();
+    fixture.state.recoveryCardExists = false;
+    const recovery = createFlashcardRecovery("test-deck", hostId, fixture.state.recoveryCardId);
+    await saveFlashcardRecovery(fixture.plugin, recovery);
+    const result = await resumeFlashcardRecovery(fixture.plugin);
+    assert.deepEqual(result.reason, "missing");
+    assert.equal(fixture.count(registrations), 0);
+    assert.ok(await loadFlashcardRecovery(fixture.plugin));
+    await clearFlashcardRecovery(fixture.plugin, true);
+    assert.equal(await loadFlashcardRecovery(fixture.plugin), null);
 });
 
 for (const failure of ["insertFailure", "emptyTransaction"]) {

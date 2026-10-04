@@ -14,6 +14,7 @@ import { loadUiPrefs, saveUiPrefs } from "../services/prefs";
 import type { GleanFacade } from "../types";
 import { exportAnonymousDiagnostic, exportLibraryCsv } from "../services/library-export-service";
 import BackupPanel from "./BackupPanel.svelte";
+import FlashcardRecoveryPanel from "./FlashcardRecoveryPanel.svelte";
 
 interface Props {
     facade: GleanFacade;
@@ -534,6 +535,7 @@ async function doMountBoard() {
                 </div>
             {/if}
             <BackupPanel {facade} settingsDirty={draftDirty} settingsBusy={saveBusy} onPreferencesRestored={() => { originalSettings = cloneSettings(facade.settings); loadDraft(originalSettings); }} />
+            <FlashcardRecoveryPanel {facade} />
         </div>
     </div>
 
