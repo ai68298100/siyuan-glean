@@ -626,6 +626,8 @@
   "reader.outlineLoading": "Loading headings…",
   "reader.outlineEmpty": "No headings available",
   "reader.outlineFailed": "Could not load the outline. Retry later.",
+  "reader.recentTitle": "Recently opened",
+  "reader.recentEmpty": "No other articles opened in this session",
   "settings.checkinGroup": "Lv Checkin bridge",
   "settings.checkinEnable": "Log finished reads to Checkin",
   "settings.checkinEnableDesc": "Marking an article as Finished writes a reading event to Lv Checkin (local write). Requires Lv Checkin enabled and a selected target; bridge failures never block the done state",

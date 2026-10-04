@@ -30,6 +30,7 @@ import { DEFAULT_SETTINGS, loadSettings, saveSettings, type GleanSettings } from
 import { installBridge } from "./services/bridge";
 import pluginManifest from "../plugin.json";
 import type { GleanFacade } from "./types";
+import { addRecentReading, type RecentReadingEntry } from "./domain/recent-reading";
 
 const DOCK_TYPE = "glean-dock";
 const TAB_TYPE = "glean-library";
@@ -47,6 +48,7 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
     private disposeBridge: (() => void) | null = null;
     private loaded = false;
     private lastReadingDocId = "";
+    private recentReadings: RecentReadingEntry[] = [];
     private pendingLibraryDocId = "";
     private pendingReaderDocId = "";
 
@@ -254,6 +256,7 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
     openReadingDocument(docId: string): void {
         if (!docId) return;
         this.lastReadingDocId = docId;
+        this.recordRecentReading(docId);
         if (this.isMobile) {
             openMobileFileById(this.app, docId);
             return;
@@ -270,6 +273,7 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
     openReader(docId: string): void {
         if (!docId) return;
         this.lastReadingDocId = docId;
+        this.recordRecentReading(docId);
         if (this.isMobile) {
             openMobileFileById(this.app, docId);
             return;
@@ -295,6 +299,15 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
         const id = this.pendingReaderDocId;
         this.pendingReaderDocId = "";
         return id;
+    }
+
+    recentReadingDocuments(): readonly RecentReadingEntry[] {
+        return this.recentReadings.map((entry) => ({ ...entry }));
+    }
+
+    recordRecentReading(docId: string, title = ""): void {
+        this.recentReadings = addRecentReading(this.recentReadings, { id: docId, title });
+        document.dispatchEvent(new CustomEvent("glean:recent-reading-changed"));
     }
 
     async openLibraryArticle(docId: string): Promise<void> {

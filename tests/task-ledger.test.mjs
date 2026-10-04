@@ -11,7 +11,7 @@ test("current execution board has unique IDs and all four task states", () => {
     const handoff = fs.readFileSync(path.join(root, "docs", "HANDOFF.md"), "utf8");
     const audit = auditTaskLedger(todo, handoff);
     assert.equal(audit.ok, true);
-    assert.deepEqual(audit.tasks.map((task) => task.id), ["T-3260", "T-3261", "T-3262", "T-3263", "T-3264", "T-3265", "T-3266", "T-3267", "T-3268", "T-3269", "T-3270"]);
+    assert.deepEqual(audit.tasks.map((task) => task.id), ["T-3260", "T-3261", "T-3262", "T-3263", "T-3264", "T-3265", "T-3266", "T-3267", "T-3268", "T-3269", "T-3270", "T-3271"]);
     assert.deepEqual(audit.currentDuplicates, []);
     assert.deepEqual(audit.missingFields, []);
     assert.equal(audit.staleNextTaskMentions.length, 0);

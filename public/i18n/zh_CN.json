@@ -626,6 +626,8 @@
   "reader.outlineLoading": "正在读取标题…",
   "reader.outlineEmpty": "本文没有可用标题",
   "reader.outlineFailed": "大纲读取失败，请重试",
+  "reader.recentTitle": "最近打开",
+  "reader.recentEmpty": "本次会话还没有其他文章",
   "settings.checkinGroup": "小驴协同 · 打卡",
   "settings.checkinEnable": "标记已读时记入打卡",
   "settings.checkinEnableDesc": "在读库中把文章标记为“已读”时，向小驴打卡写入一条阅读事件（写能力，仅本机）。需要已安装并启用小驴打卡并选择目标；桥接失败不阻断已读",

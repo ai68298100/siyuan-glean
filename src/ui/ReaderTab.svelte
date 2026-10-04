@@ -41,6 +41,7 @@
     import type { OutlineItem } from "../domain/outline";
     import { readerShortcut } from "../domain/reader-shortcuts";
     import { createLatestRequestGate } from "../libs/latest-request";
+    import type { RecentReadingEntry } from "../domain/recent-reading";
 
     interface Props {
         facade: GleanFacade;
@@ -73,10 +74,21 @@
     let outlineLoading = $state(false);
     let outlineError = $state(false);
     let outlineGeneration = 0;
+    let recentReadings = $state<RecentReadingEntry[]>([]);
+
+    function refreshRecentReadings(): void {
+        recentReadings = facade.recentReadingDocuments().map((entry) => ({ ...entry }));
+    }
+
+    function openRecentReading(entry: RecentReadingEntry): void {
+        if (entry.id === docId) return;
+        facade.openReader(entry.id);
+    }
 
     onMount(() => {
         mounted = true;
         docId = facade.consumeReaderFocus();
+        refreshRecentReadings();
         mode = facade.settings.reader.defaultMode;
         void loadUiPrefs(facade.pluginInstance).then((prefs) => {
             if (!mounted) return;
@@ -229,7 +241,10 @@
         const isCurrent = contextRequests.begin();
         try {
             const next = await readClipContext(id);
-            if (mounted && isCurrent() && docId === id) context = next;
+            if (mounted && isCurrent() && docId === id) {
+                context = next;
+                if (next) facade.recordRecentReading(id, next.title);
+            }
         } catch (error) {
             if (!mounted || !isCurrent() || docId !== id) return;
             console.debug("[glean] 阅读页签读取上下文失败:", error);
@@ -368,6 +383,7 @@
             const id = facade.consumeReaderFocus();
             if (id) docId = id;
         };
+        const onRecentReading = () => refreshRecentReadings();
         const onResize = () => protyle?.resize();
         const onData = () => {
             if (docId) {
@@ -379,19 +395,22 @@
             excerpt = excerptFromSelection(protyleHost, window.getSelection());
         };
         document.addEventListener("glean:focus-reader", onFocus);
+        document.addEventListener("glean:recent-reading-changed", onRecentReading);
         document.addEventListener("glean:reader-resize", onResize);
         document.addEventListener("glean:data-changed", onData);
         document.addEventListener("selectionchange", onSelect);
         return () => {
             document.removeEventListener("glean:focus-reader", onFocus);
+            document.removeEventListener("glean:recent-reading-changed", onRecentReading);
             document.removeEventListener("glean:reader-resize", onResize);
             document.removeEventListener("glean:data-changed", onData);
             document.removeEventListener("selectionchange", onSelect);
         };
     });
 
-    function openRelatedDoc(id: string): void {
+    function openRelatedDoc(id: string, title = ""): void {
         stopSpeech();
+        facade.recordRecentReading(id, title);
         docId = id;
         aiResult = null;
         relatedShown = false;
@@ -793,6 +812,22 @@
                 {#if context?.site}<span>{context.site}</span>{/if}
                 {#if context?.author}<span>{context.author}</span>{/if}
             </div>
+            <div class="glean-reader__section glean-reader__recent">
+                <div class="glean-reader__section-title">{t(i18n, "reader.recentTitle")}</div>
+                <div class="glean-reader__recent-list">
+                    {#each recentReadings as item (item.id)}
+                        <button
+                            class="glean-reader__recent-item"
+                            class:glean-reader__recent-item--current={item.id === docId}
+                            aria-current={item.id === docId ? "page" : undefined}
+                            title={item.title || item.id}
+                            onclick={() => openRecentReading(item)}
+                        >{item.title || item.id}</button>
+                    {:else}
+                        <div class="glean-reader__hint">{t(i18n, "reader.recentEmpty")}</div>
+                    {/each}
+                </div>
+            </div>
             {#if context?.id === docId}<AuthorEditor {facade} {docId} onSaved={() => { if (docId) return loadContext(docId); }} />{/if}
             <ReadingPositionControls {facade} {docId} host={protyleHost} />
             <div class="glean-reader__section glean-reader__appearance">
@@ -988,7 +1023,7 @@
                             {#if relatedShown && relatedItems.length > 0}
                                 <div class="glean-reader__related">
                                     {#each relatedItems as item (item.id)}
-                                        <button class="glean-reader__related-item" title={item.title} onclick={() => openRelatedDoc(item.id)}>
+                                        <button class="glean-reader__related-item" title={item.title} onclick={() => openRelatedDoc(item.id, item.title)}>
                                             {item.title}
                                         </button>
                                     {/each}

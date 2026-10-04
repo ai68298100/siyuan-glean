@@ -1103,6 +1103,33 @@
     opacity: 0.72;
     letter-spacing: 0.04em;
 }
+.glean-reader__recent-list { display: grid; gap: 4px; max-height: 180px; overflow: auto; }
+.glean-reader__recent-item {
+    display: block;
+    width: 100%;
+    min-height: 36px;
+    padding: 7px 9px;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--b3-theme-on-background);
+    text-align: left;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: pointer;
+}
+.glean-reader__recent-item:hover,
+.glean-reader__recent-item:focus-visible {
+    border-color: var(--b3-theme-primary);
+    background: var(--b3-theme-surface);
+    outline: none;
+}
+.glean-reader__recent-item--current {
+    border-color: var(--b3-theme-primary-light);
+    background: var(--b3-theme-surface);
+    font-weight: 600;
+}
 
 .glean-reader__excerpt,
 .glean-reader__hint {

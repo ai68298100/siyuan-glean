@@ -2,6 +2,7 @@
 import type { Plugin } from "siyuan";
 import type { GleanSettings } from "./services/settings";
 import type { I18nBundle } from "./libs/i18n";
+import type { RecentReadingEntry } from "./domain/recent-reading";
 
 export interface GleanFacade {
     /** 插件实例（saveData / openTab 需要）；组件不得反向 import 壳文件 */
@@ -25,6 +26,10 @@ export interface GleanFacade {
     currentDocId(): string;
     /** 用思源原生编辑器打开一篇文章，并记录会话内最近阅读文档。 */
     openReadingDocument(docId: string): void;
+    /** 读取会话内最近阅读列表；不落 saveData。 */
+    recentReadingDocuments(): readonly RecentReadingEntry[];
+    /** 在上下文读回标题后补充最近阅读列表的显示投影。 */
+    recordRecentReading(docId: string, title?: string): void;
     /** 显式打开内嵌阅读页签（D-0029）；移动端回退原生查看器。 */
     openReader(docId: string): void;
     /** 阅读页签消费待打开的文档 ID（会话内存，不落 saveData）。 */
