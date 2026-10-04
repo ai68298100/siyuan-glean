@@ -18,6 +18,10 @@ export interface GleanSettings {
         dedupOnEnrich: boolean;
         /** 阅读时推荐相关旧文（走嵌入模型，不耗 LLM token） */
         relatedWhileReading: boolean;
+        formattingEnabled: boolean;
+        authorSuggestionEnabled: boolean;
+        questionCardEnabled: boolean;
+        articleQuestionEnabled: boolean;
         /** 预置 AI 动作（总结/要点/反方观点，不自动消耗 token） */
         presetActions: boolean;
         /** LLM 通道：siyuan=思源内置（默认）；custom=拾遗专用 OpenAI 兼容 API（D-0015） */
@@ -45,6 +49,7 @@ export interface GleanSettings {
     integration: {
         checkinEnabled: boolean;
         checkinItemId: string;
+        bridgeWriteEnabled: boolean;
     };
     /** 阅读页签（D-0029/T-1730）：内嵌 Protyle 的插件内阅读视图 */
     reader: {
@@ -61,9 +66,13 @@ export const DEFAULT_SETTINGS: GleanSettings = {
     ai: {
         enrichMode: "manual",
         enrichDailyCap: 20,
-        dedupOnEnrich: true,
-        relatedWhileReading: true,
-        presetActions: true,
+        dedupOnEnrich: false,
+        relatedWhileReading: false,
+        formattingEnabled: false,
+        authorSuggestionEnabled: false,
+        questionCardEnabled: false,
+        articleQuestionEnabled: false,
+        presetActions: false,
         channel: "siyuan",
         customBaseUrl: "",
         customModel: "",
@@ -73,7 +82,7 @@ export const DEFAULT_SETTINGS: GleanSettings = {
     inboxQuota: 50,
     staleDays: 90,
     migrateBatchSize: DEFAULT_MIGRATE_BATCH_SIZE,
-    integration: { checkinEnabled: false, checkinItemId: "" },
+    integration: { checkinEnabled: false, checkinItemId: "", bridgeWriteEnabled: false },
     reader: { openInTab: false, defaultMode: "read" },
 };
 
@@ -113,9 +122,13 @@ export function normalizeSettings(raw: unknown): GleanSettings {
             // 兼容旧版布尔 enrichOnCapture：true→auto，false→manual
             enrichMode: normalizeEnrichMode(ai.enrichMode, ai.enrichOnCapture),
             enrichDailyCap: clampInt(ai.enrichDailyCap, 0, 500, DEFAULT_SETTINGS.ai.enrichDailyCap),
-            dedupOnEnrich: ai.dedupOnEnrich ?? DEFAULT_SETTINGS.ai.dedupOnEnrich,
-            relatedWhileReading: ai.relatedWhileReading ?? DEFAULT_SETTINGS.ai.relatedWhileReading,
-            presetActions: ai.presetActions ?? DEFAULT_SETTINGS.ai.presetActions,
+            dedupOnEnrich: typeof ai.dedupOnEnrich === "boolean" ? ai.dedupOnEnrich : DEFAULT_SETTINGS.ai.dedupOnEnrich,
+            relatedWhileReading: typeof ai.relatedWhileReading === "boolean" ? ai.relatedWhileReading : DEFAULT_SETTINGS.ai.relatedWhileReading,
+            formattingEnabled: typeof ai.formattingEnabled === "boolean" ? ai.formattingEnabled : DEFAULT_SETTINGS.ai.formattingEnabled,
+            authorSuggestionEnabled: typeof ai.authorSuggestionEnabled === "boolean" ? ai.authorSuggestionEnabled : DEFAULT_SETTINGS.ai.authorSuggestionEnabled,
+            questionCardEnabled: typeof ai.questionCardEnabled === "boolean" ? ai.questionCardEnabled : DEFAULT_SETTINGS.ai.questionCardEnabled,
+            articleQuestionEnabled: typeof ai.articleQuestionEnabled === "boolean" ? ai.articleQuestionEnabled : DEFAULT_SETTINGS.ai.articleQuestionEnabled,
+            presetActions: typeof ai.presetActions === "boolean" ? ai.presetActions : DEFAULT_SETTINGS.ai.presetActions,
             channel: ai.channel === "custom" ? "custom" : "siyuan",
             customBaseUrl: typeof ai.customBaseUrl === "string" ? ai.customBaseUrl : "",
             customModel: typeof ai.customModel === "string" ? ai.customModel : "",
@@ -125,31 +138,70 @@ export function normalizeSettings(raw: unknown): GleanSettings {
         },
         resurface: {
             dailyCount: clampInt(resurface.dailyCount, 1, 10, DEFAULT_SETTINGS.resurface.dailyCount),
-            includeDoneHighlights: resurface.includeDoneHighlights ?? DEFAULT_SETTINGS.resurface.includeDoneHighlights,
+            includeDoneHighlights: typeof resurface.includeDoneHighlights === "boolean" ? resurface.includeDoneHighlights : DEFAULT_SETTINGS.resurface.includeDoneHighlights,
         },
         inboxQuota: clampInt(input.inboxQuota, 5, 1000, DEFAULT_SETTINGS.inboxQuota),
         staleDays: clampInt(input.staleDays, 7, 3650, DEFAULT_SETTINGS.staleDays),
         migrateBatchSize: clampInt(input.migrateBatchSize, 1, MAX_MIGRATE_BATCH_SIZE, DEFAULT_MIGRATE_BATCH_SIZE),
         // 写能力（events.record）：必须用户显式开启（打卡契约准入第 4 条）
         integration: {
-            checkinEnabled: integration.checkinEnabled ?? DEFAULT_SETTINGS.integration.checkinEnabled,
+            checkinEnabled: typeof integration.checkinEnabled === "boolean" ? integration.checkinEnabled : DEFAULT_SETTINGS.integration.checkinEnabled,
             checkinItemId: typeof integration.checkinItemId === "string" ? integration.checkinItemId : "",
+            bridgeWriteEnabled: typeof integration.bridgeWriteEnabled === "boolean" ? integration.bridgeWriteEnabled : false,
         },
         reader: normalizeReader(input.reader),
     };
 }
 
-export async function loadSettings(plugin: Plugin): Promise<GleanSettings> {
+export function cloneSettings(settings: GleanSettings): GleanSettings {
+    return normalizeSettings(settings);
+}
+
+export function mergeSettingsDraft(current: GleanSettings, draft: GleanSettings): GleanSettings {
+    const saved = normalizeSettings(current);
+    const edited = normalizeSettings(draft);
+    return normalizeSettings({
+        ...saved,
+        anchorNotebooks: edited.anchorNotebooks,
+        ai: { ...saved.ai, ...edited.ai },
+        resurface: { ...saved.resurface, ...edited.resurface },
+        inboxQuota: edited.inboxQuota,
+        staleDays: edited.staleDays,
+        integration: { ...saved.integration, ...edited.integration },
+        reader: { ...saved.reader, ...edited.reader },
+    });
+}
+
+export function settingsEqual(left: GleanSettings, right: GleanSettings): boolean {
+    return JSON.stringify(normalizeSettings(left)) === JSON.stringify(normalizeSettings(right));
+}
+
+export async function loadSettings(plugin: Plugin, options: { strict?: boolean } = {}): Promise<GleanSettings> {
     try {
         const raw = await plugin.loadData(SETTINGS_FILE);
         return normalizeSettings(raw);
-    } catch {
+    } catch (error) {
+        if (options.strict) throw error;
         return { ...DEFAULT_SETTINGS };
     }
 }
 
-export async function saveSettings(plugin: Plugin, settings: GleanSettings): Promise<GleanSettings> {
+export class SettingsConflictError extends Error {
+    constructor() { super("Settings changed"); }
+}
+
+const settingsQueues = new WeakMap<Plugin, Promise<unknown>>();
+
+export async function saveSettings(plugin: Plugin, settings: GleanSettings, options: { expected?: GleanSettings } = {}): Promise<GleanSettings> {
     const normalized = normalizeSettings(settings);
-    await plugin.saveData(SETTINGS_FILE, normalized);
-    return normalized;
+    const expected = options.expected ? cloneSettings(options.expected) : undefined;
+    const previous = settingsQueues.get(plugin) ?? Promise.resolve();
+    const operation = previous.catch(() => undefined).then(async () => {
+        if (expected && !settingsEqual(await loadSettings(plugin, { strict: true }), expected)) throw new SettingsConflictError();
+        await plugin.saveData(SETTINGS_FILE, normalized);
+        return normalized;
+    });
+    settingsQueues.set(plugin, operation);
+    void operation.then(() => {}, () => {}).then(() => { if (settingsQueues.get(plugin) === operation) settingsQueues.delete(plugin); });
+    return operation;
 }

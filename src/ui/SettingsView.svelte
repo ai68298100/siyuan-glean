@@ -1,7 +1,7 @@
 <script lang="ts">
 /** 设置视图（T-1101/T-1200）：iOS inset group 风格——锚点笔记本 chips、AI 开关、重浮参数、挂库、维护。 */
 import { onMount } from "svelte";
-import { showMessage } from "siyuan";
+import { getFrontend, showMessage } from "siyuan";
 import { listNotebooks, type NotebookMeta } from "../api/client";
 import { rebuildIndex } from "../services/clip-store";
 import { bindAllClipsToLibrary } from "../services/library-db";
@@ -9,66 +9,135 @@ import { usageToday, loadAiLog, type AiLogEntry } from "../services/enrich-servi
 import { listCheckinItems, type CheckinItemOption } from "../services/checkin-bridge";
 import { testDirectChannel } from "../api/ai-direct";
 import { t } from "../libs/i18n";
+import { DEFAULT_SETTINGS, cloneSettings, mergeSettingsDraft, normalizeSettings, settingsEqual, type GleanSettings } from "../services/settings";
+import { loadUiPrefs, saveUiPrefs } from "../services/prefs";
 import type { GleanFacade } from "../types";
+import { exportAnonymousDiagnostic, exportLibraryCsv } from "../services/library-export-service";
+import BackupPanel from "./BackupPanel.svelte";
 
 interface Props {
     facade: GleanFacade;
+    onClose?: () => void;
 }
 
-let { facade }: Props = $props();
+let { facade, onClose }: Props = $props();
 
 const i18n = $derived(facade.i18n);
 
 let notebooks = $state<NotebookMeta[]>([]);
-let anchorNotebooks = $state<string[]>(facade.settings.anchorNotebooks);
-let aiEnrichMode = $state<"off" | "manual" | "auto">(facade.settings.ai.enrichMode);
-let aiDailyCap = $state(facade.settings.ai.enrichDailyCap);
-let aiDedup = $state(facade.settings.ai.dedupOnEnrich);
-let aiRelated = $state(facade.settings.ai.relatedWhileReading);
-let aiActions = $state(facade.settings.ai.presetActions);
-let usageCount = $state(0);
-let dailyCount = $state(facade.settings.resurface.dailyCount);
-let includeDone = $state(facade.settings.resurface.includeDoneHighlights);
-let inboxQuota = $state(facade.settings.inboxQuota);
-let staleDays = $state(facade.settings.staleDays);
+let anchorNotebooks = $state<string[]>([...DEFAULT_SETTINGS.anchorNotebooks]);
+let aiEnrichMode = $state<"off" | "manual" | "auto">(DEFAULT_SETTINGS.ai.enrichMode);
+let aiDailyCap = $state(DEFAULT_SETTINGS.ai.enrichDailyCap);
+let aiDedup = $state(DEFAULT_SETTINGS.ai.dedupOnEnrich);
+let aiRelated = $state(DEFAULT_SETTINGS.ai.relatedWhileReading);
+let aiFormatting = $state(DEFAULT_SETTINGS.ai.formattingEnabled);
+let aiAuthorSuggestion = $state(DEFAULT_SETTINGS.ai.authorSuggestionEnabled);
+let aiQuestionCard = $state(DEFAULT_SETTINGS.ai.questionCardEnabled);
+let aiArticleQuestion = $state(DEFAULT_SETTINGS.ai.articleQuestionEnabled);
+let aiActions = $state(DEFAULT_SETTINGS.ai.presetActions);
+let usageCount = $state<number | null>(null);
+let dailyCount = $state(DEFAULT_SETTINGS.resurface.dailyCount);
+let includeDone = $state(DEFAULT_SETTINGS.resurface.includeDoneHighlights);
+let inboxQuota = $state(DEFAULT_SETTINGS.inboxQuota);
+let staleDays = $state(DEFAULT_SETTINGS.staleDays);
 let boardBusy = $state(false);
-let aiChannel = $state<"siyuan" | "custom">(facade.settings.ai.channel);
-let customBaseUrl = $state(facade.settings.ai.customBaseUrl);
-let customModel = $state(facade.settings.ai.customModel);
-let customSecretName = $state(facade.settings.ai.customSecretName);
+let aiChannel = $state<"siyuan" | "custom">(DEFAULT_SETTINGS.ai.channel);
+let customBaseUrl = $state(DEFAULT_SETTINGS.ai.customBaseUrl);
+let customModel = $state(DEFAULT_SETTINGS.ai.customModel);
+let customSecretName = $state(DEFAULT_SETTINGS.ai.customSecretName);
 let testBusy = $state(false);
-let checkinEnabled = $state(facade.settings.integration.checkinEnabled);
-let checkinItemId = $state(facade.settings.integration.checkinItemId);
+let checkinEnabled = $state(DEFAULT_SETTINGS.integration.checkinEnabled);
+let checkinItemId = $state(DEFAULT_SETTINGS.integration.checkinItemId);
+let bridgeWriteEnabled = $state(DEFAULT_SETTINGS.integration.bridgeWriteEnabled);
 let checkinItems = $state<CheckinItemOption[]>([]);
-let readerOpenInTab = $state(facade.settings.reader.openInTab);
-let readerMode = $state<"read" | "edit">(facade.settings.reader.defaultMode);
+let readerOpenInTab = $state(DEFAULT_SETTINGS.reader.openInTab);
+let readerMode = $state<"read" | "edit">(DEFAULT_SETTINGS.reader.defaultMode);
+let originalSettings = $state<GleanSettings>(cloneSettings(DEFAULT_SETTINGS));
+let saveBusy = $state(false);
+let showNewbieHint = $state(false);
+let dismissHintBusy = $state(false);
+let exportBusy = $state<"csv" | "diagnostic" | "">("");
+let exportError = $state("");
+let lastExport = $state<"csv" | "diagnostic" | "">("");
 
 let aiLog = $state<AiLogEntry[] | null>(null);
+let draftDirty = $derived(!settingsEqual(originalSettings, buildDraftSettings()));
 
 onMount(() => {
+    let active = true;
+    originalSettings = cloneSettings(facade.settings);
+    loadDraft(originalSettings);
+    void loadUiPrefs(facade.pluginInstance).then((prefs) => {
+        if (active) showNewbieHint = !prefs.onboardingDone && !prefs.onboardingHintDismissed;
+    }).catch(() => undefined);
     void listNotebooks().then((items) => (notebooks = items));
-    if (facade.settings.integration.checkinEnabled) {
+    if (originalSettings.integration.checkinEnabled) {
         void listCheckinItems().then((items) => { checkinItems = items; });
     }
-    void usageToday(facade.pluginInstance).then((n) => (usageCount = n));
+    let usageRequest = 0;
+    const refreshUsage = () => {
+        const request = ++usageRequest;
+        usageCount = null;
+        void usageToday(facade.pluginInstance).then((count) => {
+            if (active && request === usageRequest) usageCount = count;
+        }).catch(() => {
+            if (active && request === usageRequest) usageCount = null;
+        });
+    };
+    refreshUsage();
+    document.addEventListener("glean:data-changed", refreshUsage);
+    return () => {
+        active = false;
+        document.removeEventListener("glean:data-changed", refreshUsage);
+    };
 });
 
 function toggleNotebook(id: string) {
     anchorNotebooks = anchorNotebooks.includes(id)
         ? anchorNotebooks.filter((item) => item !== id)
         : [...anchorNotebooks, id];
-    void save();
 }
 
-async function save() {
-    await facade.updateSettings({
-        ...facade.settings,
+function loadDraft(settings: GleanSettings) {
+    anchorNotebooks = [...settings.anchorNotebooks];
+    aiEnrichMode = settings.ai.enrichMode;
+    aiDailyCap = settings.ai.enrichDailyCap;
+    aiDedup = settings.ai.dedupOnEnrich;
+    aiRelated = settings.ai.relatedWhileReading;
+    aiFormatting = settings.ai.formattingEnabled;
+    aiAuthorSuggestion = settings.ai.authorSuggestionEnabled;
+    aiQuestionCard = settings.ai.questionCardEnabled;
+    aiArticleQuestion = settings.ai.articleQuestionEnabled;
+    aiActions = settings.ai.presetActions;
+    dailyCount = settings.resurface.dailyCount;
+    includeDone = settings.resurface.includeDoneHighlights;
+    inboxQuota = settings.inboxQuota;
+    staleDays = settings.staleDays;
+    aiChannel = settings.ai.channel;
+    customBaseUrl = settings.ai.customBaseUrl;
+    customModel = settings.ai.customModel;
+    customSecretName = settings.ai.customSecretName;
+    checkinEnabled = settings.integration.checkinEnabled;
+    checkinItemId = settings.integration.checkinItemId;
+    bridgeWriteEnabled = settings.integration.bridgeWriteEnabled;
+    readerOpenInTab = settings.reader.openInTab;
+    readerMode = settings.reader.defaultMode;
+}
+
+function buildDraftSettings(): GleanSettings {
+    return normalizeSettings({
+        ...originalSettings,
         anchorNotebooks: [...anchorNotebooks],
         ai: {
+            ...originalSettings.ai,
             enrichMode: aiEnrichMode,
             enrichDailyCap: aiDailyCap,
             dedupOnEnrich: aiDedup,
             relatedWhileReading: aiRelated,
+            formattingEnabled: aiFormatting,
+            authorSuggestionEnabled: aiAuthorSuggestion,
+            questionCardEnabled: aiQuestionCard,
+            articleQuestionEnabled: aiArticleQuestion,
             presetActions: aiActions,
             channel: aiChannel,
             customBaseUrl,
@@ -78,36 +147,70 @@ async function save() {
         resurface: { dailyCount, includeDoneHighlights: includeDone },
         inboxQuota,
         staleDays,
-        // migrateBatchSize 改在迁移器内调整（UX 审计 #7），不再经设置页保存
-        // 本地状态显式入 patch；此前漏写 integration，打卡开关实际不持久化（已修复）
-        integration: { checkinEnabled, checkinItemId },
+        // migrateBatchSize 改在迁移器内调整（UX 审计 #7），不经设置草稿编辑。
+        integration: { checkinEnabled, checkinItemId, bridgeWriteEnabled },
         reader: { openInTab: readerOpenInTab, defaultMode: readerMode },
     });
 }
 
-async function toggleAi(key: "dedup" | "related" | "actions") {
+async function save() {
+    if (saveBusy) return;
+    saveBusy = true;
+    try {
+        const draft = buildDraftSettings();
+        await facade.updateSettings(mergeSettingsDraft(facade.settings, draft));
+        originalSettings = cloneSettings(facade.settings);
+        loadDraft(originalSettings);
+        showMessage(t(i18n, "settings.saved"), 2500);
+        onClose?.();
+    } catch (error) {
+        showMessage(`${t(i18n, "settings.saveFailed")}: ${String(error).slice(0, 120)}`, 5000);
+    } finally {
+        saveBusy = false;
+    }
+}
+
+async function dismissNewbieHint() {
+    if (dismissHintBusy || !showNewbieHint) return;
+    dismissHintBusy = true;
+    try {
+        await saveUiPrefs(facade.pluginInstance, { onboardingHintDismissed: true });
+        showNewbieHint = false;
+    } catch (error) {
+        showMessage(`${t(i18n, "settings.saveFailed")}: ${String(error).slice(0, 120)}`, 5000);
+    } finally {
+        dismissHintBusy = false;
+    }
+}
+
+function cancel() {
+    loadDraft(originalSettings);
+    onClose?.();
+}
+
+function resetDefaults() {
+    loadDraft(cloneSettings(DEFAULT_SETTINGS));
+}
+
+function toggleAi(key: "dedup" | "related" | "actions") {
     if (key === "dedup") aiDedup = !aiDedup;
     else if (key === "related") aiRelated = !aiRelated;
     else aiActions = !aiActions;
-    await save();
 }
 
-async function setMode(mode: "off" | "manual" | "auto") {
+function setMode(mode: "off" | "manual" | "auto") {
     aiEnrichMode = mode;
-    await save();
 }
 
-async function setChannel(channel: "siyuan" | "custom") {
+function setChannel(channel: "siyuan" | "custom") {
     aiChannel = channel;
-    await save();
 }
 
 async function testChannel() {
     if (testBusy) return;
     testBusy = true;
     try {
-        await save();
-        const result = await testDirectChannel(facade.pluginInstance, facade.settings);
+        const result = await testDirectChannel(facade.pluginInstance, buildDraftSettings());
         showMessage(
             result.ok ? t(i18n, "ai.testOk", { message: result.message }) : t(i18n, "ai.testFail", { message: result.message }),
             4500
@@ -118,8 +221,42 @@ async function testChannel() {
 }
 
 async function doRebuildIndex() {
-    await rebuildIndex(facade.pluginInstance, facade.settings);
-    showMessage(t(i18n, "msg.indexRebuilt"), 2500);
+    try {
+        await rebuildIndex(facade.pluginInstance, buildDraftSettings());
+        showMessage(t(i18n, "msg.indexRebuilt"), 2500);
+    } catch (error) {
+        showMessage(String(error).slice(0, 140), 5000);
+    }
+}
+
+function downloadText(filename: string, content: string, mime: string): void {
+    const url = URL.createObjectURL(new Blob([content], { type: mime }));
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = filename;
+    anchor.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+async function exportData(kind: "csv" | "diagnostic"): Promise<void> {
+    if (exportBusy) return;
+    exportBusy = kind;
+    lastExport = kind;
+    exportError = "";
+    try {
+        if (kind === "csv") {
+            const csv = await exportLibraryCsv(facade.pluginInstance, facade.settings);
+            downloadText("siyuan-glean-library.csv", csv, "text/csv;charset=utf-8");
+        } else {
+            const diagnostic = await exportAnonymousDiagnostic(facade.pluginInstance, facade.settings, getFrontend());
+            downloadText("siyuan-glean-diagnostic.json", diagnostic, "application/json;charset=utf-8");
+        }
+    } catch (error) {
+        exportError = String(error).slice(0, 160);
+        showMessage(exportError, 5000);
+    } finally {
+        exportBusy = "";
+    }
 }
 
 async function toggleCheckin() {
@@ -127,11 +264,6 @@ async function toggleCheckin() {
     if (checkinEnabled && checkinItems.length === 0) {
         checkinItems = await listCheckinItems();
     }
-    await save();
-}
-
-async function saveCheckin() {
-    await save();
 }
 
 async function toggleAiLog() {
@@ -145,8 +277,8 @@ async function toggleAiLog() {
 async function doMountBoard() {
     boardBusy = true;
     try {
-        const result = await bindAllClipsToLibrary(facade.pluginInstance, facade.settings);
-        showMessage(t(i18n, "board.mounted", { n: result.bound }), 3500);
+        const result = await bindAllClipsToLibrary(facade.pluginInstance, buildDraftSettings());
+        showMessage(t(i18n, "board.projected", { bound: result.bound, synced: result.synced, failed: result.failures.length }), 3500);
     } catch (error) {
         showMessage(String(error).slice(0, 140), 5000);
     } finally {
@@ -155,28 +287,34 @@ async function doMountBoard() {
 }
 </script>
 
-<div class="glean-settings">
+<div class="glean-settings" aria-labelledby="glean-settings-title" aria-busy={saveBusy}>
     <div class="glean-set-group" style="padding:12px 14px; display:flex; align-items:center; gap:9px">
         <div class="glean-brand__mark" style="width:28px;height:28px;border-radius:9px">
             <svg style="width:14px;height:14px"><use href="#iconGleanWheat" /></svg>
         </div>
         <div>
-            <div style="font-size:13.5px; font-weight:700">{t(i18n, "settings.title")}</div>
+            <h2 id="glean-settings-title" style="font-size:13.5px; font-weight:700; margin:0">{t(i18n, "settings.title")}</h2>
             <div style="font-size:10px; color:var(--b3-theme-on-surface)">{t(i18n, "settings.sovereigntyNote")}</div>
         </div>
     </div>
-    <div class="glean-set-group" style="padding:9px 14px; font-size:11px; color:var(--b3-theme-on-surface)">
-        🌾 {t(i18n, "settings.newbieHint")}
-    </div>
+    {#if showNewbieHint}
+        <div class="glean-set-group glean-settings__newbie-hint" role="status">
+            <span class="glean-settings__newbie-hint-text">🌾 {t(i18n, "settings.newbieHint")}</span>
+            <button class="glean-linkish glean-settings__newbie-hint-dismiss" disabled={dismissHintBusy} onclick={() => void dismissNewbieHint()}>
+                {t(i18n, "settings.dismissNewbieHint")}
+            </button>
+        </div>
+    {/if}
 
     <div>
-        <div class="glean-set-title">{t(i18n, "settings.anchorNotebooks")}</div>
+        <div class="glean-set-title" role="heading" aria-level="2">{t(i18n, "settings.anchorNotebooks")}</div>
         <div class="glean-set-group">
             <div class="glean-nb-wrap">
                 {#each notebooks as notebook (notebook.id)}
                     <button
                         class="glean-nb"
                         class:glean-nb--on={anchorNotebooks.includes(notebook.id)}
+                        aria-pressed={anchorNotebooks.includes(notebook.id)}
                         onclick={() => toggleNotebook(notebook.id)}
                     >
                         {anchorNotebooks.includes(notebook.id) ? "✓ " : ""}{notebook.name}
@@ -196,7 +334,7 @@ async function doMountBoard() {
     </div>
 
     <div>
-        <div class="glean-set-title">{t(i18n, "settings.aiGroup")}</div>
+        <div class="glean-set-title" role="heading" aria-level="2">{t(i18n, "settings.aiGroup")}</div>
         <div class="glean-set-group">
             <div class="glean-set-row">
                 <div class="glean-set-row__lb">
@@ -205,21 +343,24 @@ async function doMountBoard() {
                 </div>
             </div>
             <div class="glean-set-row glean-seg-row">
-                <div class="glean-seg">
+                <div class="glean-seg" role="group" aria-label={t(i18n, "settings.aiEnrichMode")}>
                     <button
                         class="glean-seg__btn"
                         class:glean-seg__btn--on={aiEnrichMode === "off"}
-                        onclick={() => void setMode("off")}
+                        aria-pressed={aiEnrichMode === "off"}
+                        onclick={() => setMode("off")}
                     >{t(i18n, "settings.modeOff")}</button>
                     <button
                         class="glean-seg__btn"
                         class:glean-seg__btn--on={aiEnrichMode === "manual"}
-                        onclick={() => void setMode("manual")}
+                        aria-pressed={aiEnrichMode === "manual"}
+                        onclick={() => setMode("manual")}
                     >{t(i18n, "settings.modeManual")}</button>
                     <button
                         class="glean-seg__btn"
                         class:glean-seg__btn--on={aiEnrichMode === "auto"}
-                        onclick={() => void setMode("auto")}
+                        aria-pressed={aiEnrichMode === "auto"}
+                        onclick={() => setMode("auto")}
                     >{t(i18n, "settings.modeAuto")}</button>
                 </div>
             </div>
@@ -228,35 +369,63 @@ async function doMountBoard() {
                     {t(i18n, "settings.aiDailyCap")}
                     <div class="glean-set-row__desc">{t(i18n, "settings.aiDailyCapDesc")}</div>
                 </div>
-                <input class="glean-mini-input" type="number" min="0" max="500" bind:value={aiDailyCap} onchange={() => void save()} />
+                <input class="glean-mini-input" type="number" min="0" max="500" aria-label={t(i18n, "settings.aiDailyCap")} bind:value={aiDailyCap} />
             </div>
             <div class="glean-set-row">
                 <div class="glean-set-row__lb">
                     {t(i18n, "settings.aiTodayUsage")}
                     <div class="glean-set-row__desc">{t(i18n, "settings.aiTodayUsageDesc")}</div>
                 </div>
-                <span class="chip glean-chip">{usageCount}{aiDailyCap > 0 ? " / " + aiDailyCap : ""}</span>
+                <span class="chip glean-chip glean-settings__usage">{usageCount ?? t(i18n, "settings.usageUnknown")}{usageCount !== null && aiDailyCap > 0 ? " / " + aiDailyCap : ""}</span>
             </div>
             <div class="glean-set-row">
                 <div class="glean-set-row__lb">
                     {t(i18n, "settings.aiDedup")}
                     <div class="glean-set-row__desc">{t(i18n, "settings.aiDedupDesc")}</div>
                 </div>
-                <button class="glean-sw" class:glean-sw--on={aiDedup} onclick={() => void toggleAi("dedup")}></button>
+                <button class="glean-sw" class:glean-sw--on={aiDedup} aria-label={t(i18n, "settings.aiDedup")} aria-pressed={aiDedup} onclick={() => void toggleAi("dedup")}></button>
             </div>
             <div class="glean-set-row">
                 <div class="glean-set-row__lb">{t(i18n, "settings.aiRelated")}</div>
-                <button class="glean-sw" class:glean-sw--on={aiRelated} onclick={() => void toggleAi("related")}></button>
+                <button class="glean-sw" class:glean-sw--on={aiRelated} aria-label={t(i18n, "settings.aiRelated")} aria-pressed={aiRelated} onclick={() => void toggleAi("related")}></button>
+            </div>
+            <div class="glean-set-row">
+                <div class="glean-set-row__lb">
+                    {t(i18n, "formatting.enable")}
+                    <div class="glean-set-row__desc">{t(i18n, "formatting.enableHint")}</div>
+                </div>
+                <button class="glean-sw" class:glean-sw--on={aiFormatting} aria-label={t(i18n, "formatting.enable")} aria-pressed={aiFormatting} onclick={() => { aiFormatting = !aiFormatting; }}></button>
             </div>
             <div class="glean-set-row">
                 <div class="glean-set-row__lb">{t(i18n, "settings.aiSummaryActions")}</div>
-                <button class="glean-sw" class:glean-sw--on={aiActions} onclick={() => void toggleAi("actions")}></button>
+                <button class="glean-sw" class:glean-sw--on={aiActions} aria-label={t(i18n, "settings.aiSummaryActions")} aria-pressed={aiActions} onclick={() => void toggleAi("actions")}></button>
             </div>
+            <label class="glean-set-row glean-settings__ai-toggle">
+                <span class="glean-set-row__lb">
+                    {t(i18n, "author.suggestion.enable")}
+                    <span class="glean-set-row__desc">{t(i18n, "author.suggestion.enableHint")}</span>
+                </span>
+                <input type="checkbox" bind:checked={aiAuthorSuggestion} />
+            </label>
+            <label class="glean-set-row glean-settings__ai-toggle">
+                <span class="glean-set-row__lb">
+                    {t(i18n, "flashcard.aiEnable")}
+                    <span class="glean-set-row__desc">{t(i18n, "flashcard.aiEnableHint")}</span>
+                </span>
+                <input type="checkbox" bind:checked={aiQuestionCard} />
+            </label>
+            <label class="glean-set-row glean-settings__ai-toggle">
+                <span class="glean-set-row__lb">
+                    {t(i18n, "reader.articleQuestion.enable")}
+                    <span class="glean-set-row__desc">{t(i18n, "reader.articleQuestion.enableHint")}</span>
+                </span>
+                <input type="checkbox" bind:checked={aiArticleQuestion} />
+            </label>
         </div>
     </div>
 
     <div>
-        <div class="glean-set-title">{t(i18n, "settings.aiChannelGroup")}</div>
+        <div class="glean-set-title" role="heading" aria-level="2">{t(i18n, "settings.aiChannelGroup")}</div>
         <div class="glean-set-group">
             <div class="glean-set-row">
                 <div class="glean-set-row__lb">
@@ -265,34 +434,36 @@ async function doMountBoard() {
                 </div>
             </div>
             <div class="glean-set-row glean-seg-row">
-                <div class="glean-seg">
+                <div class="glean-seg" role="group" aria-label={t(i18n, "settings.aiChannel")}>
                     <button
                         class="glean-seg__btn"
                         class:glean-seg__btn--on={aiChannel === "siyuan"}
-                        onclick={() => void setChannel("siyuan")}
+                        aria-pressed={aiChannel === "siyuan"}
+                        onclick={() => setChannel("siyuan")}
                     >{t(i18n, "settings.channelSiyuan")}</button>
                     <button
                         class="glean-seg__btn"
                         class:glean-seg__btn--on={aiChannel === "custom"}
-                        onclick={() => void setChannel("custom")}
+                        aria-pressed={aiChannel === "custom"}
+                        onclick={() => setChannel("custom")}
                     >{t(i18n, "settings.channelCustom")}</button>
                 </div>
             </div>
             {#if aiChannel === "custom"}
                 <div class="glean-set-row">
                     <div class="glean-set-row__lb">{t(i18n, "settings.customBaseUrl")}</div>
-                    <input class="glean-mini-input" style="width:220px; text-align:left" placeholder="https://…/v1" bind:value={customBaseUrl} onchange={() => void save()} />
+                    <input class="glean-mini-input glean-settings__wide-input" aria-label={t(i18n, "settings.customBaseUrl")} placeholder="https://…/v1" bind:value={customBaseUrl} />
                 </div>
                 <div class="glean-set-row">
                     <div class="glean-set-row__lb">{t(i18n, "settings.customModel")}</div>
-                    <input class="glean-mini-input" style="width:180px; text-align:left" placeholder="free-model" bind:value={customModel} onchange={() => void save()} />
+                    <input class="glean-mini-input glean-settings__wide-input" aria-label={t(i18n, "settings.customModel")} placeholder="free-model" bind:value={customModel} />
                 </div>
                 <div class="glean-set-row">
                     <div class="glean-set-row__lb">
                         {t(i18n, "settings.customSecretName")}
                         <div class="glean-set-row__desc">{t(i18n, "settings.customSecretDesc")}</div>
                     </div>
-                    <input class="glean-mini-input" style="width:160px; text-align:left" bind:value={customSecretName} onchange={() => void save()} />
+                    <input class="glean-mini-input glean-settings__wide-input" aria-label={t(i18n, "settings.customSecretName")} bind:value={customSecretName} />
                 </div>
                 <div class="glean-set-row">
                     <div class="glean-set-row__lb">{t(i18n, "settings.testConnection")}</div>
@@ -305,29 +476,29 @@ async function doMountBoard() {
     </div>
 
     <div>
-        <div class="glean-set-title">{t(i18n, "settings.resurfaceGroup")}</div>
+        <div class="glean-set-title" role="heading" aria-level="2">{t(i18n, "settings.resurfaceGroup")}</div>
         <div class="glean-set-group">
             <div class="glean-set-row">
                 <div class="glean-set-row__lb">{t(i18n, "settings.resurfaceCount")}</div>
-                <input class="glean-mini-input" type="number" min="1" max="10" bind:value={dailyCount} onchange={() => void save()} />
+                <input class="glean-mini-input" type="number" min="1" max="10" aria-label={t(i18n, "settings.resurfaceCount")} bind:value={dailyCount} />
             </div>
             <div class="glean-set-row">
                 <div class="glean-set-row__lb">{t(i18n, "settings.resurfaceIncludeDone")}</div>
-                <button class="glean-sw" class:glean-sw--on={includeDone} onclick={() => { includeDone = !includeDone; void save(); }}></button>
+                <button class="glean-sw" class:glean-sw--on={includeDone} aria-label={t(i18n, "settings.resurfaceIncludeDone")} aria-pressed={includeDone} onclick={() => { includeDone = !includeDone; }}></button>
             </div>
             <div class="glean-set-row">
                 <div class="glean-set-row__lb">{t(i18n, "settings.inboxQuota")}</div>
-                <input class="glean-mini-input" type="number" min="5" max="1000" bind:value={inboxQuota} onchange={() => void save()} />
+                <input class="glean-mini-input" type="number" min="5" max="1000" aria-label={t(i18n, "settings.inboxQuota")} bind:value={inboxQuota} />
             </div>
             <div class="glean-set-row">
                 <div class="glean-set-row__lb">{t(i18n, "settings.staleDays")}</div>
-                <input class="glean-mini-input" type="number" min="7" max="3650" bind:value={staleDays} onchange={() => void save()} />
+                <input class="glean-mini-input" type="number" min="7" max="3650" aria-label={t(i18n, "settings.staleDays")} bind:value={staleDays} />
             </div>
         </div>
     </div>
 
     <div>
-        <div class="glean-set-title">{t(i18n, "board.groupTitle")}</div>
+        <div class="glean-set-title" role="heading" aria-level="2">{t(i18n, "board.groupTitle")}</div>
         <div class="glean-set-group">
             <div class="glean-set-row">
                 <div class="glean-set-row__lb">
@@ -338,18 +509,50 @@ async function doMountBoard() {
                     {boardBusy ? t(i18n, "panel.loading") : t(i18n, "board.mountAction")}
                 </button>
             </div>
+            <div class="glean-set-row">
+                <div class="glean-set-row__lb">
+                    {t(i18n, "settings.exportLibraryCsv")}
+                    <div class="glean-set-row__desc">{t(i18n, "settings.exportLibraryCsvDesc")}</div>
+                </div>
+                <button class="glean-btn" style="flex-shrink:0" disabled={Boolean(exportBusy)} onclick={() => void exportData("csv")}>
+                    {exportBusy === "csv" ? t(i18n, "settings.exporting") : t(i18n, "settings.exportLibraryCsv")}
+                </button>
+            </div>
+            <div class="glean-set-row">
+                <div class="glean-set-row__lb">
+                    {t(i18n, "settings.exportDiagnostic")}
+                    <div class="glean-set-row__desc">{t(i18n, "settings.exportDiagnosticDesc")}</div>
+                </div>
+                <button class="glean-btn" style="flex-shrink:0" disabled={Boolean(exportBusy)} onclick={() => void exportData("diagnostic")}>
+                    {exportBusy === "diagnostic" ? t(i18n, "settings.exporting") : t(i18n, "settings.exportDiagnostic")}
+                </button>
+            </div>
+            {#if exportError}
+                <div class="glean-set-row" role="alert">
+                    <span class="glean-settings__error">{exportError}</span>
+                    <button class="glean-btn glean-btn--ghost" disabled={Boolean(exportBusy)} onclick={() => lastExport && void exportData(lastExport)}>{t(i18n, "action.retry")}</button>
+                </div>
+            {/if}
+            <BackupPanel {facade} settingsDirty={draftDirty} settingsBusy={saveBusy} onPreferencesRestored={() => { originalSettings = cloneSettings(facade.settings); loadDraft(originalSettings); }} />
         </div>
     </div>
 
     <div>
-        <div class="glean-set-title">{t(i18n, "settings.checkinGroup")}</div>
+        <div class="glean-set-title" role="heading" aria-level="2">{t(i18n, "settings.checkinGroup")}</div>
         <div class="glean-set-group">
             <div class="glean-set-row">
                 <div class="glean-set-row__lb">
                     {t(i18n, "settings.checkinEnable")}
                     <div class="glean-set-row__desc">{t(i18n, "settings.checkinEnableDesc")}</div>
                 </div>
-                <button class="glean-sw" class:glean-sw--on={checkinEnabled} onclick={() => void toggleCheckin()}></button>
+                <button class="glean-sw" class:glean-sw--on={checkinEnabled} aria-label={t(i18n, "settings.checkinEnable")} aria-pressed={checkinEnabled} onclick={() => void toggleCheckin()}></button>
+            </div>
+            <div class="glean-set-row">
+                <div class="glean-set-row__lb">
+                    {t(i18n, "settings.bridgeWriteEnable")}
+                    <div class="glean-set-row__desc">{t(i18n, "settings.bridgeWriteEnableDesc")}</div>
+                </div>
+                <button class="glean-sw" class:glean-sw--on={bridgeWriteEnabled} aria-label={t(i18n, "settings.bridgeWriteEnable")} aria-pressed={bridgeWriteEnabled} onclick={() => { bridgeWriteEnabled = !bridgeWriteEnabled; }}></button>
             </div>
             {#if checkinEnabled}
                 <div class="glean-set-row">
@@ -359,7 +562,7 @@ async function doMountBoard() {
                             {#if checkinItems.length === 0}{t(i18n, "settings.checkinNoItems")}{:else}{checkinItems.length} {t(i18n, "settings.checkinItemsFound")}{/if}
                         </div>
                     </div>
-                    <select class="b3-select" style="font-size:12px" bind:value={checkinItemId} onchange={() => void saveCheckin()}>
+                    <select class="b3-select" style="font-size:12px" aria-label={t(i18n, "settings.checkinItem")} bind:value={checkinItemId}>
                         <option value="">—</option>
                         {#each checkinItems as item (item.id)}
                             <option value={item.id}>{item.name}</option>
@@ -371,7 +574,7 @@ async function doMountBoard() {
     </div>
 
     <div>
-        <div class="glean-set-title">{t(i18n, "settings.readerGroup")}</div>
+        <div class="glean-set-title" role="heading" aria-level="2">{t(i18n, "settings.readerGroup")}</div>
         <div class="glean-set-group">
             <div class="glean-set-row">
                 <div class="glean-set-row__lb">
@@ -382,7 +585,9 @@ async function doMountBoard() {
                     class="glean-sw"
                     class:glean-sw--on={readerOpenInTab}
                     title={t(i18n, "settings.readerOpenInTab")}
-                    onclick={() => { readerOpenInTab = !readerOpenInTab; void save(); }}
+                    aria-label={t(i18n, "settings.readerOpenInTab")}
+                    aria-pressed={readerOpenInTab}
+                    onclick={() => { readerOpenInTab = !readerOpenInTab; }}
                 ></button>
             </div>
             <div class="glean-set-row glean-seg-row">
@@ -390,16 +595,18 @@ async function doMountBoard() {
                     {t(i18n, "settings.readerMode")}
                     <div class="glean-set-row__desc">{t(i18n, "settings.readerModeHint")}</div>
                 </div>
-                <div class="glean-seg">
+                <div class="glean-seg" role="group" aria-label={t(i18n, "settings.readerMode")}>
                     <button
                         class="glean-seg__btn"
                         class:glean-seg__btn--on={readerMode === "read"}
-                        onclick={() => { readerMode = "read"; void save(); }}
+                        aria-pressed={readerMode === "read"}
+                        onclick={() => { readerMode = "read"; }}
                     >{t(i18n, "reader.modeRead")}</button>
                     <button
                         class="glean-seg__btn"
                         class:glean-seg__btn--on={readerMode === "edit"}
-                        onclick={() => { readerMode = "edit"; void save(); }}
+                        aria-pressed={readerMode === "edit"}
+                        onclick={() => { readerMode = "edit"; }}
                     >{t(i18n, "reader.modeEdit")}</button>
                 </div>
             </div>
@@ -407,7 +614,7 @@ async function doMountBoard() {
     </div>
 
     <div>
-        <div class="glean-set-title">{t(i18n, "settings.dangerGroup")}</div>
+        <div class="glean-set-title" role="heading" aria-level="2">{t(i18n, "settings.dangerGroup")}</div>
         <div class="glean-set-group">
             <div class="glean-set-row">
                 <div class="glean-set-row__lb">
@@ -453,4 +660,27 @@ async function doMountBoard() {
             {/if}
         </div>
     </div>
+
+    <div class="glean-settings__footer">
+        <div class="glean-settings__status" aria-live="polite">
+            {#if draftDirty}{t(i18n, "settings.unsavedChanges")}{:else}{t(i18n, "settings.saved")}{/if}
+        </div>
+        <button class="glean-btn" disabled={saveBusy} onclick={resetDefaults}>
+            {t(i18n, "settings.resetDefaults")}
+        </button>
+        <button class="glean-btn" disabled={saveBusy} onclick={cancel}>
+            {t(i18n, "action.cancel")}
+        </button>
+        <button class="glean-btn glean-btn--pri" aria-busy={saveBusy} disabled={saveBusy || !draftDirty} onclick={() => void save()}>
+            {saveBusy ? t(i18n, "panel.loading") : t(i18n, "action.save")}
+        </button>
+    </div>
 </div>
+
+<style>
+    .glean-settings__usage { max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
+    .glean-settings__ai-toggle { cursor: pointer; }
+    .glean-settings__ai-toggle .glean-set-row__desc { display: block; }
+    .glean-settings__ai-toggle input { width: 18px; height: 18px; flex-shrink: 0; accent-color: var(--b3-theme-primary); }
+    .glean-settings__ai-toggle input:focus-visible { outline: 2px solid var(--b3-theme-primary); outline-offset: 2px; }
+</style>

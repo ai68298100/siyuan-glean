@@ -4,6 +4,7 @@
  * 写入纪律：只在本插件写属性成功后增量更新，或走 rebuild/reconcile 全量/对账重建。
  */
 import type { Plugin } from "siyuan";
+import { normalizeAuthor } from "../domain/author.ts";
 import { inspectCandidate, type CandidateEvidence, type CandidateMissing, type CandidateProbe } from "../domain/candidate-policy.ts";
 import { parseClipAttrs, parseUserTags, type ClipStatus } from "../domain/schema.ts";
 
@@ -18,6 +19,8 @@ export interface ClipIndexEntry {
     status: ClipStatus | "";
     url: string;
     site: string;
+    author?: string;
+    internal?: boolean;
     /** 思源根块 IAL.tags 的只读投影；不是 custom-clip-* 属性。 */
     tags: string[];
     /** 收录入口（custom-clip-src），用于来源筛选。 */
@@ -30,6 +33,7 @@ export interface ClipIndexEntry {
     priority: number;
     rating: number;
     surfaced: string;
+    pinned?: string;
     summary: string;
     /** 单文件快照 assets 路径 */
     snapshot: string;
@@ -48,6 +52,7 @@ export interface CandidateEntry {
     updated: string;
     url: string;
     site: string;
+    author?: string;
     /** 候选根块 IAL.tags 的只读投影。 */
     tags: string[];
     evidence: CandidateEvidence[];
@@ -65,7 +70,7 @@ export function emptyIndex(): GleanIndex {
     return { version: INDEX_VERSION, updatedAt: "", clips: {}, candidates: {} };
 }
 
-export async function loadIndex(plugin: Plugin): Promise<GleanIndex> {
+export async function loadIndex(plugin: Plugin, options: { strict?: boolean } = {}): Promise<GleanIndex> {
     try {
         const raw = await plugin.loadData(INDEX_FILE);
         if (!raw || typeof raw !== "object") return emptyIndex();
@@ -82,6 +87,7 @@ export async function loadIndex(plugin: Plugin): Promise<GleanIndex> {
                 updated: typeof value.updated === "string" ? value.updated : "",
                 url: typeof value.url === "string" ? value.url : "",
                 site: typeof value.site === "string" ? value.site : "",
+                author: normalizeAuthor(value.author) ?? "",
                 tags: Array.isArray(value.tags) ? value.tags.filter((tag): tag is string => typeof tag === "string") : [],
                 evidence: Array.isArray(value.evidence) ? value.evidence as CandidateEvidence[] : [],
                 missing: Array.isArray(value.missing) ? value.missing as CandidateMissing[] : ["status"],
@@ -100,6 +106,8 @@ export async function loadIndex(plugin: Plugin): Promise<GleanIndex> {
                 status: value.status ?? "",
                 url: typeof value.url === "string" ? value.url : "",
                 site: typeof value.site === "string" ? value.site : "",
+                author: normalizeAuthor(value.author) ?? "",
+                internal: value.internal === true,
                 tags: Array.isArray(value.tags) ? value.tags.filter((tag): tag is string => typeof tag === "string") : [],
                 src: typeof value.src === "string" ? value.src : "",
                 time: typeof value.time === "string" ? value.time : "",
@@ -109,6 +117,7 @@ export async function loadIndex(plugin: Plugin): Promise<GleanIndex> {
                 priority: typeof value.priority === "number" ? value.priority : 3,
                 rating: typeof value.rating === "number" ? value.rating : 0,
                 surfaced: typeof value.surfaced === "string" ? value.surfaced : "",
+                pinned: typeof value.pinned === "string" ? value.pinned : "",
                 summary: typeof value.summary === "string" ? value.summary : "",
                 snapshot: typeof value.snapshot === "string" ? value.snapshot : "",
                 aiTags: Array.isArray(value.aiTags) ? value.aiTags.filter((tag): tag is string => typeof tag === "string") : [],
@@ -123,7 +132,8 @@ export async function loadIndex(plugin: Plugin): Promise<GleanIndex> {
             clips,
             candidates,
         };
-    } catch {
+    } catch (error) {
+        if (options.strict) throw error;
         return emptyIndex();
     }
 }
@@ -154,6 +164,8 @@ export function applyAttrsToIndex(
             status: attrs.status ?? "",
             url: attrs.url ?? "",
             site: attrs.site ?? "",
+            author: attrs.author ?? "",
+            internal: attrs.internal === true,
             tags: parseUserTags(ial.tags),
             src: attrs.src ?? "",
             time: attrs.time ?? "",
@@ -163,6 +175,7 @@ export function applyAttrsToIndex(
             priority: attrs.priority ?? 3,
             rating: attrs.rating ?? 0,
             surfaced: attrs.lastSurfaced ?? "",
+            pinned: attrs.pinned ?? "",
             summary: attrs.summary ?? "",
             snapshot: attrs.snapshot ?? "",
             aiTags: attrs.aiTags,
@@ -184,6 +197,7 @@ export function applyAttrsToIndex(
             updated: doc.updated,
             url: probe.url,
             site: probe.site,
+            author: attrs.author ?? "",
             tags: parseUserTags(ial.tags),
             evidence: probe.evidence,
             missing: probe.missing,

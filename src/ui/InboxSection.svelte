@@ -21,6 +21,7 @@ let expanded = $state(false);
 let items = $state<Shorthand[]>([]);
 let busyId = $state("");
 let duplicate = $state<{ item: Shorthand; existingId: string } | null>(null);
+let pendingRemoval = $state<Record<string, string>>({});
 
 async function refresh() {
     try {
@@ -53,8 +54,10 @@ async function migrate(item: Shorthand, allowDuplicate = false) {
             return;
         }
         showMessage(t(i18n, "inbox.migrated"), 3000);
-        items = items.filter((entry) => entry.oId !== item.oId);
-        if (!result.cloudRemoved) {
+        if (result.cloudRemoved) {
+            items = items.filter((entry) => entry.oId !== item.oId);
+        } else {
+            pendingRemoval[item.oId] = result.docId;
             showMessage(t(i18n, "inbox.cloudRemoveFailed"), 3500);
         }
         onMutated();
@@ -66,10 +69,13 @@ async function migrate(item: Shorthand, allowDuplicate = false) {
 }
 
 async function dismiss(item: Shorthand) {
+    if (busyId) return;
     busyId = item.oId;
     try {
         await removeShorthands([item.oId]);
         items = items.filter((entry) => entry.oId !== item.oId);
+        delete pendingRemoval[item.oId];
+        if (duplicate?.item.oId === item.oId) duplicate = null;
     } catch (error) {
         showMessage(String(error).slice(0, 140), 5000);
     } finally {
@@ -79,7 +85,7 @@ async function dismiss(item: Shorthand) {
 </script>
 
 {#if checked && available}
-    <div class="glean-inbox">
+    <div class="glean-inbox" aria-busy={Boolean(busyId)}>
         <button class="glean-inbox__toggle" onclick={() => (expanded = !expanded)}>
             <span>📥 {t(i18n, "inbox.title")}</span>
             <span class="glean-inbox__count">{items.length}</span>
@@ -99,17 +105,23 @@ async function dismiss(item: Shorthand) {
                             {/if}
                         </div>
                         <div class="glean-inbox__ops">
-                            <button class="glean-cap-btn" disabled={busyId === item.oId} onclick={() => void migrate(item)}>
-                                {t(i18n, "inbox.migrate")}
+                            <button class="glean-cap-btn" disabled={Boolean(busyId)} onclick={() => pendingRemoval[item.oId] ? void dismiss(item) : void migrate(item)}>
+                                {t(i18n, pendingRemoval[item.oId] ? "inbox.retryCloudRemoval" : "inbox.migrate")}
                             </button>
-                            <button class="glean-inbox__dismiss" title={t(i18n, "inbox.dismiss")} onclick={() => void dismiss(item)}>✕</button>
+                            <button class="glean-inbox__dismiss" disabled={Boolean(busyId)} title={t(i18n, "inbox.dismiss")} aria-label={t(i18n, "inbox.dismiss")} onclick={() => void dismiss(item)}>✕</button>
                         </div>
                     </div>
+                    {#if pendingRemoval[item.oId]}
+                        <div class="glean-inbox__duplicate" role="status">
+                            <span>{t(i18n, "inbox.cloudRemoveFailed")}</span>
+                            <button class="glean-op-btn" onclick={() => void openTab({ app: facade.pluginInstance.app, doc: { id: pendingRemoval[item.oId] }, keepCursor: false })}>{t(i18n, "inbox.openExisting")}</button>
+                        </div>
+                    {/if}
                     {#if duplicate?.item.oId === item.oId}
                         <div class="glean-inbox__duplicate">
                             <span>{t(i18n, "inbox.duplicate")}</span>
                             <button class="glean-op-btn" onclick={() => duplicate && void openTab({ app: facade.pluginInstance.app, doc: { id: duplicate.existingId }, keepCursor: false })}>{t(i18n, "inbox.openExisting")}</button>
-                            <button class="glean-op-btn" onclick={() => void migrate(item, true)}>{t(i18n, "inbox.keepDuplicate")}</button>
+                            <button class="glean-op-btn" disabled={Boolean(busyId)} onclick={() => void migrate(item, true)}>{t(i18n, "inbox.keepDuplicate")}</button>
                             <button class="glean-op-btn" onclick={() => (duplicate = null)}>{t(i18n, "action.cancel")}</button>
                         </div>
                     {/if}

@@ -14,6 +14,7 @@
     import type { ClipStatus } from "../domain/schema";
     import { recordReadingDone } from "../services/checkin-bridge";
     import ClipStatusActions from "./ClipStatusActions.svelte";
+    import { openFormattingDialog } from "./formatting-dialog";
 
     interface Props {
         facade: GleanFacade;
@@ -195,6 +196,7 @@
                     class="glean-reading-context__source-btn"
                     disabled={measuring}
                     title={t(i18n, "clip.bodyCheckHint")}
+                    aria-label={t(i18n, "clip.bodyCheckHint")}
                     onclick={checkBody}
                 >⌕</button>
             {:else if bodyState === "missing"}
@@ -205,6 +207,7 @@
                     <button
                         class="glean-reading-context__source-btn glean-reading-context__reclip"
                         title={t(i18n, "clip.bodyMissingHint")}
+                        aria-label={t(i18n, "clip.bodyMissingHint")}
                         onclick={recapture}
                     >↻</button>
                 {/if}
@@ -212,6 +215,7 @@
             <button class="glean-reading-context__back" onclick={backToLibrary}>
                 {t(i18n, "reading.backToLibrary")}
             </button>
+            <button class="glean-reading-context__source-btn" onclick={() => openFormattingDialog(facade, context!.id)}>{t(i18n, "formatting.open")}</button>
             <ClipStatusActions
                 i18n={i18n}
                 status={context.status}

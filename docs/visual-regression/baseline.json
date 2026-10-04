@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "source": "design/prototype-v2.html",
+  "updatedOn": "2026-10-03",
+  "viewports": [
+    { "id": "desktop", "width": 1280, "height": 800, "label": "桌面" },
+    { "id": "narrow", "width": 768, "height": 1024, "label": "窄屏" },
+    { "id": "mobile", "width": 390, "height": 844, "label": "移动端" }
+  ],
+  "states": [
+    { "id": "default", "label": "默认", "expectation": "主路径可操作，当前任务和下一步清晰" },
+    { "id": "empty", "label": "空", "expectation": "明确没有内容，并给出低打扰入口" },
+    { "id": "loading", "label": "加载", "expectation": "保留上下文，说明正在处理且不伪造结果" },
+    { "id": "no-results", "label": "无结果", "expectation": "区分无匹配与空库，并提供清除条件入口" },
+    { "id": "failure", "label": "失败", "expectation": "说明影响、保留已有数据并提供重试或降级" },
+    { "id": "partial-success", "label": "部分成功", "expectation": "逐项说明成功、跳过和失败，允许继续处理" },
+    { "id": "success", "label": "成功", "expectation": "反馈真实结果，成功提示可继续或撤销" },
+    { "id": "undo", "label": "撤销", "expectation": "只恢复仍未被外部修改的动作，并说明结果" }
+  ],
+  "cases": [
+    { "id": "desktop--default", "viewport": "desktop", "state": "default", "screenshot": "docs/visual-regression/baseline/desktop--default.png", "recording": "output/visual-regression/desktop--default.webm", "status": "pending-host" },
+    { "id": "desktop--empty", "viewport": "desktop", "state": "empty", "screenshot": "docs/visual-regression/baseline/desktop--empty.png", "recording": "output/visual-regression/desktop--empty.webm", "status": "pending-host" },
+    { "id": "desktop--loading", "viewport": "desktop", "state": "loading", "screenshot": "docs/visual-regression/baseline/desktop--loading.png", "recording": "output/visual-regression/desktop--loading.webm", "status": "pending-host" },
+    { "id": "desktop--no-results", "viewport": "desktop", "state": "no-results", "screenshot": "docs/visual-regression/baseline/desktop--no-results.png", "recording": "output/visual-regression/desktop--no-results.webm", "status": "pending-host" },
+    { "id": "desktop--failure", "viewport": "desktop", "state": "failure", "screenshot": "docs/visual-regression/baseline/desktop--failure.png", "recording": "output/visual-regression/desktop--failure.webm", "status": "pending-host" },
+    { "id": "desktop--partial-success", "viewport": "desktop", "state": "partial-success", "screenshot": "docs/visual-regression/baseline/desktop--partial-success.png", "recording": "output/visual-regression/desktop--partial-success.webm", "status": "pending-host" },
+    { "id": "desktop--success", "viewport": "desktop", "state": "success", "screenshot": "docs/visual-regression/baseline/desktop--success.png", "recording": "output/visual-regression/desktop--success.webm", "status": "pending-host" },
+    { "id": "desktop--undo", "viewport": "desktop", "state": "undo", "screenshot": "docs/visual-regression/baseline/desktop--undo.png", "recording": "output/visual-regression/desktop--undo.webm", "status": "pending-host" },
+    { "id": "narrow--default", "viewport": "narrow", "state": "default", "screenshot": "docs/visual-regression/baseline/narrow--default.png", "recording": "output/visual-regression/narrow--default.webm", "status": "pending-host" },
+    { "id": "narrow--empty", "viewport": "narrow", "state": "empty", "screenshot": "docs/visual-regression/baseline/narrow--empty.png", "recording": "output/visual-regression/narrow--empty.webm", "status": "pending-host" },
+    { "id": "narrow--loading", "viewport": "narrow", "state": "loading", "screenshot": "docs/visual-regression/baseline/narrow--loading.png", "recording": "output/visual-regression/narrow--loading.webm", "status": "pending-host" },
+    { "id": "narrow--no-results", "viewport": "narrow", "state": "no-results", "screenshot": "docs/visual-regression/baseline/narrow--no-results.png", "recording": "output/visual-regression/narrow--no-results.webm", "status": "pending-host" },
+    { "id": "narrow--failure", "viewport": "narrow", "state": "failure", "screenshot": "docs/visual-regression/baseline/narrow--failure.png", "recording": "output/visual-regression/narrow--failure.webm", "status": "pending-host" },
+    { "id": "narrow--partial-success", "viewport": "narrow", "state": "partial-success", "screenshot": "docs/visual-regression/baseline/narrow--partial-success.png", "recording": "output/visual-regression/narrow--partial-success.webm", "status": "pending-host" },
+    { "id": "narrow--success", "viewport": "narrow", "state": "success", "screenshot": "docs/visual-regression/baseline/narrow--success.png", "recording": "output/visual-regression/narrow--success.webm", "status": "pending-host" },
+    { "id": "narrow--undo", "viewport": "narrow", "state": "undo", "screenshot": "docs/visual-regression/baseline/narrow--undo.png", "recording": "output/visual-regression/narrow--undo.webm", "status": "pending-host" },
+    { "id": "mobile--default", "viewport": "mobile", "state": "default", "screenshot": "docs/visual-regression/baseline/mobile--default.png", "recording": "output/visual-regression/mobile--default.webm", "status": "pending-host" },
+    { "id": "mobile--empty", "viewport": "mobile", "state": "empty", "screenshot": "docs/visual-regression/baseline/mobile--empty.png", "recording": "output/visual-regression/mobile--empty.webm", "status": "pending-host" },
+    { "id": "mobile--loading", "viewport": "mobile", "state": "loading", "screenshot": "docs/visual-regression/baseline/mobile--loading.png", "recording": "output/visual-regression/mobile--loading.webm", "status": "pending-host" },
+    { "id": "mobile--no-results", "viewport": "mobile", "state": "no-results", "screenshot": "docs/visual-regression/baseline/mobile--no-results.png", "recording": "output/visual-regression/mobile--no-results.webm", "status": "pending-host" },
+    { "id": "mobile--failure", "viewport": "mobile", "state": "failure", "screenshot": "docs/visual-regression/baseline/mobile--failure.png", "recording": "output/visual-regression/mobile--failure.webm", "status": "pending-host" },
+    { "id": "mobile--partial-success", "viewport": "mobile", "state": "partial-success", "screenshot": "docs/visual-regression/baseline/mobile--partial-success.png", "recording": "output/visual-regression/mobile--partial-success.webm", "status": "pending-host" },
+    { "id": "mobile--success", "viewport": "mobile", "state": "success", "screenshot": "docs/visual-regression/baseline/mobile--success.png", "recording": "output/visual-regression/mobile--success.webm", "status": "pending-host" },
+    { "id": "mobile--undo", "viewport": "mobile", "state": "undo", "screenshot": "docs/visual-regression/baseline/mobile--undo.png", "recording": "output/visual-regression/mobile--undo.webm", "status": "pending-host" }
+  ]
+}
+

@@ -4,10 +4,12 @@
 import { showMessage } from "siyuan";
 import type { GleanFacade } from "../types";
 import { t } from "../libs/i18n";
-import { computeDailyFromIndex, actOnSurface } from "../services/resurface-service";
+import { actOnSurface, computeDailyFromIndex, setSurfacePinned, undoSurfaceAction, type SurfaceAction, type SurfaceUndoToken } from "../services/resurface-service";
 import type { GleanIndex } from "../services/index-store";
-import { type SurfacePick, type SurfaceReason } from "../domain/resurface";
+import { todayStamp, type SurfacePick, type SurfaceReason } from "../domain/resurface";
 import { hasSourceAction, openTargetForCarrier, resolveCarrier, sourceUrlForCarrier } from "../domain/carrier";
+import { isActivationKey } from "../domain/keyboard";
+import { clampSurfaceSwipe, resolveSurfaceSwipe, type SurfaceSwipeAction } from "../domain/surface-swipe";
 
 interface Props {
     facade: GleanFacade;
@@ -24,10 +26,25 @@ const daily = $derived(computeDailyFromIndex(index, facade.settings));
 const picks = $derived(daily.picks);
 const recentCount = $derived(daily.recentCount);
 let actingId = $state("");
+let undoingId = $state("");
+let undoNotice = $state<{ id: string; title: string; action: SurfaceAction; token: SurfaceUndoToken } | null>(null);
+let suppressedClickId = $state("");
+let swipeState = $state<{
+    id: string;
+    pointerId: number;
+    startX: number;
+    startY: number;
+    offsetX: number;
+    locked: boolean;
+} | null>(null);
 /** UX 审计 #10：本会话"开始阅读"过的文章回执（纯视图状态，不写属性）。 */
 let startedToday = $state<Array<{ id: string; title: string }>>([]);
 
 function openDoc(docId: string) {
+    if (suppressedClickId === docId) {
+        suppressedClickId = "";
+        return;
+    }
     facade.openReadingDocument(docId);
 }
 
@@ -53,11 +70,36 @@ function carrierLabel(pick: SurfacePick): string {
     return t(i18n, `clip.type.${resolveCarrier(pick.item.contentType)}`);
 }
 
-async function act(pick: SurfacePick, action: "read" | "later" | "archive") {
-    if (actingId) return;
+function isPinnedToday(pick: SurfacePick): boolean {
+    return pick.item.pinned === todayStamp();
+}
+
+async function togglePin(pick: SurfacePick): Promise<void> {
+    if (actingId || undoingId) return;
     actingId = pick.item.id;
     try {
-        await actOnSurface(facade.pluginInstance, pick.item.id, action);
+        await setSurfacePinned(facade.pluginInstance, pick.item.id, !isPinnedToday(pick));
+        onMutated();
+    } catch (error) {
+        showMessage(String(error).slice(0, 120), 4000);
+    } finally {
+        actingId = "";
+    }
+}
+
+async function act(pick: SurfacePick, action: SurfaceAction) {
+    if (actingId || undoingId) return;
+    actingId = pick.item.id;
+    try {
+        const token = await actOnSurface(facade.pluginInstance, pick.item.id, action);
+        if (facade.isMobile) {
+            undoNotice = {
+                id: pick.item.id,
+                title: pick.item.title || t(i18n, "panel.untitled"),
+                action,
+                token,
+            };
+        }
         if (action === "read") {
             startedToday = [
                 ...startedToday.filter((item) => item.id !== pick.item.id),
@@ -71,6 +113,97 @@ async function act(pick: SurfacePick, action: "read" | "later" | "archive") {
     } finally {
         actingId = "";
     }
+}
+
+function swipeOffsetFor(docId: string): number {
+    return swipeState?.id === docId ? swipeState.offsetX : 0;
+}
+
+function isSwipeBlockedTarget(event: PointerEvent): boolean {
+    const target = event.target;
+    return target instanceof HTMLElement && Boolean(target.closest("button,a,input,select,textarea"));
+}
+
+function beginSwipe(pick: SurfacePick, event: PointerEvent): void {
+    if (!facade.isMobile || actingId || undoingId || isSwipeBlockedTarget(event)) return;
+    swipeState = {
+        id: pick.item.id,
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        offsetX: 0,
+        locked: false,
+    };
+}
+
+function moveSwipe(pick: SurfacePick, event: PointerEvent): void {
+    if (!swipeState || swipeState.id !== pick.item.id || swipeState.pointerId !== event.pointerId) return;
+    const deltaX = event.clientX - swipeState.startX;
+    const deltaY = event.clientY - swipeState.startY;
+    if (!swipeState.locked) {
+        if (Math.abs(deltaY) > 8 && Math.abs(deltaY) > Math.abs(deltaX)) {
+            swipeState = null;
+            return;
+        }
+        if (Math.abs(deltaX) < 8) return;
+        swipeState = { ...swipeState, locked: true };
+        try {
+            (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+        } catch {
+            return;
+        }
+    }
+    event.preventDefault();
+    swipeState = { ...swipeState, offsetX: clampSurfaceSwipe(deltaX) };
+}
+
+function finishSwipe(pick: SurfacePick, event: PointerEvent): void {
+    if (!swipeState || swipeState.id !== pick.item.id || swipeState.pointerId !== event.pointerId) return;
+    const current = swipeState;
+    const deltaX = event.clientX - current.startX;
+    const deltaY = event.clientY - current.startY;
+    const action: SurfaceSwipeAction | null = resolveSurfaceSwipe(deltaX, deltaY);
+    if (!action) {
+        swipeState = null;
+        return;
+    }
+    event.preventDefault();
+    suppressedClickId = pick.item.id;
+    swipeState = { ...current, offsetX: action === "later" ? 132 : -132 };
+    window.setTimeout(() => {
+        if (swipeState?.id === pick.item.id) swipeState = null;
+        void act(pick, action);
+    }, 120);
+    window.setTimeout(() => {
+        if (suppressedClickId === pick.item.id) suppressedClickId = "";
+    }, 360);
+}
+
+function cancelSwipe(pick: SurfacePick, event: PointerEvent): void {
+    if (swipeState?.id === pick.item.id && swipeState.pointerId === event.pointerId) swipeState = null;
+}
+
+function actionLabel(action: SurfaceAction): string {
+    return t(i18n, action === "read" ? "resurface.read" : action === "archive" ? "resurface.archive" : "resurface.later");
+}
+
+async function undoLastAction(): Promise<void> {
+    const notice = undoNotice;
+    if (!notice || actingId || undoingId) return;
+    undoingId = notice.id;
+    try {
+        await undoSurfaceAction(facade.pluginInstance, notice.id, notice.token);
+        undoNotice = null;
+        onMutated();
+    } catch {
+        showMessage(t(i18n, "resurface.undoUnavailable"), 4000);
+    } finally {
+        undoingId = "";
+    }
+}
+
+function dismissUndo(): void {
+    if (!undoingId) undoNotice = null;
 }
 
 const dateLabel = $derived.by(() => {
@@ -107,12 +240,26 @@ function reasonText(reason: SurfaceReason): string {
                 </div>
             </div>
             <div class="glean-head-actions">
-                <button class="glean-icon-btn" title={t(i18n, "action.refresh")} onclick={() => onMutated()}>
+                <button class="glean-icon-btn" title={t(i18n, "action.refresh")} aria-label={t(i18n, "action.refresh")} onclick={() => onMutated()}>
                     <svg><use href="#iconGleanRefresh" /></svg>
                 </button>
             </div>
         </div>
     </header>
+
+    {#if facade.isMobile && picks.length > 0}
+        <div class="glean-surf-swipe-hint" role="note">{t(i18n, "resurface.swipeHint")}</div>
+    {/if}
+
+    {#if undoNotice}
+        <div class="glean-surf-undo" role="status" aria-live="polite">
+            <span class="glean-surf-undo__text">{t(i18n, "resurface.actionApplied", { action: actionLabel(undoNotice.action) })} · {undoNotice.title}</span>
+            <button class="glean-surf-undo__button" disabled={undoingId === undoNotice.id} onclick={() => void undoLastAction()}>
+                {undoingId === undoNotice.id ? t(i18n, "resurface.undoing") : t(i18n, "resurface.undo")}
+            </button>
+            <button class="glean-surf-undo__dismiss" aria-label={t(i18n, "resurface.dismissUndo")} onclick={dismissUndo}>×</button>
+        </div>
+    {/if}
 
     {#if picks.length === 0 && facade.settings.anchorNotebooks.length === 0}
         <div class="glean-empty">
@@ -150,14 +297,37 @@ function reasonText(reason: SurfaceReason): string {
         {/if}
         <div class="glean-surf">
             {#each picks as pick, index (pick.item.id)}
-                <article class="glean-surf-card" style="--glean-surf-index: {index}">
+                <div class="glean-surf-swipe">
+                    <div class="glean-surf-swipe__action glean-surf-swipe__action--archive" aria-hidden="true">← {t(i18n, "resurface.swipeArchive")}</div>
+                    <div class="glean-surf-swipe__action glean-surf-swipe__action--later" aria-hidden="true">{t(i18n, "resurface.swipeLater")} →</div>
+                    <article
+                        class:glean-surf-card--swiping={swipeState?.id === pick.item.id}
+                        class="glean-surf-card"
+                        style="--glean-surf-index: {index}; --glean-swipe-offset: {swipeOffsetFor(pick.item.id)}px"
+                        onpointerdown={(event) => beginSwipe(pick, event)}
+                        onpointermove={(event) => moveSwipe(pick, event)}
+                        onpointerup={(event) => finishSwipe(pick, event)}
+                        onpointercancel={(event) => cancelSwipe(pick, event)}
+                    >
                     <div class="glean-surf__tag">✨ {t(i18n, "resurface.cardTag", { n: index + 1 })}</div>
-                    <div class="glean-surf__title" onclick={() => openDoc(pick.item.id)} role="button" tabindex="0">
+                    <div
+                        class="glean-surf__title"
+                        onclick={() => openDoc(pick.item.id)}
+                        onkeydown={(event) => {
+                            if (isActivationKey(event.key)) {
+                                event.preventDefault();
+                                openDoc(pick.item.id);
+                            }
+                        }}
+                        role="button"
+                        tabindex="0"
+                    >
                         {pick.item.title || t(i18n, "panel.untitled")}
                     </div>
                     <div class="glean-surf__summary">{summaryText(pick)}</div>
                     <div class="glean-surf__meta">
                         <span class={`glean-carrier-badge glean-carrier-badge--${resolveCarrier(pick.item.contentType)}`}>{carrierLabel(pick)}</span>
+                        {#if isPinnedToday(pick)}<span class="glean-surf__pinned">📌 {t(i18n, "resurface.pinnedToday")}</span>{/if}
                         {#if pick.item.aiTags.length > 0}
                             <span>#{pick.item.aiTags.slice(0, 3).join(" #")}</span>
                         {/if}
@@ -171,6 +341,9 @@ function reasonText(reason: SurfaceReason): string {
                         </div>
                     {/if}
                     <div class="glean-surf__acts">
+                        <button class="glean-surf-act" aria-pressed={isPinnedToday(pick)} disabled={actingId === pick.item.id} onclick={() => void togglePin(pick)}>
+                            📌 {t(i18n, isPinnedToday(pick) ? "resurface.unpinToday" : "resurface.pinToday")}
+                        </button>
                         {#if hasSourceAction(pick.item.contentType, pick.item.url)}
                             <button class="glean-surf-act" disabled={actingId === pick.item.id} onclick={() => openSource(pick)}>
                                 ↗ {t(i18n, "clip.openSource")}
@@ -188,7 +361,8 @@ function reasonText(reason: SurfaceReason): string {
                             ✓ {t(i18n, "resurface.read")}
                         </button>
                     </div>
-                </article>
+                    </article>
+                </div>
             {/each}
             <div class="glean-surf-foot">{t(i18n, "resurface.calmNote")}</div>
         </div>

@@ -10,7 +10,7 @@ export interface GleanFacade {
     settings: GleanSettings;
     isMobile: boolean;
     /** 保存设置并广播（面板读 facade.settings 渲染） */
-    updateSettings(patch: Partial<GleanSettings>): Promise<void>;
+    updateSettings(patch: Partial<GleanSettings>, options?: { expected?: GleanSettings }): Promise<void>;
     /** 打开迁移器弹窗 */
     openMigrate(): void;
     /** 打开设置弹窗 */
@@ -18,7 +18,7 @@ export interface GleanFacade {
     /** 打开迁移导入弹窗 */
     openImport(): void;
     /** 工作台弹出为独立浮窗 */
-    openWorkbenchPopup(): void;
+    openWorkbenchPopup(initialPreviewId?: string): void;
     /** 面板数据变更后的回调（如迁移完成后刷新） */
     notifyDataChanged(): void;
     /** 当前活动文档（右键/命令收录目标、高亮侧栏来源），无则空串 */

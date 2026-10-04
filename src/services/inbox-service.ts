@@ -50,7 +50,7 @@ export async function migrateShorthand(
     const folder = options.folder?.trim() || "收集箱";
     const title = shorthand.shorthandTitle || shorthand.shorthandURL || "未命名收集";
     if (shorthand.shorthandURL && !options.allowDuplicate) {
-        const existing = await findClipUrlConflict(shorthand.shorthandURL);
+        const existing = await findClipUrlConflict(shorthand.shorthandURL, undefined, plugin);
         if (existing) return { docId: existing.id, cloudRemoved: false, duplicate: true, existing };
     }
     const markdownParts: string[] = [`# ${title}`];
@@ -78,6 +78,7 @@ export async function migrateShorthand(
         // cloud item so the user can choose the existing document or retry.
         return { docId: captured.conflict.id, cloudRemoved: false, duplicate: true, existing: captured.conflict };
     }
+    if (!captured.captured) throw new Error("收集箱文档未完成收录");
     let cloudRemoved = false;
     if (shorthand.oId) {
         try {

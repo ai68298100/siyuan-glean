@@ -8,6 +8,8 @@ The shortest loop is: **find source evidence → preview candidates → confirm 
 
 [中文说明](README.md)
 
+The [capability matrix](docs/CAPABILITY-MATRIX.md) records implementation, isolated verification, real-environment status, prerequisites, and fallbacks. The [terminology table](docs/TERMINOLOGY.md) keeps Chinese and English UI terms aligned.
+
 ## What problem it solves
 
 The official SiYuan Web Clipper is convenient, but the source URL and time are often template text in the document body. Search, databases, and queries cannot manage those clippings as articles. Lv Glean adds a `custom-clip-*` document-attribute schema and a rebuildable index for reading views.
@@ -16,29 +18,36 @@ The scan range only says where to look. A document becomes a candidate only when
 
 ## Current capabilities
 
+Desktop workbench lists can preview articles and candidates in place without changing reading status. Check source evidence, confirm or exclude a candidate, correct its URL, change status, or quote a selection while staying in the list. Resize with the divider or arrow keys; the preview toggle controls list clicks. Narrow docks open the original document, while mobile uses a full-screen preview. Three common filters stay visible, more filters share a panel, and applied conditions can be removed individually. Less frequent row actions live under “More actions”. Real host and mobile verification remains in the [reader acceptance matrix](docs/READER-ACCEPTANCE.md).
+
 ### Capture, migration, and library
 
 - **Five states**: inbox, later, reading, done, and archived.
-- **One capture rule**: candidate review, the editor context menu, the command palette, the SiYuan inbox, and external imports use the same attribute-writing path.
+- **One capture rule**: candidate review, the editor context menu, the command palette, the SiYuan inbox, and external imports use the same attribute-writing path; real service prerequisites for inbox and imports are listed in the capability matrix.
 - **Preview-first migration**: a dry-run report comes before batched backfill. Progress can be saved, paused, and resumed; existing URL, status, priority, and rating values are protected.
+- **Source authors**: manually edit an author, publication, or channel from row actions, article previews, and the reader sidebar. Existing names are protected, conflicts keep the draft, and clearing requires saving explicitly. Click an author for all five statuses; filters, saved views, and CSV include authors. Reviews offer site-to-author details and expandable Top8 distributions with missing authors counted separately. The official extension currently exposes no author template variable; [research](docs/CLIPPER-AUTHOR-RESEARCH.md) records the boundary. AI suggestions and real-library backfill remain pending.
 - **Candidate decisions**: add or correct a source URL, explicitly capture as a local document, or exclude a false positive. Candidates do not count toward the inbox, resurfacing, or reading statistics.
 - **Content carriers**: panel cards label full-text clippings, link-only items, and explicitly selected local documents. Unknown word count, duration, or time provenance stays unknown. A shared carrier badge and navigation policy is in place: full-text opens the SiYuan document first, link-only items open a valid source URL, and local/unknown items show no web action. Mobile acceptance remains in B-0002.
-- **Reading views**: Dock, Workbench, and Kanban use the same document-attribute state. Title/site/user-tag/source/time-provenance/carrier filters, sorting, batch status changes, snapshots, and index rebuild are available. Visual consistency across canvases and mobile actions remain under B-0002.
+- **Reading views**: Dock, Workbench, and Kanban use the same document-attribute state. Title/site/user-tag/source/time-provenance/carrier filters, sorting, batch status changes, snapshots, and index rebuild are available. Snapshots require SiYuan export and asset writes; a failure keeps the document intact and can be retried. Visual consistency across canvases and mobile actions remain under B-0002.
 
 ### Reading and resurfacing
 
+- **Improve formatting**: the reading context and reader tab offer shorter visible URLs, fewer blank lines, optional promotional/image cleanup, and encoding warnings. Review the original alongside the preview and save a separate reading draft with source links. AI formatting is off by default and requires a configured channel and manual opt-in; it produces a layout plan using the shared daily quota. The current request sends article text only: it does not send image bytes or external image URLs, and image candidates are structural evidence rather than visual judgments. Real-host rendering and model quality still need acceptance; see [formatting notes](docs/FORMATTING.md).
+
 - **Start reading** sets `reading` and opens the document or source according to its carrier. Full-text clippings also show a low-distraction context beside the native editor with title, carrier, source, status, and actions. A link-only item without a source URL is clearly reported rather than presented as opened.
-- **Mark as done** is the only action that sets `done`; the optional check-in bridge also fires on this explicit action.
+- **Mark as done** is the only action that sets `done`; the optional check-in bridge requires user opt-in, Lv Checkin enabled, and a selected target. A bridge failure never blocks the done state.
 - **Reader tab (experimental, off by default)**: when enabled in settings, Start reading opens the SiYuan editor embedded in a plugin tab — body on the left (read-only preview by default, explicit switch to edit, changes save straight to SiYuan) and a companion sidebar on the right with status actions, priority/rating, body diagnostics, source and snapshot. All data stays in the SiYuan kernel; the body is never copied.
 - **Today's gleaning** selects a small set from unfinished items with a factual "why it appeared" note (idle days, your priority, source, an unread topic). Start reading, Skip for today, and Archive are idempotent and only change that day's display; picks project from the reconciled index.
 - **Queue and stale-item hints** show when the inbox is over quota; stale items expand into a checklist first, and only the checked ones are archived, with the real success count reported.
 
 ### Optional AI and integrations
 
-- **AI enrichment** can be manual or explicitly enabled for automatic use: one-line summaries, AI tags, and semantic similarity hints. The default mode is manual and does not spend tokens automatically. AI tags are separate from user tags.
+- **AI enrichment** can be manual or explicitly enabled for automatic use: one-line summaries, AI tags, and semantic similarity hints. The default mode is manual and does not spend tokens automatically. A configured SiYuan model or Glean-specific channel is required; missing models, quota limits, and call failures skip enrichment and leave a log. AI tags are separate from user tags.
 - **Reading assistance** exposes SiYuan AI actions for summaries, key points, and counterarguments. Related articles, translation, cost hints, and failure behavior remain under the T-1718 acceptance work.
-- **Stats and reports** include article, word, site, and tag statistics plus Markdown weekly reports. "Done this week" counts only articles with a trusted completion time (explicit mark-done or a read time from the import file); legacy entries without one are never fabricated. Resurface and stale-archive now project from a reconciled index (T-1710).
-- **Optional integrations** have code entry points for an attribute-view library, the SiYuan inbox, Pocket/Omnivore/wallabag imports, HTML snapshots of clipped documents, quote cards, agent tools, and the Lv Checkin bridge. Real exports, devices, and external-service checks are tracked in [docs/BLOCKERS.md](docs/BLOCKERS.md).
+- **Library highlights**: switch between the current document and confirmed library articles; search quotes by text, site, user tag, or AI tag. Select, copy, export CSV, or review a Markdown draft with source-block links. Source changes or deletion block stale exports; see [highlight notes](docs/HIGHLIGHTS.md). Real-host interaction still needs acceptance.
+- **Reading review**: week/month/year periods, a yearly completion heatmap, separate user/AI tag counts, CSV, and Markdown reports with preview and confirmation. Archived articles retain trusted completion facts; unknown dates stay separate and candidates are only a current snapshot. See [counting rules](docs/READING-REVIEW.md). Real-host rendering still needs acceptance.
+- **External bridge v1** exposes confirmed article attributes to other plugins. Status writes are off by default and limited to the five reading states; old references expire on unload. See [bridge protocol](docs/BRIDGE.md). Real plugin integration still needs acceptance.
+- **Optional integrations** have code entry points for an attribute-view library, the SiYuan inbox, Pocket/Omnivore/wallabag imports, HTML snapshots of clipped documents, quote cards, agent tools, and the Lv Checkin bridge. Prerequisites, isolated evidence, fallbacks, and real acceptance status are tracked in the [capability matrix](docs/CAPABILITY-MATRIX.md) and [docs/BLOCKERS.md](docs/BLOCKERS.md).
 
 ## First run
 
@@ -53,10 +62,11 @@ New items can also be confirmed from the candidate cards or added from the docum
 ## Data, privacy, and boundaries
 
 - Document attributes are the source of truth for article state and metadata. Plugin `saveData` holds derived indexes, migration progress, preferences, and AI usage/logs; none is the article-state source of truth.
-- Existing user URL, status, priority, and rating values are protected. A status is overwritten only by an explicit user action.
-- AI uses your configured SiYuan model by default, or an optional Glean-specific OpenAI-compatible channel. The plugin ships no API key and requires no account subscription. When the custom channel is enabled, article text is sent in prompts to the endpoint you provide; follow that service's privacy policy. AI failure does not block reading.
+- Existing user URL, status, priority, rating, and author values are protected from automatic writes. Explicit status and author edits may replace their respective fields.
+- AI uses your configured SiYuan model by default, or an optional Glean-specific OpenAI-compatible channel. The plugin ships no API key and requires no account subscription. When the custom channel is enabled, article text is sent in prompts to the endpoint you provide; follow that service's privacy policy. Missing models, browser CORS limits, and AI failures skip enrichment, and reading remains available.
+- AI formatting currently sends article text only. It does not read, download, or send image bytes or treat image URLs as visual input; visual image cleanup remains a separate capability that requires channel support, resource authorization, and real-model acceptance.
 - The plugin does not provide RSS subscriptions, cloud accounts or sync, social collections, paywalls, or automatic reading. It now uses Folo/RSS-inspired unified timeline, carrier labels, and source guidance; switchable AI reading assistance is being verified item by item under T-1718. See [docs/RESEARCH-folo.md](docs/RESEARCH-folo.md).
-- SiYuan **v3.8.5+** is supported by the manifest. Desktop, mobile, and browser flows are validated separately. Official-extension clipping, real AI, inbox, external imports, and device UI status are listed in [docs/BLOCKERS.md](docs/BLOCKERS.md).
+- The manifest declares SiYuan **v3.8.5+**, but desktop, mobile, and browser UI still require separate real-environment acceptance. Official-extension clipping, real AI, inbox, external imports, and device UI status are listed in the [capability matrix](docs/CAPABILITY-MATRIX.md) and [docs/BLOCKERS.md](docs/BLOCKERS.md).
 
 Code entry points do not mean every platform path has passed acceptance. Full isolated E2E, author desktop review, mobile/browser smoke checks, and the release gate are tracked by T-1713; the README does not claim those checks are complete.
 

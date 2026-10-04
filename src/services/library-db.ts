@@ -1,8 +1,6 @@
 /**
  * 挂库向导编排（T-1200）：一键创建/找回「读库数据库」并把收录文档挂入。
  * 幂等可续建（照搬人脉 D-0019 语义）：按标题找回宿主文档 → 找回库块 → 对账补绑 → 补字段。
- * 双向语义（M2 v1）：看板拖卡改状态 = 内核侧写库值；插件内改状态 = 写文档属性 + 看板值由用户手动刷新。
- * 看板列即状态机五态（reading 视图列用 select 字段）。
  */
 import type { Plugin } from "siyuan";
 import { createDocWithMd } from "../api/client";
@@ -17,13 +15,12 @@ import {
     setCellSelect,
     type AvRef,
 } from "../api/av";
-import { loadIndex } from "./index-store";
-import { writeClip } from "./clip-store";
+import { readClipAttributeSnapshot, reconcileIndex, writeClip } from "./clip-store";
+import { parseClipAttrs } from "../domain/schema";
 import type { GleanSettings } from "./settings";
 
 export const LIBRARY_DOC_TITLE = "读库数据库";
 
-/** 库字段稳定键 → 列名（字段映射的稳定锚点，用户改列名通过 fieldMap 记忆） */
 const LIBRARY_FIELDS: Array<{ key: string; name: string; type: "select" | "number" | "url" }> = [
     { key: "status", name: "状态", type: "select" },
     { key: "words", name: "字数", type: "number" },
@@ -62,7 +59,8 @@ export async function ensureLibraryAnchor(settings: GleanSettings, plugin: Plugi
 /** 对账补字段：按列名找回 keyID，缺的补建（返回 fieldMap）。 */
 async function ensureFields(av: AvRef): Promise<Record<string, string>> {
     const rendered = await renderWithRetry(av.avId, av.dbBlockId, 3);
-    const columns = rendered?.view?.columns ?? [];
+    const columns = rendered?.view?.columns;
+    if (!Array.isArray(columns)) throw new Error("Database columns unavailable");
     const fieldMap: Record<string, string> = {};
     let previousKeyId = columns.length > 0 ? columns[columns.length - 1].id : "";
     for (const field of LIBRARY_FIELDS) {
@@ -92,13 +90,24 @@ export interface BindResult {
     boundDocIds: string[];
     /** 库内已有的绑定文档 ID */
     existingDocIds: string[];
+    synced: number;
+    failures: Array<{ docId: string; reason: "unbound" | "unavailable" | "changed" | "write" | "readback" }>;
 }
 
 /** 把索引里全部收录文档挂入库（跳过已绑定的），并把状态列对齐。 */
+const bindingPlugins = new WeakSet<Plugin>();
+
 export async function bindAllClipsToLibrary(plugin: Plugin, settings: GleanSettings): Promise<BindResult> {
+    if (bindingPlugins.has(plugin)) throw new Error("Database refresh already running");
+    bindingPlugins.add(plugin);
+    try { return await bindClipsToLibrary(plugin, settings); }
+    finally { bindingPlugins.delete(plugin); }
+}
+
+async function bindClipsToLibrary(plugin: Plugin, settings: GleanSettings): Promise<BindResult> {
+    const index = await reconcileIndex(plugin, settings);
+    const clips = Object.values(index.clips).filter((clip) => clip.status && !clip.internal);
     const anchor = await ensureLibraryAnchor(settings, plugin);
-    const index = await loadIndex(plugin);
-    const clips = Object.values(index.clips);
 
     const rendered = await renderWithRetry(anchor.av.avId, anchor.av.dbBlockId, 3);
     const rows = rendered?.view?.rows ?? [];
@@ -108,34 +117,62 @@ export async function bindAllClipsToLibrary(plugin: Plugin, settings: GleanSetti
         .filter((id): id is string => Boolean(id));
 
     const missing = clips.filter((clip) => !existingDocIds.includes(clip.id));
+    const bindingErrors = new Set<string>();
     if (missing.length > 0) {
         // 分批 ≤50 绑定（与迁移器同款纪律）
         for (let i = 0; i < missing.length; i += 50) {
             const batch = missing.slice(i, i + 50);
-            await bindDocsAsRows(
-                anchor.av.avId,
-                anchor.av.dbBlockId,
-                batch.map((clip) => clip.id),
-                batch.map((clip) => clip.title || "无标题")
-            );
+            try {
+                await bindDocsAsRows(
+                    anchor.av.avId,
+                    anchor.av.dbBlockId,
+                    batch.map((clip) => clip.id),
+                    batch.map((clip) => clip.title || "无标题")
+                );
+            } catch { batch.forEach((clip) => bindingErrors.add(clip.id)); }
         }
     }
 
     // 状态列对齐：换算 itemID 后把 select 列补到与文档属性一致
     const allDocIds = clips.map((clip) => clip.id);
     const idMap = await mapBoundDocIds(anchor.av.avId, allDocIds);
-    let synced = 0;
+    const failures: BindResult["failures"] = [];
+    const attempted: Array<{ docId: string; itemId: string; status: string; writeFailed: boolean }> = [];
     for (const clip of clips) {
         const itemId = idMap[clip.id];
-        const status = clip.status;
-        if (!itemId || !status) continue;
+        if (!itemId) { failures.push({ docId: clip.id, reason: bindingErrors.has(clip.id) ? "write" : "unbound" }); continue; }
+        let status: string;
+        try {
+            const current = parseClipAttrs((await readClipAttributeSnapshot(clip.id)).attrs);
+            if (!current.status || current.internal) { failures.push({ docId: clip.id, reason: "changed" }); continue; }
+            status = current.status;
+        } catch { failures.push({ docId: clip.id, reason: "unavailable" }); continue; }
+        let writeFailed = false;
         try {
             await setCellSelect(anchor.av.avId, anchor.fieldMap.status, itemId, status);
-            synced += 1;
-        } catch {
-            // 单元格写失败不阻断（可能被用户删列）
-        }
+        } catch { writeFailed = true; }
+        attempted.push({ docId: clip.id, itemId, status, writeFailed });
     }
 
-    return { bound: missing.length, boundDocIds: missing.map((clip) => clip.id), existingDocIds };
+    let observed: Awaited<ReturnType<typeof renderView>> | null = null;
+    try {
+        for (let attempt = 0; attempt < 3; attempt += 1) {
+            observed = await renderView(anchor.av.avId, anchor.av.dbBlockId, false);
+            if (attempted.every((entry) => observed?.view?.rows?.some((row) => row.id === entry.itemId
+                && row.cells.some((cell) => cell.value.keyID === anchor.fieldMap.status && cell.value.mSelect?.[0]?.content === entry.status)))) break;
+            if (attempt < 2) await new Promise((resolve) => setTimeout(resolve, 200));
+        }
+    } catch { observed = null; }
+    let synced = 0;
+    for (const entry of attempted) {
+        try {
+            const current = parseClipAttrs((await readClipAttributeSnapshot(entry.docId)).attrs);
+            if (current.status !== entry.status || current.internal) { failures.push({ docId: entry.docId, reason: "changed" }); continue; }
+        } catch { failures.push({ docId: entry.docId, reason: "unavailable" }); continue; }
+        const value = observed?.view?.rows?.find((row) => row.id === entry.itemId)?.cells.find((cell) => cell.value.keyID === anchor.fieldMap.status)?.value;
+        if (value?.mSelect?.[0]?.content === entry.status) synced += 1;
+        else failures.push({ docId: entry.docId, reason: entry.writeFailed ? "write" : "readback" });
+    }
+    const boundDocIds = missing.filter((clip) => Boolean(idMap[clip.id])).map((clip) => clip.id);
+    return { bound: boundDocIds.length, boundDocIds, existingDocIds, synced, failures };
 }

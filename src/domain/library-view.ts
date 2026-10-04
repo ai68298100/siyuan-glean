@@ -20,6 +20,7 @@ export interface LibraryItem {
     status?: ClipStatus;
     url?: string;
     site?: string;
+    author?: string;
     tags?: string[];
     aiTags?: string[];
     src?: ClipSource | string;
@@ -36,6 +37,7 @@ export interface LibraryFilter {
     /** `all` is used by the kanban, whose columns apply status afterwards. */
     status?: ClipStatus | "all";
     site?: string;
+    author?: string;
     tag?: string;
     /** AI 标签分面（T-1729）：与用户 tag 分开筛选，UI 需带 AI 来源标记。 */
     aiTag?: string;
@@ -56,6 +58,7 @@ export interface LibraryFacet {
 
 export interface LibraryFacets {
     sites: LibraryFacet[];
+    authors: LibraryFacet[];
     tags: LibraryFacet[];
     /** AI 标签分面（T-1729）：独立于用户 tags，UI 显示 AI 来源标记。 */
     aiTags: LibraryFacet[];
@@ -106,6 +109,7 @@ function searchableText(item: LibraryItem): string {
         item.title,
         item.hpath,
         item.site,
+        item.author,
         item.url,
         ...(item.tags ?? []),
         ...(item.aiTags ?? []),
@@ -128,6 +132,7 @@ export function matchesLibraryFilter(item: LibraryItem, filter: LibraryFilter = 
         }
     }
     if (!matchesExact(item.site, filter.site)) return false;
+    if (!matchesExact(item.author, filter.author)) return false;
     if (filter.tag && !hasTag(item, filter.tag)) return false;
     if (filter.aiTag && !hasAiTag(item, filter.aiTag)) return false;
     if (!matchesExact(item.src, filter.src)) return false;
@@ -184,6 +189,7 @@ function facetsFromMap(map: Map<string, LibraryFacet>): LibraryFacet[] {
 /** 从同一条目集合生成筛选控件的真实分面计数。 */
 export function libraryFacets(items: readonly LibraryItem[]): LibraryFacets {
     const sites = new Map<string, LibraryFacet>();
+    const authors = new Map<string, LibraryFacet>();
     const tags = new Map<string, LibraryFacet>();
     const aiTags = new Map<string, LibraryFacet>();
     const sources = new Map<string, LibraryFacet>();
@@ -192,6 +198,7 @@ export function libraryFacets(items: readonly LibraryItem[]): LibraryFacets {
     for (const item of items) {
         if (item.kind !== "clip") continue;
         addFacet(sites, item.site);
+        addFacet(authors, item.author);
         for (const tag of item.tags ?? []) addFacet(tags, tag);
         for (const tag of item.aiTags ?? []) addFacet(aiTags, tag);
         addFacet(sources, item.src);
@@ -200,6 +207,7 @@ export function libraryFacets(items: readonly LibraryItem[]): LibraryFacets {
     }
     return {
         sites: facetsFromMap(sites),
+        authors: facetsFromMap(authors),
         tags: facetsFromMap(tags),
         aiTags: facetsFromMap(aiTags),
         sources: facetsFromMap(sources),

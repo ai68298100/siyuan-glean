@@ -23,6 +23,7 @@ const PORT = 6831;
 const BASE = `http://${HOST}:${PORT}`;
 const MARKER = "glean-spike.json";
 const PLUGIN_NAME = "siyuan-glean";
+const API_TIMEOUT_MS = 60000;
 
 const results = [];
 const record = (name, ok, detail) => {
@@ -107,7 +108,12 @@ async function api(route, body = {}) {
     assertKernelRunning?.();
     const headers = { "Content-Type": "application/json" };
     if (token) headers.Authorization = `Token ${token}`;
-    const response = await fetch(`${BASE}${route}`, { method: "POST", headers, body: JSON.stringify(body), signal: AbortSignal.timeout(15000) });
+    let response;
+    try {
+        response = await fetch(`${BASE}${route}`, { method: "POST", headers, body: JSON.stringify(body), signal: AbortSignal.timeout(API_TIMEOUT_MS) });
+    } catch (error) {
+        throw new Error(`${route} 请求失败：${error instanceof Error ? error.message : String(error)}`);
+    }
     const text = await response.text();
     assertKernelRunning?.();
     let payload;
@@ -448,9 +454,17 @@ async function verifyFlashcard(notebookID) {
         + '</div></div></div></div>';
     const inserted = await api("/api/block/insertBlock", { dataType: "dom", parentID: hostDoc, data: listDom });
     if (inserted.code !== 0) return { ok: false, detail: "insertBlock code=" + inserted.code + " msg=" + inserted.msg };
-    // 列表项 id 经 SQL 找回（type='i'，root 圈定）
-    let cardBlockId = "";
-    for (let attempt = 0; attempt < 6; attempt += 1) {
+    // DOM 操作按树的前序返回：列表根是第一个节点，外层列表项是第二个节点。
+    // 优先使用事务返回 ID，避免把最终一致性 SQL 索引当成写入确认。
+    const operationIds = (inserted.data || [])
+        .flatMap((transaction) => transaction?.doOperations || [])
+        .map((operation) => operation?.id)
+        .filter((id) => typeof id === "string" && id.length > 0);
+    // 嵌套列表项的显式 id 即使不出现在事务响应中，也已随 DOM 事务提交。
+    const transactionCardId = operationIds.find((id) => id === id2);
+    let cardBlockId = transactionCardId || id2;
+    // 兼容未返回嵌套操作 ID 的旧内核：此时才依赖 SQL 索引重试。
+    for (let attempt = 0; !cardBlockId && attempt < 6; attempt += 1) {
         const rows = await apiChecked("/api/query/sql", {
             stmt: "SELECT id FROM blocks WHERE root_id = '" + hostDoc + "' AND type = 'i' ORDER BY sort ASC LIMIT 1",
         });
@@ -505,6 +519,19 @@ async function main() {
             notebookID = (refreshed.notebooks || []).find((n) => n.name === "GleanSpike")?.id;
         }
         if (!notebookID) throw new Error("GleanSpike 笔记本创建失败");
+
+        if (process.argv.includes("--only=flashcard")) {
+            const step8 = await verifyFlashcard(notebookID);
+            record("⑧ 摘录制卡闭环 createDeck→insertBlock→addRiffCards", step8.ok, step8.detail);
+            exitCode = step8.ok ? 0 : 1;
+            fs.writeFileSync(
+                path.join(process.cwd(), "scripts", "spike", "spike-results.json"),
+                `${JSON.stringify({ version: version.version, at: new Date().toISOString(), results }, null, 2)}\n`
+            );
+            console.log(`\n== 制卡尖刺完成：${step8.ok ? 1 : 0}/1 通过，结果已写入 scripts/spike/spike-results.json ==`);
+            process.exitCode = exitCode;
+            return;
+        }
 
         const step1 = await verifyAttrLoop(notebookID);
         record("① 属性写读闭环 + tags落位 + 批量端点形状 + 删除语义", step1.ok, step1.detail);

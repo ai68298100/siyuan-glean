@@ -4,6 +4,9 @@
  * 铁律（D-0001）：属性一旦写入永不丢失；用户手填字段不得被 AI/迁移器覆盖。
  */
 
+import { normalizeAuthor } from "./author.ts";
+import { parseReadingPosition, serializeReadingPosition, type ReadingPosition } from "./reading-position.ts";
+
 export const CLIP_STATUSES = ["inbox", "later", "reading", "done", "archived"] as const;
 export type ClipStatus = (typeof CLIP_STATUSES)[number];
 
@@ -30,6 +33,8 @@ export type ClipTimeSource = (typeof CLIP_TIME_SOURCES)[number];
 export const ATTR = {
     url: "custom-clip-url",
     site: "custom-clip-site",
+    author: "custom-clip-author",
+    readingPosition: "custom-clip-reading-position",
     time: "custom-clip-time",
     status: "custom-clip-status",
     /** 最近一次显式标记读完的时刻；缺键 = 完成时间未知（D-0028）。 */
@@ -41,6 +46,7 @@ export const ATTR = {
     aiTags: "custom-clip-ai-tags",
     summary: "custom-clip-summary",
     lastSurfaced: "custom-clip-last-surfaced",
+    pinned: "custom-clip-pinned",
     /** 单文件 HTML 快照（assets 路径，T-1504） */
     snapshot: "custom-clip-snapshot",
     src: "custom-clip-src",
@@ -58,6 +64,8 @@ export type AttrKey = (typeof ATTR)[keyof typeof ATTR];
 export interface ClipAttrs {
     url?: string;
     site?: string;
+    author?: string;
+    readingPosition?: ReadingPosition;
     time?: string;
     status?: ClipStatus;
     doneTime?: string;
@@ -68,6 +76,7 @@ export interface ClipAttrs {
     aiTags: string[];
     summary?: string;
     lastSurfaced?: string;
+    pinned?: string;
     snapshot?: string;
     src?: ClipSource;
     contentType?: ClipContentType;
@@ -78,6 +87,7 @@ export interface ClipAttrs {
 
 /** 待写回文档的属性补丁。值 = 字符串（IAL 形态）；null = 删除该键。 */
 export type AttrPatch = Record<string, string | null>;
+export type ClipPatch = { [Field in keyof ClipAttrs]?: ClipAttrs[Field] | null };
 
 /** 面板/索引用的轻量投影 */
 export interface ClipSummary {
@@ -124,6 +134,15 @@ function parseFlag(value: string | undefined): boolean | undefined {
     return value?.toLowerCase() === "true" ? true : undefined;
 }
 
+function parseDateStamp(value: string | undefined): string | undefined {
+    if (!value || !/^\d{8}$/.test(value)) return undefined;
+    const year = Number(value.slice(0, 4));
+    const month = Number(value.slice(4, 6));
+    const day = Number(value.slice(6, 8));
+    const date = new Date(year, month - 1, day);
+    return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day ? value : undefined;
+}
+
 function parseTags(value: string | undefined): string[] {
     if (!value) return [];
     return value
@@ -157,6 +176,8 @@ export function parseClipAttrs(ial: Record<string, string | undefined>): ClipAtt
     return {
         url: optionalString(ial[ATTR.url]),
         site: optionalString(ial[ATTR.site]),
+        author: normalizeAuthor(ial[ATTR.author]) || undefined,
+        readingPosition: parseReadingPosition(ial[ATTR.readingPosition]) ?? undefined,
         time: optionalString(ial[ATTR.time]),
         status: parseStatus(ial[ATTR.status]),
         doneTime: optionalString(ial[ATTR.doneTime]),
@@ -167,6 +188,7 @@ export function parseClipAttrs(ial: Record<string, string | undefined>): ClipAtt
         aiTags: parseTags(ial[ATTR.aiTags]),
         summary: optionalString(ial[ATTR.summary]),
         lastSurfaced: optionalString(ial[ATTR.lastSurfaced]),
+        pinned: parseDateStamp(ial[ATTR.pinned]),
         snapshot: optionalString(ial[ATTR.snapshot]),
         src: parseSource(ial[ATTR.src]),
         contentType: parseContentType(ial[ATTR.contentType]),
@@ -198,7 +220,7 @@ function clampInt(value: number, min: number, max: number): number {
  * - 显式传 null 的键保留为 null（删除语义）；
  * - aiTags 数组序列化为逗号分割字符串。
  */
-export function serializePatch(patch: Partial<ClipAttrs> & { aiTags?: string[] | null }): AttrPatch {
+export function serializePatch(patch: ClipPatch): AttrPatch {
     const out: AttrPatch = {};
     const put = (key: AttrKey, value: string | null | undefined) => {
         if (value === undefined) return;
@@ -206,7 +228,13 @@ export function serializePatch(patch: Partial<ClipAttrs> & { aiTags?: string[] |
     };
     if (patch.url !== undefined) put(ATTR.url, patch.url || null);
     if (patch.site !== undefined) put(ATTR.site, patch.site || null);
+    if (patch.author !== undefined) {
+        const author = patch.author === null ? "" : normalizeAuthor(patch.author);
+        if (author === null) throw new RangeError("Invalid author");
+        put(ATTR.author, author || null);
+    }
     if (patch.time !== undefined) put(ATTR.time, patch.time || null);
+    if (patch.readingPosition !== undefined) put(ATTR.readingPosition, patch.readingPosition === null ? null : serializeReadingPosition(patch.readingPosition));
     if (patch.status !== undefined) put(ATTR.status, patch.status ?? null);
     if (patch.doneTime !== undefined) put(ATTR.doneTime, patch.doneTime || null);
     if (patch.words !== undefined) put(ATTR.words, patch.words === null ? null : String(Math.max(0, Math.round(patch.words))));
@@ -216,6 +244,14 @@ export function serializePatch(patch: Partial<ClipAttrs> & { aiTags?: string[] |
     if (patch.aiTags !== undefined) put(ATTR.aiTags, patch.aiTags === null ? null : patch.aiTags.join(","));
     if (patch.summary !== undefined) put(ATTR.summary, patch.summary || null);
     if (patch.lastSurfaced !== undefined) put(ATTR.lastSurfaced, patch.lastSurfaced || null);
+    if (patch.pinned !== undefined) {
+        if (patch.pinned === null || patch.pinned === "") put(ATTR.pinned, null);
+        else {
+            const pinned = parseDateStamp(patch.pinned);
+            if (!pinned) throw new RangeError("Invalid pinned date");
+            put(ATTR.pinned, pinned);
+        }
+    }
     if (patch.snapshot !== undefined) put(ATTR.snapshot, patch.snapshot || null);
     if (patch.src !== undefined) put(ATTR.src, patch.src ?? null);
     if (patch.contentType !== undefined) put(ATTR.contentType, patch.contentType ?? null);

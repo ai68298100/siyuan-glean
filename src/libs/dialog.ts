@@ -1,31 +1,77 @@
 /*
  * Svelte 弹窗工具（模板 siyuan-note/plugin-sample-vite-svelte 移植, MIT, frostime）
  */
-import { Dialog } from "siyuan";
+import { Dialog, getFrontend } from "siyuan";
 import { mount, unmount } from "svelte";
 import type { Component } from "svelte";
+import { installMobileViewportVars } from "./mobile-viewport";
+import { installModalFocus } from "./modal-focus";
+import { isActivationKey } from "../domain/keyboard";
+
+function isMobileFrontend(): boolean {
+    const frontend = getFrontend();
+    return frontend === "mobile" || frontend === "browser-mobile";
+}
 
 export const simpleDialog = (args: {
     title: string, ele: HTMLElement | DocumentFragment,
+    closeLabel?: string,
     width?: string, height?: string,
     callback?: () => void;
 }) => {
+    let disposeViewport = () => {};
+    let disposeFocus = () => {};
+    const previousFocus = document.activeElement instanceof HTMLElement || document.activeElement instanceof SVGElement
+        ? document.activeElement
+        : null;
+    let closed = false;
+    let closing = false;
     const dialog = new Dialog({
         title: args.title,
-        content: `<div class="dialog-content" style="display: flex; height: 100%;"/>`,
+        content: `<div class="dialog-content" style="display: flex; height: 100%;"></div>`,
         width: args.width,
         height: args.height,
-        destroyCallback: args.callback
+        destroyCallback: () => {
+            if (closed) return;
+            closed = true;
+            disposeFocus();
+            disposeViewport();
+            args.callback?.();
+        }
     });
+    const modalRoot = dialog.element.querySelector<HTMLElement>(".b3-dialog__container") ?? dialog.element;
+    modalRoot.setAttribute("role", "dialog");
+    modalRoot.setAttribute("aria-modal", "true");
+    if (!modalRoot.hasAttribute("aria-labelledby")) modalRoot.setAttribute("aria-label", args.title);
+    const requestClose = () => {
+        if (closed || closing) return;
+        closing = true;
+        dialog.destroy();
+    };
+    const closeIcon = dialog.element.querySelector<SVGElement>(".b3-dialog__close");
+    if (closeIcon) {
+        closeIcon.setAttribute("role", "button");
+        closeIcon.setAttribute("aria-label", args.closeLabel ?? args.title);
+        closeIcon.setAttribute("tabindex", "0");
+        closeIcon.addEventListener("keydown", (event) => {
+            if (!(event instanceof KeyboardEvent) || event.isComposing || !isActivationKey(event.key)) return;
+            event.preventDefault();
+            event.stopPropagation();
+            requestClose();
+        });
+    }
+    disposeViewport = installMobileViewportVars(dialog.element, isMobileFrontend());
     dialog.element.querySelector(".dialog-content")?.appendChild(args.ele);
+    disposeFocus = installModalFocus(modalRoot, { onClose: requestClose, returnFocus: previousFocus });
     return {
         dialog,
-        close: dialog.destroy.bind(dialog)
+        close: requestClose
     };
 };
 
 export const svelteDialog = (args: {
     title: string,
+    closeLabel?: string,
     component: Component<any>, // Svelte 5 component constructor
     props?: Record<string, any>,
     width?: string,

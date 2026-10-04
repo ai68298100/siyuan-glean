@@ -18,6 +18,8 @@ export interface SurfaceItem {
     time: string;
     aiTags: string[];
     lastSurfaced: string;
+    /** 用户明确钉住今日的日期；只有等于 todayStamp(now) 时生效。 */
+    pinned?: string;
     /** AI 一句话摘要（重浮卡展示）；无则空串 */
     summary: string;
     /** 阅读载体与来源 URL；仅用于导航提示，不参与重浮评分。 */
@@ -105,7 +107,7 @@ export interface PickOptions {
  * 挑选"今日拾遗"：
  * 1. 池 = inbox/later（可选含 done）；
  * 2. 排除当天已 surfaced（lastSurfaced == 今天）；
- * 3. 按 surfaceScore 降序、stableHash(id+今天) 升序做确定性排序；
+ * 3. 当天 pinned 文章优先，再按 surfaceScore 降序、stableHash(id+今天) 升序做确定性排序；
  * 4. 贪心取前 N，批内标签重叠者降 2 分后再比（同批不做同主题）。
  */
 export function pickDaily(pool: SurfaceItem[], recentTagSets: Set<string>[], options: PickOptions): SurfacePick[] {
@@ -123,7 +125,7 @@ export function pickDaily(pool: SurfaceItem[], recentTagSets: Set<string>[], opt
             score: surfaceScore(item, recentTagSets, now),
             tiebreak: stableHash(item.id + today),
         }))
-        .sort((a, b) => b.score - a.score || a.tiebreak - b.tiebreak);
+        .sort((a, b) => Number(b.item.pinned === today) - Number(a.item.pinned === today) || b.score - a.score || a.tiebreak - b.tiebreak);
 
     const picked: SurfacePick[] = [];
     const pickedTagSets: Set<string>[] = [];

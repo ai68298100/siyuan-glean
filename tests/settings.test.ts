@@ -2,7 +2,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { DEFAULT_SETTINGS, normalizeSettings } from "../src/services/settings.ts";
+import { DEFAULT_SETTINGS, cloneSettings, mergeSettingsDraft, normalizeSettings, settingsEqual } from "../src/services/settings.ts";
 
 test("normalizeSettings：旧版 enrichOnCapture=true → auto", () => {
     const normalized = normalizeSettings({
@@ -12,7 +12,7 @@ test("normalizeSettings：旧版 enrichOnCapture=true → auto", () => {
     });
     assert.equal(normalized.ai.enrichMode, "auto");
     assert.equal(normalized.ai.enrichDailyCap, DEFAULT_SETTINGS.ai.enrichDailyCap);
-    assert.equal(normalized.ai.dedupOnEnrich, true);
+    assert.equal(normalized.ai.dedupOnEnrich, false);
 });
 
 test("normalizeSettings：旧版 enrichOnCapture=false → manual", () => {
@@ -38,6 +38,19 @@ test("默认富化模式=manual（token 消耗需用户显式开启自动）", (
     assert.equal(DEFAULT_SETTINGS.ai.enrichDailyCap > 0, true);
 });
 
+test("AI 功能新用户默认关闭，保留显式布尔选择而拒绝类型漂移", () => {
+    const fields = ["dedupOnEnrich", "relatedWhileReading", "presetActions", "formattingEnabled"] as const;
+    for (const field of fields) {
+        assert.equal(DEFAULT_SETTINGS.ai[field], false);
+        assert.equal(normalizeSettings({}).ai[field], false);
+        assert.equal(normalizeSettings({ ai: { [field]: true } }).ai[field], true);
+        assert.equal(normalizeSettings({ ai: { [field]: false } }).ai[field], false);
+        for (const value of ["true", "false", 1, 0, {}, [], null]) {
+            assert.equal(normalizeSettings({ ai: { [field]: value } }).ai[field], false);
+        }
+    }
+});
+
 test("normalizeSettings：reader 组默认关且非法模式回退 read（D-0029）", () => {
     const missing = normalizeSettings({});
     assert.equal(missing.reader.openInTab, false);
@@ -48,4 +61,52 @@ test("normalizeSettings：reader 组默认关且非法模式回退 read（D-0029
     const invalid = normalizeSettings({ reader: { openInTab: "yes", defaultMode: "wysiwyg" } });
     assert.equal(invalid.reader.openInTab, DEFAULT_SETTINGS.reader.openInTab);
     assert.equal(invalid.reader.defaultMode, "read");
+});
+
+test("设置草稿：克隆不会共享嵌套数组或对象", () => {
+    const draft = cloneSettings(DEFAULT_SETTINGS);
+    draft.anchorNotebooks.push("notebook-1");
+    draft.ai.customBaseUrl = "https://example.test/v1";
+    assert.deepEqual(DEFAULT_SETTINGS.anchorNotebooks, []);
+    assert.equal(DEFAULT_SETTINGS.ai.customBaseUrl, "");
+});
+
+test("设置草稿：相同内容相等，嵌套改动可识别", () => {
+    const draft = cloneSettings(DEFAULT_SETTINGS);
+    assert.equal(settingsEqual(DEFAULT_SETTINGS, draft), true);
+    draft.reader.defaultMode = "edit";
+    assert.equal(settingsEqual(DEFAULT_SETTINGS, draft), false);
+});
+
+test("设置草稿：提交时保留编辑期间由其他流程更新的迁移批大小", () => {
+    const current = normalizeSettings({ migrateBatchSize: 37 });
+    const draft = cloneSettings(DEFAULT_SETTINGS);
+    draft.anchorNotebooks = ["notebook-1"];
+    const merged = mergeSettingsDraft(current, draft);
+    assert.deepEqual(merged.anchorNotebooks, ["notebook-1"]);
+    assert.equal(merged.migrateBatchSize, 37);
+});
+
+test("桥接写开关默认关闭，只有布尔 true 能开启", () => {
+    assert.equal(DEFAULT_SETTINGS.integration.bridgeWriteEnabled, false);
+    assert.equal(normalizeSettings({}).integration.bridgeWriteEnabled, false);
+    for (const value of [undefined, null, "true", "false", 1, 0, {}, []]) {
+        assert.equal(normalizeSettings({ integration: { bridgeWriteEnabled: value } }).integration.bridgeWriteEnabled, false);
+    }
+    assert.equal(normalizeSettings({ integration: { bridgeWriteEnabled: true } }).integration.bridgeWriteEnabled, true);
+    assert.equal(normalizeSettings({ integration: { bridgeWriteEnabled: false } }).integration.bridgeWriteEnabled, false);
+});
+
+test("桥接写开关参与草稿克隆、修改检测、提交与重置", () => {
+    const current = normalizeSettings({ integration: { checkinEnabled: true, checkinItemId: "reading" }, migrateBatchSize: 37 });
+    const draft = cloneSettings(current);
+    draft.integration.bridgeWriteEnabled = true;
+    assert.equal(current.integration.bridgeWriteEnabled, false);
+    assert.equal(settingsEqual(current, draft), false);
+    const merged = mergeSettingsDraft(current, draft);
+    assert.equal(merged.integration.bridgeWriteEnabled, true);
+    assert.equal(merged.integration.checkinEnabled, true);
+    assert.equal(merged.integration.checkinItemId, "reading");
+    assert.equal(merged.migrateBatchSize, 37);
+    assert.equal(mergeSettingsDraft(merged, cloneSettings(DEFAULT_SETTINGS)).integration.bridgeWriteEnabled, false);
 });

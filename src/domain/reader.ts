@@ -4,6 +4,8 @@
  */
 
 export const EXCERPT_MAX_LENGTH = 4000;
+export const ARTICLE_QUESTION_MAX_LENGTH = 1000;
+export const ARTICLE_QUESTION_CONTEXT_MAX_LENGTH = 16000;
 
 /** 选区文本规范化：压缩空白并截断；空串表示无可摘录内容。 */
 export function clampExcerpt(text: string): string {
@@ -48,4 +50,43 @@ export function buildTranslatePrompt(text: string): string {
         "文字：",
         String(text ?? "").slice(0, EXCERPT_MAX_LENGTH),
     ].join("\n");
+}
+
+export interface ArticleQuestionResult {
+    answer: string;
+    evidence: string[];
+    insufficient: boolean;
+}
+
+export function clampArticleQuestion(value: string): string {
+    return String(value ?? "").trim().slice(0, ARTICLE_QUESTION_MAX_LENGTH);
+}
+
+export function buildArticleQuestionPrompt(title: string, context: string, question: string, truncated: boolean): string {
+    const heading = title.trim() ? `《${title.trim()}》` : "本文";
+    return [
+        `请只根据${heading}提供的上下文回答问题，不要使用外部知识。`,
+        "必须只输出 JSON：{\"answer\":\"...\",\"evidence\":[\"逐字引文\"],\"insufficient\":true或false}。",
+        "若上下文不足，answer 简短说明依据不足，evidence 为空数组，insufficient=true。否则至少给出一条能在上下文中逐字核对的引文。不要编造引文。",
+        truncated ? "上下文已截断；不要声称看到了未提供的全文。" : "上下文未截断。",
+        `问题：${clampArticleQuestion(question)}`,
+        "上下文：",
+        String(context ?? "").slice(0, ARTICLE_QUESTION_CONTEXT_MAX_LENGTH),
+    ].join("\n");
+}
+
+function parseJsonObject(text: string): unknown {
+    const trimmed = String(text ?? "").trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
+    try { return JSON.parse(trimmed); } catch { return null; }
+}
+
+export function parseArticleQuestionResponse(text: string, context: string): ArticleQuestionResult | null {
+    const value = parseJsonObject(text);
+    if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+    const input = value as Record<string, unknown>;
+    if (typeof input.answer !== "string" || input.answer.trim().length === 0 || input.answer.length > 8000 || typeof input.insufficient !== "boolean" || !Array.isArray(input.evidence) || input.evidence.some((item) => typeof item !== "string" || item.trim().length === 0 || item.length > 1000)) return null;
+    const evidence = input.evidence.map((item) => (item as string).trim());
+    if (input.insufficient) return evidence.length === 0 ? { answer: input.answer.trim(), evidence: [], insufficient: true } : null;
+    if (evidence.length === 0 || evidence.some((item) => !context.includes(item))) return null;
+    return { answer: input.answer.trim(), evidence, insufficient: false };
 }

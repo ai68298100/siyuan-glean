@@ -5,7 +5,7 @@
  * “开始阅读”只进入 reading；读完必须由用户明确执行“标记已读”。
  */
 import type { Plugin } from "siyuan";
-import { parseClipAttrs } from "../domain/schema";
+import { parseClipAttrs, type ClipStatus } from "../domain/schema";
 import {
     pickDaily,
     recentlySurfaced,
@@ -18,7 +18,7 @@ import {
     type SurfaceReason,
 } from "../domain/resurface";
 import { loadIndex, type GleanIndex } from "./index-store";
-import { writeClip } from "./clip-store";
+import { readClip, writeClip } from "./clip-store";
 import type { GleanSettings } from "./settings";
 
 function indexToSurfaceItems(index: GleanIndex): SurfaceItem[] {
@@ -30,6 +30,7 @@ function indexToSurfaceItems(index: GleanIndex): SurfaceItem[] {
         time: clip.time,
         aiTags: clip.aiTags,
         lastSurfaced: clip.surfaced,
+        pinned: clip.pinned ?? "",
         summary: clip.summary,
         contentType: clip.contentType,
         url: clip.url,
@@ -66,15 +67,51 @@ export async function computeDaily(plugin: Plugin, settings: GleanSettings): Pro
 
 export type SurfaceAction = "read" | "later" | "archive";
 
-/** 重浮卡行动：落状态 + 写 last-surfaced（当天幂等），返回下一位（由视图重算）。 */
-export async function actOnSurface(plugin: Plugin, docId: string, action: SurfaceAction): Promise<void> {
-    const patch =
-        action === "read"
-            ? { status: "reading" as const, lastSurfaced: todayStamp() }
-            : action === "archive"
-              ? { status: "archived" as const, lastSurfaced: todayStamp() }
-              : { lastSurfaced: todayStamp() };
+export interface SurfaceStateSnapshot {
+    status: ClipStatus;
+    lastSurfaced: string;
+}
+
+export interface SurfaceUndoToken {
+    before: SurfaceStateSnapshot;
+    after: SurfaceStateSnapshot;
+}
+
+export async function actOnSurface(plugin: Plugin, docId: string, action: SurfaceAction): Promise<SurfaceUndoToken> {
+    const current = await readClip(docId);
+    if (!current.status) throw new Error("文章状态缺失，无法执行重浮动作");
+    const before: SurfaceStateSnapshot = {
+        status: current.status,
+        lastSurfaced: current.lastSurfaced ?? "",
+    };
+    const after: SurfaceStateSnapshot = {
+        status: action === "read" ? "reading" : action === "archive" ? "archived" : before.status,
+        lastSurfaced: todayStamp(),
+    };
+    const patch = { status: after.status, lastSurfaced: after.lastSurfaced };
     await writeClip(plugin, docId, patch, { force: true });
+    return { before, after };
+}
+
+export async function setSurfacePinned(plugin: Plugin, docId: string, pinned: boolean): Promise<string> {
+    const current = await readClip(docId);
+    if (!current.status) throw new Error("文章状态缺失，无法修改今日置顶");
+    const next = pinned ? todayStamp() : "";
+    await writeClip(plugin, docId, { pinned: next || null }, { force: true });
+    return next;
+}
+
+export async function undoSurfaceAction(plugin: Plugin, docId: string, token: SurfaceUndoToken): Promise<void> {
+    const current = await readClip(docId);
+    if (current.status !== token.after.status || (current.lastSurfaced ?? "") !== token.after.lastSurfaced) {
+        throw new Error("文章状态已变化，无法撤销");
+    }
+    await writeClip(
+        plugin,
+        docId,
+        { status: token.before.status, lastSurfaced: token.before.lastSurfaced },
+        { force: true },
+    );
 }
 
 /** 超龄归档候选（T-1401/T-1710）：在对账后的索引上列清单，归档前供用户勾选。 */
@@ -130,6 +167,7 @@ export function surfaceItemsFromAttrs(pairs: Array<{ id: string; attrs: Record<s
             time: attrs.time ?? "",
             aiTags: attrs.aiTags,
             lastSurfaced: attrs.lastSurfaced ?? "",
+            pinned: attrs.pinned ?? "",
             summary: attrs.summary ?? "",
             contentType: attrs.contentType,
             url: attrs.url,

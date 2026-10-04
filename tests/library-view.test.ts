@@ -3,6 +3,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { filterAndSortLibrary, libraryFacets, type LibraryItem } from "../src/domain/library-view.ts";
 import { parseUserTags } from "../src/domain/schema.ts";
+import { normalizeRailGroups, projectRailFacets, railFacetSelected } from "../src/domain/library-rail.ts";
 
 const clip = (part: Partial<LibraryItem>): LibraryItem => ({
     kind: "clip",
@@ -23,6 +24,53 @@ const clip = (part: Partial<LibraryItem>): LibraryItem => ({
     priority: 3,
     rating: 0,
     ...part,
+});
+
+test("侧栏投影：Top8 之外的当前项可见，展开保留全部且不改原数组", () => {
+    const items = Array.from({ length: 20 }, (_, index) => ({ value: `tag-${index}`, count: 20 - index }));
+    const before = structuredClone(items);
+    const collapsed = projectRailFacets(items, false, "", "TAG-19");
+    assert.equal(collapsed.length, 9);
+    assert.equal(collapsed[8].value, "tag-19");
+    assert.equal(projectRailFacets(items, false, "", "tag-3").length, 8);
+    const expanded = projectRailFacets(items, true, "", "tag-19");
+    assert.equal(expanded.length, 20);
+    expanded.pop();
+    assert.deepEqual(items, before);
+});
+
+test("侧栏检索：大小写与空白归一，不被 Top8 截断，未匹配仍保留当前项", () => {
+    const items = [{ value: "TypeScript", count: 4 }, { value: "Rust", count: 2 }, { value: "typescript-tools", count: 1 }];
+    assert.deepEqual(projectRailFacets(items, false, "  TYPESCRIPT ", ""), [items[0], items[2]]);
+    assert.deepEqual(projectRailFacets(items, false, "missing", "rust"), [items[1]]);
+    assert.deepEqual(projectRailFacets(items, false, "missing", ""), []);
+    assert.equal(railFacetSelected(" Rust ", "rust"), true);
+    assert.equal(railFacetSelected("Rust", ""), false);
+});
+
+test("侧栏偏好：丢弃未知组、非布尔值与文章字段，默认对象互不共享", () => {
+    const prefs = normalizeRailGroups({ tags: { collapsed: true, expanded: "true", ids: ["secret"] }, aiTags: 1, unknown: { collapsed: true } });
+    assert.deepEqual(prefs.tags, { collapsed: true, expanded: false });
+    assert.deepEqual(prefs.aiTags, { collapsed: false, expanded: false });
+    assert.deepEqual(Object.keys(prefs), ["queues", "sites", "authors", "tags", "aiTags"]);
+    prefs.sites.expanded = true;
+    assert.equal(prefs.queues.expanded, false);
+    assert.equal(normalizeRailGroups(undefined).sites.expanded, false);
+});
+
+test("作者筛选与站点、标签独立，聚合包含所有状态且候选不计分面", () => {
+    const items = [
+        clip({ id: "a", status: "inbox", site: "mp.weixin.qq.com", author: "Daily", time: "20261003120000" }),
+        clip({ id: "b", status: "archived", site: "mp.weixin.qq.com", author: "daily", time: "20261004120000" }),
+        clip({ id: "c", status: "done", site: "other.example", author: "Daily", time: "20261001120000" }),
+        clip({ id: "d", author: "Another", tags: ["Daily"] }),
+        { ...clip({ id: "candidate", author: "Daily" }), kind: "candidate" as const, status: undefined },
+    ];
+    assert.deepEqual(filterAndSortLibrary(items, { status: "all", author: " DAILY " }).map((item) => item.id), ["b", "a", "c"]);
+    assert.deepEqual(filterAndSortLibrary(items, { author: "daily", site: "mp.weixin.qq.com", status: "inbox" }).map((item) => item.id), ["a"]);
+    assert.equal(filterAndSortLibrary(items, { keyword: "daily" }).length, 4);
+    assert.deepEqual(libraryFacets(items).authors, [{ value: "Daily", count: 3 }, { value: "Another", count: 1 }]);
+    assert.equal(filterAndSortLibrary(items, { author: "Another", tag: "Daily" }).length, 1);
 });
 
 test("用户标签只读解析根块 IAL.tags，去掉包裹井号并去重", () => {

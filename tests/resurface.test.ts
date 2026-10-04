@@ -82,6 +82,15 @@ test("pickDaily：priority 高者优先（同吃灰天数）", () => {
     assert.equal(picks[0].item.id, "p5");
 });
 
+test("pickDaily：当天置顶优先，但跨日置顶自然失效", () => {
+    const pool = [
+        item({ id: "old", time: "20260601000000" }),
+        item({ id: "pinned", time: "20260928000000", pinned: "20260929" }),
+    ];
+    assert.equal(pickDaily(pool, [], { count: 1, now: NOW })[0].item.id, "pinned");
+    assert.equal(pickDaily(pool, [], { count: 1, now: new Date(2026, 8, 30, 12) })[0].item.id, "old");
+});
+
 test("pickDaily：与近 7 天重浮标签重叠者被多样性降权", () => {
     const recentTagSets = [new Set(["ai", "架构"])];
     const pool = [

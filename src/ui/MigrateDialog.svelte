@@ -205,13 +205,13 @@ function rowStateLabel(row: MigrateRow): string {
 }
 </script>
 
-<div class="glean-migrate">
+<div class="glean-migrate" aria-labelledby="glean-migrate-title" aria-busy={phase === "scanning" || phase === "running"}>
     <div class="glean-dlg-head">
         <div class="glean-brand__mark" style="width:26px;height:26px;border-radius:9px">
             <svg style="width:13px;height:13px"><use href="#iconGleanWheat" /></svg>
         </div>
         <div>
-            <div class="glean-dlg-head__t">{t(i18n, "migrate.title")}</div>
+            <h2 id="glean-migrate-title" class="glean-dlg-head__t">{t(i18n, "migrate.title")}</h2>
             <div class="glean-dlg-head__sub">{t(i18n, "migrate.intro")}</div>
         </div>
     </div>
@@ -268,12 +268,12 @@ function rowStateLabel(row: MigrateRow): string {
                     <span class={rowStateClass(row)} title={row.detail || ""}>{rowStateLabel(row)}</span>
                         {#if row.state === "manual" || !!row.resolution}
                             <span class="glean-mrow__ops">
-                                <button class="glean-op-btn" title={t(i18n, "migrate.fixUrl")} onclick={() => editManual(row)}>✎</button>
-                                <button class="glean-op-btn" title={t(i18n, "migrate.asLocal")} onclick={() => void resolveManual(row, "local")}>▤</button>
-                                <button class="glean-op-btn" title={t(i18n, "migrate.exclude")} onclick={() => void resolveManual(row, "exclude")}>×</button>
+                                <button class="glean-op-btn" title={t(i18n, "migrate.fixUrl")} aria-label={t(i18n, "migrate.fixUrl")} onclick={() => editManual(row)}>✎</button>
+                                <button class="glean-op-btn" title={t(i18n, "migrate.asLocal")} aria-label={t(i18n, "migrate.asLocal")} onclick={() => void resolveManual(row, "local")}>▤</button>
+                                <button class="glean-op-btn" title={t(i18n, "migrate.exclude")} aria-label={t(i18n, "migrate.exclude")} onclick={() => void resolveManual(row, "exclude")}>×</button>
                                 {#if row.conflictDocId}
-                                    <button class="glean-op-btn" title={t(i18n, "migrate.openExisting")} onclick={() => openExisting(row)}>↗</button>
-                                    <button class="glean-op-btn" title={t(i18n, "migrate.keepDuplicate")} onclick={() => void resolveManual(row, "url", true)}>＋</button>
+                                    <button class="glean-op-btn" title={t(i18n, "migrate.openExisting")} aria-label={t(i18n, "migrate.openExisting")} onclick={() => openExisting(row)}>↗</button>
+                                    <button class="glean-op-btn" title={t(i18n, "migrate.keepDuplicate")} aria-label={t(i18n, "migrate.keepDuplicate")} onclick={() => void resolveManual(row, "url", true)}>＋</button>
                                 {/if}
                             </span>
                         {/if}
@@ -299,7 +299,7 @@ function rowStateLabel(row: MigrateRow): string {
             {/each}
         </div>
         <div class="glean-migrate__ops">
-            <select class="b3-select" style="font-size:12px" bind:value={filter}>
+            <select class="b3-select" style="font-size:12px" aria-label={t(i18n, "migrate.filterAll")} bind:value={filter}>
                 <option value="all">{t(i18n, "migrate.filterAll")}</option>
                 <option value="pending">{t(i18n, "migrate.filterPending")}</option>
                 <option value="manual">{t(i18n, "migrate.needUrl")}</option>
@@ -324,7 +324,7 @@ function rowStateLabel(row: MigrateRow): string {
             </button>
         </div>
     {:else if phase === "running" || phase === "paused"}
-        <div>
+        <div role="status" aria-live="polite" aria-atomic="true">
             <div class="glean-progress"><div class="glean-progress__bar" style={`width:${progressPct}%`}></div></div>
             <div class="glean-prog-meta">
                 <span>{t(i18n, "migrate.writing")} {cursor} / {rows.length}{phase === "paused" ? `（${t(i18n, "migrate.paused")}）` : ""}</span>
@@ -344,12 +344,12 @@ function rowStateLabel(row: MigrateRow): string {
                     <span class={rowStateClass(row)} title={row.detail || ""}>{rowStateLabel(row)}</span>
                         {#if (row.state === "manual" || (phase === "paused" && !!row.resolution)) && phase !== "running"}
                             <span class="glean-mrow__ops">
-                                <button class="glean-op-btn" title={t(i18n, "migrate.fixUrl")} onclick={() => editManual(row)}>✎</button>
-                                <button class="glean-op-btn" title={t(i18n, "migrate.asLocal")} onclick={() => void resolveManual(row, "local")}>▤</button>
-                                <button class="glean-op-btn" title={t(i18n, "migrate.exclude")} onclick={() => void resolveManual(row, "exclude")}>×</button>
+                                <button class="glean-op-btn" title={t(i18n, "migrate.fixUrl")} aria-label={t(i18n, "migrate.fixUrl")} onclick={() => editManual(row)}>✎</button>
+                                <button class="glean-op-btn" title={t(i18n, "migrate.asLocal")} aria-label={t(i18n, "migrate.asLocal")} onclick={() => void resolveManual(row, "local")}>▤</button>
+                                <button class="glean-op-btn" title={t(i18n, "migrate.exclude")} aria-label={t(i18n, "migrate.exclude")} onclick={() => void resolveManual(row, "exclude")}>×</button>
                                 {#if row.conflictDocId}
-                                    <button class="glean-op-btn" title={t(i18n, "migrate.openExisting")} onclick={() => openExisting(row)}>↗</button>
-                                    <button class="glean-op-btn" title={t(i18n, "migrate.keepDuplicate")} onclick={() => void resolveManual(row, "url", true)}>＋</button>
+                                    <button class="glean-op-btn" title={t(i18n, "migrate.openExisting")} aria-label={t(i18n, "migrate.openExisting")} onclick={() => openExisting(row)}>↗</button>
+                                    <button class="glean-op-btn" title={t(i18n, "migrate.keepDuplicate")} aria-label={t(i18n, "migrate.keepDuplicate")} onclick={() => void resolveManual(row, "url", true)}>＋</button>
                                 {/if}
                             </span>
                         {/if}
@@ -392,12 +392,12 @@ function rowStateLabel(row: MigrateRow): string {
                         <span class={rowStateClass(row)} title={row.detail || ""}>{rowStateLabel(row)}</span>
                         {#if row.state === "manual"}
                             <span class="glean-mrow__ops">
-                                <button class="glean-op-btn" title={t(i18n, "migrate.fixUrl")} onclick={() => editManual(row)}>✎</button>
-                                <button class="glean-op-btn" title={t(i18n, "migrate.asLocal")} onclick={() => void resolveManual(row, "local")}>▤</button>
-                                <button class="glean-op-btn" title={t(i18n, "migrate.exclude")} onclick={() => void resolveManual(row, "exclude")}>×</button>
+                                <button class="glean-op-btn" title={t(i18n, "migrate.fixUrl")} aria-label={t(i18n, "migrate.fixUrl")} onclick={() => editManual(row)}>✎</button>
+                                <button class="glean-op-btn" title={t(i18n, "migrate.asLocal")} aria-label={t(i18n, "migrate.asLocal")} onclick={() => void resolveManual(row, "local")}>▤</button>
+                                <button class="glean-op-btn" title={t(i18n, "migrate.exclude")} aria-label={t(i18n, "migrate.exclude")} onclick={() => void resolveManual(row, "exclude")}>×</button>
                                 {#if row.conflictDocId}
-                                    <button class="glean-op-btn" title={t(i18n, "migrate.openExisting")} onclick={() => openExisting(row)}>↗</button>
-                                    <button class="glean-op-btn" title={t(i18n, "migrate.keepDuplicate")} onclick={() => void resolveManual(row, "url", true)}>＋</button>
+                                    <button class="glean-op-btn" title={t(i18n, "migrate.openExisting")} aria-label={t(i18n, "migrate.openExisting")} onclick={() => openExisting(row)}>↗</button>
+                                    <button class="glean-op-btn" title={t(i18n, "migrate.keepDuplicate")} aria-label={t(i18n, "migrate.keepDuplicate")} onclick={() => void resolveManual(row, "url", true)}>＋</button>
                                 {/if}
                             </span>
                         {/if}

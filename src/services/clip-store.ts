@@ -15,6 +15,7 @@ import {
     setBlockAttrs,
     type DocRow,
     type Ial,
+    type ExportMarkdownOptions,
 } from "../api/client";
 import { inspectCandidate } from "../domain/candidate-policy";
 import {
@@ -26,11 +27,22 @@ import {
     siteFromUrl,
     siyuanTimestamp,
     type ClipAttrs,
+    type ClipPatch,
     type ClipStatus,
 } from "../domain/schema";
 import { inspectClipMarkdown } from "../domain/content";
 import { normalizeUrl } from "../domain/url";
-import { applyAttrsToIndex, emptyIndex, loadIndex, saveIndex, type GleanIndex } from "./index-store";
+import { normalizeAuthor } from "../domain/author";
+import { parseReadingPosition, serializeReadingPosition, type ReadingPosition } from "../domain/reading-position";
+import {
+    applyAttrsToIndex,
+    emptyIndex,
+    loadIndex,
+    saveIndex,
+    type CandidateEntry,
+    type ClipIndexEntry,
+    type GleanIndex,
+} from "./index-store";
 import type { GleanSettings } from "./settings";
 
 export interface DocMeta {
@@ -41,10 +53,30 @@ export interface DocMeta {
     updated: string;
 }
 
+export interface ScanPreview {
+    total: number;
+    confirmed: number;
+    candidates: number;
+    candidatesMissingUrl: number;
+    ordinary: number;
+    examples: {
+        confirmed: Array<Pick<ClipIndexEntry, "id" | "title" | "hpath" | "status" | "url">>;
+        candidates: Array<Pick<CandidateEntry, "id" | "title" | "hpath" | "url" | "missing">>;
+        ordinary: Array<Pick<DocMeta, "id" | "title" | "hpath">>;
+    };
+}
+
 /** 读单篇属性（强类型视图） */
 export async function readClip(docId: string): Promise<ClipAttrs> {
     const ial = await getBlockAttrs(docId);
     return parseClipAttrs(ial);
+}
+
+export async function readClipDocument(docId: string, exportOptions: ExportMarkdownOptions = {}): Promise<{ meta: DocMeta; attrs: ClipAttrs; markdown: string }> {
+    if (!/^\d{14}-[0-9a-z]{7}$/.test(docId)) throw new Error("Invalid document ID");
+    const [meta, attrs, exported] = await Promise.all([fetchDocMeta(docId), readClip(docId), exportMdContent(docId, exportOptions)]);
+    if (!meta.box || !meta.hpath || typeof exported?.content !== "string") throw new Error("Document unavailable");
+    return { meta, attrs, markdown: exported.content };
 }
 
 export interface ReadingClipContext {
@@ -57,6 +89,7 @@ export interface ReadingClipContext {
     words?: number;
     /** 伴生栏（阅读页签）用的只读投影；缺省时给中性默认。 */
     site?: string;
+    author?: string;
     snapshot?: string;
     priority?: number;
     rating?: number;
@@ -75,6 +108,7 @@ export async function readClipContext(docId: string): Promise<ReadingClipContext
         url: attrs.url ?? "",
         words: attrs.words,
         site: attrs.site ?? "",
+        author: attrs.author ?? "",
         snapshot: attrs.snapshot ?? "",
         priority: attrs.priority ?? 3,
         rating: attrs.rating ?? 0,
@@ -91,8 +125,11 @@ export async function batchReadClipAttrs(ids: string[]) {
 }
 
 export interface WriteClipOptions {
+    expectedAuthor?: string;
+    expectedAttrs?: Record<string, string | null>;
+    expectedLocation?: { box: string; hpath: string };
     /**
-     * 手填字段保护：patch 里包含 url/status/priority/rating 且文档已有非空值时，
+     * 手填字段保护：patch 里包含 url/status/priority/rating/author 且文档已有非空值时，
      * 默认跳过该键（返回 skippedKeys）；force=true 才允许覆盖（UI 显式操作）。
      */
     force?: boolean;
@@ -106,19 +143,37 @@ export interface WriteClipResult {
 }
 
 /** 与已有读库文章比较 URL；返回冲突文章的轻量元数据。 */
-export async function findClipUrlConflict(url: string, exceptDocId?: string): Promise<DocMeta | null> {
+export async function findClipUrlConflict(url: string, exceptDocId?: string, plugin?: Plugin): Promise<DocMeta | null> {
     const key = normalizeUrl(url);
     if (!key) return null;
     const pageSize = 500;
     const seen = new Set<string>();
+    const seenSql = new Set<string>();
+    if (plugin) {
+        const index = await loadIndex(plugin, { strict: true });
+        const knownIds = [...new Set([...Object.keys(index.clips), ...Object.keys(index.candidates)])].filter((id) => id !== exceptDocId && /^\d{14}-[0-9a-z]{7}$/.test(id));
+        for (let offset = 0; offset < knownIds.length; offset += 200) {
+            const ids = knownIds.slice(offset, offset + 200);
+            const attrs = await batchReadClipAttrs(ids);
+            ids.forEach((id) => seen.add(id));
+            for (const pair of attrs) {
+                if (normalizeUrl(pair.attrs[ATTR.url] || "") !== key) continue;
+                const meta = await fetchDocMeta(pair.id);
+                if (!meta.box || !meta.hpath) throw new Error("URL 冲突文档元数据不可用");
+                return meta;
+            }
+        }
+    }
     let offset = 0;
     while (true) {
         const docs = await listClipDocs(pageSize, offset);
         if (docs.length === 0) return null;
         const ids = docs.map((doc) => doc.id).filter((id) => !seen.has(id));
-        if (docs.length === pageSize && ids.length === 0) {
+        const freshSqlIds = docs.map((doc) => doc.id).filter((id) => !seenSql.has(id));
+        if (docs.length === pageSize && freshSqlIds.length === 0) {
             throw new Error("URL 查重分页未前进，无法确认是否重复");
         }
+        freshSqlIds.forEach((id) => seenSql.add(id));
         ids.forEach((id) => seen.add(id));
         const attrs = await batchReadClipAttrs(ids);
         for (const pair of attrs) {
@@ -133,23 +188,164 @@ export async function findClipUrlConflict(url: string, exceptDocId?: string): Pr
     }
 }
 
-const USER_GUARDED_KEYS = [ATTR.url, ATTR.status, ATTR.priority, ATTR.rating] as const;
+export class AuthorEditError extends Error {
+    readonly reason: "changed" | "invalid";
+    constructor(reason: AuthorEditError["reason"]) {
+        super(reason);
+        this.reason = reason;
+    }
+}
+
+export interface AuthorEditSnapshot { raw: string; author: string }
+
+export async function readClipAuthor(docId: string): Promise<AuthorEditSnapshot> {
+    const meta = await fetchDocMeta(docId);
+    if (!meta.box || !meta.hpath) throw new AuthorEditError("changed");
+    const ial = await getBlockAttrs(docId);
+    const attrs = parseClipAttrs(ial);
+    if (!attrs.status || attrs.internal) throw new AuthorEditError("changed");
+    return { raw: ial[ATTR.author] ?? "", author: attrs.author ?? "" };
+}
+
+const explicitEdits = new WeakMap<Plugin, Map<string, Promise<void>>>();
+
+function queueClipEdit<Result>(plugin: Plugin, docId: string, action: () => Promise<Result>): Promise<Result> {
+    let queues = explicitEdits.get(plugin);
+    if (!queues) { queues = new Map(); explicitEdits.set(plugin, queues); }
+    const pending = queues.get(docId) ?? Promise.resolve();
+    const result = pending.then(action);
+    const settled = result.then(() => {}, () => {});
+    queues.set(docId, settled);
+    void settled.then(() => { if (queues.get(docId) === settled) queues.delete(docId); });
+    return result;
+}
+
+export async function saveClipAuthor(plugin: Plugin, docId: string, expected: string, draft: string): Promise<AuthorEditSnapshot> {
+    const author = normalizeAuthor(draft);
+    if (author === null) throw new AuthorEditError("invalid");
+    return queueClipEdit(plugin, docId, async () => {
+        const before = await readClipAuthor(docId);
+        if (before.raw !== expected) throw new AuthorEditError("changed");
+        await writeClip(plugin, docId, { author }, { force: true, expectedAuthor: expected });
+        const after = await readClipAuthor(docId);
+        if (after.raw !== author) throw new AuthorEditError("changed");
+        return after;
+    });
+}
+
+export class ClipRestoreError extends Error {
+    readonly reason: "changed" | "missing" | "internal" | "conflict";
+    constructor(reason: ClipRestoreError["reason"]) { super(reason); this.reason = reason; }
+}
+
+export interface ClipAttributeSnapshot { meta: DocMeta; attrs: Ial }
+
+export interface ReadingPositionSnapshot { raw: string | null; position: ReadingPosition | null; meta: DocMeta }
+
+export async function readReadingPosition(docId: string): Promise<ReadingPositionSnapshot> {
+    const snapshot = await readClipAttributeSnapshot(docId);
+    const attrs = parseClipAttrs(snapshot.attrs);
+    if (!attrs.status || attrs.internal) throw new ClipRestoreError("changed");
+    const raw = snapshot.attrs[ATTR.readingPosition] ?? null;
+    return { raw, position: parseReadingPosition(raw), meta: snapshot.meta };
+}
+
+export async function verifyReadingBlock(docId: string, blockId: string): Promise<void> {
+    if (!/^\d{14}-[a-z0-9]{7}$/.test(docId) || !/^\d{14}-[a-z0-9]{7}$/.test(blockId)) throw new ClipRestoreError("missing");
+    const rows = await querySql<{ id: string; root_id: string }>(`SELECT id, root_id FROM blocks WHERE id = '${blockId}' LIMIT 1`);
+    if (rows.length !== 1 || rows[0].id !== blockId || rows[0].root_id !== docId) throw new ClipRestoreError("missing");
+}
+
+export async function saveReadingPosition(plugin: Plugin, docId: string, expected: ReadingPositionSnapshot, position: ReadingPosition): Promise<ReadingPositionSnapshot> {
+    const serialized = serializeReadingPosition(position);
+    const targetPosition = parseReadingPosition(serialized)!;
+    if (expected.meta.id !== docId) throw new ClipRestoreError("changed");
+    const location = { box: expected.meta.box, hpath: expected.meta.hpath };
+    const raw = expected.raw;
+    return queueClipEdit(plugin, docId, async () => {
+        const current = await readClipAttributeSnapshot(docId);
+        const attrs = parseClipAttrs(current.attrs);
+        if (!attrs.status || attrs.internal || (current.attrs[ATTR.readingPosition] ?? null) !== raw) throw new ClipRestoreError("changed");
+        await verifyReadingBlock(docId, targetPosition.blockId);
+        let writeError: unknown;
+        try {
+            await writeClip(plugin, docId, { readingPosition: targetPosition }, { expectedAttrs: { [ATTR.readingPosition]: raw, [ATTR.status]: current.attrs[ATTR.status] }, expectedLocation: location });
+        } catch (error) {
+            if (error instanceof ClipRestoreError) throw error;
+            writeError = error;
+        }
+        const after = await readReadingPosition(docId);
+        if (after.raw !== serialized) {
+            if (writeError) throw writeError;
+            throw new ClipRestoreError("changed");
+        }
+        if (after.meta.box !== location.box || after.meta.hpath !== location.hpath) throw new ClipRestoreError("changed");
+        await verifyReadingBlock(docId, targetPosition.blockId);
+        return after;
+    });
+}
+
+export async function readClipAttributeSnapshot(docId: string): Promise<ClipAttributeSnapshot> {
+    if (!/^\d{14}-[a-z0-9]{7}$/.test(docId)) throw new ClipRestoreError("missing");
+    const meta = await fetchDocMeta(docId);
+    if (!meta.box || !meta.hpath) throw new ClipRestoreError("missing");
+    return { meta, attrs: await getBlockAttrs(docId) };
+}
+
+export async function restoreClipFields(plugin: Plugin, docId: string, snapshot: ClipAttributeSnapshot, patch: ClipPatch, allowDuplicate = false): Promise<void> {
+    await queueClipEdit(plugin, docId, async () => {
+        const serialized = serializePatch(patch);
+        const source = ATTR.url in serialized ? serialized[ATTR.url] || "" : snapshot.attrs[ATTR.url] || "";
+        const restoresSource = ATTR.url in serialized || (Boolean(serialized[ATTR.status]) && !parseClipAttrs(snapshot.attrs).status);
+        if (!allowDuplicate && restoresSource && normalizeUrl(source) && await findClipUrlConflict(source, docId, plugin)) throw new ClipRestoreError("conflict");
+        const expectedAttrs = Object.fromEntries(Object.keys(serialized).map((key) => [key, snapshot.attrs[key] ?? null]));
+        if (restoresSource) expectedAttrs[ATTR.url] = snapshot.attrs[ATTR.url] ?? null;
+        let writeError: unknown;
+        try {
+            await writeClip(plugin, docId, patch, { force: true, expectedAttrs, expectedLocation: { box: snapshot.meta.box, hpath: snapshot.meta.hpath } });
+        } catch (error) {
+            if (error instanceof ClipRestoreError) throw error;
+            writeError = error;
+        }
+        const current = await readClipAttributeSnapshot(docId);
+        if (current.meta.box !== snapshot.meta.box || current.meta.hpath !== snapshot.meta.hpath || parseClipAttrs(current.attrs).internal) throw new ClipRestoreError("changed");
+        if (restoresSource && !(ATTR.url in serialized) && (current.attrs[ATTR.url] ?? null) !== (snapshot.attrs[ATTR.url] ?? null)) throw new ClipRestoreError("changed");
+        if (Object.entries(serialized).some(([key, value]) => (current.attrs[key] ?? null) !== value)) {
+            if (writeError) throw writeError;
+            throw new ClipRestoreError("changed");
+        }
+    });
+}
+
+const USER_GUARDED_KEYS = [ATTR.url, ATTR.status, ATTR.priority, ATTR.rating, ATTR.author] as const;
 
 /** 写属性补丁（增量），成功后同步索引。返回实际跳过的键。 */
 export async function writeClip(
     plugin: Plugin,
     docId: string,
-    patch: Partial<ClipAttrs> & { aiTags?: string[] | null },
+    patch: ClipPatch,
     options: WriteClipOptions = {}
 ): Promise<WriteClipResult> {
+    if (options.expectedLocation) {
+        const meta = await fetchDocMeta(docId);
+        if (meta.box !== options.expectedLocation.box || meta.hpath !== options.expectedLocation.hpath) throw new ClipRestoreError("changed");
+    }
     const ial = await getBlockAttrs(docId);
+    if (options.expectedAttrs) {
+        if (parseClipAttrs(ial).internal) throw new ClipRestoreError("internal");
+        if (Object.entries(options.expectedAttrs).some(([key, value]) => (ial[key] ?? null) !== value)) throw new ClipRestoreError("changed");
+    }
+    if (options.expectedAuthor !== undefined) {
+        const attrs = parseClipAttrs(ial);
+        if ((ial[ATTR.author] ?? "") !== options.expectedAuthor || !attrs.status || attrs.internal) throw new AuthorEditError("changed");
+    }
     const serialized = serializePatch(patch);
 
     const skippedKeys: string[] = [];
     if (!options.force) {
         for (const key of USER_GUARDED_KEYS) {
             if (key === ATTR.status && options.forceStatus) continue;
-            if (key in serialized && serialized[key] !== null && ial[key]) {
+            if (key in serialized && ial[key]) {
                 delete serialized[key];
                 skippedKeys.push(key);
             }
@@ -192,6 +388,8 @@ export async function captureClip(
         allowDuplicate?: boolean;
         /** 导入时导出文件提供的可靠已读时间（Pocket time_read）；仅首次收录写入。 */
         doneTime?: string;
+        expectedAttrs?: WriteClipOptions["expectedAttrs"];
+        expectedLocation?: WriteClipOptions["expectedLocation"];
     } = {}
 ): Promise<{ captured: boolean; attrs: ClipAttrs; conflict?: DocMeta }> {
     const ial = await getBlockAttrs(docId);
@@ -208,7 +406,7 @@ export async function captureClip(
     const metadata = inspectClipMarkdown(options.markdown ?? "", { url: ial[ATTR.url] || options.url, contentType: options.contentType });
     const effectiveUrl = ial[ATTR.url] || options.url || metadata.url;
     if (effectiveUrl && !options.allowDuplicate) {
-        const conflict = await findClipUrlConflict(effectiveUrl, docId);
+        const conflict = await findClipUrlConflict(effectiveUrl, docId, plugin);
         if (conflict) return { captured: false, attrs: current, conflict };
     }
     // 显式收录可修复无效状态；其余已有属性均保留，尤其是来源 URL 和原时间。
@@ -228,7 +426,7 @@ export async function captureClip(
     if (!ial[ATTR.minutes] && metadata.minutes > 0) patch.minutes = metadata.minutes;
     if (options.doneTime && !ial[ATTR.doneTime]) patch.doneTime = options.doneTime;
     if (options.clearExcluded && current.excluded) patch.excluded = false;
-    const result = await writeClip(plugin, docId, patch, { forceStatus: true });
+    const result = await writeClip(plugin, docId, patch, { forceStatus: true, expectedAttrs: options.expectedAttrs, expectedLocation: options.expectedLocation });
     return { captured: true, attrs: result.attrs };
 }
 
@@ -306,7 +504,7 @@ export async function measureClipBody(plugin: Plugin, docId: string): Promise<Cl
 
 async function fetchDocMeta(docId: string): Promise<DocMeta> {
     const rows = await querySql<DocRow>(
-        `SELECT id, content AS title, hpath, box, updated FROM blocks WHERE id = '${docId}' AND type = 'd' LIMIT 1`
+        `SELECT id, content, hpath, box, updated FROM blocks WHERE id = '${docId}' AND type = 'd' LIMIT 1`
     );
     const row = rows[0];
     if (row) return { id: row.id, title: row.content || "", hpath: row.hpath || "", box: row.box || "", updated: row.updated || "" };
@@ -430,9 +628,9 @@ async function indexFromScopes(scopes: ScanDocScopes): Promise<GleanIndex> {
     const ids = scopes.all.map((row) => row.id);
     const attrPairs = await batchGetClipAttrsForIndex(ids);
     const attrsById = new Map(attrPairs.map((pair) => [pair.id, pair.attrs]));
-    for (const row of scopes.all) {
+    const projected = await mapWithConcurrency(scopes.all, async (row) => {
         const ial = attrsById.get(row.id);
-        if (!ial) continue;
+        if (!ial) return null;
         const exactTags = row.tag || ial.tags || "";
         let probe = inspectCandidate({
             ial,
@@ -457,9 +655,60 @@ async function indexFromScopes(scopes: ScanDocScopes): Promise<GleanIndex> {
                 tags: exactTags,
             });
         }
-        applyAttrsToIndex(index, rowToMeta(row), ial, probe);
+        return { row, ial, probe };
+    }, 4);
+    for (const item of projected) {
+        if (!item) continue;
+        applyAttrsToIndex(index, rowToMeta(item.row), item.ial, item.probe);
     }
     return index;
+}
+
+async function mapWithConcurrency<Input, Output>(items: readonly Input[], worker: (item: Input, index: number) => Promise<Output>, concurrency: number): Promise<Output[]> {
+    const results = new Array<Output>(items.length);
+    let nextIndex = 0;
+    async function consume(): Promise<void> {
+        while (true) {
+            const index = nextIndex++;
+            if (index >= items.length) return;
+            results[index] = await worker(items[index], index);
+        }
+    }
+    const workerCount = Math.min(Math.max(1, concurrency), items.length);
+    await Promise.all(Array.from({ length: workerCount }, () => consume()));
+    return results;
+}
+
+function buildScanPreview(scopes: ScanDocScopes, index: GleanIndex): ScanPreview {
+    const confirmed = scopes.all.flatMap((row) => {
+        const entry = index.clips[row.id];
+        return entry
+            ? [{ id: entry.id, title: entry.title, hpath: entry.hpath, status: entry.status, url: entry.url }]
+            : [];
+    });
+    const candidates = scopes.all.flatMap((row) => {
+        const entry = index.candidates[row.id];
+        return entry
+            ? [{ id: entry.id, title: entry.title, hpath: entry.hpath, url: entry.url, missing: entry.missing }]
+            : [];
+    });
+    const ordinary = scopes.all
+        .filter((row) => !index.clips[row.id] && !index.candidates[row.id])
+        .map((row) => ({ id: row.id, title: row.content || "", hpath: row.hpath || "" }));
+    const exampleLimit = 3;
+
+    return {
+        total: scopes.all.length,
+        confirmed: confirmed.length,
+        candidates: candidates.length,
+        candidatesMissingUrl: candidates.filter((candidate) => candidate.missing.includes("url")).length,
+        ordinary: ordinary.length,
+        examples: {
+            confirmed: confirmed.slice(0, exampleLimit),
+            candidates: candidates.slice(0, exampleLimit),
+            ordinary: ordinary.slice(0, exampleLimit),
+        },
+    };
 }
 
 /** 避免一次属性请求装进整个读库；一页失败会中止投影并保留旧索引。 */
@@ -472,10 +721,31 @@ async function batchGetClipAttrsForIndex(ids: string[]) {
  * 因此已删除、已失去候选证据或移出扫描范围的幽灵候选会被清掉，而状态/URL 次锚点
  * 仍会保留移出主锚点笔记本的已收录文章。
  */
+const reconcileFlights = new WeakMap<object, { key: string; promise: Promise<GleanIndex> }>();
+
 export async function reconcileIndex(plugin: Plugin, settings: GleanSettings): Promise<GleanIndex> {
+    const key = JSON.stringify(settings.anchorNotebooks);
+    const running = reconcileFlights.get(plugin);
+    if (running?.key === key) return running.promise;
+    const promise = (async () => {
+        const scopes = await scanDocScopes(settings);
+        const index = await indexFromScopes(scopes);
+        return saveIndex(plugin, index);
+    })();
+    reconcileFlights.set(plugin, { key, promise });
+    try {
+        return await promise;
+    } finally {
+        if (reconcileFlights.get(plugin)?.promise === promise) reconcileFlights.delete(plugin);
+    }
+}
+
+/** 首启只读预览：完整扫描并更新派生索引，但不写任何文章属性。 */
+export async function scanPreview(plugin: Plugin, settings: GleanSettings): Promise<ScanPreview> {
     const scopes = await scanDocScopes(settings);
     const index = await indexFromScopes(scopes);
-    return saveIndex(plugin, index);
+    await saveIndex(plugin, index);
+    return buildScanPreview(scopes, index);
 }
 
 function rowToMeta(row: DocRow): DocMeta {
