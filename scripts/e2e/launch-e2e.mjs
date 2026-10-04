@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
+import { fileURLToPath } from "node:url";
 import {
     resolveKernel,
     prepareWorkspace,
@@ -10,10 +11,15 @@ import {
     waitForBoot,
     shutdownKernel,
 } from "../spike/kernel-harness.mjs";
+import {
+    E2E_CREATED_BY,
+    E2E_MANIFEST_VERSION,
+    E2E_SESSION_DIR_NAME,
+    resolvePluginBundle,
+} from "./plugin-identity.mjs";
 
 const HOST = "127.0.0.1";
-const PLUGIN_NAME = "siyuan-glean";
-const CREATED_BY = "siyuan-glean-e2e-session";
+const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const startedAt = new Date().toISOString();
 
 function parseArgs() {
@@ -21,7 +27,7 @@ function parseArgs() {
     for (let index = 2; index < process.argv.length; index += 1) {
         const argument = process.argv[index];
         if (argument === "--help") {
-            console.log("node scripts/e2e/launch-e2e.mjs [--name name] [--workspace path] [--port port|0] [--manifest path] [--log path]");
+            console.log("node scripts/e2e/launch-e2e.mjs [--plugin-dir path] [--name name] [--workspace path] [--port port|0] [--manifest path] [--log path]");
             process.exit(0);
         }
         if (!argument.startsWith("--")) throw new Error("未知参数: " + argument);
@@ -68,14 +74,18 @@ function writeManifest(manifestPath, manifest) {
 
 const options = parseArgs();
 const name = safeName(options.name || "run-" + Date.now());
-const workspace = path.resolve(options.workspace || path.join(os.tmpdir(), "siyuan-glean-e2e-" + name + "-" + Date.now() + "-" + process.pid));
-const marker = "glean-e2e-" + name + ".json";
-const defaultManifestDir = path.join(os.tmpdir(), "siyuan-glean-e2e-sessions");
+const plugin = resolvePluginBundle(options["plugin-dir"] || REPO);
+const workspace = path.resolve(options.workspace || path.join(os.tmpdir(), "siyuan-plugin-e2e-" + plugin.name + "-" + name + "-" + Date.now() + "-" + process.pid));
+const marker = plugin.name + "-e2e-" + name + ".json";
+const defaultManifestDir = path.join(os.tmpdir(), E2E_SESSION_DIR_NAME);
 const manifestPath = path.resolve(options.manifest || path.join(defaultManifestDir, name + "-" + Date.now() + "-" + process.pid + ".json"));
 const requestedPort = parsePort(options.port);
 const manifest = {
-    version: 1,
-    createdBy: CREATED_BY,
+    version: E2E_MANIFEST_VERSION,
+    createdBy: E2E_CREATED_BY,
+    pluginName: plugin.name,
+    pluginVersion: plugin.version,
+    pluginDir: plugin.root,
     name,
     ownerPid: process.pid,
     kernelPid: null,
@@ -113,16 +123,12 @@ async function cleanup(exitCode = 0) {
 
 async function main() {
     const { kernel, appDir } = resolveKernel();
-    prepareWorkspace(workspace, marker, CREATED_BY);
+    prepareWorkspace(workspace, marker, E2E_CREATED_BY);
 
-    const distDir = path.join(process.cwd(), "dist");
-    if (!fs.existsSync(path.join(distDir, "index.js"))) {
-        throw new Error("dist/index.js 不存在，先 pnpm build");
-    }
-    const target = path.join(workspace, "data", "plugins", PLUGIN_NAME);
+    const target = path.join(workspace, "data", "plugins", plugin.name);
     fs.rmSync(target, { recursive: true, force: true });
     fs.mkdirSync(target, { recursive: true });
-    fs.cpSync(distDir, target, { recursive: true });
+    fs.cpSync(plugin.distDir, target, { recursive: true });
 
     const port = requestedPort || await choosePort();
     await assertTestPortAvailable(HOST, port);
@@ -145,9 +151,9 @@ async function main() {
     client.setToken((JSON.parse(fs.readFileSync(confPath, "utf8")).accessAuthCode) || "");
 
     await client.api("/api/setting/setBazaar", { trust: true, petalDisabled: false });
-    const enabled = await client.api("/api/petal/setPetalEnabled", { packageName: PLUGIN_NAME, enabled: true, frontend: "desktop" });
+    const enabled = await client.api("/api/petal/setPetalEnabled", { packageName: plugin.name, enabled: true, frontend: "desktop" });
     const petals = await client.api("/api/petal/loadPetals", { frontend: "desktop" });
-    const found = Array.isArray(petals.data) ? petals.data.find((item) => item.name === PLUGIN_NAME) : null;
+    const found = Array.isArray(petals.data) ? petals.data.find((item) => item.name === plugin.name) : null;
     console.log("插件启用=" + (enabled.code === 0) + " loadPetals含插件=" + Boolean(found) + " i18n键=" + Object.keys(found?.i18n ?? {}).length);
 
     const notebooks = await client.apiChecked("/api/notebook/lsNotebooks", {});

@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { createHash } from "node:crypto";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { isSupportedE2EManifest, isValidPluginName, resolvePluginBundle } from "./plugin-identity.mjs";
 
 const CREATED_BY = "siyuan-glean-acceptance-session";
 const DEFAULT_ROOT = path.join(os.tmpdir(), "siyuan-glean-acceptance-sessions");
@@ -141,6 +142,9 @@ export function validateSessionRecord(session) {
     if (session.workspace !== null && session.workspace !== undefined && !path.isAbsolute(session.workspace)) {
         throw new Error("workspace 必须是绝对路径");
     }
+    if (session.pluginName !== null && session.pluginName !== undefined && !isValidPluginName(session.pluginName)) {
+        throw new Error("pluginName 不是合法插件名");
+    }
     if (session.host !== null && session.host !== undefined && !LOOPBACK_HOSTS.has(session.host)) {
         throw new Error("验收会话 host 只能是回环地址");
     }
@@ -196,7 +200,7 @@ function assertCanClose(session, status, sessionPath) {
 }
 
 function usage() {
-    console.log("node scripts/e2e/acceptance-session.mjs create --kind kind --name name [--device device] [--root path]");
+    console.log("node scripts/e2e/acceptance-session.mjs create --kind kind --name name [--plugin-dir path|--plugin-name name] [--device device] [--root path]");
     console.log("node scripts/e2e/acceptance-session.mjs link --session path --manifest e2e-manifest");
     console.log("node scripts/e2e/acceptance-session.mjs record --session path --case case-id --result passed|failed|blocked|skipped --evidence path");
     console.log("node scripts/e2e/acceptance-session.mjs report --session path --report spike-results.json");
@@ -211,6 +215,7 @@ function create(options) {
     if (!kind) throw new Error("create 需要受支持的 --kind: " + Object.keys(SESSION_KINDS).join(", "));
     const name = safeName(one(options, "name") || kindName + "-" + Date.now());
     const root = path.resolve(one(options, "root") || DEFAULT_ROOT);
+    const plugin = one(options, "plugin-dir") ? resolvePluginBundle(one(options, "plugin-dir")) : null;
     const createdAt = new Date().toISOString();
     const session = {
         version: 1,
@@ -219,12 +224,13 @@ function create(options) {
         name,
         kind: kindName,
         evidenceClass: kind.evidenceClass,
+        pluginName: one(options, "plugin-name") || plugin?.name || null,
         status: "planned",
         device: one(options, "device") || null,
         workspace: absoluteOptional(one(options, "workspace")),
         host: one(options, "host") || null,
         port: parsePort(one(options, "port")),
-        pluginVersion: one(options, "plugin-version") || packageVersion(),
+        pluginVersion: one(options, "plugin-version") || plugin?.version || packageVersion(),
         evidence: values(options, "evidence").map((item) => path.resolve(item)),
         failedItems: values(options, "failed"),
         resolvedItems: [],
@@ -247,19 +253,23 @@ function create(options) {
 function link(options) {
     const manifestFile = path.resolve(one(options, "manifest"));
     const manifest = readJson(manifestFile);
-    if (manifest.createdBy !== "siyuan-glean-e2e-session" || manifest.version !== 1) {
+    if (!isSupportedE2EManifest(manifest)) {
         throw new Error("E2E manifest 创建者或版本不匹配");
     }
+    if (manifest.pluginName && !isValidPluginName(manifest.pluginName)) throw new Error("E2E manifest pluginName 不合法");
     if (manifest.host && !LOOPBACK_HOSTS.has(manifest.host)) throw new Error("E2E manifest host 不是回环地址");
     if (manifest.workspace && !path.isAbsolute(manifest.workspace)) throw new Error("E2E manifest workspace 必须是绝对路径");
     const sessionFile = one(options, "session");
     const result = mutateSession(sessionFile, (session) => {
+        if (session.pluginName && manifest.pluginName && session.pluginName !== manifest.pluginName) throw new Error("E2E manifest 插件与验收会话不匹配");
+        if (session.pluginVersion && manifest.pluginVersion && session.pluginVersion !== manifest.pluginVersion) throw new Error("E2E manifest 版本与验收会话不匹配");
         const updated = {
             ...session,
             status: manifest.status === "ready" ? "running" : session.status,
             workspace: manifest.workspace || session.workspace,
             host: manifest.host || session.host,
             port: manifest.port || session.port,
+            pluginName: session.pluginName || manifest.pluginName || null,
             pluginVersion: session.pluginVersion || manifest.pluginVersion || packageVersion(),
             evidence: [...new Set([...session.evidence, manifestFile])],
             runtime: {
@@ -269,6 +279,7 @@ function link(options) {
                 notebookId: manifest.notebookId || null,
                 ownerPid: manifest.ownerPid || null,
                 kernelPid: manifest.kernelPid || null,
+                pluginDir: manifest.pluginDir || null,
             },
         };
         return updated;

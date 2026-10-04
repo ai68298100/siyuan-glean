@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { main, SESSION_KINDS, validateSessionRecord } from "../scripts/e2e/acceptance-session.mjs";
+import { isSupportedE2EManifest, resolvePluginBundle } from "../scripts/e2e/plugin-identity.mjs";
 
 async function quietMain(args) {
     const log = console.log;
@@ -98,5 +99,20 @@ test("linking an E2E manifest records service evidence", async () => {
     assert.deepEqual(session.evidence, [manifestPath, path.resolve(reportPath)]);
     assert.equal(session.checks[0].id, "E2E-01");
     assert.equal(session.evidenceClass, "service-e2e");
+    fs.rmSync(root, { recursive: true, force: true });
+});
+
+test("cross-plugin bundle identity is derived from plugin.json and dist", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "glean-plugin-bundle-test-"));
+    fs.mkdirSync(path.join(root, "dist"), { recursive: true });
+    fs.writeFileSync(path.join(root, "plugin.json"), JSON.stringify({ name: "other-plugin", version: "2.4.0" }));
+    fs.writeFileSync(path.join(root, "dist", "plugin.json"), JSON.stringify({ name: "other-plugin", version: "2.4.0" }));
+    fs.writeFileSync(path.join(root, "dist", "index.js"), "export default {};\n");
+    const bundle = resolvePluginBundle(root);
+    assert.equal(bundle.name, "other-plugin");
+    assert.equal(bundle.version, "2.4.0");
+    assert.equal(bundle.distDir, path.join(root, "dist"));
+    assert.equal(isSupportedE2EManifest({ version: 1, createdBy: "siyuan-plugin-e2e-session" }), true);
+    assert.equal(isSupportedE2EManifest({ version: 1, createdBy: "siyuan-glean-e2e-session" }), true);
     fs.rmSync(root, { recursive: true, force: true });
 });

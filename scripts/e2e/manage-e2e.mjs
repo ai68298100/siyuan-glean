@@ -3,15 +3,20 @@ import os from "node:os";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import {
+    E2E_CREATED_BY,
+    E2E_SESSION_DIR_NAME,
+    LEGACY_E2E_CREATED_BY,
+    isSupportedE2EManifest,
+} from "./plugin-identity.mjs";
 
-const CREATED_BY = "siyuan-glean-e2e-session";
 const HOSTS = new Set(["127.0.0.1", "::1"]);
 const repo = path.resolve(fileURLToPath(new URL("../..", import.meta.url)));
 const launcher = path.join(repo, "scripts", "e2e", "launch-e2e.mjs");
-const sessionDir = path.join(os.tmpdir(), "siyuan-glean-e2e-sessions");
+const sessionDir = path.join(os.tmpdir(), E2E_SESSION_DIR_NAME);
 
 function usage() {
-    console.log("node scripts/e2e/manage-e2e.mjs start [--name name] [--workspace path] [--port port|0]");
+    console.log("node scripts/e2e/manage-e2e.mjs start [--plugin-dir path] [--name name] [--workspace path] [--port port|0]");
     console.log("node scripts/e2e/manage-e2e.mjs stop --manifest path");
     console.log("node scripts/e2e/manage-e2e.mjs status --manifest path");
     console.log("node scripts/e2e/manage-e2e.mjs list");
@@ -34,7 +39,7 @@ function parseOptions(argumentsList) {
 function readManifest(manifestPath) {
     const resolved = path.resolve(manifestPath);
     const manifest = JSON.parse(fs.readFileSync(resolved, "utf8"));
-    if (manifest.createdBy !== CREATED_BY || !Number.isInteger(manifest.ownerPid) || !Number.isInteger(manifest.kernelPid)) {
+    if (!isSupportedE2EManifest(manifest) || !Number.isInteger(manifest.ownerPid) || !Number.isInteger(manifest.kernelPid)) {
         throw new Error("manifest 不是本插件创建的有效 E2E 会话");
     }
     if (!HOSTS.has(manifest.host) || !path.isAbsolute(manifest.workspace) || !path.isAbsolute(resolved) || !Number.isInteger(manifest.port) || manifest.port < 1 || manifest.port > 65535 || manifest.base !== `http://${manifest.host}:${manifest.port}`) {
@@ -42,7 +47,7 @@ function readManifest(manifestPath) {
     }
     const markerPath = path.join(manifest.workspace, manifest.marker);
     const marker = JSON.parse(fs.readFileSync(markerPath, "utf8"));
-    if (marker.createdBy !== CREATED_BY) throw new Error("工作区标记不匹配，拒绝操作");
+    if (![E2E_CREATED_BY, LEGACY_E2E_CREATED_BY].includes(marker.createdBy) || marker.createdBy !== manifest.createdBy) throw new Error("工作区标记不匹配，拒绝操作");
     return { path: resolved, manifest };
 }
 
@@ -83,6 +88,7 @@ async function start(options) {
     const logPath = manifestPath.replace(/\.json$/i, ".log");
     const output = fs.openSync(logPath, "a");
     const argumentsList = [launcher, "--name", name, "--manifest", manifestPath, "--log", logPath];
+    if (options["plugin-dir"]) argumentsList.push("--plugin-dir", path.resolve(options["plugin-dir"]));
     if (options.workspace) argumentsList.push("--workspace", path.resolve(options.workspace));
     if (options.port) argumentsList.push("--port", options.port);
     const child = spawn(process.execPath, argumentsList, {

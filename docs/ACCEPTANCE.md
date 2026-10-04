@@ -7,7 +7,7 @@
 ## 0. 环境准备（二选一）
 
 - **A. 真机装包**：从 GitHub Latest Release 下载 `package.zip` 安装；**覆盖安装后必须重启思源**（运行中覆盖，旧代码仍在内存）。
-- **B. 隔离联调环境**：`node scripts/e2e/launch-e2e.mjs`（回环 6833，自带 GleanE2E 演示数据），用桌面客户端打开该临时工作区走查；不影响常驻工作区。
+- **B. 隔离联调环境**：当前插件运行 `node scripts/e2e/launch-e2e.mjs`；其他插件可用 `node scripts/e2e/manage-e2e.mjs start --plugin-dir <插件仓库>`。每次运行自动使用独立临时工作区、回环端口、manifest、日志和 PID；用桌面客户端打开对应工作区走查，不影响常驻工作区。验收账本可用 `pnpm e2e:acceptance create --kind isolated-kernel --plugin-dir <插件仓库> ...` 记录目标插件身份。
 - 通用前提：插件设置里选择**读库笔记本**；AI 相关验收需先配置模型（思源原生 AI，或设置→AI→自定义通道+密钥库）。
 
 ## 1. B-0001 官方剪藏扩展实剪（约 5 分钟）
