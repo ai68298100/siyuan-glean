@@ -26,6 +26,7 @@ test("settings exposes names for groups, controls and save state", () => {
     assert.match(source, /role="group" aria-label=\{t\(i18n, "settings\.readerMode"\)\}/);
     assert.match(source, /aria-label=\{t\(i18n, "settings\.aiDailyCap"\)\}/);
     assert.match(source, /aria-label=\{t\(i18n, "settings\.checkinItem"\)\}/);
+    assert.match(source, /customBaseUrlInsecure/);
 });
 
 test("mobile onboarding entry remains guarded by frontend detection", () => {

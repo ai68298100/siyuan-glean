@@ -642,6 +642,7 @@
   "settings.channelSiyuan": "思源内置",
   "settings.channelCustom": "拾遗专用",
   "settings.customBaseUrl": "API 地址",
+  "settings.customBaseUrlInsecure": "当前地址使用明文 HTTP，密钥和请求可能被网络窃听；建议改用 HTTPS。",
   "settings.customModel": "模型名",
   "settings.customSecretName": "密钥名",
   "settings.customSecretDesc": "在思源 设置→密钥和变量 里创建密钥并填入 API Key，此处填该密钥的名字（内核加密存储，不落插件文件）",

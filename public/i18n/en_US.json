@@ -642,6 +642,7 @@
   "settings.channelSiyuan": "SiYuan built-in",
   "settings.channelCustom": "Glean-specific",
   "settings.customBaseUrl": "API base URL",
+  "settings.customBaseUrlInsecure": "This address uses plaintext HTTP; requests and secrets may be intercepted. Prefer HTTPS.",
   "settings.customModel": "Model name",
   "settings.customSecretName": "Secret name",
   "settings.customSecretDesc": "Create a secret with your API key in SiYuan Settings→Secrets & variables, then enter its name here (kernel-encrypted, never stored in plugin files)",

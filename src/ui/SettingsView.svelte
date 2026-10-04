@@ -465,6 +465,11 @@ async function doMountBoard() {
                     <div class="glean-set-row__lb">{t(i18n, "settings.customBaseUrl")}</div>
                     <input class="glean-mini-input glean-settings__wide-input" aria-label={t(i18n, "settings.customBaseUrl")} placeholder="https://…/v1" bind:value={customBaseUrl} />
                 </div>
+                {#if /^http:\/\//i.test(customBaseUrl.trim())}
+                    <div class="glean-set-row" role="alert">
+                        <span class="glean-settings__error">{t(i18n, "settings.customBaseUrlInsecure")}</span>
+                    </div>
+                {/if}
                 <div class="glean-set-row">
                     <div class="glean-set-row__lb">{t(i18n, "settings.customModel")}</div>
                     <input class="glean-mini-input glean-settings__wide-input" aria-label={t(i18n, "settings.customModel")} placeholder="free-model" bind:value={customModel} />
