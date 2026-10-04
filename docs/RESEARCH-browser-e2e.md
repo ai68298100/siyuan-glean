@@ -34,6 +34,13 @@
 - scripts/spike/glean-spike.mjs、scripts/spike/av-spike.mjs 仍是固定工作区或端口的历史 spike，不应与其他插件直接并行复用，统一改造列入 T-3264。
 - 该机制是服务级 E2E 或桌面隔离内核会话，不产生 Android/iOS 真机证据；真机仍需独立设备或独立模拟器，且要避开思源桌面单实例转发。
 
+## 验收会话账本（T-3264/D-0111）
+
+- `pnpm e2e:acceptance create --kind isolated-kernel --name s1` 创建隔离内核会话；`--kind` 还支持 `desktop-host`、`android-device`、`ios-device`、`android-emulator`、`ios-simulator`、`ai`、`external-file` 和 `dual-plugin`。
+- `pnpm e2e:acceptance link --session <session> --manifest <manifest>` 把后台 E2E 的工作区、回环端口、内核版本和 PID 记入会话；该会话证据等级仍是 `service-e2e`。
+- `record` 追加证据和失败项；真实 Android/iOS 关闭为 `passed` 前必须有 `--real-device-confirmed true`，桌面宿主和双插件分别需要宿主/双插件确认。存在失败项或没有证据时，账本拒绝 `passed`。
+- 账本默认写在系统临时目录，不写文章属性或插件 `saveData`；`list/status` 只读取会话元数据。跨插件仓库可复用命令和字段约定，具体插件的行为证据仍独立保存。
+
 ## 现有替代覆盖（已足够）
 
 - 内核 API 面：spike 9/9（含快照闭环、制卡闭环）+ av-spike 6/6——插件全部数据通道已实证；
