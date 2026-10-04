@@ -28,6 +28,8 @@
     "perf:baseline": "node scripts/perf/benchmark.mjs",
     "perf:check": "node scripts/perf/benchmark.mjs --check",
     "spike": "node scripts/spike/glean-spike.mjs",
+    "e2e:ui": "node scripts/e2e/launch-e2e.mjs",
+    "e2e:background": "node scripts/e2e/manage-e2e.mjs",
     "spike:transactions": "node scripts/spike/transaction-spike.mjs",
     "icon": "node scripts/gen-icon.mjs a"
   },
