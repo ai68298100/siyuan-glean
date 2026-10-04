@@ -27,6 +27,7 @@ const i18n = $derived(facade.i18n);
 
 let notebooks = $state<NotebookMeta[]>([]);
 let anchorNotebooks = $state<string[]>([...DEFAULT_SETTINGS.anchorNotebooks]);
+let snapshotOnCapture = $state(DEFAULT_SETTINGS.snapshotOnCapture);
 let aiEnrichMode = $state<"off" | "manual" | "auto">(DEFAULT_SETTINGS.ai.enrichMode);
 let aiDailyCap = $state(DEFAULT_SETTINGS.ai.enrichDailyCap);
 let aiDedup = $state(DEFAULT_SETTINGS.ai.dedupOnEnrich);
@@ -101,6 +102,7 @@ function toggleNotebook(id: string) {
 
 function loadDraft(settings: GleanSettings) {
     anchorNotebooks = [...settings.anchorNotebooks];
+    snapshotOnCapture = settings.snapshotOnCapture;
     aiEnrichMode = settings.ai.enrichMode;
     aiDailyCap = settings.ai.enrichDailyCap;
     aiDedup = settings.ai.dedupOnEnrich;
@@ -129,6 +131,7 @@ function buildDraftSettings(): GleanSettings {
     return normalizeSettings({
         ...originalSettings,
         anchorNotebooks: [...anchorNotebooks],
+        snapshotOnCapture,
         ai: {
             ...originalSettings.ai,
             enrichMode: aiEnrichMode,
@@ -330,6 +333,13 @@ async function doMountBoard() {
                     {t(i18n, "settings.anchorNotebooks")}
                     <div class="glean-set-row__desc">{t(i18n, "settings.anchorNotebooksDesc")}</div>
                 </div>
+            </div>
+            <div class="glean-set-row">
+                <div class="glean-set-row__lb">
+                    {t(i18n, "settings.snapshotOnCapture")}
+                    <div class="glean-set-row__desc">{t(i18n, "settings.snapshotOnCaptureHint")}</div>
+                </div>
+                <button class="glean-sw" class:glean-sw--on={snapshotOnCapture} aria-label={t(i18n, "settings.snapshotOnCapture")} aria-pressed={snapshotOnCapture} onclick={() => { snapshotOnCapture = !snapshotOnCapture; }}></button>
             </div>
         </div>
     </div>

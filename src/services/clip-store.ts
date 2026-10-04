@@ -43,7 +43,7 @@ import {
     type ClipIndexEntry,
     type GleanIndex,
 } from "./index-store";
-import type { GleanSettings } from "./settings";
+import { loadSettings, normalizeSettings, type GleanSettings } from "./settings";
 
 export interface DocMeta {
     id: string;
@@ -208,6 +208,16 @@ export async function readClipAuthor(docId: string): Promise<AuthorEditSnapshot>
 }
 
 const explicitEdits = new WeakMap<Plugin, Map<string, Promise<void>>>();
+
+async function automaticSnapshotEnabled(plugin: Plugin): Promise<boolean> {
+    const cached = (plugin as Plugin & { settings?: unknown }).settings;
+    if (cached !== undefined) return normalizeSettings(cached).snapshotOnCapture;
+    try {
+        return (await loadSettings(plugin, { strict: true })).snapshotOnCapture;
+    } catch {
+        return false;
+    }
+}
 
 function queueClipEdit<Result>(plugin: Plugin, docId: string, action: () => Promise<Result>): Promise<Result> {
     let queues = explicitEdits.get(plugin);
@@ -427,6 +437,15 @@ export async function captureClip(
     if (options.doneTime && !ial[ATTR.doneTime]) patch.doneTime = options.doneTime;
     if (options.clearExcluded && current.excluded) patch.excluded = false;
     const result = await writeClip(plugin, docId, patch, { forceStatus: true, expectedAttrs: options.expectedAttrs, expectedLocation: options.expectedLocation });
+    if (await automaticSnapshotEnabled(plugin) && !result.attrs.snapshot) {
+        try {
+            const { snapshotClip } = await import("./snapshot-service");
+            const { path } = await snapshotClip(plugin, docId, { expectedAttrs: { [ATTR.snapshot]: ial[ATTR.snapshot] ?? null } });
+            result.attrs.snapshot = path;
+        } catch {
+            console.warn("[glean] automatic snapshot failed");
+        }
+    }
     return { captured: true, attrs: result.attrs };
 }
 

@@ -647,7 +647,7 @@ test("只读预览可以取消，中断不产生文章状态或持久化恢复�
 test("设置和偏好恢复各自显式选择，恢复设置关闭所有 AI 和协作写开关及默认编辑", async () => {
     const fixture = harness();
     const saved = {
-        ...normalizeSettings({ inboxQuota: 75, reader: { openInTab: true, defaultMode: "edit" } }),
+        ...normalizeSettings({ inboxQuota: 75, snapshotOnCapture: true, reader: { openInTab: true, defaultMode: "edit" } }),
         ai: { ...DEFAULT_SETTINGS.ai, enrichMode: "auto", enrichDailyCap: 12, channel: "custom", customBaseUrl: "https://ai.test/v1", customModel: "test-model", customSecretName: "named-secret", dedupOnEnrich: true, relatedWhileReading: true, formattingEnabled: true, presetActions: true, authorSuggestionEnabled: true, questionCardEnabled: true, apiKey: "DO-NOT-RESTORE-KEY" },
         integration: { checkinEnabled: true, checkinItemId: "selected-item", bridgeWriteEnabled: true },
     };
@@ -660,6 +660,8 @@ test("设置和偏好恢复各自显式选择，恢复设置关闭所有 AI 和�
     assert.equal(report.applied, 0);
     const restored = fixture.files.get("settings.json");
     assert.equal(restored.inboxQuota, 75);
+    assert.equal(session.preferences.afterSettings.snapshotOnCapture, false);
+    assert.equal(restored.snapshotOnCapture, false);
     assert.equal(restored.ai.enrichMode, "off");
     for (const key of ["dedupOnEnrich", "relatedWhileReading", "formattingEnabled", "presetActions", "authorSuggestionEnabled", "questionCardEnabled"]) assert.equal(restored.ai[key], false, key);
     assert.equal(restored.integration.checkinEnabled, false);

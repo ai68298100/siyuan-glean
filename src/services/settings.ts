@@ -9,6 +9,7 @@ export interface GleanSettings {
     version: 1;
     /** 读库笔记本（主锚点），notebook id 列表 */
     anchorNotebooks: string[];
+    snapshotOnCapture: boolean;
     ai: {
         /** 富化触发模式：off=关闭 / manual=仅手动(✨) / auto=收录时自动。token 消耗的主开关。 */
         enrichMode: "off" | "manual" | "auto";
@@ -63,6 +64,7 @@ export interface GleanSettings {
 export const DEFAULT_SETTINGS: GleanSettings = {
     version: 1,
     anchorNotebooks: [],
+    snapshotOnCapture: false,
     ai: {
         enrichMode: "manual",
         enrichDailyCap: 20,
@@ -118,6 +120,7 @@ export function normalizeSettings(raw: unknown): GleanSettings {
         anchorNotebooks: Array.isArray(input.anchorNotebooks)
             ? input.anchorNotebooks.filter((id): id is string => typeof id === "string" && id.length > 0)
             : [],
+        snapshotOnCapture: typeof input.snapshotOnCapture === "boolean" ? input.snapshotOnCapture : false,
         ai: {
             // 兼容旧版布尔 enrichOnCapture：true→auto，false→manual
             enrichMode: normalizeEnrichMode(ai.enrichMode, ai.enrichOnCapture),
@@ -163,6 +166,7 @@ export function mergeSettingsDraft(current: GleanSettings, draft: GleanSettings)
     return normalizeSettings({
         ...saved,
         anchorNotebooks: edited.anchorNotebooks,
+        snapshotOnCapture: edited.snapshotOnCapture,
         ai: { ...saved.ai, ...edited.ai },
         resurface: { ...saved.resurface, ...edited.resurface },
         inboxQuota: edited.inboxQuota,

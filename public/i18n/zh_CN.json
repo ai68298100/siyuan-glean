@@ -203,6 +203,8 @@
   "settings.saveFailed": "保存失败",
   "settings.anchorNotebooks": "读库笔记本",
   "settings.anchorNotebooksDesc": "在这些笔记本中寻找有来源证据的剪藏候选；任意笔记本的精确 #剪藏 标签也可进入候选，普通笔记不会自动收录",
+  "settings.snapshotOnCapture": "收录后自动生成快照",
+  "settings.snapshotOnCaptureHint": "默认关闭。开启后，首次收录成功会把当前思源文档保存为 HTML 资产；已有快照不重拍。快照失败不影响收录，可手动重试。",
   "settings.aiGroup": "AI 增强（常用）",
   "settings.aiChannelGroup": "AI 通道 · 进阶",
   "settings.aiEnrichOnCapture": "收录时自动生成摘要与标签",

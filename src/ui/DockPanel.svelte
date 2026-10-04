@@ -282,15 +282,39 @@ $effect(() => {
 const candidateCount = $derived(Object.keys(index.candidates).length);
 const totalClips = $derived(Object.keys(index.clips).length);
 
-// 待确认候选单独展示，不占 inbox 配额；只有已收录条目进入五态计数。
-const inboxTotal = $derived(Object.values(index.clips).filter((entry) => entry.status === "inbox").length);
-const overQuota = $derived(inboxTotal > facade.settings.inboxQuota);
-const stalePool = $derived.by(() => {
+/**
+ * 治理提示和状态 rail 共用同一份索引扫描结果。
+ * staleDays 是设置项，改变它时会重新计算超龄池；文章索引变更时则只扫描一次。
+ */
+const queueStats = $derived.by<{
+    counts: Record<QueueKey, number>;
+    inboxTotal: number;
+    stalePool: ClipIndexEntry[];
+}>(() => {
+    const counts: Record<QueueKey, number> = {
+        inbox: 0,
+        later: 0,
+        reading: 0,
+        done: 0,
+        archived: 0,
+    };
+    const stalePool: ClipIndexEntry[] = [];
+    let inboxTotal = 0;
     const limit = facade.settings.staleDays;
-    return Object.values(index.clips).filter((entry) =>
-        (entry.status === "inbox" || entry.status === "later") && ageDays(entry.time) >= limit
-    );
+    for (const entry of Object.values(index.clips)) {
+        if (entry.status && entry.status in counts) counts[entry.status] += 1;
+        if (entry.status === "inbox") inboxTotal += 1;
+        if ((entry.status === "inbox" || entry.status === "later") && ageDays(entry.time) >= limit) {
+            stalePool.push(entry);
+        }
+    }
+    return { counts, inboxTotal, stalePool };
 });
+
+// 待确认候选单独展示，不占 inbox 配额；只有已收录条目进入五态计数。
+const inboxTotal = $derived(queueStats.inboxTotal);
+const overQuota = $derived(inboxTotal > facade.settings.inboxQuota);
+const stalePool = $derived(queueStats.stalePool);
 const governanceCueCount = $derived(
     Number(overQuota && activeQueue === "inbox" && !authorTimeline && !governanceCueMuted("quota", governanceMuted))
     + Number(stalePool.length > 0 && (activeQueue === "inbox" || activeQueue === "later") && !governanceCueMuted("stale", governanceMuted))
@@ -343,8 +367,7 @@ async function doArchiveStale() {
 const railStats = $derived(facets);
 
 function queueCount(key: QueueKey): number {
-    if (key === "inbox") return Object.values(index.clips).filter((entry) => entry.status === "inbox").length;
-    return Object.values(index.clips).filter((entry) => entry.status === key).length;
+    return queueStats.counts[key];
 }
 
 function queueLabel(key: QueueKey | ""): string {

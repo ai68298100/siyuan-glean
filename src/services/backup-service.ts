@@ -56,6 +56,7 @@ export async function previewBackupRestore(plugin: Plugin, content: string, sign
     const backup = parseBackup(content);
     const [beforeSettings, beforeUiPrefs] = await Promise.all([loadSettings(plugin, { strict: true }), loadUiPrefs(plugin, { strict: true })]);
     const afterSettings = normalizeSettings(backup.settings);
+    afterSettings.snapshotOnCapture = false;
     afterSettings.ai = { ...afterSettings.ai, enrichMode: "off", dedupOnEnrich: false, relatedWhileReading: false, formattingEnabled: false, presetActions: false, authorSuggestionEnabled: false, questionCardEnabled: false, articleQuestionEnabled: false };
     afterSettings.integration = { ...afterSettings.integration, checkinEnabled: false, bridgeWriteEnabled: false };
     afterSettings.reader.defaultMode = "read";

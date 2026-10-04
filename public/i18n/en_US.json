@@ -203,6 +203,8 @@
   "settings.saveFailed": "Could not save",
   "settings.anchorNotebooks": "Library notebooks",
   "settings.anchorNotebooksDesc": "Find clippings with source evidence in these notebooks. An exact #剪藏 tag from any notebook also qualifies; ordinary notes are not added automatically.",
+  "settings.snapshotOnCapture": "Create a snapshot after capture",
+  "settings.snapshotOnCaptureHint": "Off by default. After a successful first capture, save the current SiYuan document as an HTML asset. Existing snapshots are kept. Snapshot failure does not undo capture; you can retry manually.",
   "settings.aiGroup": "AI enrichment (common)",
   "settings.aiChannelGroup": "AI channel · advanced",
   "settings.aiEnrichOnCapture": "Auto summary & tags on capture",

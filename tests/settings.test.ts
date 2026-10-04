@@ -38,6 +38,29 @@ test("默认富化模式=manual（token 消耗需用户显式开启自动）", (
     assert.equal(DEFAULT_SETTINGS.ai.enrichDailyCap > 0, true);
 });
 
+test("自动快照默认关闭，只保留明确布尔选择", () => {
+    assert.equal(DEFAULT_SETTINGS.snapshotOnCapture, false);
+    assert.equal(normalizeSettings({}).snapshotOnCapture, false);
+    for (const value of [undefined, null, "true", "false", 1, 0, {}, []]) {
+        assert.equal(normalizeSettings({ snapshotOnCapture: value }).snapshotOnCapture, false);
+    }
+    assert.equal(normalizeSettings({ snapshotOnCapture: true }).snapshotOnCapture, true);
+    assert.equal(normalizeSettings({ snapshotOnCapture: false }).snapshotOnCapture, false);
+});
+
+test("自动快照参与设置草稿克隆、修改检测、保存与重置", () => {
+    const current = normalizeSettings({ migrateBatchSize: 37 });
+    const draft = cloneSettings(current);
+    draft.snapshotOnCapture = true;
+    assert.equal(current.snapshotOnCapture, false);
+    assert.equal(settingsEqual(current, draft), false);
+    assert.equal(cloneSettings(draft).snapshotOnCapture, true);
+    const merged = mergeSettingsDraft(current, draft);
+    assert.equal(merged.snapshotOnCapture, true);
+    assert.equal(merged.migrateBatchSize, 37);
+    assert.equal(mergeSettingsDraft(merged, cloneSettings(DEFAULT_SETTINGS)).snapshotOnCapture, false);
+});
+
 test("AI 功能新用户默认关闭，保留显式布尔选择而拒绝类型漂移", () => {
     const fields = ["dedupOnEnrich", "relatedWhileReading", "presetActions", "formattingEnabled"] as const;
     for (const field of fields) {
