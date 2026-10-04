@@ -262,6 +262,41 @@ function rowById(snapshot, id) {
     return row;
 }
 
+function descendantIds(snapshot, rootId) {
+    const descendants = new Set([rootId]);
+    let changed = true;
+    while (changed) {
+        changed = false;
+        for (const row of snapshot.rows) {
+            if (descendants.has(row.native_parent) && !descendants.has(row.id)) {
+                descendants.add(row.id);
+                changed = true;
+            }
+        }
+    }
+    return descendants;
+}
+
+async function readBlockOutcome(client, id) {
+    try {
+        const response = await client.api("/api/block/getBlockDOM", { id });
+        const dom = typeof response.data === "string" ? response.data : response.data?.dom;
+        const hasContent = typeof dom === "string" && dom.length > 0;
+        return {
+            code: response.code ?? null,
+            message: response.msg ?? null,
+            hasContent,
+            state: response.code === 0 ? (hasContent ? "readable" : "empty") : "rejected",
+        };
+    } catch (error) {
+        return {
+            code: null,
+            message: error instanceof Error ? error.message : String(error),
+            state: "transport-error",
+        };
+    }
+}
+
 function assertNativeStructure(before, after, label) {
     assert.deepEqual(after.ids, before.ids, `${label} 改变了块身份集合`);
     for (const row of before.rows) {
@@ -616,7 +651,9 @@ async function runCrossParentReorderProbe(client, box) {
         "",
         "- 源列表项",
         "  - 源保留项",
+        "    - 源更深保留项",
         "  - 源嵌套项",
+        "    - 源更深待移动",
         "- 源列表第二项",
         "",
         "分隔两个列表的普通段落。",
@@ -639,6 +676,8 @@ async function runCrossParentReorderProbe(client, box) {
     const sourceItem = before.rows.find((row) => row.type === "i" && row.native_parent === sourceList?.id && String(row.markdown).includes("源嵌套项"));
     const targetItem = before.rows.find((row) => row.type === "i" && row.native_parent === targetList?.id && String(row.markdown).includes("目标嵌套项"));
     assert.ok(sourceList && targetList && sourceItem && targetItem, "跨父级重排缺少嵌套列表项");
+    const movedSubtreeIds = descendantIds(before, sourceItem.id);
+    assert.ok(movedSubtreeIds.size >= 3, "跨父级重排深层子树样本不足");
     await client.apiChecked("/api/attr/setBlockAttrs", {
         id: sourceItem.id,
         attrs: { "custom-probe-reorder": "keep" },
@@ -684,6 +723,19 @@ async function runCrossParentReorderProbe(client, box) {
     });
     assert.deepEqual(restored.ids, attributedBefore.ids, "跨父级恢复改变了块 ID 集合");
     assert.deepEqual(restored.attrs, attributedBefore.attrs, "跨父级恢复改变了根属性");
+    for (const id of movedSubtreeIds) {
+        const beforeRow = rowById(attributedBefore, id);
+        const afterMoveRow = rowById(afterMove, id);
+        const restoredRow = rowById(restored, id);
+        if (id !== sourceItem.id) {
+            assert.equal(afterMoveRow.native_parent, beforeRow.native_parent, `深层子树移动改变了 ${id} 的原生父级`);
+            assert.equal(afterMoveRow.native_previous, beforeRow.native_previous, `深层子树移动改变了 ${id} 的原生前邻接`);
+            assert.equal(afterMoveRow.native_next, beforeRow.native_next, `深层子树移动改变了 ${id} 的原生后邻接`);
+        }
+        assert.equal(restoredRow.native_parent, beforeRow.native_parent, `深层子树恢复改变了 ${id} 的原生父级`);
+        assert.equal(restoredRow.native_previous, beforeRow.native_previous, `深层子树恢复改变了 ${id} 的原生前邻接`);
+        assert.equal(restoredRow.native_next, beforeRow.native_next, `深层子树恢复改变了 ${id} 的原生后邻接`);
+    }
     for (const row of attributedBefore.rows) {
         const restoredRow = rowById(restored, row.id);
         for (const key of ["parent_id", "sibling_parent", "previous_id", "next_id", "native_parent", "native_previous", "native_next"]) {
@@ -701,9 +753,50 @@ async function runCrossParentReorderProbe(client, box) {
         rootAttrsPreserved: true,
         ialPreserved: true,
         nestedItemIdentityPreserved: true,
-        deeperNestedSubtreeUntested: true,
+        deeperNestedSubtreePreserved: true,
+        movedSubtreeBlockCount: movedSubtreeIds.size,
         directMoveUndoUnchanged: true,
         restored: true,
+    };
+}
+
+async function runLastItemMoveProbe(client, box) {
+    const docId = await createDoc(client, box, "last-item-move", "# last-item-move\n\n- 唯一列表项。\n\n源列表与目标列表之间的段落。\n\n- 目标列表项。\n- 目标列表尾项。");
+    const before = await readSnapshot(client, docId);
+    const rootLists = before.rows.filter((row) => row.type === "l" && row.native_parent === docId);
+    const sourceList = rootLists.find((row) => String(row.markdown).includes("唯一列表项"));
+    const targetList = rootLists.find((row) => String(row.markdown).includes("目标列表项"));
+    const item = before.rows.find((row) => row.type === "i" && row.native_parent === sourceList?.id && String(row.markdown).includes("唯一列表项"));
+    const targetItem = before.rows.find((row) => row.type === "i" && row.native_parent === targetList?.id && String(row.markdown).includes("目标列表项"));
+    assert.ok(sourceList && targetList && item && targetItem, "唯一列表项探针缺少源/目标列表或列表项");
+    const moveResponse = await client.api("/api/block/moveBlock", {
+        id: item.id,
+        parentID: targetList.id,
+        previousID: targetItem.id,
+    });
+    assert.equal(moveResponse.code, 0, `移走唯一列表项失败: ${JSON.stringify(moveResponse)}`);
+    const after = await until("唯一列表项移动索引刷新", async () => {
+        const snapshot = await readSnapshot(client, docId);
+        const moved = snapshot.rows.find((row) => row.id === item.id);
+        return moved?.native_parent === targetList.id ? snapshot : undefined;
+    });
+    const sourceListAfter = after.rows.find((row) => row.id === sourceList.id);
+    const sourceListRead = await readBlockOutcome(client, sourceList.id);
+    assert.ok(after.rows.some((row) => row.id === item.id), "唯一列表项移动后块 ID 消失");
+    assert.deepEqual(
+        before.ids.filter((id) => id !== sourceList.id).sort(),
+        after.ids.filter((id) => id !== sourceList.id).sort(),
+        "唯一列表项移动改变了非空列表外的既有块 ID",
+    );
+    if (!sourceListAfter) assert.notEqual(sourceListRead.state, "readable", "空列表已删除但仍能读回原列表");
+    return {
+        docId,
+        sourceListId: sourceList.id,
+        itemId: item.id,
+        movedItemIdPreserved: true,
+        emptySourceListBehavior: sourceListAfter ? "retained" : "removed",
+        sourceListReadAfterMove: sourceListRead,
+        deletionReadBackClassified: true,
     };
 }
 
@@ -1057,6 +1150,8 @@ async function runInsertDeleteProbe(client, box) {
         const snapshot = await readSnapshot(client, docId);
         return snapshot.rows.every((item) => item.id !== insertedId) ? snapshot : undefined;
     });
+    const deletedBlockRead = await readBlockOutcome(client, insertedId);
+    assert.notEqual(deletedBlockRead.state, "readable", `删除后的块仍可读回: ${JSON.stringify(deletedBlockRead)}`);
     const afterEndpointDelete = await readSnapshot(client, docId);
     assert.deepEqual(afterEndpointDelete.ids, before.ids, "块端点删除后未恢复原块 ID 集合");
     const afterDeleteEndpointHistory = await undoState(client, docId);
@@ -1109,6 +1204,8 @@ async function runInsertDeleteProbe(client, box) {
         insertTransactionReturned: Array.isArray(insertResponse.data) && insertResponse.data.length > 0,
         deleteTransactionReturned: Array.isArray(deleteResponse.data) && deleteResponse.data.length > 0,
         endpointUndoUnchanged: afterDeleteEndpointHistory.canUndo === beforeEndpointHistory.canUndo,
+        deletedBlockRead,
+        deletionReadBackRejected: deletedBlockRead.state !== "readable",
         existingIdsPreserved: before.ids.every((id) => afterInsert.snapshot.ids.includes(id)),
         undoRedoRoundTrip: true,
     };
@@ -1187,6 +1284,27 @@ async function runOwnershipProbe(client, box) {
     };
 }
 
+function acceptanceResults(probes) {
+    const checks = [
+        ["T3220-update-block-preserves-identity", probes.updateBlock.idsPreserved && probes.updateBlock.rootAttrsPreserved],
+        ["T3220-transaction-undo-redo-preserves-structure", probes.transactionUndoRedo.idsPreserved && probes.transactionUndoRedo.undoRedoRoundTrip],
+        ["T3220-container-undo-redo-preserves-links", probes.containerUpdate.idsPreserved && probes.containerUpdate.undoRedoRoundTrip],
+        ["T3220-same-level-move-restores-structure", probes.moveBlock.idsPreserved && probes.moveBlock.restored],
+        ["T3220-cross-parent-deep-subtree-restores-structure", probes.crossParentReorder.deeperNestedSubtreePreserved && probes.crossParentReorder.restored],
+        ["T3220-independent-client-writes-round-trip", probes.concurrentClients.independentConcurrentWritesPreserved && probes.concurrentClients.independentUndoRedoRoundTrip],
+        ["T3220-resource-bytes-round-trip", probes.resourceWrite.byteRoundTrip && probes.resourceWrite.overwriteRoundTrip],
+        ["T3220-embed-assets-survive-undo-redo", probes.embedAsset.imageAssetsPreserved && probes.embedAsset.undoRedoRoundTrip],
+        ["T3220-same-transaction-failure-has-no-partial-write", probes.sameTransactionFailure.atomicityObserved],
+        ["T3220-insert-delete-undo-redo-round-trip", probes.insertDelete.insertTransactionReturned && probes.insertDelete.undoRedoRoundTrip],
+        ["T3220-deleted-block-readback-rejected", probes.insertDelete.deletionReadBackRejected],
+        ["T3220-heading-transaction-undo-redo-round-trip", probes.headingConversion.typeConversionUndoRedo],
+        ["T3220-response-loss-requires-readback", probes.responseLoss.transportResultLost && probes.responseLoss.writeReadBackConfirmed],
+        ["T3220-restart-preserves-content-clears-history", probes.restart.contentPreserved && probes.restart.undoHistoryCleared],
+        ["T3220-last-item-move-readback-classified", probes.lastItemMove.movedItemIdPreserved && probes.lastItemMove.deletionReadBackClassified],
+    ];
+    return checks.map(([name, ok]) => ({ name, ok: Boolean(ok), detail: "隔离服务 API 读回证据，不能替代真实宿主验收" }));
+}
+
 async function main() {
     process.chdir(REPO);
     const { kernel, appDir } = resolveKernel();
@@ -1213,6 +1331,7 @@ async function main() {
         const listing = await client.apiChecked("/api/notebook/lsNotebooks", {});
         const box = listing.notebooks.find((item) => item.name === notebookName)?.id;
         assert.match(box ?? "", /^\d{14}-[0-9a-z]{7}$/);
+        const pluginVersion = JSON.parse(fs.readFileSync(path.join(REPO, "package.json"), "utf8")).version;
         console.log(`T-3220 事务探针：内核 ${JSON.stringify(version)}，端口 ${port}`);
         console.log(`隔离工作区：${WORKSPACE}`);
         const results = {
@@ -1221,6 +1340,7 @@ async function main() {
             containerUpdate: await runContainerUpdateProbe(client, box),
             moveBlock: await runMoveBlockProbe(client, box),
             crossParentReorder: await runCrossParentReorderProbe(client, box),
+            lastItemMove: await runLastItemMoveProbe(client, box),
             concurrentClients: await runConcurrentClientsProbe(client, clientB, box),
             resourceWrite: await runResourceWriteProbe(client, base, conf.accessAuthCode || "", box),
             embedAsset: await runEmbedAssetProbe(client, box),
@@ -1241,8 +1361,25 @@ async function main() {
                 return restartedVersion;
             }),
         };
-        fs.writeFileSync(path.join(WORKSPACE, "transaction-report.json"), JSON.stringify({ version, box, workspace: WORKSPACE, results }, null, 2) + "\n");
-        console.log(JSON.stringify({ version, box, workspace: WORKSPACE, results }, null, 2));
+        const report = {
+            reportVersion: 2,
+            version,
+            kernelVersion: version,
+            pluginVersion,
+            workspace: WORKSPACE,
+            host: HOST,
+            port,
+            box,
+            results: acceptanceResults(results),
+            probes: results,
+            limitations: [
+                "双 Protyle、用户中间编辑和真实宿主撤销仍未验证",
+                "真实网络故障、资源权限/删除和编辑器渲染仍未验证",
+                "跨 session 撤销没有插件归属隔离，不能提供插件专属撤销",
+            ],
+        };
+        fs.writeFileSync(path.join(WORKSPACE, "transaction-report.json"), JSON.stringify(report, null, 2) + "\n");
+        console.log(JSON.stringify(report, null, 2));
         assert.equal(results.transactionUndoRedo.idsPreserved, true);
         assert.equal(results.transactionUndoRedo.ialPreserved, true);
         assert.equal(results.transactionUndoRedo.rootAttrsPreserved, true);
@@ -1260,7 +1397,7 @@ async function main() {
         assert.equal(results.crossParentReorder.rootAttrsPreserved, true);
         assert.equal(results.crossParentReorder.ialPreserved, true);
         assert.equal(results.crossParentReorder.nestedItemIdentityPreserved, true);
-        assert.equal(results.crossParentReorder.deeperNestedSubtreeUntested, true);
+        assert.equal(results.crossParentReorder.deeperNestedSubtreePreserved, true);
         assert.equal(results.crossParentReorder.directMoveUndoUnchanged, true);
         assert.equal(results.crossParentReorder.restored, true);
         assert.equal(results.concurrentClients.independentClientCount, 2);
@@ -1287,6 +1424,7 @@ async function main() {
         assert.equal(results.sameTransactionFailure.atomicityObserved, true);
         assert.equal(results.insertDelete.insertTransactionReturned, true);
         assert.equal(results.insertDelete.deleteTransactionReturned, true);
+        assert.equal(results.insertDelete.deletionReadBackRejected, true);
         assert.equal(results.insertDelete.existingIdsPreserved, true);
         assert.equal(results.insertDelete.undoRedoRoundTrip, true);
         assert.equal(results.headingConversion.transactionReturned, true);
@@ -1298,6 +1436,8 @@ async function main() {
         assert.equal(results.responseLoss.writeReadBackConfirmed, true);
         assert.equal(results.responseLoss.idsPreserved, true);
         assert.equal(results.responseLoss.noAutomaticRetry, true);
+        assert.equal(results.lastItemMove.movedItemIdPreserved, true);
+        assert.equal(results.lastItemMove.deletionReadBackClassified, true);
         console.log("T-3220 事务探针：完成");
     } finally {
         fs.writeFileSync(path.join(WORKSPACE, "kernel-tail.log"), lifecycle.lines.join("\n") + "\n");

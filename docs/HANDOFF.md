@@ -631,3 +631,11 @@ D-0016 S0–S4 主线代码全部关闭，作者 v1.0.4 反馈由 S1–S4 覆盖
 - 新增无障碍与移动焦点静态契约，当前完整 `pnpm test` **388/388**、`pnpm check` 0 错误/0 告警、`pnpm build` 通过、`git diff --check` 通过；build 仅有既有 `inlineDynamicImports` 弃用提示。
 - 重要边界：思源宿主已自带 Dialog 焦点规则，本轮没有另造外层 dialog；宿主/移动端/读屏真实操作仍待 `B-0002`。不提交、不打 tag、不发布、不提交集市。
 - 下一主任务按执行板推进 `T-3205` UI 状态截图/视觉回归；随后是 `T-3206` 大库性能基线、`T-3207` 数据主权与错误路径审计、`T-3208` 对外能力承诺审查、`T-3209` 中英文术语终审。
+
+## 当前有效交接（2026-10-05 T-3220 边界补测与报告结构化）
+
+- 本轮继续推进主任务 `T-3220`，未修改生产代码、未接入原文排版入口、未触碰作者真实工作区；事务探针仍使用独立临时工作区、动态回环端口和真实思源 `3.8.6` 内核。
+- `scripts/spike/transaction-spike.mjs` 新增深层嵌套子树跨父级移动/恢复和唯一列表项移入目标列表样本。实测深层子树 5 个块保持内部原生父级/邻接并恢复；唯一源列表项移动后源空列表从索引消失，旧列表 `getBlockDOM` 为 `code=0` 空内容，脚本已按内容分类而非只看 code。
+- 块删除后读回现在明确记录 `readable/empty/rejected/transport-error`；当前插入块删除后为 `code=-1 block not found`。资源删除/权限没有经实证的端点形状，仍记录为未测试，不臆造接口。
+- `transaction-report.json` 升为 `reportVersion: 2`，包含 `kernelVersion`、`pluginVersion`、回环 `host/port`、逐项布尔 `results`、完整 `probes` 和 `limitations`，可导入 `e2e:acceptance report`。本轮隔离探针通过，报告路径为 `C:\Users\sunku\AppData\Local\Temp\siyuan-glean-t3220-1791143874720-21700\transaction-report.json`。
+- 报告已导入独立验收账本并以 `passed` 关闭，共 15 项隔离证据；本地 `pnpm test` 为 1107/1107，`pnpm check`、`pnpm build`、`pnpm perf:check` 和 `pnpm check:release` 均通过。本轮已提交当前 `codex/` 分支 `bd3df9a`，未合并主线。仍未关闭：双 Protyle、用户中间编辑、真实网络故障、资源权限/删除、编辑器渲染和真实宿主撤销；跨 session undo 无插件归属隔离，因此不提供插件专属撤销。
