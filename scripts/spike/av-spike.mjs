@@ -16,10 +16,29 @@ import {
     shutdownKernel,
 } from "./kernel-harness.mjs";
 
-const WORKSPACE = path.join(os.homedir(), "SiYuan-Glean-Spike");
+function parseOptions() {
+    const options = {};
+    for (let index = 2; index < process.argv.length; index += 1) {
+        const argument = process.argv[index];
+        if (!argument.startsWith("--")) throw new Error("未知参数: " + argument);
+        const key = argument.slice(2);
+        const value = process.argv[index + 1];
+        if (!value || value.startsWith("--")) throw new Error("参数缺少值: --" + key);
+        if (!["workspace", "port", "results"].includes(key)) throw new Error("未知参数: --" + key);
+        options[key] = value;
+        index += 1;
+    }
+    return options;
+}
+
+const options = parseOptions();
+const WORKSPACE = path.resolve(options.workspace || path.join(os.tmpdir(), `siyuan-glean-av-spike-${Date.now()}-${process.pid}`));
 const HOST = "127.0.0.1";
-const PORT = 6832;
-const BASE = `http://${HOST}:${PORT}`;
+let PORT = options.port === "0" || options.port === undefined ? 0 : Number(options.port);
+if (!Number.isInteger(PORT) || PORT < 0 || PORT > 65535) throw new Error("port 必须是 0 或 1-65535");
+let BASE = `http://${HOST}:${PORT}`;
+const RESULTS_PATH = path.resolve(options.results || path.join(WORKSPACE, "av-spike-results.json"));
+const PLUGIN_VERSION = JSON.parse(fs.readFileSync(path.join(process.cwd(), "package.json"), "utf8")).version;
 
 const results = [];
 const record = (name, ok, detail) => {
@@ -27,9 +46,24 @@ const record = (name, ok, detail) => {
     console.log(`${ok ? "PASS" : "FAIL"}  ${name}${detail ? ` — ${detail}` : ""}`);
 };
 
+async function choosePort() {
+    for (let attempt = 0; attempt < 40; attempt += 1) {
+        const port = 30000 + Math.floor(Math.random() * 25000);
+        try {
+            await assertTestPortAvailable(HOST, port);
+            return port;
+        } catch (error) {
+            if (attempt === 39) throw error;
+        }
+    }
+    throw new Error("没有可用的回环测试端口");
+}
+
 async function main() {
     const { kernel, appDir } = resolveKernel();
     prepareWorkspace(WORKSPACE, "glean-spike.json", "glean-spike");
+    if (PORT === 0) PORT = await choosePort();
+    BASE = `http://${HOST}:${PORT}`;
     await assertTestPortAvailable(HOST, PORT);
     const client = createApiClient(BASE);
     const { child, lines } = startKernel(kernel, appDir, WORKSPACE, PORT);
@@ -44,7 +78,8 @@ async function main() {
             if (child.exitCode !== null || child.signalCode !== null) throw new Error("测试内核已退出");
         }), client);
         booted = true;
-        console.log(`内核 ${JSON.stringify(version)} @ ${BASE}\n`);
+        const kernelVersion = typeof version === "string" ? version : version.version;
+        console.log(`内核 ${kernelVersion} @ ${BASE}\n`);
         client.setToken((JSON.parse(fs.readFileSync(path.join(WORKSPACE, "conf", "conf.json"), "utf8")).accessAuthCode) || "");
         const { apiChecked } = client;
 
@@ -147,10 +182,10 @@ async function main() {
         const failures = results.filter((r) => !r.ok);
         exitCode = failures.length > 0 ? 1 : 0;
         fs.writeFileSync(
-            path.join(process.cwd(), "scripts", "spike", "av-spike-results.json"),
-            `${JSON.stringify({ at: new Date().toISOString(), results }, null, 2)}\n`
+            RESULTS_PATH,
+            `${JSON.stringify({ version: kernelVersion, kernelVersion, pluginVersion: PLUGIN_VERSION, workspace: WORKSPACE, host: HOST, port: PORT, at: new Date().toISOString(), results }, null, 2)}\n`
         );
-        console.log(`\n== AV spike 完成：${results.length - failures.length}/${results.length} 通过 ==`);
+        console.log(`\n== AV spike 完成：${results.length - failures.length}/${results.length} 通过，结果已写入 ${RESULTS_PATH} ==`);
     } finally {
         if (booted) await shutdownKernel(client, child);
     }

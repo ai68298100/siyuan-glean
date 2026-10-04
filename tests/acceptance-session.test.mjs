@@ -34,6 +34,10 @@ test("acceptance sessions distinguish real device kinds from service E2E", async
         sessionPath,
         "--status",
         "running",
+        "--case",
+        "ANDROID-01",
+        "--result",
+        "passed",
         "--evidence",
         evidence,
         "--real-device-confirmed",
@@ -70,10 +74,29 @@ test("linking an E2E manifest records service evidence", async () => {
     assert.ok(sessionFile);
     const sessionPath = path.join(root, sessionFile);
     await quietMain(["link", "--session", sessionPath, "--manifest", manifestPath]);
+    await assert.rejects(
+        quietMain(["close", "--session", sessionPath, "--status", "passed"]),
+        /逐项验收结果/,
+    );
+    const reportPath = path.join(root, "results.json");
+    fs.writeFileSync(reportPath, JSON.stringify({
+        workspace,
+        host: "127.0.0.1",
+        port: 41234,
+        pluginVersion: "1.1.0",
+        kernelVersion: "3.8.6",
+        results: [{ name: "E2E-01", ok: true }],
+    }));
+    await quietMain(["report", "--session", sessionPath, "--report", reportPath]);
+    await assert.rejects(
+        quietMain(["report", "--session", sessionPath, "--report", reportPath]),
+        /已存在/,
+    );
     await quietMain(["close", "--session", sessionPath, "--status", "passed"]);
     const session = JSON.parse(fs.readFileSync(sessionPath, "utf8"));
     assert.equal(session.status, "passed");
-    assert.deepEqual(session.evidence, [manifestPath]);
+    assert.deepEqual(session.evidence, [manifestPath, path.resolve(reportPath)]);
+    assert.equal(session.checks[0].id, "E2E-01");
     assert.equal(session.evidenceClass, "service-e2e");
     fs.rmSync(root, { recursive: true, force: true });
 });

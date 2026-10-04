@@ -17,13 +17,36 @@ import path from "node:path";
 import os from "node:os";
 import { spawn } from "node:child_process";
 
-const WORKSPACE = path.join(os.homedir(), "SiYuan-Glean-Spike");
+function parseOptions() {
+    const options = {};
+    for (let index = 2; index < process.argv.length; index += 1) {
+        const argument = process.argv[index];
+        if (argument.startsWith("--only=")) {
+            options.only = argument.slice("--only=".length);
+            continue;
+        }
+        if (!argument.startsWith("--")) throw new Error("未知参数: " + argument);
+        const key = argument.slice(2);
+        const value = process.argv[index + 1];
+        if (!value || value.startsWith("--")) throw new Error("参数缺少值: --" + key);
+        if (!["workspace", "port", "results"].includes(key)) throw new Error("未知参数: --" + key);
+        options[key] = value;
+        index += 1;
+    }
+    return options;
+}
+
+const options = parseOptions();
+const WORKSPACE = path.resolve(options.workspace || path.join(os.tmpdir(), `siyuan-glean-spike-${Date.now()}-${process.pid}`));
 const HOST = "127.0.0.1";
-const PORT = 6831;
-const BASE = `http://${HOST}:${PORT}`;
+let PORT = options.port === "0" || options.port === undefined ? 0 : Number(options.port);
+if (!Number.isInteger(PORT) || PORT < 0 || PORT > 65535) throw new Error("port 必须是 0 或 1-65535");
+let BASE = `http://${HOST}:${PORT}`;
 const MARKER = "glean-spike.json";
 const PLUGIN_NAME = "siyuan-glean";
 const API_TIMEOUT_MS = 60000;
+const RESULTS_PATH = path.resolve(options.results || path.join(WORKSPACE, "spike-results.json"));
+const PLUGIN_VERSION = JSON.parse(fs.readFileSync(path.join(process.cwd(), "package.json"), "utf8")).version;
 
 const results = [];
 const record = (name, ok, detail) => {
@@ -81,6 +104,19 @@ async function assertTestPortAvailable(host, port) {
         server.once("error", (error) => reject(new Error(`测试端口 ${port} 不可用: ${error.code}`)));
         server.listen({ host, port, exclusive: true }, () => server.close((error) => (error ? reject(error) : resolve())));
     });
+}
+
+async function choosePort() {
+    for (let attempt = 0; attempt < 40; attempt += 1) {
+        const port = 30000 + Math.floor(Math.random() * 25000);
+        try {
+            await assertTestPortAvailable(HOST, port);
+            return port;
+        } catch (error) {
+            if (attempt === 39) throw error;
+        }
+    }
+    throw new Error("没有可用的回环测试端口");
 }
 
 function startKernel({ kernel, appDir }) {
@@ -491,6 +527,8 @@ async function main() {
     assertLoopback();
     const { kernel, appDir } = resolveKernel();
     prepareWorkspace();
+    if (PORT === 0) PORT = await choosePort();
+    BASE = `http://${HOST}:${PORT}`;
     await assertTestPortAvailable(HOST, PORT);
     const { child, lines } = startKernel({ kernel, appDir });
     assertKernelRunning = () => {
@@ -502,7 +540,8 @@ async function main() {
     try {
         const version = await waitForBoot(lines, assertKernelRunning);
         booted = true;
-        console.log(`内核 v${version.version} @ ${BASE}（隔离工作区: ${WORKSPACE}）\n`);
+        const kernelVersion = typeof version === "string" ? version : version.version;
+        console.log(`内核 v${kernelVersion} @ ${BASE}（隔离工作区: ${WORKSPACE}）\n`);
 
         token = (JSON.parse(fs.readFileSync(path.join(WORKSPACE, "conf", "conf.json"), "utf8")).accessAuthCode) || "";
 
@@ -520,13 +559,13 @@ async function main() {
         }
         if (!notebookID) throw new Error("GleanSpike 笔记本创建失败");
 
-        if (process.argv.includes("--only=flashcard")) {
+        if (options.only === "flashcard") {
             const step8 = await verifyFlashcard(notebookID);
             record("⑧ 摘录制卡闭环 createDeck→insertBlock→addRiffCards", step8.ok, step8.detail);
             exitCode = step8.ok ? 0 : 1;
             fs.writeFileSync(
-                path.join(process.cwd(), "scripts", "spike", "spike-results.json"),
-                `${JSON.stringify({ version: version.version, at: new Date().toISOString(), results }, null, 2)}\n`
+                RESULTS_PATH,
+                `${JSON.stringify({ version: kernelVersion, kernelVersion, pluginVersion: PLUGIN_VERSION, workspace: WORKSPACE, host: HOST, port: PORT, at: new Date().toISOString(), results }, null, 2)}\n`
             );
             console.log(`\n== 制卡尖刺完成：${step8.ok ? 1 : 0}/1 通过，结果已写入 scripts/spike/spike-results.json ==`);
             process.exitCode = exitCode;
@@ -563,10 +602,10 @@ async function main() {
         const failures = results.filter((r) => !r.ok);
         exitCode = failures.length > 0 ? 1 : 0;
         fs.writeFileSync(
-            path.join(process.cwd(), "scripts", "spike", "spike-results.json"),
-            `${JSON.stringify({ version: version.version, at: new Date().toISOString(), results, timings: step2.timings }, null, 2)}\n`
+            RESULTS_PATH,
+            `${JSON.stringify({ version: kernelVersion, kernelVersion, pluginVersion: PLUGIN_VERSION, workspace: WORKSPACE, host: HOST, port: PORT, at: new Date().toISOString(), results, timings: step2.timings }, null, 2)}\n`
         );
-        console.log(`\n== spike 完成：${results.length - failures.length}/${results.length} 通过，结果已写入 scripts/spike/spike-results.json ==`);
+        console.log(`\n== spike 完成：${results.length - failures.length}/${results.length} 通过，结果已写入 ${RESULTS_PATH} ==`);
     } finally {
         if (booted && child.exitCode === null && child.signalCode === null) {
             await api("/api/system/exit", { force: true }).catch(() => undefined);

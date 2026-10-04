@@ -37,7 +37,7 @@ function readManifest(manifestPath) {
     if (manifest.createdBy !== CREATED_BY || !Number.isInteger(manifest.ownerPid) || !Number.isInteger(manifest.kernelPid)) {
         throw new Error("manifest 不是本插件创建的有效 E2E 会话");
     }
-    if (!HOSTS.has(manifest.host) || !path.isAbsolute(manifest.workspace) || !path.isAbsolute(resolved)) {
+    if (!HOSTS.has(manifest.host) || !path.isAbsolute(manifest.workspace) || !path.isAbsolute(resolved) || !Number.isInteger(manifest.port) || manifest.port < 1 || manifest.port > 65535 || manifest.base !== `http://${manifest.host}:${manifest.port}`) {
         throw new Error("manifest 的工作区或地址不满足隔离约束");
     }
     const markerPath = path.join(manifest.workspace, manifest.marker);
@@ -104,6 +104,12 @@ async function stop(options) {
         console.log("会话已经停止：" + manifestPath);
         return;
     }
+    if (!isAlive(manifest.ownerPid) && !isAlive(manifest.kernelPid)) {
+        const updated = { ...manifest, status: "stopped", stoppedAt: new Date().toISOString() };
+        writeManifest(manifestPath, updated);
+        console.log("会话进程已退出，已安全收口：" + manifestPath);
+        return;
+    }
     if (!manifest.base || !manifest.port) throw new Error("manifest 尚未进入可停止状态");
     const confPath = path.join(manifest.workspace, "conf", "conf.json");
     const conf = JSON.parse(fs.readFileSync(confPath, "utf8"));
@@ -118,12 +124,12 @@ async function stop(options) {
     if (!response.ok) throw new Error("停止内核失败，HTTP " + response.status);
     const payload = await response.json().catch(() => ({}));
     if (payload.code !== 0) throw new Error("停止内核失败，code=" + payload.code + " msg=" + (payload.msg || "未知错误"));
-    process.kill(manifest.ownerPid, "SIGTERM");
+    if (isAlive(manifest.ownerPid)) process.kill(manifest.ownerPid, "SIGTERM");
     const deadline = Date.now() + 15000;
-    while (Date.now() < deadline && isAlive(manifest.ownerPid)) {
+    while (Date.now() < deadline && (isAlive(manifest.ownerPid) || isAlive(manifest.kernelPid))) {
         await new Promise((resolve) => setTimeout(resolve, 300));
     }
-    if (isAlive(manifest.ownerPid)) throw new Error("内核已请求停止，但启动进程仍在运行；保留会话供人工检查");
+    if (isAlive(manifest.ownerPid) || isAlive(manifest.kernelPid)) throw new Error("内核已请求停止，但会话进程仍在运行；保留会话供人工检查");
     const updated = { ...manifest, status: "stopped", stoppedAt: new Date().toISOString() };
     writeManifest(manifestPath, updated);
     console.log("会话已停止：" + manifestPath);

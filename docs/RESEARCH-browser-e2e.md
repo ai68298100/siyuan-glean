@@ -34,6 +34,12 @@
 - scripts/spike/glean-spike.mjs、scripts/spike/av-spike.mjs 仍是固定工作区或端口的历史 spike，不应与其他插件直接并行复用，统一改造列入 T-3264。
 - 该机制是服务级 E2E 或桌面隔离内核会话，不产生 Android/iOS 真机证据；真机仍需独立设备或独立模拟器，且要避开思源桌面单实例转发。
 
+## 历史 spike 的并行租约（T-3264/D-0112）
+
+- `node scripts/spike/glean-spike.mjs --port 0 --results <path>` 与 `node scripts/spike/av-spike.mjs --port 0 --results <path>` 每次默认创建独立系统临时工作区；也可显式传入带正确标记的 `--workspace`。两个脚本不会再默认使用同一个 `SiYuan-Glean-Spike` 工作区或固定端口。
+- 结果文件包含隔离工作区、回环 host/port、内核版本、插件版本和逐项结果；运行成功不等于真实宿主或设备验收。
+- 需纳入验收账本时，用 `pnpm e2e:acceptance report --session <session> --report <results>` 导入逐项结果；报告工作区、端口和插件版本不匹配会被拒绝。
+
 ## 验收会话账本（T-3264/D-0111）
 
 - `pnpm e2e:acceptance create --kind isolated-kernel --name s1` 创建隔离内核会话；`--kind` 还支持 `desktop-host`、`android-device`、`ios-device`、`android-emulator`、`ios-simulator`、`ai`、`external-file` 和 `dual-plugin`。

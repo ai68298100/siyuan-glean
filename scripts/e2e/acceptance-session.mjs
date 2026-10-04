@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { createHash } from "node:crypto";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const CREATED_BY = "siyuan-glean-acceptance-session";
@@ -87,8 +88,34 @@ function sessionPath(value) {
 function readSession(filePath) {
     const resolved = sessionPath(filePath);
     const session = readJson(resolved);
+    session.checks ??= [];
+    session.resolvedItems ??= [];
     validateSessionRecord(session);
     return { path: resolved, session };
+}
+
+function mutateSession(filePath, update) {
+    const resolved = path.resolve(filePath);
+    const lockPath = resolved + ".lock";
+    let lock;
+    try {
+        lock = fs.openSync(lockPath, "wx");
+    } catch (error) {
+        if (error.code === "EEXIST") throw new Error("验收会话正在被修改，请重试");
+        throw error;
+    }
+    try {
+        const { session } = readSession(resolved);
+        if (!ACTIVE_STATUSES.has(session.status)) throw new Error("会话已关闭，复测请新建会话");
+        const updated = update(session, resolved);
+        updated.updatedAt = new Date().toISOString();
+        validateSessionRecord(updated);
+        writeJson(resolved, updated);
+        return { path: resolved, session: updated };
+    } finally {
+        fs.closeSync(lock);
+        fs.rmSync(lockPath, { force: true });
+    }
 }
 
 function packageVersion() {
@@ -120,18 +147,41 @@ export function validateSessionRecord(session) {
     if (session.port !== null && session.port !== undefined && (!Number.isInteger(session.port) || session.port < 1 || session.port > 65535)) {
         throw new Error("验收会话 port 不合法");
     }
-    if (!Array.isArray(session.evidence) || !Array.isArray(session.failedItems) || !Array.isArray(session.notes)) {
-        throw new Error("验收会话 evidence/failedItems/notes 必须是数组");
+    if (!Array.isArray(session.evidence) || !Array.isArray(session.failedItems) || !Array.isArray(session.notes) || !Array.isArray(session.checks) || !Array.isArray(session.resolvedItems)) {
+        throw new Error("验收会话 evidence/failedItems/notes/checks/resolvedItems 必须是数组");
+    }
+    for (const check of session.checks) {
+        if (!check?.id || !CLOSED_STATUSES.has(check.status) || !Array.isArray(check.evidence)) throw new Error("逐项验收记录不合法");
+        if (check.status === "passed" && check.evidence.length === 0) throw new Error("通过项必须记录证据");
+        for (const evidence of check.evidence) {
+            if (!evidence?.path || !path.isAbsolute(evidence.path) || !/^[a-f0-9]{64}$/.test(evidence.sha256)) throw new Error("逐项证据路径或哈希不合法");
+        }
     }
     return true;
 }
 
-function assertCanClose(session, status) {
+function evidenceRecord(filePath, sessionPath, session) {
+    const resolved = path.resolve(filePath);
+    if (!fs.existsSync(resolved) || !fs.statSync(resolved).isFile()) throw new Error("证据文件不存在或不是普通文件: " + resolved);
+    if (resolved === sessionPath || resolved === session.runtime?.e2eManifest) throw new Error("账本和运行 manifest 不能直接作为逐项验收证据");
+    return {
+        path: resolved,
+        sha256: createHash("sha256").update(fs.readFileSync(resolved)).digest("hex"),
+    };
+}
+
+function assertCanClose(session, status, sessionPath) {
     if (!CLOSED_STATUSES.has(status)) throw new Error("关闭状态必须是 passed、failed、blocked 或 skipped");
     if (status !== "passed") return;
-    if (session.evidence.length === 0) throw new Error("没有证据文件或记录，不能登记 passed");
-    const missingEvidence = session.evidence.filter((filePath) => !fs.existsSync(filePath));
-    if (missingEvidence.length > 0) throw new Error("证据文件不存在，不能登记 passed: " + missingEvidence.join(", "));
+    if (session.checks.length === 0) throw new Error("没有逐项验收结果，不能登记 passed");
+    const latest = new Map(session.checks.map((check) => [check.id, check]));
+    if ([...latest.values()].some((check) => check.status !== "passed")) throw new Error("仍有未通过验收项，不能登记 passed");
+    for (const check of latest.values()) {
+        for (const evidence of check.evidence) {
+            const current = evidenceRecord(evidence.path, sessionPath, session);
+            if (current.sha256 !== evidence.sha256) throw new Error("证据文件已变化，必须重新验收: " + evidence.path);
+        }
+    }
     const kind = SESSION_KINDS[session.kind];
     if (kind.realDevice && session.realDeviceConfirmed !== true) {
         throw new Error("真实设备会话必须先记录 --real-device-confirmed true");
@@ -148,7 +198,8 @@ function assertCanClose(session, status) {
 function usage() {
     console.log("node scripts/e2e/acceptance-session.mjs create --kind kind --name name [--device device] [--root path]");
     console.log("node scripts/e2e/acceptance-session.mjs link --session path --manifest e2e-manifest");
-    console.log("node scripts/e2e/acceptance-session.mjs record --session path [--status running] [--evidence path] [--failed item] [--note text]");
+    console.log("node scripts/e2e/acceptance-session.mjs record --session path --case case-id --result passed|failed|blocked|skipped --evidence path");
+    console.log("node scripts/e2e/acceptance-session.mjs report --session path --report spike-results.json");
     console.log("node scripts/e2e/acceptance-session.mjs close --session path --status passed|failed|blocked|skipped [--evidence path]");
     console.log("node scripts/e2e/acceptance-session.mjs status --session path");
     console.log("node scripts/e2e/acceptance-session.mjs list [--root path]");
@@ -176,7 +227,9 @@ function create(options) {
         pluginVersion: one(options, "plugin-version") || packageVersion(),
         evidence: values(options, "evidence").map((item) => path.resolve(item)),
         failedItems: values(options, "failed"),
+        resolvedItems: [],
         notes: values(options, "note"),
+        checks: [],
         realDeviceConfirmed: false,
         hostConfirmed: false,
         dualPluginConfirmed: false,
@@ -188,11 +241,10 @@ function create(options) {
     validateSessionRecord(session);
     const filePath = path.join(root, name + "-" + Date.now() + "-" + process.pid + ".json");
     writeJson(filePath, session);
-    console.log(JSON.stringify({ session: filePath, ...session }, null, 2));
+    return { session: filePath, ...session };
 }
 
 function link(options) {
-    const { path: sessionFile, session } = readSession(one(options, "session"));
     const manifestFile = path.resolve(one(options, "manifest"));
     const manifest = readJson(manifestFile);
     if (manifest.createdBy !== "siyuan-glean-e2e-session" || manifest.version !== 1) {
@@ -200,61 +252,106 @@ function link(options) {
     }
     if (manifest.host && !LOOPBACK_HOSTS.has(manifest.host)) throw new Error("E2E manifest host 不是回环地址");
     if (manifest.workspace && !path.isAbsolute(manifest.workspace)) throw new Error("E2E manifest workspace 必须是绝对路径");
-    const now = new Date().toISOString();
-    const updated = {
-        ...session,
-        status: manifest.status === "ready" ? "running" : session.status,
-        workspace: manifest.workspace || session.workspace,
-        host: manifest.host || session.host,
-        port: manifest.port || session.port,
-        pluginVersion: session.pluginVersion || manifest.pluginVersion || packageVersion(),
-        evidence: [...new Set([...session.evidence, manifestFile])],
-        runtime: {
-            ...(session.runtime || {}),
-            e2eManifest: manifestFile,
-            kernelVersion: manifest.kernelVersion || null,
-            notebookId: manifest.notebookId || null,
-            ownerPid: manifest.ownerPid || null,
-            kernelPid: manifest.kernelPid || null,
-        },
-        updatedAt: now,
-    };
-    validateSessionRecord(updated);
-    writeJson(sessionFile, updated);
-    console.log(JSON.stringify({ session: sessionFile, linkedManifest: manifestFile, ...updated }, null, 2));
+    const sessionFile = one(options, "session");
+    const result = mutateSession(sessionFile, (session) => {
+        const updated = {
+            ...session,
+            status: manifest.status === "ready" ? "running" : session.status,
+            workspace: manifest.workspace || session.workspace,
+            host: manifest.host || session.host,
+            port: manifest.port || session.port,
+            pluginVersion: session.pluginVersion || manifest.pluginVersion || packageVersion(),
+            evidence: [...new Set([...session.evidence, manifestFile])],
+            runtime: {
+                ...(session.runtime || {}),
+                e2eManifest: manifestFile,
+                kernelVersion: manifest.kernelVersion || null,
+                notebookId: manifest.notebookId || null,
+                ownerPid: manifest.ownerPid || null,
+                kernelPid: manifest.kernelPid || null,
+            },
+        };
+        return updated;
+    });
+    return { session: result.path, linkedManifest: manifestFile, ...result.session };
 }
 
 function record(options, close = false) {
-    const { path: sessionFile, session } = readSession(one(options, "session"));
     const status = one(options, "status");
     if (status) {
         if (!close && !ACTIVE_STATUSES.has(status)) throw new Error("record 只允许 planned 或 running");
     }
-    const next = {
-        ...session,
-        status: status || session.status,
-        device: one(options, "device") || session.device,
-        workspace: absoluteOptional(one(options, "workspace")) || session.workspace,
-        host: one(options, "host") || session.host,
-        port: parsePort(one(options, "port")) || session.port,
-        evidence: [...new Set([...session.evidence, ...values(options, "evidence").map((item) => path.resolve(item))])],
-        failedItems: [...session.failedItems, ...values(options, "failed")],
-        notes: [...session.notes, ...values(options, "note")],
-        realDeviceConfirmed: parseBoolean(one(options, "real-device-confirmed"), "real-device-confirmed") ?? session.realDeviceConfirmed,
-        hostConfirmed: parseBoolean(one(options, "host-confirmed"), "host-confirmed") ?? session.hostConfirmed,
-        dualPluginConfirmed: parseBoolean(one(options, "dual-plugin-confirmed"), "dual-plugin-confirmed") ?? session.dualPluginConfirmed,
-        updatedAt: new Date().toISOString(),
-        closedAt: close ? new Date().toISOString() : session.closedAt,
-    };
-    validateSessionRecord(next);
-    if (close) assertCanClose(next, next.status);
-    writeJson(sessionFile, next);
-    console.log(JSON.stringify({ session: sessionFile, ...next }, null, 2));
+    const caseId = one(options, "case");
+    const result = one(options, "result");
+    if (Boolean(caseId) !== Boolean(result) || (result && !CLOSED_STATUSES.has(result))) throw new Error("--case 和合法 --result 必须同时提供");
+    const sessionFile = path.resolve(one(options, "session"));
+    const resultRecord = mutateSession(sessionFile, (session) => {
+        const next = {
+            ...session,
+            status: status || session.status,
+            device: one(options, "device") || session.device,
+            workspace: absoluteOptional(one(options, "workspace")) || session.workspace,
+            host: one(options, "host") || session.host,
+            port: parsePort(one(options, "port")) || session.port,
+            evidence: [...new Set([...session.evidence, ...values(options, "evidence").map((item) => path.resolve(item))])],
+            failedItems: [...new Set([...session.failedItems, ...values(options, "failed")])],
+            notes: [...session.notes, ...values(options, "note")],
+            checks: [...session.checks],
+            resolvedItems: [...session.resolvedItems],
+            realDeviceConfirmed: parseBoolean(one(options, "real-device-confirmed"), "real-device-confirmed") ?? session.realDeviceConfirmed,
+            hostConfirmed: parseBoolean(one(options, "host-confirmed"), "host-confirmed") ?? session.hostConfirmed,
+            dualPluginConfirmed: parseBoolean(one(options, "dual-plugin-confirmed"), "dual-plugin-confirmed") ?? session.dualPluginConfirmed,
+            closedAt: close ? new Date().toISOString() : session.closedAt,
+        };
+        if (caseId) {
+            const evidence = values(options, "evidence").map((item) => evidenceRecord(item, sessionFile, next));
+            next.checks.push({ id: caseId, status: result, evidence, at: new Date().toISOString() });
+        }
+        const resolved = values(options, "resolve-failed");
+        if (resolved.length) {
+            if (result !== "passed" || values(options, "note").length === 0) throw new Error("解决失败项必须同时记录通过复测与 --note");
+            if (resolved.some((item) => !next.failedItems.includes(item))) throw new Error("待解决失败项不在会话中");
+            next.failedItems = next.failedItems.filter((item) => !resolved.includes(item));
+            next.resolvedItems.push(...resolved);
+        }
+        if (close) assertCanClose(next, next.status, sessionFile);
+        return next;
+    });
+    return { session: resultRecord.path, ...resultRecord.session };
 }
 
 function status(options) {
     const { path: sessionFile, session } = readSession(one(options, "session"));
-    console.log(JSON.stringify({ session: sessionFile, ...session }, null, 2));
+    return { session: sessionFile, ...session };
+}
+
+function report(options) {
+    const reportPath = path.resolve(one(options, "report"));
+    const report = readJson(reportPath);
+    if (!Array.isArray(report.results) || report.results.length === 0 || report.results.some((item) => !item?.name || typeof item.ok !== "boolean")) {
+        throw new Error("报告必须包含非空逐项布尔 results");
+    }
+    if (report.results.some((item, index, all) => all.findIndex((other) => other.name === item.name) !== index)) throw new Error("报告验收项编号重复");
+    const result = mutateSession(one(options, "session"), (session, sessionFile) => {
+        if (session.kind !== "isolated-kernel") throw new Error("服务报告只允许导入隔离内核会话");
+        if (!report.workspace || !path.isAbsolute(report.workspace) || !LOOPBACK_HOSTS.has(report.host)) throw new Error("报告缺少隔离工作区或回环 host");
+        if (session.workspace && path.resolve(session.workspace) !== path.resolve(report.workspace)) throw new Error("报告工作区与会话不匹配");
+        if (session.host && session.host !== report.host || session.port && session.port !== report.port) throw new Error("报告端口与会话不匹配");
+        if (report.pluginVersion && report.pluginVersion !== session.pluginVersion) throw new Error("报告插件版本与会话不匹配");
+        if (session.checks.some((check) => report.results.some((item) => item.name === check.id))) throw new Error("报告验收项已存在，复测请新建会话");
+        const evidence = evidenceRecord(reportPath, sessionFile, session);
+        return {
+            ...session,
+            status: "running",
+            workspace: report.workspace,
+            host: report.host,
+            port: report.port,
+            evidence: [...new Set([...session.evidence, reportPath])],
+            checks: [...session.checks, ...report.results.map((item) => ({ id: item.name, status: item.ok ? "passed" : "failed", evidence: [evidence], at: new Date().toISOString() }))],
+            runtime: { ...session.runtime, kernelVersion: report.kernelVersion || null },
+        };
+    });
+    return { session: result.path, report: reportPath, ...result.session };
 }
 
 function list(options) {
@@ -279,13 +376,17 @@ export async function main(argv = process.argv.slice(2)) {
         return;
     }
     const options = parseArgs(argv.slice(1));
-    if (command === "create") return create(options);
-    if (command === "link") return link(options);
-    if (command === "record") return record(options);
-    if (command === "close") return record(options, true);
-    if (command === "status") return status(options);
-    if (command === "list") return list(options);
-    throw new Error("未知命令: " + command);
+    let result;
+    if (command === "create") result = create(options);
+    else if (command === "link") result = link(options);
+    else if (command === "record") result = record(options);
+    else if (command === "close") result = record(options, true);
+    else if (command === "report") result = report(options);
+    else if (command === "status") result = status(options);
+    else if (command === "list") result = list(options);
+    else throw new Error("未知命令: " + command);
+    if (result !== undefined) console.log(JSON.stringify(result, null, 2));
+    return result;
 }
 
 if (process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url) {
