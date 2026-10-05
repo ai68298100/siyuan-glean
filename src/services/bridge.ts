@@ -23,6 +23,7 @@ export interface GleanBridgeClip {
     contentType?: ClipAttrs["contentType"];
     words?: number;
     minutes?: number;
+    readMinutes?: number;
     priority?: number;
     rating?: number;
     lastSurfaced: string;
@@ -109,6 +110,7 @@ function projectClip(meta: ClipMeta, attrs: ClipAttrs, tags: string[]): GleanBri
         contentType: attrs.contentType,
         words: attrs.words,
         minutes: attrs.minutes,
+        readMinutes: attrs.readMinutes,
         priority: attrs.priority,
         rating: attrs.rating,
         lastSurfaced: attrs.lastSurfaced ?? "",

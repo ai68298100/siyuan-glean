@@ -14,6 +14,7 @@
     import type { GleanFacade } from "../types";
     import { t } from "../libs/i18n";
     import { fulltextBodyState } from "../domain/content";
+    import { canCountReading, createReadingTimer, readingTimerMinutes, setReadingTimerActive, type ReadingTimerState } from "../domain/reading-timer";
     import { hasSourceAction, resolveCarrier, sourceUrlForCarrier } from "../domain/carrier";
     import { chunkSpeechText, clampSpeechRate, speechLanguage } from "../domain/speech";
     import type { ClipStatus } from "../domain/schema";
@@ -22,6 +23,7 @@
         batchSetStatus,
         measureClipBody,
         readClipContext,
+        saveReadingMinutes,
         writeClip,
         type ReadingClipContext,
     } from "../services/clip-store";
@@ -75,6 +77,55 @@
     let outlineError = $state(false);
     let outlineGeneration = 0;
     let recentReadings = $state<RecentReadingEntry[]>([]);
+    let readingTimer = $state<ReadingTimerState>(createReadingTimer());
+    let readingTimerDocId = "";
+    let readingTimerExpectedRaw: string | null = null;
+    let readingTimerExpectedLocation: { box: string; hpath: string } | null = null;
+    const displayedReadMinutes = $derived(Math.max(context?.readMinutes ?? 0, readingTimerMinutes(readingTimer)));
+
+    function readingTimerHostReady(): boolean {
+        const host = protyleHost;
+        if (!host || !host.isConnected || host.getClientRects().length === 0) return false;
+        return Boolean(host.querySelector(".protyle-wysiwyg, .protyle-content, .protyle-preview"));
+    }
+
+    function readingTimerEligible(): boolean {
+        return Boolean(docId && context && mode === "read" && typeof document !== "undefined" && canCountReading({
+            visible: document.visibilityState === "visible",
+            focused: typeof document.hasFocus !== "function" || document.hasFocus(),
+            hostReady: readingTimerHostReady(),
+            contentType: context.contentType,
+            bodyState,
+        }));
+    }
+
+    function syncReadingTimer(): void {
+        if (!readingTimerDocId) return;
+        readingTimer = setReadingTimerActive(readingTimer, readingTimerEligible(), Date.now());
+    }
+
+    async function flushReadingMinutes(id: string, generation: number): Promise<boolean> {
+        if (readingTimerDocId !== id || !readingTimerExpectedLocation) return true;
+        readingTimer = setReadingTimerActive(readingTimer, false, Date.now());
+        const minutes = readingTimerMinutes(readingTimer);
+        const persisted = context?.id === id ? context.readMinutes ?? 0 : 0;
+        if (minutes <= persisted || minutes <= 0) return true;
+        try {
+            const saved = await saveReadingMinutes(facade.pluginInstance, id, {
+                raw: readingTimerExpectedRaw,
+                location: readingTimerExpectedLocation,
+            }, minutes);
+            readingTimerExpectedRaw = saved.raw;
+            if (currentSession(id, generation) && context?.id === id) {
+                context = { ...context, readMinutes: saved.minutes, readMinutesRaw: saved.raw };
+            }
+            return true;
+        } catch (error) {
+            console.debug("[glean] 真实阅读分钟写回失败:", error);
+            showMessage(t(i18n, "reader.readMinutesSaveFailed"), 3500);
+            return false;
+        }
+    }
 
     function refreshRecentReadings(): void {
         recentReadings = facade.recentReadingDocuments().map((entry) => ({ ...entry }));
@@ -98,6 +149,7 @@
         const root = readerRoot;
         root?.addEventListener("keydown", onReaderKey);
         return () => {
+            readingTimer = setReadingTimerActive(readingTimer, false, Date.now());
             mounted = false;
             sessionGeneration += 1;
             contextRequests.invalidate();
@@ -243,12 +295,22 @@
             const next = await readClipContext(id);
             if (mounted && isCurrent() && docId === id) {
                 context = next;
+                if (next && readingTimerDocId !== id) {
+                    readingTimerDocId = id;
+                    readingTimerExpectedRaw = next.readMinutesRaw;
+                    readingTimerExpectedLocation = next.location;
+                    readingTimer = createReadingTimer(next.readMinutes ?? 0);
+                }
                 if (next) facade.recordRecentReading(id, next.title);
             }
         } catch (error) {
             if (!mounted || !isCurrent() || docId !== id) return;
             console.debug("[glean] 阅读页签读取上下文失败:", error);
             context = null;
+            readingTimerDocId = "";
+            readingTimerExpectedRaw = null;
+            readingTimerExpectedLocation = null;
+            readingTimer = createReadingTimer();
         }
     }
 
@@ -358,6 +420,10 @@
         sessionGeneration += 1;
         contextRequests.invalidate();
         context = null;
+        readingTimerDocId = "";
+        readingTimerExpectedRaw = null;
+        readingTimerExpectedLocation = null;
+        readingTimer = createReadingTimer();
         outline = [];
         aiResult = null;
         questionResult = null;
@@ -391,6 +457,9 @@
                 void loadOutline(docId);
             }
         };
+        const onVisibility = () => syncReadingTimer();
+        const onWindowFocus = () => syncReadingTimer();
+        const onWindowBlur = () => syncReadingTimer();
         const onSelect = () => {
             excerpt = excerptFromSelection(protyleHost, window.getSelection());
         };
@@ -399,13 +468,28 @@
         document.addEventListener("glean:reader-resize", onResize);
         document.addEventListener("glean:data-changed", onData);
         document.addEventListener("selectionchange", onSelect);
+        document.addEventListener("visibilitychange", onVisibility);
+        window.addEventListener("focus", onWindowFocus);
+        window.addEventListener("blur", onWindowBlur);
         return () => {
             document.removeEventListener("glean:focus-reader", onFocus);
             document.removeEventListener("glean:recent-reading-changed", onRecentReading);
             document.removeEventListener("glean:reader-resize", onResize);
             document.removeEventListener("glean:data-changed", onData);
             document.removeEventListener("selectionchange", onSelect);
+            document.removeEventListener("visibilitychange", onVisibility);
+            window.removeEventListener("focus", onWindowFocus);
+            window.removeEventListener("blur", onWindowBlur);
         };
+    });
+
+    $effect(() => {
+        void docId;
+        void context;
+        void protyleHost;
+        void mode;
+        void bodyState;
+        untrack(syncReadingTimer);
     });
 
     function openRelatedDoc(id: string, title = ""): void {
@@ -622,6 +706,7 @@
                 showMessage(t(i18n, "msg.statusFailed"), 3000);
                 return;
             }
+            if (status === "done") await flushReadingMinutes(current.id, generation);
             if (status === "done" && facade.settings.integration.checkinEnabled && facade.settings.integration.checkinItemId) {
                 void recordReadingDone(facade.settings.integration.checkinItemId, current.id, current.title);
             }
@@ -657,6 +742,7 @@
                 showMessage(t(i18n, "msg.statusFailed"), 3000);
                 return;
             }
+            await flushReadingMinutes(current.id, generation);
             if (facade.settings.integration.checkinEnabled && facade.settings.integration.checkinItemId) {
                 void recordReadingDone(facade.settings.integration.checkinItemId, current.id, current.title);
             }
@@ -812,6 +898,9 @@
                 {#if context?.site}<span>{context.site}</span>{/if}
                 {#if context?.author}<span>{context.author}</span>{/if}
             </div>
+            {#if displayedReadMinutes > 0}
+                <div class="glean-reader__hint" aria-live="polite">{t(i18n, "reader.readMinutes", { n: displayedReadMinutes })}</div>
+            {/if}
             <div class="glean-reader__section glean-reader__recent">
                 <div class="glean-reader__section-title">{t(i18n, "reader.recentTitle")}</div>
                 <div class="glean-reader__recent-list">

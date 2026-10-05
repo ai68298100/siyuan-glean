@@ -29,7 +29,7 @@ registerHooks({
     },
 });
 
-const { readReadingPosition, saveReadingPosition, verifyReadingBlock, ClipRestoreError } = await import("../src/services/clip-store.ts");
+const { readReadingPosition, saveReadingPosition, readReadingMinutes, saveReadingMinutes, verifyReadingBlock, ClipRestoreError } = await import("../src/services/clip-store.ts");
 const { captureReadingPosition, restoreReadingPosition, readingViewport } = await import("../src/libs/reading-position.ts");
 const docId = "20261004120000-aaaaaaa";
 const otherDocId = "20261004120000-bbbbbbb";
@@ -229,6 +229,38 @@ test("保存后位置或块归属变化不报告成功，恢复核验不以不�
     const before = fixture.calls.length;
     await assert.rejects(verifyReadingBlock(docId, "bad-id"), ClipRestoreError);
     assert.equal(fixture.calls.length, before);
+});
+
+test("真实阅读分钟独立写回，保留预计分钟与用户字段并校验位置", async () => {
+    const fixture = harness();
+    const before = await readReadingMinutes(docId);
+    assert.equal(before.raw, null);
+    assert.equal(before.minutes, 0);
+    const saved = await saveReadingMinutes(fixture.plugin, docId, {
+        raw: before.raw,
+        location: { box: before.meta.box, hpath: before.meta.hpath },
+    }, 7);
+    assert.equal(saved.minutes, 7);
+    assert.equal(fixture.attrs.get(docId)["custom-clip-read-minutes"], "7");
+    assert.equal(fixture.attrs.get(docId)["custom-clip-minutes"], "10");
+    assert.equal(fixture.attrs.get(docId)["custom-clip-author"], "用户");
+});
+
+test("真实阅读分钟拒绝旧快照、移动后的文档和写入后读回不一致", async () => {
+    const fixture = harness();
+    const before = await readReadingMinutes(docId);
+    fixture.attrs.get(docId)["custom-clip-read-minutes"] = "2";
+    await assert.rejects(() => saveReadingMinutes(fixture.plugin, docId, {
+        raw: before.raw,
+        location: { box: before.meta.box, hpath: before.meta.hpath },
+    }, 7), (error) => error instanceof ClipRestoreError && error.reason === "changed");
+    assert.equal(fixture.writes().length, 0);
+    fixture.attrs.get(docId)["custom-clip-read-minutes"] = before.raw ?? "";
+    fixture.documents.get(docId).hpath = "/moved";
+    await assert.rejects(() => saveReadingMinutes(fixture.plugin, docId, {
+        raw: before.raw,
+        location: { box: before.meta.box, hpath: before.meta.hpath },
+    }, 7), (error) => error instanceof ClipRestoreError && error.reason === "changed");
 });
 
 test("DOM 保存块内偏移，恢复只滚动当前正文 viewport，外部同 ID 块不受影响", () => {
@@ -456,10 +488,10 @@ test("UI 明确打开未渲染的原块只跳到再次核验成功的确切块 I
     ui.dispose();
 });
 
-test("UI 编译无警告，ReaderTab 仅接入控件，不监听滚动、卸载写入或展示进度/计时", () => {
+test("UI 编译无警告，ReaderTab 不监听滚动/卸载写入或展示百分比", () => {
     const source = readFileSync(controlsUrl, "utf8");
     assert.deepEqual(compile(source, { filename: "ReadingPositionControls.svelte", generate: "client" }).warnings, []);
-    assert.doesNotMatch(source, /addEventListener\(["'](?:scroll|blur|beforeunload)|percent|setInterval|batchSetStatus/);
+    assert.doesNotMatch(source, /addEventListener\(["'](?:scroll|beforeunload)|percent|setInterval|batchSetStatus/);
     const reader = readFileSync(new URL("../src/ui/ReaderTab.svelte", import.meta.url), "utf8");
     assert.match(reader, /<ReadingPositionControls \{facade\} \{docId\} host=\{protyleHost\}/);
 });

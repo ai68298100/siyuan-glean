@@ -41,6 +41,8 @@ export const ATTR = {
     doneTime: "custom-clip-done-time",
     words: "custom-clip-words",
     minutes: "custom-clip-minutes",
+    /** 用户真实前台阅读累计分钟（与预计阅读分钟独立）。 */
+    readMinutes: "custom-clip-read-minutes",
     priority: "custom-clip-priority",
     rating: "custom-clip-rating",
     aiTags: "custom-clip-ai-tags",
@@ -71,6 +73,7 @@ export interface ClipAttrs {
     doneTime?: string;
     words?: number;
     minutes?: number;
+    readMinutes?: number;
     priority?: number;
     rating?: number;
     aiTags: string[];
@@ -183,6 +186,7 @@ export function parseClipAttrs(ial: Record<string, string | undefined>): ClipAtt
         doneTime: optionalString(ial[ATTR.doneTime]),
         words: parseNumber(ial[ATTR.words]),
         minutes: parseNumber(ial[ATTR.minutes]),
+        readMinutes: parseNumber(ial[ATTR.readMinutes]),
         priority: parseClamped(ial[ATTR.priority], 1, 5),
         rating: parseClamped(ial[ATTR.rating], 0, 5),
         aiTags: parseTags(ial[ATTR.aiTags]),
@@ -239,6 +243,7 @@ export function serializePatch(patch: ClipPatch): AttrPatch {
     if (patch.doneTime !== undefined) put(ATTR.doneTime, patch.doneTime || null);
     if (patch.words !== undefined) put(ATTR.words, patch.words === null ? null : String(Math.max(0, Math.round(patch.words))));
     if (patch.minutes !== undefined) put(ATTR.minutes, patch.minutes === null ? null : String(Math.max(0, Math.round(patch.minutes))));
+    if (patch.readMinutes !== undefined) put(ATTR.readMinutes, patch.readMinutes === null ? null : String(Math.max(0, Math.round(patch.readMinutes))));
     if (patch.priority !== undefined) put(ATTR.priority, patch.priority === null ? null : String(clampInt(patch.priority, 1, 5)));
     if (patch.rating !== undefined) put(ATTR.rating, patch.rating === null ? null : String(clampInt(patch.rating, 0, 5)));
     if (patch.aiTags !== undefined) put(ATTR.aiTags, patch.aiTags === null ? null : patch.aiTags.join(","));

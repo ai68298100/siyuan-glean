@@ -572,6 +572,8 @@
   "reader.excerptDone": "已插入引述块",
   "reader.copied": "已复制到剪贴板",
   "reader.actionFailed": "操作失败，请重试",
+  "reader.readMinutes": "已记录实际阅读 ${n} 分钟",
+  "reader.readMinutesSaveFailed": "实际阅读时长写回失败，文章状态仍已更新",
   "reader.aiTitle": "AI 伴读",
   "reader.aiOff": "AI 已关闭：可在设置 → AI 富化模式开启",
   "reader.aiSummarize": "总结全文",

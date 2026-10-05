@@ -11,6 +11,7 @@ export interface LibraryExportRow {
     doneTime: string;
     words: number | string;
     minutes: number | string;
+    readMinutes: number | string;
     priority: number | string;
     rating: number | string;
     source: string;
@@ -27,7 +28,7 @@ export interface LibraryExportRow {
 
 const HEADERS = [
     "id", "title", "path", "notebook", "status", "url", "site", "author", "time", "doneTime",
-    "words", "minutes", "priority", "rating", "source", "contentType", "timeSource", "lastSurfaced", "pinned",
+    "words", "minutes", "readMinutes", "priority", "rating", "source", "contentType", "timeSource", "lastSurfaced", "pinned",
     "userTags", "aiTags", "summary", "snapshot", "readingPosition",
 ] as const;
 
@@ -45,7 +46,7 @@ export function renderLibraryCsv(rows: readonly LibraryExportRow[]): string {
     for (const row of rows) {
         output.push([
             row.id, row.title, row.path, row.notebook, row.status, row.url, row.site, row.author, row.time, row.doneTime,
-            row.words, row.minutes, row.priority, row.rating, row.source, row.contentType, row.timeSource, row.lastSurfaced, row.pinned,
+            row.words, row.minutes, row.readMinutes, row.priority, row.rating, row.source, row.contentType, row.timeSource, row.lastSurfaced, row.pinned,
             row.userTags.join(" | "), row.aiTags.join(" | "), row.summary, row.snapshot, row.readingPosition,
         ].map(csvCell).join(","));
     }

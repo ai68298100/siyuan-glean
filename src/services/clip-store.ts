@@ -87,6 +87,12 @@ export interface ReadingClipContext {
     url: string;
     /** 载体诊断只读投影；未记录时保持 undefined，不猜测正文长度。 */
     words?: number;
+    /** 真实阅读累计分钟；与预计 minutes 分离。 */
+    readMinutes?: number;
+    /** 写回时使用的原始 IAL 值；缺键为 null，用于并发冲突检测。 */
+    readMinutesRaw: string | null;
+    /** 阅读计时写回时校验文档仍在同一位置。 */
+    location: { box: string; hpath: string };
     /** 伴生栏（阅读页签）用的只读投影；缺省时给中性默认。 */
     site?: string;
     author?: string;
@@ -97,9 +103,9 @@ export interface ReadingClipContext {
 
 /** 编辑器上下文只读当前根块属性；旧索引不能冒充正在阅读的状态。 */
 export async function readClipContext(docId: string): Promise<ReadingClipContext | null> {
-    const attrs = await readClip(docId);
+    const [ial, meta] = await Promise.all([getBlockAttrs(docId), fetchDocMeta(docId)]);
+    const attrs = parseClipAttrs(ial);
     if (!attrs.status) return null;
-    const meta = await fetchDocMeta(docId);
     return {
         id: docId,
         title: meta.title || meta.hpath.split("/").filter(Boolean).at(-1) || "",
@@ -107,6 +113,9 @@ export async function readClipContext(docId: string): Promise<ReadingClipContext
         contentType: attrs.contentType,
         url: attrs.url ?? "",
         words: attrs.words,
+        readMinutes: attrs.readMinutes,
+        readMinutesRaw: ial[ATTR.readMinutes] ?? null,
+        location: { box: meta.box, hpath: meta.hpath },
         site: attrs.site ?? "",
         author: attrs.author ?? "",
         snapshot: attrs.snapshot ?? "",
@@ -252,12 +261,62 @@ export interface ClipAttributeSnapshot { meta: DocMeta; attrs: Ial }
 
 export interface ReadingPositionSnapshot { raw: string | null; position: ReadingPosition | null; meta: DocMeta }
 
+export interface ReadingMinutesSnapshot { raw: string | null; minutes: number; statusRaw: string | null; meta: DocMeta }
+
 export async function readReadingPosition(docId: string): Promise<ReadingPositionSnapshot> {
     const snapshot = await readClipAttributeSnapshot(docId);
     const attrs = parseClipAttrs(snapshot.attrs);
     if (!attrs.status || attrs.internal) throw new ClipRestoreError("changed");
     const raw = snapshot.attrs[ATTR.readingPosition] ?? null;
     return { raw, position: parseReadingPosition(raw), meta: snapshot.meta };
+}
+
+export async function readReadingMinutes(docId: string): Promise<ReadingMinutesSnapshot> {
+    const snapshot = await readClipAttributeSnapshot(docId);
+    const attrs = parseClipAttrs(snapshot.attrs);
+    if (!attrs.status || attrs.internal) throw new ClipRestoreError("changed");
+    return {
+        raw: snapshot.attrs[ATTR.readMinutes] ?? null,
+        minutes: attrs.readMinutes ?? 0,
+        statusRaw: snapshot.attrs[ATTR.status] ?? null,
+        meta: snapshot.meta,
+    };
+}
+
+export interface ReadingMinutesExpectation {
+    raw: string | null;
+    location: { box: string; hpath: string };
+}
+
+/** 只在显式标记已读后写回完整分钟，并检查属性原值与文档位置未被外部修改。 */
+export async function saveReadingMinutes(plugin: Plugin, docId: string, expected: ReadingMinutesExpectation, minutes: number): Promise<ReadingMinutesSnapshot> {
+    if (!Number.isInteger(minutes) || minutes < 0 || expected.location.box.length === 0 || expected.location.hpath.length === 0) {
+        throw new ClipRestoreError("changed");
+    }
+    const serialized = String(minutes);
+    return queueClipEdit(plugin, docId, async () => {
+        const current = await readReadingMinutes(docId);
+        if (current.raw !== expected.raw || current.meta.box !== expected.location.box || current.meta.hpath !== expected.location.hpath) {
+            throw new ClipRestoreError("changed");
+        }
+        let writeError: unknown;
+        try {
+            await writeClip(plugin, docId, { readMinutes: minutes }, {
+                force: true,
+                expectedAttrs: { [ATTR.readMinutes]: expected.raw, [ATTR.status]: current.statusRaw },
+                expectedLocation: expected.location,
+            });
+        } catch (error) {
+            if (error instanceof ClipRestoreError) throw error;
+            writeError = error;
+        }
+        const after = await readReadingMinutes(docId);
+        if (after.raw !== serialized || after.meta.box !== expected.location.box || after.meta.hpath !== expected.location.hpath) {
+            if (writeError) throw writeError;
+            throw new ClipRestoreError("changed");
+        }
+        return after;
+    });
 }
 
 export async function verifyReadingBlock(docId: string, blockId: string): Promise<void> {

@@ -572,6 +572,8 @@
   "reader.excerptDone": "Quote block inserted",
   "reader.copied": "Copied to clipboard",
   "reader.actionFailed": "Action failed, please retry",
+  "reader.readMinutes": "Recorded actual reading: ${n} min",
+  "reader.readMinutesSaveFailed": "Could not save actual reading time; article status was updated",
   "reader.aiTitle": "AI companion",
   "reader.aiOff": "AI is off: enable via Settings → AI enrichment mode",
   "reader.aiSummarize": "Summarize",

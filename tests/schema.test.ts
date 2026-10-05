@@ -36,6 +36,7 @@ test("parseClipAttrs：完整 IAL 还原为强类型", () => {
         [ATTR.status]: "reading",
         [ATTR.words]: "1234",
         [ATTR.minutes]: "3",
+        [ATTR.readMinutes]: "2",
         [ATTR.priority]: "4",
         [ATTR.rating]: "5",
         [ATTR.aiTags]: "ai, 隐私",
@@ -48,6 +49,7 @@ test("parseClipAttrs：完整 IAL 还原为强类型", () => {
     assert.equal(attrs.status, "reading");
     assert.equal(attrs.words, 1234);
     assert.equal(attrs.priority, 4);
+    assert.equal(attrs.readMinutes, 2);
     assert.deepEqual(attrs.aiTags, ["ai", "隐私"]);
     assert.equal(attrs.src, "migration");
     assert.equal(attrs.pinned, "20260929");
@@ -81,6 +83,13 @@ test("serializePatch：数字钳制与空串删除语义", () => {
     assert.equal(patch[ATTR.status], "later");
     assert.equal(patch[ATTR.url], null);
     assert.equal(patch[ATTR.aiTags], "a,b");
+});
+
+test("serializePatch：真实阅读分钟独立于预计分钟", () => {
+    assert.deepEqual(serializePatch({ minutes: 8, readMinutes: 3 }), {
+        [ATTR.minutes]: "8",
+        [ATTR.readMinutes]: "3",
+    });
 });
 
 test("serializePatch：显式 null 保留（删除），undefined 键不出现", () => {

@@ -34,6 +34,7 @@ export async function exportLibraryCsv(plugin: Plugin, settings: GleanSettings):
             doneTime: parsed.doneTime ?? "",
             words: parsed.words ?? "",
             minutes: parsed.minutes ?? "",
+            readMinutes: parsed.readMinutes ?? "",
             priority: parsed.priority ?? "",
             rating: parsed.rating ?? "",
             source: parsed.src ?? "",
