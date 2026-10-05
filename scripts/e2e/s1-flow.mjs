@@ -18,6 +18,7 @@ import {
     waitForBoot,
     shutdownKernel,
 } from "../spike/kernel-harness.mjs";
+import { cleanupScratch, parseTargetArgs, prepareWriteSmoke, resolveTarget } from "../lib/smoke-kernel.mjs";
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const HOST = "127.0.0.1";
@@ -25,6 +26,34 @@ const MARKER = "glean-s1-e2e.json";
 const CREATED_BY = "siyuan-glean-s1-flow";
 const WORKSPACE = path.join(os.tmpdir(), `siyuan-glean-s1-${Date.now()}-${process.pid}`);
 const passedScenarios = [];
+const TARGET_ARGS = parseTargetArgs(process.argv.slice(2));
+
+async function runAttachedTarget() {
+    const target = resolveTarget({ argv: process.argv.slice(2), baseArg: TARGET_ARGS["base-url"], tokenArg: TARGET_ARGS.token });
+    const client = createApiClient(target.base);
+    client.setToken(target.token);
+    await prepareWriteSmoke((route, body) => client.api(route, body), { base: target.base, log: console });
+    const workspace = path.join(os.tmpdir(), `siyuan-glean-attached-${Date.now()}-${process.pid}`);
+    globalThis.__gleanS1FetchSyncPost = async (route, body) => {
+        const result = await client.api(route, body);
+        if (route === "/api/filetree/createDocWithMd" && typeof result?.data === "string") {
+            const id = result.data;
+            const deadline = Date.now() + 10000;
+            while (Date.now() < deadline) {
+                const rows = await client.api("/api/query/sql", { stmt: `SELECT id FROM blocks WHERE id='${id}' AND type='d' LIMIT 1` });
+                if (rows?.code === 0 && rows.data?.some((row) => row.id === id)) break;
+                await new Promise((resolve) => setTimeout(resolve, 150));
+            }
+        }
+        return result;
+    };
+    console.log(`S1 服务级 E2E：连接现有隔离靶场 ${target.base}`);
+    try {
+        await runFlow(client, workspace);
+    } finally {
+        await cleanupScratch((route, body) => client.api(route, body), { log: console }).catch((error) => console.warn(`临时库收尾清扫失败：${error.message}`));
+    }
+}
 
 // Node 只替换思源前端 SDK 的传输入口；业务服务、属性校验、索引和迁移逻辑均加载源码。
 registerHooks({
@@ -101,7 +130,7 @@ async function runFlow(client, workspace) {
     const newPlugin = pluginDataAt(workspace);
     const plugin = newPlugin();
 
-    const notebookName = "GleanS1Flow";
+    const notebookName = `siyuan-glean-s1-${process.pid}`;
     await client.apiChecked("/api/notebook/createNotebook", { name: notebookName });
     const listing = await client.apiChecked("/api/notebook/lsNotebooks", {});
     const box = listing.notebooks.find((item) => item.name === notebookName)?.id;
@@ -605,7 +634,7 @@ async function runAvProjectionFlow({ client, plugin, until, pass, workspace }) {
     const bodyOf = async (id) => (await client.apiChecked("/api/export/exportMdContent", { id, yfm: false, addTitle: false, refMode: 2 })).content;
     const sourceAttrs = (attrs) => Object.fromEntries(Object.entries(attrs).filter(([key]) => key.startsWith("custom-clip-") || key === "tags"));
     try {
-        const notebookName = "GleanAvProjectionFlow";
+        const notebookName = `siyuan-glean-av-projection-${process.pid}`;
         await client.apiChecked("/api/notebook/createNotebook", { name: notebookName });
         const listing = await client.apiChecked("/api/notebook/lsNotebooks", {});
         const box = listing.notebooks.find((notebook) => notebook.name === notebookName)?.id;
@@ -819,6 +848,10 @@ async function runImportJournalFlow({ client, newPlugin, box, workspace }) {
 }
 
 async function main() {
+    if (TARGET_ARGS["base-url"] || process.env.SIYUAN_BASE_URL) {
+        await runAttachedTarget();
+        return;
+    }
     process.chdir(REPO);
     const { kernel, appDir } = resolveKernel();
     prepareWorkspace(WORKSPACE, MARKER, CREATED_BY);
@@ -837,7 +870,10 @@ async function main() {
             if (child.exitCode !== null || child.signalCode !== null) throw new Error("测试内核已退出");
         }, client);
         const conf = JSON.parse(fs.readFileSync(path.join(WORKSPACE, "conf", "conf.json"), "utf8"));
-        client.setToken(conf.accessAuthCode || "");
+        const token = TARGET_ARGS.token || process.env.SIYUAN_TOKEN || conf.accessAuthCode || "";
+        if (!token) throw new Error("隔离内核未生成 token；请设置 SIYUAN_TOKEN 或检查 conf.json");
+        client.setToken(token);
+        await prepareWriteSmoke((route, body) => client.api(route, body), { base, log: console });
         await client.apiChecked("/api/setting/setBazaar", { trust: true, petalDisabled: false });
         runEvidence.kernelVersion = version;
         runEvidence.bazaarTrusted = true;
@@ -864,6 +900,7 @@ async function main() {
         runEvidence.failure = { message: error.message, stack: error.stack };
         throw error;
     } finally {
+        await cleanupScratch((route, body) => client.api(route, body), { log: console }).catch((error) => console.warn(`临时库收尾清扫失败：${error.message}`));
         await shutdownKernel(client, child);
         runEvidence.finishedAt = new Date().toISOString();
         saveRunEvidence();

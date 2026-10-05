@@ -29,6 +29,14 @@ test("settings exposes names for groups, controls and save state", () => {
     assert.match(source, /customBaseUrlInsecure/);
 });
 
+test("Dock 搜索打开后自动聚焦，并提供可访问的清空动作", () => {
+    const source = read("src/ui/DockPanel.svelte");
+    assert.match(source, /bind:this=\{searchInput\}/);
+    assert.match(source, /searchInput\?\.focus\(\)/);
+    assert.match(source, /class="glean-search__clear"/);
+    assert.match(source, /aria-label=\{t\(i18n, "panel\.searchClear"\)\}/);
+});
+
 test("mobile onboarding entry remains guarded by frontend detection", () => {
     const source = read("src/index.ts");
     assert.match(source, /const frontend = getFrontend\(\);/);

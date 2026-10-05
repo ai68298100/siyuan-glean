@@ -11,6 +11,7 @@ import {
     waitForBoot,
     shutdownKernel,
 } from "../spike/kernel-harness.mjs";
+import { cleanupScratch, prepareWriteSmoke } from "../lib/smoke-kernel.mjs";
 import {
     E2E_CREATED_BY,
     E2E_MANIFEST_VERSION,
@@ -116,6 +117,7 @@ async function cleanup(exitCode = 0) {
     if (stopping) return;
     stopping = true;
     await setStatus("stopping", { stoppedAt: new Date().toISOString() }).catch(() => undefined);
+    if (client && child && child.exitCode === null && child.signalCode === null) await cleanupScratch((route, body) => client.api(route, body), { log: console }).catch((error) => console.warn(`临时库收尾清扫失败：${error.message}`));
     if (client && child) await shutdownKernel(client, child);
     await setStatus("stopped", { stoppedAt: new Date().toISOString() }).catch(() => undefined);
     process.exit(exitCode);
@@ -148,7 +150,10 @@ async function main() {
         if (child.exitCode !== null || child.signalCode !== null) throw new Error("内核已退出");
     }, client);
     const confPath = path.join(workspace, "conf", "conf.json");
-    client.setToken((JSON.parse(fs.readFileSync(confPath, "utf8")).accessAuthCode) || "");
+    const token = options.token || process.env.SIYUAN_TOKEN || JSON.parse(fs.readFileSync(confPath, "utf8")).accessAuthCode || "";
+    if (!token) throw new Error("隔离内核未生成 token；请传入 --token 或设置 SIYUAN_TOKEN");
+    client.setToken(token);
+    await prepareWriteSmoke((route, body) => client.api(route, body), { base, log: console });
 
     await client.api("/api/setting/setBazaar", { trust: true, petalDisabled: false });
     const enabled = await client.api("/api/petal/setPetalEnabled", { packageName: plugin.name, enabled: true, frontend: "desktop" });
@@ -157,11 +162,12 @@ async function main() {
     console.log("插件启用=" + (enabled.code === 0) + " loadPetals含插件=" + Boolean(found) + " i18n键=" + Object.keys(found?.i18n ?? {}).length);
 
     const notebooks = await client.apiChecked("/api/notebook/lsNotebooks", {});
-    let box = (notebooks.notebooks || []).find((item) => item.name === "GleanE2E")?.id;
+    const notebookName = `siyuan-glean-smoke-e2e-${process.pid}`;
+    let box = (notebooks.notebooks || []).find((item) => item.name === notebookName)?.id;
     if (!box) {
-        await client.apiChecked("/api/notebook/createNotebook", { name: "GleanE2E" });
+        await client.apiChecked("/api/notebook/createNotebook", { name: notebookName });
         const refreshed = await client.apiChecked("/api/notebook/lsNotebooks", {});
-        box = (refreshed.notebooks || []).find((item) => item.name === "GleanE2E")?.id;
+        box = (refreshed.notebooks || []).find((item) => item.name === notebookName)?.id;
     }
     const demoDocs = [
         ["本地优先软件浪潮", "https://inkandswitch.com/local-first", "inbox", "20260601000000"],
@@ -196,7 +202,7 @@ async function main() {
     console.log("E2E_MANIFEST=" + manifestPath);
     console.log("E2E_WORKSPACE=" + workspace);
     console.log("E2E_URL=" + base);
-    console.log("演示数据就绪：笔记本 GleanE2E（" + demoDocs.length + " 篇剪藏）");
+    console.log("演示数据就绪：笔记本 " + notebookName + "（" + demoDocs.length + " 篇剪藏）");
     console.log("保持运行中，Ctrl+C 退出并清理内核…");
 
     process.on("SIGINT", () => void cleanup(0));

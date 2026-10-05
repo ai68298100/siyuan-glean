@@ -63,6 +63,7 @@ let selectedTag = $state("");
 let selectedAiTag = $state("");
 /** Dock 窄画布搜索默认折叠为图标（UX 审计 #8）；工作台/浮窗保持常驻。 */
 let searchOpen = $state(false);
+let searchInput = $state<HTMLInputElement | null>(null);
 let selectedSource = $state("");
 let selectedTimeSource = $state("");
 let selectedContentType = $state("");
@@ -277,6 +278,12 @@ function loadMoreRows(): void {
 
 $effect(() => {
     if (activeFilterKey !== "") renderLimit = LIBRARY_RENDER_PAGE;
+});
+
+// 窄 Dock 里搜索入口是折叠的；打开后立即聚焦，避免用户再点一次输入框。
+$effect(() => {
+    if (!searchOpen) return;
+    void tick().then(() => searchInput?.focus());
 });
 
 const candidateCount = $derived(Object.keys(index.candidates).length);
@@ -1286,10 +1293,20 @@ function metaLine(entry: Row): string {
                 <div class="glean-search">
                     <svg class="glean-search__icon" viewBox="0 0 24 24"><path d="M10.5 3a7.5 7.5 0 0 1 5.9 12.1l4.2 4.2a1 1 0 0 1-1.4 1.4l-4.2-4.2A7.5 7.5 0 1 1 10.5 3zm0 2a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11z"/></svg>
                     <input
+                        bind:this={searchInput}
                         type="text"
                         placeholder={t(i18n, "panel.searchPlaceholder")}
                         bind:value={keyword}
                     />
+                    {#if keyword}
+                        <button
+                            type="button"
+                            class="glean-search__clear"
+                            title={t(i18n, "panel.searchClear")}
+                            aria-label={t(i18n, "panel.searchClear")}
+                            onclick={() => { keyword = ""; searchInput?.focus(); }}
+                        >×</button>
+                    {/if}
                 </div>
             {:else}
                 <button

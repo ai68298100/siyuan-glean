@@ -4,31 +4,59 @@ import os from "node:os";
 import path from "node:path";
 import { registerHooks } from "node:module";
 import { resolveKernel, prepareWorkspace, assertTestPortAvailable, startKernel, createApiClient, waitForBoot, shutdownKernel } from "./kernel-harness.mjs";
+import { cleanupScratch, prepareWriteSmoke, resolveTarget } from "../lib/smoke-kernel.mjs";
 
 const workspace = path.join(os.tmpdir(), `siyuan-glean-outline-${Date.now()}-${process.pid}`);
 const expected = ["首章", "二章", "嵌套标题", "末章"];
+function optionValue(name) {
+    const index = process.argv.indexOf(`--${name}`);
+    if (index < 0) return undefined;
+    const value = process.argv[index + 1];
+    if (!value || value.startsWith("--")) throw new Error(`参数缺少值: --${name}`);
+    return value;
+}
+
+const baseOverride = optionValue("base-url") || process.env.SIYUAN_BASE_URL || "";
+const tokenOverride = optionValue("token");
 
 async function main() {
-    prepareWorkspace(workspace, "glean-outline-spike.json", "siyuan-glean-outline-spike");
     let port;
-    for (let attempt = 0; attempt < 30; attempt += 1) {
-        const candidate = 30000 + Math.floor(Math.random() * 25000);
-        try { await assertTestPortAvailable("127.0.0.1", candidate); port = candidate; break; }
-        catch (error) { if (attempt === 29) throw error; }
+    let lifecycle = { child: null, lines: [] };
+    let base;
+    let token;
+    if (baseOverride) {
+        fs.mkdirSync(workspace, { recursive: true });
+        const target = resolveTarget({ baseArg: baseOverride, tokenArg: tokenOverride });
+        base = target.base;
+        token = target.token;
+        port = Number(new URL(base).port || 0);
+    } else {
+        prepareWorkspace(workspace, "glean-outline-spike.json", "siyuan-glean-outline-spike");
+        for (let attempt = 0; attempt < 30; attempt += 1) {
+            const candidate = 30000 + Math.floor(Math.random() * 25000);
+            try { await assertTestPortAvailable("127.0.0.1", candidate); port = candidate; break; }
+            catch (error) { if (attempt === 29) throw error; }
+        }
+        const { kernel, appDir } = resolveKernel();
+        lifecycle = startKernel(kernel, appDir, workspace, port);
+        base = `http://127.0.0.1:${port}`;
     }
-    const { kernel, appDir } = resolveKernel();
-    const lifecycle = startKernel(kernel, appDir, workspace, port);
-    const client = createApiClient(`http://127.0.0.1:${port}`);
+    const client = createApiClient(base);
     const guard = () => {
-        if (lifecycle.child.exitCode !== null || lifecycle.child.signalCode !== null) throw new Error("大纲测试内核已退出");
+        if (lifecycle.child && (lifecycle.child.exitCode !== null || lifecycle.child.signalCode !== null)) throw new Error("大纲测试内核已退出");
     };
     client.onGuard(guard);
     try {
-        const version = await waitForBoot(`http://127.0.0.1:${port}`, lifecycle.lines, guard, client);
-        const conf = JSON.parse(fs.readFileSync(path.join(workspace, "conf", "conf.json"), "utf8"));
-        client.setToken(conf.accessAuthCode || "");
+        const version = baseOverride ? await client.apiChecked("/api/system/version", {}) : await waitForBoot(base, lifecycle.lines, guard, client);
+        if (!baseOverride) {
+            const conf = JSON.parse(fs.readFileSync(path.join(workspace, "conf", "conf.json"), "utf8"));
+            token = tokenOverride || process.env.SIYUAN_TOKEN || conf.accessAuthCode || "";
+            if (!token) throw new Error("隔离内核未生成 token；请传入 --token 或设置 SIYUAN_TOKEN");
+        }
+        client.setToken(token);
+        await prepareWriteSmoke((route, body) => client.api(route, body), { base, log: console });
         await client.apiChecked("/api/setting/setBazaar", { trust: true, petalDisabled: false });
-        const name = `GleanOutline-${process.pid}`;
+        const name = `siyuan-glean-outline-${process.pid}`;
         await client.apiChecked("/api/notebook/createNotebook", { name });
         const boxes = await client.apiChecked("/api/notebook/lsNotebooks", {});
         const box = boxes.notebooks.find((item) => item.name === name)?.id;
@@ -67,8 +95,9 @@ async function main() {
         fs.writeFileSync(path.join(workspace, "outline-report.json"), JSON.stringify(report, null, 2) + "\n");
         console.log(`大纲只读探针通过：${version}，${workspace}${report.outline ? "，生产服务顺序通过" : ""}`);
     } finally {
+        if (!lifecycle.child || (lifecycle.child.exitCode === null && lifecycle.child.signalCode === null)) await cleanupScratch((route, body) => client.api(route, body), { log: console });
         fs.writeFileSync(path.join(workspace, "kernel-tail.log"), lifecycle.lines.join("\n") + "\n");
-        await shutdownKernel(client, lifecycle.child);
+        if (lifecycle.child) await shutdownKernel(client, lifecycle.child);
     }
 }
 

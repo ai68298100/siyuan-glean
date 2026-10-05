@@ -78,7 +78,7 @@ export async function runFlashcardFlow({ client, plugin, until, pass, workspace 
 
     try {
         evidence.kernelVersion = await client.apiChecked("/api/system/version");
-        const notebookName = "GleanFlashcardFlow";
+        const notebookName = `siyuan-glean-flashcard-${process.pid}`;
         await client.apiChecked("/api/notebook/createNotebook", { name: notebookName });
         const listing = await client.apiChecked("/api/notebook/lsNotebooks", {});
         const box = listing.notebooks.find((item) => item.name === notebookName)?.id;

@@ -14,6 +14,7 @@ import {
     waitForBoot,
     shutdownKernel,
 } from "./kernel-harness.mjs";
+import { cleanupScratch, prepareWriteSmoke } from "../lib/smoke-kernel.mjs";
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const HOST = "127.0.0.1";
@@ -24,6 +25,23 @@ const SESSION = `glean-t3220-${process.pid}-${Date.now()}`;
 const APP = "siyuan";
 const PROBE_ASSET = "assets/t3220-real.png";
 let nextRequestId = Date.now();
+
+function targetOption(name) {
+    const index = process.argv.indexOf(`--${name}`);
+    if (index < 0) return undefined;
+    const value = process.argv[index + 1];
+    if (!value || value.startsWith("--")) throw new Error(`参数缺少值: --${name}`);
+    return value;
+}
+
+const TOKEN_OVERRIDE = targetOption("token") || process.env.SIYUAN_TOKEN || "";
+const BASE_OVERRIDE = targetOption("base-url") || process.env.SIYUAN_BASE_URL || "";
+
+if (BASE_OVERRIDE) {
+    throw new Error(
+        "事务探针包含关闭并重启内核的步骤，不能附着现有内核；请移除 --base-url/SIYUAN_BASE_URL，让脚本自建独立 workspace，或运行不含重启步骤的其他冒烟脚本。"
+    );
+}
 
 function probePng(red, green, blue) {
     const chunk = (type, data) => {
@@ -900,7 +918,7 @@ async function runResourceWriteProbe(client, base, token, box) {
     });
     assert.ok(sourceAssets.includes(`assets/${filename}`), `源笔记本未识别写入资源: ${JSON.stringify(sourceAssets)}`);
 
-    const otherNotebookName = `GleanT3220-ResourceOther-${process.pid}`;
+    const otherNotebookName = `siyuan-glean-t3220-resource-other-${process.pid}`;
     await client.apiChecked("/api/notebook/createNotebook", { name: otherNotebookName });
     const notebooks = await client.apiChecked("/api/notebook/lsNotebooks", {});
     const otherBox = notebooks.notebooks.find((item) => item.name === otherNotebookName)?.id;
@@ -1323,10 +1341,13 @@ async function main() {
             if (lifecycle.child.exitCode !== null || lifecycle.child.signalCode !== null) throw new Error("测试内核已退出");
         }, client);
         const conf = JSON.parse(fs.readFileSync(path.join(WORKSPACE, "conf", "conf.json"), "utf8"));
-        client.setToken(conf.accessAuthCode || "");
-        clientB.setToken(conf.accessAuthCode || "");
+        const token = TOKEN_OVERRIDE || conf.accessAuthCode || "";
+        if (!token) throw new Error("隔离内核未生成 token；请传入 --token 或设置 SIYUAN_TOKEN");
+        client.setToken(token);
+        clientB.setToken(token);
+        await prepareWriteSmoke((route, body) => client.api(route, body), { base, log: console });
         await client.apiChecked("/api/setting/setBazaar", { trust: true, petalDisabled: false });
-        const notebookName = `GleanT3220-${process.pid}`;
+        const notebookName = `siyuan-glean-t3220-${process.pid}`;
         await client.apiChecked("/api/notebook/createNotebook", { name: notebookName });
         const listing = await client.apiChecked("/api/notebook/lsNotebooks", {});
         const box = listing.notebooks.find((item) => item.name === notebookName)?.id;
@@ -1342,13 +1363,13 @@ async function main() {
             crossParentReorder: await runCrossParentReorderProbe(client, box),
             lastItemMove: await runLastItemMoveProbe(client, box),
             concurrentClients: await runConcurrentClientsProbe(client, clientB, box),
-            resourceWrite: await runResourceWriteProbe(client, base, conf.accessAuthCode || "", box),
+            resourceWrite: await runResourceWriteProbe(client, base, token, box),
             embedAsset: await runEmbedAssetProbe(client, box),
             sameTransactionFailure: await runAtomicityProbe(client, box),
             insertDelete: await runInsertDeleteProbe(client, box),
             headingConversion: await runHeadingConversionProbe(client, box),
             undoOwnership: await runOwnershipProbe(client, box),
-            responseLoss: await runResponseLossProbe(client, base, conf.accessAuthCode || "", box),
+            responseLoss: await runResponseLossProbe(client, base, token, box),
             restart: await runRestartProbe(client, box, async () => {
                 await shutdownKernel(client, lifecycle.child);
                 const restarted = startKernel(kernel, appDir, WORKSPACE, port);
@@ -1357,7 +1378,7 @@ async function main() {
                 const restartedVersion = await waitForBoot(base, lifecycle.lines, () => {
                     if (lifecycle.child.exitCode !== null || lifecycle.child.signalCode !== null) throw new Error("重启后的测试内核已退出");
                 }, client);
-                client.setToken(conf.accessAuthCode || "");
+                client.setToken(token);
                 return restartedVersion;
             }),
         };
@@ -1440,6 +1461,7 @@ async function main() {
         assert.equal(results.lastItemMove.deletionReadBackClassified, true);
         console.log("T-3220 事务探针：完成");
     } finally {
+        if (lifecycle.child.exitCode === null && lifecycle.child.signalCode === null) await cleanupScratch((route, body) => client.api(route, body), { log: console });
         fs.writeFileSync(path.join(WORKSPACE, "kernel-tail.log"), lifecycle.lines.join("\n") + "\n");
         await shutdownKernel(client, lifecycle.child);
     }

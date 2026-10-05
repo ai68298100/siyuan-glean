@@ -15,6 +15,7 @@ import {
     waitForBoot,
     shutdownKernel,
 } from "./kernel-harness.mjs";
+import { cleanupScratch, prepareWriteSmoke, resolveTarget } from "../lib/smoke-kernel.mjs";
 
 function parseOptions() {
     const options = {};
@@ -24,7 +25,7 @@ function parseOptions() {
         const key = argument.slice(2);
         const value = process.argv[index + 1];
         if (!value || value.startsWith("--")) throw new Error("参数缺少值: --" + key);
-        if (!["workspace", "port", "results"].includes(key)) throw new Error("未知参数: --" + key);
+        if (!["workspace", "port", "results", "base-url", "token"].includes(key)) throw new Error("未知参数: --" + key);
         options[key] = value;
         index += 1;
     }
@@ -39,6 +40,7 @@ if (!Number.isInteger(PORT) || PORT < 0 || PORT > 65535) throw new Error("port �
 let BASE = `http://${HOST}:${PORT}`;
 const RESULTS_PATH = path.resolve(options.results || path.join(WORKSPACE, "av-spike-results.json"));
 const PLUGIN_VERSION = JSON.parse(fs.readFileSync(path.join(process.cwd(), "package.json"), "utf8")).version;
+const ATTACHED_BASE = options["base-url"] || process.env.SIYUAN_BASE_URL || "";
 
 const results = [];
 const record = (name, ok, detail) => {
@@ -60,37 +62,60 @@ async function choosePort() {
 }
 
 async function main() {
-    const { kernel, appDir } = resolveKernel();
-    prepareWorkspace(WORKSPACE, "glean-spike.json", "glean-spike");
-    if (PORT === 0) PORT = await choosePort();
-    BASE = `http://${HOST}:${PORT}`;
-    await assertTestPortAvailable(HOST, PORT);
-    const client = createApiClient(BASE);
-    const { child, lines } = startKernel(kernel, appDir, WORKSPACE, PORT);
-    client.onGuard(() => {
-        if (child.exitCode !== null || child.signalCode !== null) throw new Error("测试内核已退出");
-    });
+    let child = null;
+    let lines = [];
+    let booted = false;
+    let client;
+    if (ATTACHED_BASE) {
+        fs.mkdirSync(WORKSPACE, { recursive: true });
+        const target = resolveTarget({ baseArg: ATTACHED_BASE, tokenArg: options.token });
+        BASE = target.base;
+        PORT = Number(new URL(BASE).port || 0);
+        client = createApiClient(BASE);
+        client.setToken(target.token);
+        await client.apiChecked("/api/system/version", {});
+    } else {
+        const { kernel, appDir } = resolveKernel();
+        prepareWorkspace(WORKSPACE, "glean-spike.json", "glean-spike");
+        if (PORT === 0) PORT = await choosePort();
+        BASE = `http://${HOST}:${PORT}`;
+        await assertTestPortAvailable(HOST, PORT);
+        client = createApiClient(BASE);
+        const started = startKernel(kernel, appDir, WORKSPACE, PORT);
+        child = started.child;
+        lines = started.lines;
+        client.onGuard(() => {
+            if (child.exitCode !== null || child.signalCode !== null) throw new Error("测试内核已退出");
+        });
+    }
 
     let exitCode = 0;
-    let booted = false;
     try {
-        const version = await waitForBoot(BASE, lines, client.onGuard && (() => {
-            if (child.exitCode !== null || child.signalCode !== null) throw new Error("测试内核已退出");
-        }), client);
+        const version = ATTACHED_BASE
+            ? await client.apiChecked("/api/system/version", {})
+            : await waitForBoot(BASE, lines, client.onGuard && (() => {
+                if (child.exitCode !== null || child.signalCode !== null) throw new Error("测试内核已退出");
+            }), client);
         booted = true;
         const kernelVersion = typeof version === "string" ? version : version.version;
         console.log(`内核 ${kernelVersion} @ ${BASE}\n`);
-        client.setToken((JSON.parse(fs.readFileSync(path.join(WORKSPACE, "conf", "conf.json"), "utf8")).accessAuthCode) || "");
+        if (!ATTACHED_BASE) {
+            const token = options.token || process.env.SIYUAN_TOKEN || JSON.parse(fs.readFileSync(path.join(WORKSPACE, "conf", "conf.json"), "utf8")).accessAuthCode || "";
+            if (!token) throw new Error("隔离内核未生成 token；请传入 --token 或设置 SIYUAN_TOKEN");
+            client.setToken(token);
+        }
+        await prepareWriteSmoke((route, body) => client.api(route, body), { base: BASE, log: console });
         const { apiChecked } = client;
 
         // 桌面信任门槛 + 笔记本
         await client.api("/api/setting/setBazaar", { trust: true, petalDisabled: false });
         const notebooks = await apiChecked("/api/notebook/lsNotebooks", {});
-        let notebookID = (notebooks.notebooks || []).find((n) => n.name === "GleanSpike")?.id;
+        const notebookName = `siyuan-glean-av-${process.pid}`;
+        let notebookID = (notebooks.notebooks || []).find((n) => n.name === notebookName)?.id;
         if (!notebookID) {
-            await apiChecked("/api/notebook/createNotebook", { name: "GleanSpike" });
+            await apiChecked("/api/notebook/createNotebook", { name: notebookName });
             const refreshed = await apiChecked("/api/notebook/lsNotebooks", {});
-            notebookID = (refreshed.notebooks || []).find((n) => n.name === "GleanSpike")?.id;
+            notebookID = (refreshed.notebooks || []).find((n) => n.name === notebookName)?.id;
         }
 
         // 宿主文档（挂库向导会在第一个锚点笔记本建「读库数据库」宿主文档）
@@ -187,7 +212,8 @@ async function main() {
         );
         console.log(`\n== AV spike 完成：${results.length - failures.length}/${results.length} 通过，结果已写入 ${RESULTS_PATH} ==`);
     } finally {
-        if (booted) await shutdownKernel(client, child);
+        if (booted && (!child || (child.exitCode === null && child.signalCode === null))) await cleanupScratch((route, body) => client.api(route, body), { log: console });
+        if (child) await shutdownKernel(client, child);
     }
     process.exit(exitCode);
 }

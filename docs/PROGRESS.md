@@ -1,5 +1,18 @@
 # 进度（PROGRESS）
 
+## T-3293（2026-10-06：写型冒烟/E2E 靶场安全加固）
+
+- [x] 新增 `scripts/lib/smoke-kernel.mjs`：统一解析 `--base-url`/`--token` 与 `SIYUAN_BASE_URL`/`SIYUAN_TOKEN`（命令行优先、无默认 token）、回环地址检查、项目临时笔记本前缀注册表、启动残留清扫和共享内核拒跑；`SIYUAN_E2E_ALLOW_SHARED=1` 才能显式放行。
+- [x] `s1-flow` 可附着已启动的隔离靶场；`launch-e2e`、M0、AV、事务和大纲写型脚本启动前接入清扫/防呆，临时库改用 `siyuan-glean-*` 可识别前缀。M0 语义/嵌入检查默认跳过真实 AI 外发，设置 `SIYUAN_E2E_AI=1` 才启用。
+- [x] 新增 `tests/smoke-kernel.test.mjs`（8/8）与 `docs/SMOKE-E2E.md`，明确独立 workspace、6807 靶场、同内核串行写入、只读可并发和靶场 token 来源；运行手册补充辅助流程前缀注册、目录 spike、结束 `lsNotebooks` 检查和证据留存。事务探针识别 `SIYUAN_BASE_URL`/`--base-url` 后明确拒绝附着，避免重启步骤误伤外部内核。
+- [x] 本轮门禁已收口：全量 `pnpm test` **1146/1146**、`pnpm check` 0 错误/0 警告、`pnpm build`、`pnpm check:release`、`pnpm task:ledger --check` 和 `git diff --check` 均通过；构建仅保留既有 Vite `inlineDynamicImports` 弃用提示。
+- [ ] 真实隔离靶场全套跑数及无残留确认仍待作者执行，单列为 B-0012；此前误挂的 B-0008 仅保留给小驴打卡双插件联调。
+
+## T-3292（2026-10-06：Dock 搜索可发现性）
+
+- [x] 窄 Dock 搜索打开后自动聚焦；已有关键词时显示双语清空按钮，按钮保留 `aria-label`、title 和移动端 44px 命中区，清空后焦点回到输入框。
+- [x] 新增无障碍/i18n 静态回归；定向 14/14、`pnpm check` 通过。真实 Dock 宽度、键盘和移动触控仍待 B-0002。
+
 ## T-3274–T-3291（2026-10-06：精品化状态评审与下一阶段执行板）
 
 - [x] 完成当前功能、产品主线、数据主权、UI/交互、移动端、AI、外部集成、发布材料和 GitHub 对外呈现的综合盘点，结果见 `docs/STATUS-REVIEW-2026-10-06.md`。

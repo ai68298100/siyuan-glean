@@ -16,6 +16,7 @@ import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
 import { spawn } from "node:child_process";
+import { assertAiAllowed, cleanupScratch, prepareWriteSmoke, resolveTarget } from "../lib/smoke-kernel.mjs";
 
 function parseOptions() {
     const options = {};
@@ -29,7 +30,7 @@ function parseOptions() {
         const key = argument.slice(2);
         const value = process.argv[index + 1];
         if (!value || value.startsWith("--")) throw new Error("参数缺少值: --" + key);
-        if (!["workspace", "port", "results"].includes(key)) throw new Error("未知参数: --" + key);
+        if (!["workspace", "port", "results", "base-url", "token"].includes(key)) throw new Error("未知参数: --" + key);
         options[key] = value;
         index += 1;
     }
@@ -47,6 +48,7 @@ const PLUGIN_NAME = "siyuan-glean";
 const API_TIMEOUT_MS = 60000;
 const RESULTS_PATH = path.resolve(options.results || path.join(WORKSPACE, "spike-results.json"));
 const PLUGIN_VERSION = JSON.parse(fs.readFileSync(path.join(process.cwd(), "package.json"), "utf8")).version;
+const ATTACHED_BASE = options["base-url"] || process.env.SIYUAN_BASE_URL || "";
 
 const results = [];
 const record = (name, ok, detail) => {
@@ -326,6 +328,9 @@ async function verifyLikePerformance(notebookID) {
 /* ---------- ③ 语义搜索双态 ---------- */
 
 async function verifySemantic() {
+    if (!assertAiAllowed()) {
+        return { ok: true, skipped: true, detail: "默认跳过真实 AI 外发检查（SIYUAN_E2E_AI=1 才启用）" };
+    }
     let statCode = 0, statData = null, statErr = "";
     try {
         statData = await apiChecked("/api/ai/embeddingStat", {});
@@ -392,11 +397,13 @@ async function verifyPluginLoad(distDir) {
     if (!fs.existsSync(path.join(distDir, "index.js"))) {
         return { ok: false, detail: "dist/index.js 不存在，先 pnpm build" };
     }
-    // dist → 隔离工作区插件目录
-    const target = path.join(WORKSPACE, "data", "plugins", PLUGIN_NAME);
-    fs.rmSync(target, { recursive: true, force: true });
-    fs.mkdirSync(target, { recursive: true });
-    fs.cpSync(distDir, target, { recursive: true });
+    // 自建内核需要把 dist 拷入其 workspace；附着模式要求靶场预先安装本插件。
+    if (!ATTACHED_BASE) {
+        const target = path.join(WORKSPACE, "data", "plugins", PLUGIN_NAME);
+        fs.rmSync(target, { recursive: true, force: true });
+        fs.mkdirSync(target, { recursive: true });
+        fs.cpSync(distDir, target, { recursive: true });
+    }
 
     const load = await api("/api/petal/loadPetals", { frontend: "desktop" });
     let petals = load.code === 0 && Array.isArray(load.data) ? load.data : [];
@@ -525,25 +532,45 @@ async function verifyFlashcard(notebookID) {
 
 async function main() {
     assertLoopback();
-    const { kernel, appDir } = resolveKernel();
-    prepareWorkspace();
-    if (PORT === 0) PORT = await choosePort();
-    BASE = `http://${HOST}:${PORT}`;
-    await assertTestPortAvailable(HOST, PORT);
-    const { child, lines } = startKernel({ kernel, appDir });
-    assertKernelRunning = () => {
-        if (child.exitCode !== null || child.signalCode !== null) throw new Error("测试内核已退出，停止请求");
-    };
+    let child = null;
+    let lines = [];
+    let kernel = null;
+    let appDir = null;
+    if (ATTACHED_BASE) {
+        fs.mkdirSync(WORKSPACE, { recursive: true });
+        const target = resolveTarget({ baseArg: ATTACHED_BASE, tokenArg: options.token });
+        BASE = target.base;
+        PORT = Number(new URL(BASE).port || 0);
+        token = target.token;
+        assertKernelRunning = () => {};
+        await apiChecked("/api/system/version", {});
+    } else {
+        ({ kernel, appDir } = resolveKernel());
+        prepareWorkspace();
+        if (PORT === 0) PORT = await choosePort();
+        BASE = `http://${HOST}:${PORT}`;
+        await assertTestPortAvailable(HOST, PORT);
+        const started = startKernel({ kernel, appDir });
+        child = started.child;
+        lines = started.lines;
+        assertKernelRunning = () => {
+            if (child.exitCode !== null || child.signalCode !== null) throw new Error("测试内核已退出，停止请求");
+        };
+    }
 
     let exitCode = 0;
     let booted = false;
     try {
-        const version = await waitForBoot(lines, assertKernelRunning);
+        const version = ATTACHED_BASE ? await apiChecked("/api/system/version", {}) : await waitForBoot(lines, assertKernelRunning);
         booted = true;
         const kernelVersion = typeof version === "string" ? version : version.version;
         console.log(`内核 v${kernelVersion} @ ${BASE}（隔离工作区: ${WORKSPACE}）\n`);
 
-        token = (JSON.parse(fs.readFileSync(path.join(WORKSPACE, "conf", "conf.json"), "utf8")).accessAuthCode) || "";
+        if (!ATTACHED_BASE) {
+            token = options.token || process.env.SIYUAN_TOKEN || (JSON.parse(fs.readFileSync(path.join(WORKSPACE, "conf", "conf.json"), "utf8")).accessAuthCode) || "";
+            if (!token) throw new Error("隔离内核未生成 token；请传入 --token 或设置 SIYUAN_TOKEN");
+        }
+        await prepareWriteSmoke(api, { base: BASE, log: console });
 
         // 桌面 std 容器要求集市信任后 loadPetals 才返回插件（kernel/model/plugin.go IsPetalsEnabled）
         const trust = await api("/api/setting/setBazaar", { trust: true, petalDisabled: false });
@@ -551,13 +578,14 @@ async function main() {
 
         // 准备笔记本
         const notebooks = await apiChecked("/api/notebook/lsNotebooks", {});
-        let notebookID = (notebooks.notebooks || []).find((n) => n.name === "GleanSpike")?.id;
+        const notebookName = `siyuan-glean-smoke-${process.pid}`;
+        let notebookID = (notebooks.notebooks || []).find((n) => n.name === notebookName)?.id;
         if (!notebookID) {
-            await apiChecked("/api/notebook/createNotebook", { name: "GleanSpike" });
+            await apiChecked("/api/notebook/createNotebook", { name: notebookName });
             const refreshed = await apiChecked("/api/notebook/lsNotebooks", {});
-            notebookID = (refreshed.notebooks || []).find((n) => n.name === "GleanSpike")?.id;
+            notebookID = (refreshed.notebooks || []).find((n) => n.name === notebookName)?.id;
         }
-        if (!notebookID) throw new Error("GleanSpike 笔记本创建失败");
+        if (!notebookID) throw new Error(`${notebookName} 笔记本创建失败`);
 
         if (options.only === "flashcard") {
             const step8 = await verifyFlashcard(notebookID);
@@ -607,14 +635,15 @@ async function main() {
         );
         console.log(`\n== spike 完成：${results.length - failures.length}/${results.length} 通过，结果已写入 ${RESULTS_PATH} ==`);
     } finally {
-        if (booted && child.exitCode === null && child.signalCode === null) {
+        if (booted && (!child || (child.exitCode === null && child.signalCode === null))) await cleanupScratch(api, { log: console });
+        if (child && child.exitCode === null && child.signalCode === null) {
             await api("/api/system/exit", { force: true }).catch(() => undefined);
+            const exited = await Promise.race([
+                new Promise((resolve) => (child.exitCode !== null || child.signalCode !== null ? resolve(true) : child.once("exit", () => resolve(true)))),
+                new Promise((resolve) => setTimeout(() => resolve(false), 8000)),
+            ]);
+            if (!exited) child.kill("SIGKILL");
         }
-        const exited = await Promise.race([
-            new Promise((resolve) => (child.exitCode !== null || child.signalCode !== null ? resolve(true) : child.once("exit", () => resolve(true)))),
-            new Promise((resolve) => setTimeout(() => resolve(false), 8000)),
-        ]);
-        if (!exited) child.kill("SIGKILL");
     }
     process.exit(exitCode);
 }
