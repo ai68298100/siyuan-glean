@@ -29,7 +29,7 @@
     } from "../services/clip-store";
     import { snapshotClip } from "../services/snapshot-service";
     import { recordReadingDone } from "../services/checkin-bridge";
-    import { excerptFromSelection, insertQuoteExcerpt } from "../services/excerpt-service";
+    import { excerptFromSelection, insertQuoteExcerpt, selectionBelongsToHost } from "../services/excerpt-service";
     import { makeQuoteCardPreview } from "./flashcard-dialog";
     import { findRelated } from "../services/enrich-service";
     import { pickNextUnread } from "../services/resurface-service";
@@ -461,7 +461,8 @@
         const onWindowFocus = () => syncReadingTimer();
         const onWindowBlur = () => syncReadingTimer();
         const onSelect = () => {
-            excerpt = excerptFromSelection(protyleHost, window.getSelection());
+            const selection = window.getSelection();
+            excerpt = selectionBelongsToHost(protyleHost, selection) ? excerptFromSelection(protyleHost, selection) : null;
         };
         document.addEventListener("glean:focus-reader", onFocus);
         document.addEventListener("glean:recent-reading-changed", onRecentReading);

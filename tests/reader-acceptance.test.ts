@@ -5,6 +5,7 @@ import { resolve } from "node:path";
 
 const root = resolve(import.meta.dirname, "..");
 const reader = readFileSync(resolve(root, "src/ui/ReaderTab.svelte"), "utf8");
+const preview = readFileSync(resolve(root, "src/ui/WorkbenchPreview.svelte"), "utf8");
 const context = readFileSync(resolve(root, "src/ui/ReadingContext.svelte"), "utf8");
 const styles = readFileSync(resolve(root, "src/index.scss"), "utf8");
 const guide = readFileSync(resolve(root, "docs/READER-ACCEPTANCE.md"), "utf8");
@@ -19,6 +20,8 @@ test("阅读页签覆盖正文诊断、载体降级、摘录、制卡、回跳�
         assert.match(source, /clip\.reclip/);
     }
     assert.match(reader, /excerptFromSelection/);
+    assert.match(reader, /selectionBelongsToHost/);
+    assert.match(preview, /selectionBelongsToHost/);
     assert.match(reader, /insertQuoteExcerpt/);
     assert.match(reader, /makeQuoteCard/);
     assert.match(reader, /openLibraryArticle/);

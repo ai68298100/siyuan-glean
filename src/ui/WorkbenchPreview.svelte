@@ -10,7 +10,7 @@
     import { readClip } from "../services/clip-store";
     import { autoEnrich } from "../services/enrich-service";
     import { recordReadingDone } from "../services/checkin-bridge";
-    import { excerptFromSelection, type ExcerptSelection } from "../services/excerpt-service";
+    import { excerptFromSelection, selectionBelongsToHost, type ExcerptSelection } from "../services/excerpt-service";
     import { confirmPreviewCandidate, excludePreviewCandidate, PreviewActionError, quotePreviewExcerpt, savePreviewCandidateUrl, setPreviewStatus } from "../services/workbench-preview";
     import ProtyleHost from "./ProtyleHost.svelte";
     import AuthorEditor from "./AuthorEditor.svelte";
@@ -56,7 +56,10 @@
     onMount(() => {
         mounted = true;
         void load();
-        const onSelect = () => { excerpt = excerptFromSelection(host, window.getSelection()); };
+        const onSelect = () => {
+            const selection = window.getSelection();
+            excerpt = selectionBelongsToHost(host, selection) ? excerptFromSelection(host, selection) : null;
+        };
         const onData = () => { void load(); };
         document.addEventListener("selectionchange", onSelect);
         document.addEventListener("glean:data-changed", onData);

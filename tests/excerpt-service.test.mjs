@@ -20,7 +20,7 @@ registerHooks({
     },
 });
 
-const { excerptFromSelection, insertQuoteExcerpt } = await import("../src/services/excerpt-service.ts");
+const { excerptFromSelection, insertQuoteExcerpt, selectionBelongsToHost } = await import("../src/services/excerpt-service.ts");
 
 const validBlockId = "20261004120000-aaaaaaa";
 
@@ -108,6 +108,18 @@ test("接受正文内反向跨块选区，并保留 Unicode 与 4000 字上限",
     assert.equal(result.blockId, "20261004120001-bbbbbbb");
     assert.equal(result.text, "中文🙂 世界 " + "a".repeat(3992));
     assert.equal(picked.textReads, 1);
+});
+
+test("selectionchange 宿主门禁只检查 anchor/focus，不读取 range 或文本", () => {
+    const fixture = bodyFixture();
+    const inside = selection({ anchorNode: fixture.firstText, focusNode: fixture.secondText, ranges: [range(fixture.firstText, fixture.secondText)] });
+    const outside = selection({ anchorNode: fixture.outside, focusNode: fixture.firstText, ranges: [range(fixture.outside, fixture.firstText)] });
+    assert.equal(selectionBelongsToHost(fixture.host, inside), true);
+    assert.equal(selectionBelongsToHost(fixture.host, outside), false);
+    assert.equal(selectionBelongsToHost(fixture.host, selection({ anchorNode: fixture.firstText, focusNode: fixture.secondText, ranges: [], collapsed: true })), false);
+    assert.equal(selectionBelongsToHost(fixture.host, selection({ anchorNode: null, focusNode: fixture.secondText, ranges: [] })), false);
+    assert.equal(inside.textReads, 0);
+    assert.equal(outside.textReads, 0);
 });
 
 test("拒绝 anchor/focus 越界、任一 Range 越界、缺失 Range 或读取异常，且不读取文本", () => {

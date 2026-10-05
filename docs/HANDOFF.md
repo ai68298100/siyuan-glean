@@ -1,5 +1,13 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+# 当前有效交接（2026-10-05 T-3273/D-0122）
+
+本轮完成选区事件宿主快速门禁：ReaderTab 与 WorkbenchPreview 的全局 `selectionchange` 回调先调用 `selectionBelongsToHost` 检查非折叠选区的 anchor/focus 是否在当前正文宿主内，宿主外或缺失节点直接清空摘录；完整 `excerptFromSelection` 仍复核所有 Range 端点、文本和块 ID。
+
+- 该优化只减少无关编辑器选区触发的 DOM/range 工作，不改变跨块摘录、复制降级或引述插入语义；新增端点、折叠、异常/跨宿主回归和 UI 接入断言。
+- T-3273 全量 `pnpm test`、`pnpm check`、构建、性能基线和发布门禁已通过；`pnpm task:ledger --write && pnpm task:ledger --check` 已同步并保持 14 项当前任务。
+- 真实 Protyle 多窗口选区事件、移动端频率和布局仍待 B-0002；版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 package.zip。
+
 # 当前有效交接（2026-10-05 T-3272/D-0121）
 
 本轮完成真实阅读计时：新增独立 `custom-clip-read-minutes`，阅读页签仅在可见、获焦、阅读模式且正文宿主已渲染时累计；链接、缺失正文、隐藏、失焦、切文、销毁和宿主不可用均不计时。秒余数只存在当前页签会话，显式标记已读成功后才写回完整分钟。

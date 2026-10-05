@@ -14,6 +14,17 @@ export interface ExcerptSelection {
     blockId: string;
 }
 
+/** 文档级 selectionchange 的低成本端点门禁；不读取 range 或选中文本，完整归属仍由摘录解析复核。 */
+export function selectionBelongsToHost(host: Element | null, selection: Selection | null): boolean {
+    if (!host || !selection) return false;
+    try {
+        if (selection.isCollapsed !== false || !selection.anchorNode || !selection.focusNode) return false;
+        return host.contains(selection.anchorNode) && host.contains(selection.focusNode);
+    } catch {
+        return false;
+    }
+}
+
 /** 从 DOM 选区提取摘录：仅当完整选区落在宿主元素内；无文本返回 null。 */
 export function excerptFromSelection(host: Element | null, selection: Selection | null): ExcerptSelection | null {
     if (!host || !selection) return null;
@@ -22,8 +33,8 @@ export function excerptFromSelection(host: Element | null, selection: Selection 
         const rangeCount = selection.rangeCount;
         if (!Number.isInteger(rangeCount) || rangeCount < 1) return null;
         const anchorNode = selection.anchorNode;
-        const focusNode = selection.focusNode;
-        if (!anchorNode || !focusNode || !host.contains(anchorNode) || !host.contains(focusNode)) return null;
+        if (!selectionBelongsToHost(host, selection)) return null;
+        if (!anchorNode) return null;
         for (let rangeIndex = 0; rangeIndex < rangeCount; rangeIndex += 1) {
             const range = selection.getRangeAt(rangeIndex);
             if (!range) return null;
