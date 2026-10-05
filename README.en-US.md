@@ -94,7 +94,7 @@ pnpm build      # production build → dist/ + package.zip
 pnpm spike      # isolated kernel spike; never touches the real workspace
 ```
 
-Project documents: [DATA-CONTRACT.md](docs/DATA-CONTRACT.md), [PRODUCT-REPLAN.md](docs/PRODUCT-REPLAN.md), [ROADMAP.md](docs/ROADMAP.md), and [DECISIONS.md](docs/DECISIONS.md).
+Project documents: [current status and polish roadmap](docs/STATUS-REVIEW-2026-10-06.md), [DATA-CONTRACT.md](docs/DATA-CONTRACT.md), [PRODUCT-REPLAN.md](docs/PRODUCT-REPLAN.md), [ROADMAP.md](docs/ROADMAP.md), and [DECISIONS.md](docs/DECISIONS.md).
 
 ## License
 

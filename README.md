@@ -96,7 +96,7 @@ pnpm build      # 生产构建 → dist/ + package.zip
 pnpm spike      # 隔离内核 spike（绝不触碰真实工作区）
 ```
 
-工程文档：[docs/DATA-CONTRACT.md](docs/DATA-CONTRACT.md)（数据契约）、[docs/PRODUCT-REPLAN.md](docs/PRODUCT-REPLAN.md)（产品重整）、[docs/ROADMAP.md](docs/ROADMAP.md)（里程碑）、[docs/DECISIONS.md](docs/DECISIONS.md)（决策记录）。
+工程文档：[docs/STATUS-REVIEW-2026-10-06.md](docs/STATUS-REVIEW-2026-10-06.md)（当前状态与精品化路线）、[docs/DATA-CONTRACT.md](docs/DATA-CONTRACT.md)（数据契约）、[docs/PRODUCT-REPLAN.md](docs/PRODUCT-REPLAN.md)（产品重整）、[docs/ROADMAP.md](docs/ROADMAP.md)（里程碑）、[docs/DECISIONS.md](docs/DECISIONS.md)（决策记录）。
 
 ## License
 

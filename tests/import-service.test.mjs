@@ -470,10 +470,14 @@ test("同任务文件被另一客户端替换时，精确版本比较阻止写�
     const expected = await readImportProgress(context.plugin);
     const next = structuredClone(expected);
     next.state = "running";
-    context.files.get(IMPORT_PROGRESS_FILE).updatedAt = "2026-10-05T04:00:00.000Z";
+    // Keep the replacement timestamp valid even when the test runs after the
+    // hard-coded historical date; the parser must reach the version mismatch
+    // guard rather than reject the record as chronologically invalid.
+    const replacementUpdatedAt = new Date(Date.parse(expected.createdAt) + 1000).toISOString();
+    context.files.get(IMPORT_PROGRESS_FILE).updatedAt = replacementUpdatedAt;
     await assert.rejects(saveImportProgress(context.plugin, next, expected), { reason: "changed" });
     assert.equal(context.files.get(IMPORT_PROGRESS_FILE).taskId, initial.taskId);
-    assert.equal(context.files.get(IMPORT_PROGRESS_FILE).updatedAt, "2026-10-05T04:00:00.000Z");
+    assert.equal(context.files.get(IMPORT_PROGRESS_FILE).updatedAt, replacementUpdatedAt);
 });
 
 test("半成品检查后、写入前的用户status/url/internal/excluded更改受写入点守门保护", async () => {
