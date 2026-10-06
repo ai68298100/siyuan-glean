@@ -66,6 +66,9 @@
     let sessionGeneration = 0;
     let mounted = false;
     let context = $state<ReadingClipContext | null>(null);
+    // 上下文与正文宿主是两条独立的读取链：正文已经挂载时，伴生栏仍需要明确区分读取中与读取失败。
+    let contextLoading = $state(false);
+    let contextError = $state(false);
     let measuring = $state(false);
     let snapping = $state(false);
     let statusBusy = $state(false);
@@ -291,10 +294,15 @@
 
     async function loadContext(id: string): Promise<void> {
         const isCurrent = contextRequests.begin();
+        if (mounted && docId === id) {
+            contextLoading = true;
+            contextError = false;
+        }
         try {
             const next = await readClipContext(id);
             if (mounted && isCurrent() && docId === id) {
                 context = next;
+                contextError = false;
                 if (next && readingTimerDocId !== id) {
                     readingTimerDocId = id;
                     readingTimerExpectedRaw = next.readMinutesRaw;
@@ -311,7 +319,13 @@
             readingTimerExpectedRaw = null;
             readingTimerExpectedLocation = null;
             readingTimer = createReadingTimer();
+            contextError = true;
         }
+        if (mounted && isCurrent() && docId === id) contextLoading = false;
+    }
+
+    function retryContext(): void {
+        if (docId) void loadContext(docId);
     }
 
     async function loadOutline(id: string): Promise<void> {
@@ -420,6 +434,8 @@
         sessionGeneration += 1;
         contextRequests.invalidate();
         context = null;
+        contextLoading = true;
+        contextError = false;
         readingTimerDocId = "";
         readingTimerExpectedRaw = null;
         readingTimerExpectedLocation = null;
@@ -900,6 +916,16 @@
                 {#if context?.site}<span>{context.site}</span>{/if}
                 {#if context?.author}<span>{context.author}</span>{/if}
             </div>
+            {#if contextLoading}
+                <div class="glean-reader__context-state glean-reader__context-state--loading" role="status" aria-live="polite">
+                    <span class="glean-reader__ai-status-dot" aria-hidden="true"></span>{t(i18n, "panel.loading")}
+                </div>
+            {:else if contextError}
+                <div class="glean-reader__context-state glean-reader__context-state--error" role="alert">
+                    <span>{t(i18n, "reader.actionFailed")}</span>
+                    {#if docId}<button class="glean-btn glean-btn--ghost" onclick={retryContext}>{t(i18n, "action.retry")}</button>{/if}
+                </div>
+            {/if}
             {#if displayedReadMinutes > 0}
                 <div class="glean-reader__hint" aria-live="polite">{t(i18n, "reader.readMinutes", { n: displayedReadMinutes })}</div>
             {/if}
@@ -1172,7 +1198,7 @@
                     </div>
                 {/if}
                 <button class="glean-reader__back" onclick={backToLibrary}>{t(i18n, "reading.backToLibrary")}</button>
-            {:else}
+            {:else if !contextLoading && !contextError}
                 <div class="glean-reader__issue"><span>{t(i18n, "reader.emptyHint")}</span></div>
             {/if}
         </aside>

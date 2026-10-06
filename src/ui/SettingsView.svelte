@@ -291,7 +291,7 @@ async function doMountBoard() {
 }
 </script>
 
-<div class="glean-settings" aria-labelledby="glean-settings-title" aria-busy={saveBusy}>
+<div class="glean-settings" aria-labelledby="glean-settings-title" aria-busy={saveBusy || testBusy || boardBusy || Boolean(exportBusy) || dismissHintBusy}>
     <div class="glean-settings__head">
         <div class="glean-brand__mark glean-settings__head-mark">
             <svg aria-hidden="true"><use href="#iconGleanWheat" /></svg>

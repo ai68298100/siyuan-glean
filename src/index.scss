@@ -2671,6 +2671,67 @@ body.b3-theme-dark {
     }
 }
 
+/* 第十四轮：阅读伴生栏的上下文状态。正文宿主与元数据读取并行时，避免用“未选择”误导用户。 */
+.glean-reader__context-state {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--glean-space-2);
+    min-height: 32px;
+    padding: var(--glean-space-2) var(--glean-space-3);
+    border: 1px solid var(--glean-border-soft);
+    border-radius: var(--glean-radius-sm);
+    color: var(--b3-theme-on-surface);
+    background: var(--glean-status-surface);
+    font-size: var(--glean-text-xs);
+}
+
+.glean-reader__context-state--loading {
+    color: var(--b3-theme-primary);
+    border-color: color-mix(in srgb, var(--b3-theme-primary) 24%, var(--glean-border-soft));
+    background: var(--glean-primary-soft);
+}
+
+.glean-reader__context-state--error {
+    color: var(--b3-theme-error);
+    border-color: color-mix(in srgb, var(--b3-theme-error) 28%, var(--glean-border-soft));
+    background: var(--glean-error-surface);
+}
+
+.glean-reader__context-state .glean-btn {
+    flex: 0 0 auto;
+    min-height: 28px;
+    padding-inline: var(--glean-space-2);
+}
+
+/* Dock 已有数据时的刷新也需要可见反馈，避免用户重复点击工具栏。 */
+.glean-panel__refreshing {
+    display: flex;
+    align-items: center;
+    gap: var(--glean-space-2);
+    margin: 0 var(--glean-space-4);
+    padding: var(--glean-space-2) var(--glean-space-3);
+    border: 1px solid color-mix(in srgb, var(--b3-theme-primary) 24%, var(--glean-border-soft));
+    border-radius: var(--glean-radius-sm);
+    color: var(--b3-theme-primary);
+    background: var(--glean-primary-soft);
+    font-size: var(--glean-text-xs);
+}
+
+.glean-panel__refreshing-dot {
+    width: 7px;
+    height: 7px;
+    flex: 0 0 7px;
+    border-radius: 50%;
+    background: currentColor;
+    box-shadow: 0 0 0 4px color-mix(in srgb, currentColor 12%, transparent);
+    animation: glean-dialog-status-pulse 1.4s ease-in-out infinite;
+}
+
+@media (max-width: 700px) {
+    .glean-panel__refreshing { display: none; }
+}
+
 .glean-mtable {
     flex: 1;
     min-height: 0;
@@ -2802,14 +2863,25 @@ body.b3-theme-dark {
     font-size: 12px;
     font-weight: 600;
     padding: 7px 16px;
-    border-radius: 11px;
+    min-height: 34px;
+    border-radius: var(--glean-radius-md);
     cursor: pointer;
     background: var(--b3-theme-background-light);
     color: var(--b3-theme-on-background);
-    transition: all 0.2s;
+    transition: transform 160ms var(--glean-ease-out), box-shadow 160ms var(--glean-ease-out), background-color 160ms var(--glean-ease-out), border-color 160ms var(--glean-ease-out), color 160ms var(--glean-ease-out), opacity 160ms ease;
 
-    &:hover {
+    &:hover:not(:disabled) {
         filter: brightness(0.97);
+        transform: translateY(-1px);
+    }
+
+    &:active:not(:disabled) {
+        transform: translateY(0) scale(.98);
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--b3-theme-primary);
+        outline-offset: 2px;
     }
 
     &.glean-btn--pri {
@@ -4828,7 +4900,8 @@ body.b3-theme-dark {
 
 /* T-3192：系统无障碍偏好不依赖颜色或动效。 */
 .glean-panel :where(button, a, input, select, textarea, [tabindex]):focus-visible,
-.glean-tab-root :where(button, a, input, select, textarea, [tabindex]):focus-visible {
+.glean-tab-root :where(button, a, input, select, textarea, [tabindex]):focus-visible,
+.glean-dialog-root :where(button, a, input, select, textarea, [tabindex]):focus-visible {
     outline: 2px solid var(--b3-theme-primary);
     outline-offset: 2px;
 }
@@ -4839,7 +4912,10 @@ body.b3-theme-dark {
     .glean-panel *::after,
     .glean-tab-root *,
     .glean-tab-root *::before,
-    .glean-tab-root *::after {
+    .glean-tab-root *::after,
+    .glean-dialog-root *,
+    .glean-dialog-root *::before,
+    .glean-dialog-root *::after {
         animation-duration: 0.01ms !important;
         animation-iteration-count: 1 !important;
         scroll-behavior: auto !important;
@@ -6896,4 +6972,106 @@ body.b3-theme-dark {
     .glean-panel--mobile .glean-reader__mode .glean-seg__btn {
         flex: 1 1 0;
     }
+}
+
+/* 第十四轮：移动端触控与深色层级。保留安全区、滚动边界和足够的触控面积。 */
+.glean-dialog-root {
+    color: var(--b3-theme-on-background);
+    color-scheme: inherit;
+}
+
+[data-theme-mode="dark"] .glean-dialog-root,
+body.body--dark .glean-dialog-root,
+body.b3-theme-dark .glean-dialog-root,
+[data-theme-mode="dark"].glean-dialog-root,
+[data-theme-mode="dark"] .glean-panel--mobile,
+body.body--dark .glean-panel--mobile,
+body.b3-theme-dark .glean-panel--mobile,
+[data-theme-mode="dark"].glean-panel--mobile {
+    color-scheme: dark;
+}
+
+.glean-panel--mobile :where(button, a, input, select, textarea) {
+    -webkit-tap-highlight-color: color-mix(in srgb, var(--b3-theme-primary) 18%, transparent);
+}
+
+.glean-panel--mobile :where(button, a, select, input[type="checkbox"], input[type="radio"]) {
+    touch-action: manipulation;
+}
+
+.glean-panel--mobile .glean-mobile-more,
+.glean-panel--mobile .glean-mobile-filter-sheet,
+.glean-panel--mobile .glean-mobile-filter-sheet__body,
+.glean-panel--mobile .glean-preview-sheet {
+    overscroll-behavior: contain;
+}
+
+.glean-panel--mobile .glean-mobile-more {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--b3-theme-on-surface) 36%, transparent) transparent;
+}
+
+.glean-panel--mobile .glean-mobile-more::-webkit-scrollbar,
+.glean-panel--mobile .glean-mobile-filter-sheet__body::-webkit-scrollbar {
+    width: 8px;
+}
+
+.glean-panel--mobile .glean-mobile-more::-webkit-scrollbar-thumb,
+.glean-panel--mobile .glean-mobile-filter-sheet__body::-webkit-scrollbar-thumb {
+    border: 2px solid transparent;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--b3-theme-on-surface) 32%, transparent);
+    background-clip: padding-box;
+}
+
+@media (hover: none), (pointer: coarse) {
+    .glean-panel--mobile :where(.glean-card, .glean-surf-card, .glean-kcard, .glean-drow):hover {
+        transform: none;
+    }
+
+    .glean-panel--mobile .glean-card:hover .glean-card__title {
+        color: var(--b3-theme-on-background);
+    }
+}
+
+@media (max-width: 560px) {
+    .glean-panel--mobile :where(.glean-btn, .glean-linkish, .glean-op-btn, .glean-icon-btn, .glean-filter-dir, .glean-filter-clear, .glean-q, .glean-seg__btn, .glean-reader__related-item) {
+        min-height: 44px;
+    }
+
+    .glean-panel--mobile .glean-icon-btn {
+        width: 44px;
+        min-width: 44px;
+    }
+
+    .glean-formatting,
+    .glean-backup,
+    .glean-flashcard {
+        padding: calc(12px + env(safe-area-inset-top, 0px)) calc(12px + env(safe-area-inset-right, 0px)) calc(12px + env(safe-area-inset-bottom, 0px)) calc(12px + env(safe-area-inset-left, 0px));
+    }
+
+    .glean-formatting__toolbar--footer,
+    .glean-flashcard__actions--footer,
+    .glean-backup__actions--footer {
+        margin-inline: calc(-12px - env(safe-area-inset-left, 0px)) calc(-12px - env(safe-area-inset-right, 0px));
+        padding-inline: calc(12px + env(safe-area-inset-left, 0px)) calc(12px + env(safe-area-inset-right, 0px));
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .glean-panel--mobile .glean-mobile-more {
+        animation: none;
+    }
+}
+
+/* 第十四轮：表面边界收口。卡片与分组统一使用半透明描边，避免主题边框在深色下显得生硬。 */
+.glean-panel :where(.glean-card, .glean-tile, .glean-block, .glean-hl, .glean-set-group, .glean-set-row, .glean-rel, .glean-offline-notice, .glean-mobile-more),
+.glean-tab-root :where(.glean-card, .glean-tile, .glean-block, .glean-hl, .glean-set-group, .glean-set-row, .glean-rel, .glean-offline-notice, .glean-mobile-more),
+.glean-dialog-root :where(.glean-card, .glean-tile, .glean-block, .glean-hl, .glean-set-group, .glean-set-row, .glean-rel, .glean-offline-notice, .glean-mobile-more) {
+    border-color: var(--glean-border-soft);
+}
+
+.glean-dialog-root :where(.glean-btn, .glean-icon-btn, .glean-op-btn, .glean-status-actions__btn):focus-visible {
+    outline: 2px solid var(--b3-theme-primary);
+    outline-offset: 2px;
 }

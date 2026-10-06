@@ -1215,7 +1215,7 @@ function metaLine(entry: Row): string {
 }
 </script>
 
-<div class="glean-panel" class:glean-panel--mobile={facade.isMobile} bind:this={rootEl} onchange={markPrefsInteraction}>
+<div class="glean-panel" class:glean-panel--mobile={facade.isMobile} bind:this={rootEl} onchange={markPrefsInteraction} aria-busy={loading}>
     <header class="glean-panel__head">
         {#if facade.isMobile}
             <div class="glean-mobile-topbar">
@@ -1375,6 +1375,13 @@ function metaLine(entry: Row): string {
         <div class="glean-offline-notice" role="status" aria-live="polite">
             <span>{t(i18n, "mobile.offlineHint")}</span>
             <button class="glean-btn" disabled={loading} onclick={() => void reload()}>{t(i18n, "action.retry")}</button>
+        </div>
+    {/if}
+
+    {#if loading && index.updatedAt && !facade.isMobile}
+        <div class="glean-panel__refreshing" role="status" aria-live="polite">
+            <span class="glean-panel__refreshing-dot" aria-hidden="true"></span>
+            {t(i18n, "panel.loading")}
         </div>
     {/if}
 
