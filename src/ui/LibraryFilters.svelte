@@ -42,37 +42,37 @@
         <option value="rating">{t(i18n, "library.sortRating")}</option>
         <option value="title">{t(i18n, "library.sortTitle")}</option>
     </select>
-    <button class="glean-filter-dir" aria-label={t(i18n, "library.toggleDirection")} title={t(i18n, "library.toggleDirection")} onclick={() => direction = direction === "desc" ? "asc" : "desc"}><span class="glean-filter-dir__icon" aria-hidden="true"><svg class="glean-icon glean-icon--xs"><use href={direction === "desc" ? "#iconGleanArrowDown" : "#iconGleanArrowUp"} /></svg></span><span class="glean-filter-dir__label">{t(i18n, "library.toggleDirection")}</span></button>
+    <button type="button" class="glean-filter-dir" aria-label={t(i18n, "library.toggleDirection")} aria-pressed={direction === "asc"} title={t(i18n, "library.toggleDirection")} onclick={() => direction = direction === "desc" ? "asc" : "desc"}><span class="glean-filter-dir__icon" aria-hidden="true"><svg class="glean-icon glean-icon--xs"><use href={direction === "desc" ? "#iconGleanArrowDown" : "#iconGleanArrowUp"} /></svg></span><span class="glean-filter-dir__label">{t(i18n, "library.toggleDirection")}</span></button>
     <ActionPopover label={t(i18n, "library.moreFilters")}>
-        <label>{t(i18n, "library.filterAuthor")}
+        <label class="glean-action-popover__field">{t(i18n, "library.filterAuthor")}
             <select class="b3-select glean-filter" bind:value={author}>
                 <option value="">{t(i18n, "action.filterAll")}</option>
                 {#each facets.authors as facet (facet.value)}<option value={facet.value}>{facet.value} · {facet.count}</option>{/each}
                 {#if author && !facets.authors.some((facet) => facet.value === author)}<option value={author}>{author}</option>{/if}
             </select>
         </label>
-        <label>{t(i18n, "library.filterAiTag")}
+        <label class="glean-action-popover__field">{t(i18n, "library.filterAiTag")}
             <select class="b3-select glean-filter" bind:value={aiTag}>
                 <option value="">{t(i18n, "action.filterAll")}</option>
                 {#each facets.aiTags as facet (facet.value)}<option value={facet.value}>✨{facet.value} · {facet.count}</option>{/each}
                 {#if aiTag && !facets.aiTags.some((facet) => facet.value === aiTag)}<option value={aiTag}>✨{aiTag}</option>{/if}
             </select>
         </label>
-        <label>{t(i18n, "library.filterSource")}
+        <label class="glean-action-popover__field">{t(i18n, "library.filterSource")}
             <select class="b3-select glean-filter" bind:value={source}>
                 <option value="">{t(i18n, "action.filterAll")}</option>
                 {#each facets.sources as facet (facet.value)}<option value={facet.value}>{sourceLabel(facet.value)} · {facet.count}</option>{/each}
                 {#if source && !facets.sources.some((facet) => facet.value === source)}<option value={source}>{sourceLabel(source)}</option>{/if}
             </select>
         </label>
-        <label>{t(i18n, "library.filterTimeSource")}
+        <label class="glean-action-popover__field">{t(i18n, "library.filterTimeSource")}
             <select class="b3-select glean-filter" bind:value={timeSource}>
                 <option value="">{t(i18n, "action.filterAll")}</option>
                 {#each facets.timeSources as facet (facet.value)}<option value={facet.value}>{facetLabel(facet.value, "timeSource")} · {facet.count}</option>{/each}
                 {#if timeSource && !facets.timeSources.some((facet) => facet.value === timeSource)}<option value={timeSource}>{facetLabel(timeSource, "timeSource")}</option>{/if}
             </select>
         </label>
-        <label>{t(i18n, "library.filterContentType")}
+        <label class="glean-action-popover__field">{t(i18n, "library.filterContentType")}
             <select class="b3-select glean-filter" bind:value={contentType}>
                 <option value="">{t(i18n, "action.filterAll")}</option>
                 {#each facets.contentTypes as facet (facet.value)}<option value={facet.value}>{facetLabel(facet.value, "contentType")} · {facet.count}</option>{/each}
@@ -80,5 +80,5 @@
             </select>
         </label>
     </ActionPopover>
-    {#if hasFilters}<button class="glean-filter-clear" onclick={onClear}>{t(i18n, "library.clearFilters")}</button>{/if}
+    {#if hasFilters}<button type="button" class="glean-filter-clear" onclick={onClear}>{t(i18n, "library.clearFilters")}</button>{/if}
 </div>

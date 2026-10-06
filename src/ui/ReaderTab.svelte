@@ -876,7 +876,7 @@
                 <button class="glean-seg__btn" class:glean-seg__btn--on={mode === "read"} aria-pressed={mode === "read"} title={t(i18n, "reader.readHint")} onclick={() => setMode("read")}>{t(i18n, "reader.modeRead")}</button>
                 <button class="glean-seg__btn" class:glean-seg__btn--on={mode === "edit"} aria-pressed={mode === "edit"} title={t(i18n, "reader.editHint")} onclick={() => setMode("edit")}>{t(i18n, "reader.modeEdit")}</button>
             </div>
-            <button class="glean-btn glean-btn--ghost" disabled={sidebarBusy} aria-expanded={!sidebarCollapsed} onclick={() => void toggleSidebar()}>{t(i18n, sidebarCollapsed ? "reader.sidebarShow" : "reader.sidebarHide")}</button>
+            <button class="glean-btn glean-btn--ghost" aria-busy={sidebarBusy} disabled={sidebarBusy} aria-expanded={!sidebarCollapsed} onclick={() => void toggleSidebar()}>{t(i18n, sidebarCollapsed ? "reader.sidebarShow" : "reader.sidebarHide")}</button>
             <button class="glean-btn glean-btn--ghost" disabled={mode !== "read"} onclick={() => readerRoot?.focus({ preventScroll: true })}>{t(i18n, "reader.keyboardFocus")}</button>
             <button class="glean-btn glean-btn--ghost" aria-expanded={shortcutHelp} onclick={() => shortcutHelp = !shortcutHelp}>{t(i18n, "reader.shortcuts")}</button>
         </div>
@@ -923,7 +923,7 @@
             {:else if contextError}
                 <div class="glean-reader__context-state glean-reader__context-state--error" role="alert">
                     <span>{t(i18n, "reader.actionFailed")}</span>
-                    {#if docId}<button class="glean-btn glean-btn--ghost" onclick={retryContext}>{t(i18n, "action.retry")}</button>{/if}
+                    {#if docId}<button class="glean-btn glean-btn--ghost" aria-busy={contextLoading} disabled={contextLoading} onclick={retryContext}>{t(i18n, "action.retry")}</button>{/if}
                 </div>
             {/if}
             {#if displayedReadMinutes > 0}
@@ -1005,6 +1005,7 @@
                 />
                 <button
                     class="glean-btn glean-btn--pri"
+                    aria-busy={statusBusy}
                     disabled={statusBusy}
                     title={t(i18n, "reader.doneNextHint")}
                     onclick={() => void doneAndNext()}
@@ -1022,6 +1023,7 @@
                             <div class="glean-reader__ops">
                                 <button
                                     class="glean-btn glean-btn--pri"
+                                    aria-busy={excerptBusy}
                                     disabled={!excerpt.blockId || excerptBusy}
                                     title={excerpt.blockId ? "" : t(i18n, "reader.excerptNoBlock")}
                                     onclick={() => void quoteExcerpt()}
@@ -1082,17 +1084,18 @@
                             <div class="glean-reader__hint">{t(i18n, "reader.aiOff")}</div>
                         {:else}
                             <div class="glean-reader__ops">
-                                <button class="glean-btn glean-btn--pri" disabled={Boolean(aiBusy)} onclick={() => void runSummarize()}>
+                                <button class="glean-btn glean-btn--pri" aria-busy={Boolean(aiBusy)} disabled={Boolean(aiBusy)} onclick={() => void runSummarize()}>
                                     <svg class="glean-icon" aria-hidden="true"><use href="#iconGleanSpark" /></svg>{t(i18n, "reader.aiSummarize")}
                                 </button>
                                 <button
                                     class="glean-btn glean-btn--ghost"
+                                    aria-busy={Boolean(aiBusy)}
                                     disabled={Boolean(aiBusy) || !excerpt?.text}
                                     title={excerpt?.text ? "" : t(i18n, "reader.excerptHint")}
                                     onclick={() => void runTranslate()}
                                 >文A {t(i18n, "reader.aiTranslate")}</button>
                                 {#if relatedOn}
-                                    <button class="glean-btn glean-btn--ghost" disabled={Boolean(aiBusy)} onclick={() => void runRelated()}>
+                                    <button class="glean-btn glean-btn--ghost" aria-busy={Boolean(aiBusy)} disabled={Boolean(aiBusy)} onclick={() => void runRelated()}>
                                         🔗 {t(i18n, "reader.aiRelated")}
                                     </button>
                                 {/if}
@@ -1102,7 +1105,7 @@
                                         <div class="glean-reader__ops">
                                             <button class="glean-btn glean-btn--ghost" class:glean-seg__btn--on={questionMode === "full"} onclick={() => { questionMode = "full"; }}>{t(i18n, "reader.articleQuestion.full")}</button>
                                             <button class="glean-btn glean-btn--ghost" disabled={!excerpt?.blockId} class:glean-seg__btn--on={questionMode === "selection"} onclick={() => { questionMode = "selection"; }}>{t(i18n, "reader.articleQuestion.selection")}</button>
-                                            <button class="glean-btn glean-btn--pri" disabled={Boolean(aiBusy) || !question.trim()} onclick={() => void runArticleQuestion()}>{t(i18n, "reader.articleQuestion.ask")}</button>
+                                            <button class="glean-btn glean-btn--pri" aria-busy={Boolean(aiBusy)} disabled={Boolean(aiBusy) || !question.trim()} onclick={() => void runArticleQuestion()}>{t(i18n, "reader.articleQuestion.ask")}</button>
                                         </div>
                                     </div>
                                 {/if}

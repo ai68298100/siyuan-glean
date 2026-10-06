@@ -1,5 +1,12 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+# 当前有效交接（2026-10-06 T-3260/D-0138）
+
+第十五轮视觉复核完成源码收口：筛选下拉、Action Popover、移动筛选抽屉统一 34px 控件密度、inset surface、焦点环、滚动槽和选中态，浮层在焦点移出时自动收起；统计完成列表、日报表和作者分布补齐长标题/长名称处理、日期与数字对齐、固定列宽和空态卡片。Dock、阅读、设置与今日拾遗的重试、保存、AI、导出、撤销和卡片动作补齐 `aria-busy`、等待光标和忙碌禁用反馈，视图/队列/排序补齐 `aria-pressed`，嵌入表单的动作按钮声明 `type=button`。功能逻辑、数据、文章属性、端点和 i18n 未变。
+
+- `pnpm run check` 0 错误/0 警告；定向回归 141/141；`pnpm test` 1146/1146；`pnpm build`、`pnpm task:ledger --check`、`git diff --check` 与桌面/移动/暗色截图复核通过。版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 package.zip。
+- 本轮截图：`actual-after-15-desktop.png`、`actual-after-15-mobile.png`、`actual-after-15-dark.png`（Codex 可视化目录）。真实思源三画布、移动设备、暗色主题仍待 B-0002。
+
 # 当前有效交接（2026-10-06 T-3260/D-0137）
 
 第十四轮视觉复核完成：Dock 刷新、阅读伴生栏上下文读取、设置页多类异步操作补齐忙碌/失败/重试反馈；按钮基线、焦点环、卡片描边和分组表面统一；移动端补齐 44px 横向命中区、safe-area、touch-action、滚动边界、无 hover 处理和暗色原生控件配色。功能逻辑、数据、文章属性、端点和 i18n 未变。

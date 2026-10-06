@@ -11,14 +11,14 @@
 
 {#snippet row(group: NameCount)}
     <li class="glean-distribution__item">
-        <div class="glean-distribution__count"><span>{group.name}</span><strong>{group.count}</strong></div>
+        <div class="glean-distribution__count"><span title={group.name}>{group.name}</span><strong>{group.count}</strong></div>
         {#if detailsFor}{@render detailsFor(group)}{/if}
     </li>
 {/snippet}
 
 <div class="glean-distribution">
     <ul class="glean-distribution__items">
-        {#each grouped.top as group (group.name)}{@render row(group)}{:else}<li>{t(i18n, "distribution.empty")}</li>{/each}
+        {#each grouped.top as group (group.name)}{@render row(group)}{:else}<li class="glean-distribution__empty">{t(i18n, "distribution.empty")}</li>{/each}
     </ul>
     {#if grouped.others.length > 0}
         <details class="glean-distribution__other">

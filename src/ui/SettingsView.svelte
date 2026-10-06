@@ -304,7 +304,7 @@ async function doMountBoard() {
     {#if showNewbieHint}
         <div class="glean-set-group glean-settings__newbie-hint" role="status">
             <span class="glean-settings__newbie-hint-text"><svg class="glean-icon glean-icon--sm" aria-hidden="true"><use href="#iconGleanWheat" /></svg>{t(i18n, "settings.newbieHint")}</span>
-            <button class="glean-linkish glean-settings__newbie-hint-dismiss" disabled={dismissHintBusy} onclick={() => void dismissNewbieHint()}>
+            <button class="glean-linkish glean-settings__newbie-hint-dismiss" aria-busy={dismissHintBusy} disabled={dismissHintBusy} onclick={() => void dismissNewbieHint()}>
                 {t(i18n, "settings.dismissNewbieHint")}
             </button>
         </div>
@@ -483,7 +483,7 @@ async function doMountBoard() {
                 </div>
                 <div class="glean-set-row">
                     <div class="glean-set-row__lb">{t(i18n, "settings.testConnection")}</div>
-                    <button class="glean-btn glean-action-btn" disabled={testBusy} onclick={() => void testChannel()}>
+                    <button class="glean-btn glean-action-btn" aria-busy={testBusy} disabled={testBusy} onclick={() => void testChannel()}>
                         {testBusy ? t(i18n, "panel.loading") : t(i18n, "settings.testConnection")}
                     </button>
                 </div>
@@ -521,7 +521,7 @@ async function doMountBoard() {
                     {t(i18n, "board.mountTitle")}
                     <div class="glean-set-row__desc">{t(i18n, "board.mountDesc")}</div>
                 </div>
-                <button class="glean-btn glean-btn--pri glean-action-btn" disabled={boardBusy} onclick={() => void doMountBoard()}>
+                <button class="glean-btn glean-btn--pri glean-action-btn" aria-busy={boardBusy} disabled={boardBusy} onclick={() => void doMountBoard()}>
                     {boardBusy ? t(i18n, "panel.loading") : t(i18n, "board.mountAction")}
                 </button>
             </div>
@@ -530,7 +530,7 @@ async function doMountBoard() {
                     {t(i18n, "settings.exportLibraryCsv")}
                     <div class="glean-set-row__desc">{t(i18n, "settings.exportLibraryCsvDesc")}</div>
                 </div>
-                <button class="glean-btn glean-action-btn" disabled={Boolean(exportBusy)} onclick={() => void exportData("csv")}>
+                <button class="glean-btn glean-action-btn" aria-busy={exportBusy === "csv"} disabled={Boolean(exportBusy)} onclick={() => void exportData("csv")}>
                     {exportBusy === "csv" ? t(i18n, "settings.exporting") : t(i18n, "settings.exportLibraryCsv")}
                 </button>
             </div>
@@ -539,7 +539,7 @@ async function doMountBoard() {
                     {t(i18n, "settings.exportDiagnostic")}
                     <div class="glean-set-row__desc">{t(i18n, "settings.exportDiagnosticDesc")}</div>
                 </div>
-                <button class="glean-btn glean-action-btn" disabled={Boolean(exportBusy)} onclick={() => void exportData("diagnostic")}>
+                <button class="glean-btn glean-action-btn" aria-busy={exportBusy === "diagnostic"} disabled={Boolean(exportBusy)} onclick={() => void exportData("diagnostic")}>
                     {exportBusy === "diagnostic" ? t(i18n, "settings.exporting") : t(i18n, "settings.exportDiagnostic")}
                 </button>
             </div>

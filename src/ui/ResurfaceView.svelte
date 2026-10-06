@@ -255,10 +255,10 @@ function reasonText(reason: SurfaceReason): string {
     {#if undoNotice}
         <div class="glean-surf-undo" role="status" aria-live="polite">
             <span class="glean-surf-undo__text">{t(i18n, "resurface.actionApplied", { action: actionLabel(undoNotice.action) })} · {undoNotice.title}</span>
-            <button class="glean-surf-undo__button" disabled={undoingId === undoNotice.id} onclick={() => void undoLastAction()}>
+            <button class="glean-surf-undo__button" aria-busy={undoingId === undoNotice.id} disabled={undoingId === undoNotice.id} onclick={() => void undoLastAction()}>
                 {undoingId === undoNotice.id ? t(i18n, "resurface.undoing") : t(i18n, "resurface.undo")}
             </button>
-            <button class="glean-surf-undo__dismiss" aria-label={t(i18n, "resurface.dismissUndo")} onclick={dismissUndo}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanClose" /></svg></button>
+            <button class="glean-surf-undo__dismiss" aria-label={t(i18n, "resurface.dismissUndo")} disabled={undoingId === undoNotice.id} onclick={dismissUndo}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanClose" /></svg></button>
         </div>
     {/if}
 
@@ -304,6 +304,7 @@ function reasonText(reason: SurfaceReason): string {
                     <article
                         class:glean-surf-card--swiping={swipeState?.id === pick.item.id}
                         class="glean-surf-card"
+                        aria-busy={actingId === pick.item.id || undoingId === pick.item.id}
                         style="--glean-surf-index: {index}; --glean-swipe-offset: {swipeOffsetFor(pick.item.id)}px"
                         onpointerdown={(event) => beginSwipe(pick, event)}
                         onpointermove={(event) => moveSwipe(pick, event)}
@@ -343,23 +344,23 @@ function reasonText(reason: SurfaceReason): string {
                         </div>
                     {/if}
                     <div class="glean-surf__acts">
-                        <button class="glean-surf-act" aria-pressed={isPinnedToday(pick)} disabled={actingId === pick.item.id} onclick={() => void togglePin(pick)}>
+                        <button class="glean-surf-act" aria-pressed={isPinnedToday(pick)} aria-busy={actingId === pick.item.id} disabled={actingId === pick.item.id} onclick={() => void togglePin(pick)}>
                             <svg class="glean-icon glean-icon--sm" aria-hidden="true"><use href="#iconGleanPin" /></svg>{t(i18n, isPinnedToday(pick) ? "resurface.unpinToday" : "resurface.pinToday")}
                         </button>
                         {#if hasSourceAction(pick.item.contentType, pick.item.url)}
-                            <button class="glean-surf-act" disabled={actingId === pick.item.id} onclick={() => openSource(pick)}>
+                            <button class="glean-surf-act" aria-busy={actingId === pick.item.id} disabled={actingId === pick.item.id} onclick={() => openSource(pick)}>
                                 <svg class="glean-icon" aria-hidden="true"><use href="#iconGleanExternal" /></svg>{t(i18n, "clip.openSource")}
                             </button>
                         {:else if pick.item.contentType === "link"}
                             <span class="glean-surf-source-missing">{t(i18n, "clip.sourceMissing")}</span>
                         {/if}
-                        <button class="glean-surf-act" disabled={actingId === pick.item.id} onclick={() => void act(pick, "later")}>
+                        <button class="glean-surf-act" aria-busy={actingId === pick.item.id} disabled={actingId === pick.item.id} onclick={() => void act(pick, "later")}>
                             {t(i18n, "resurface.later")}
                         </button>
-                        <button class="glean-surf-act" disabled={actingId === pick.item.id} onclick={() => void act(pick, "archive")}>
+                        <button class="glean-surf-act" aria-busy={actingId === pick.item.id} disabled={actingId === pick.item.id} onclick={() => void act(pick, "archive")}>
                             {t(i18n, "resurface.archive")}
                         </button>
-                        <button class="glean-surf-act glean-surf-act--pri" disabled={actingId === pick.item.id} onclick={() => void act(pick, "read")}>
+                        <button class="glean-surf-act glean-surf-act--pri" aria-busy={actingId === pick.item.id} disabled={actingId === pick.item.id} onclick={() => void act(pick, "read")}>
                             ✓ {t(i18n, "resurface.read")}
                         </button>
                     </div>

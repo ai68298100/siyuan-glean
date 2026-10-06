@@ -179,7 +179,7 @@
 </script>
 
 <div class="glean-author-editor">
-    <button class="glean-btn glean-btn--ghost" bind:this={trigger} aria-expanded={editing} disabled={busy} onclick={(event) => { event.stopPropagation(); if (editing) close(); else void load(); }}>{t(i18n, "author.edit")}</button>
+    <button type="button" class="glean-btn glean-btn--ghost" bind:this={trigger} aria-expanded={editing} disabled={busy} onclick={(event) => { event.stopPropagation(); if (editing) close(); else void load(); }}>{t(i18n, "author.edit")}</button>
     {#if editing}
         <form class="glean-author-editor__form" onsubmit={(event) => { event.preventDefault(); void save(); }}>
             <label>{t(i18n, "author.label")}

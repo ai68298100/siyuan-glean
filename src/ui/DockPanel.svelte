@@ -1325,6 +1325,7 @@ function metaLine(entry: Row): string {
                     <button
                         class="glean-views__btn"
                         class:glean-views__btn--on={view === item.key}
+                        aria-pressed={view === item.key}
                         onclick={() => { markPrefsInteraction(); view = item.key; }}
                     >{t(i18n, item.labelKey)}</button>
                 {/each}
@@ -1338,6 +1339,7 @@ function metaLine(entry: Row): string {
                     <input
                         bind:this={searchInput}
                         type="text"
+                        aria-label={t(i18n, "panel.searchPlaceholder")}
                         placeholder={t(i18n, "panel.searchPlaceholder")}
                         bind:value={keyword}
                     />
@@ -1367,14 +1369,14 @@ function metaLine(entry: Row): string {
     {#if loadError}
         <div class="glean-load-error" role="alert">
             <span>{t(i18n, "panel.reloadFailed")}</span>
-            <button class="glean-btn" disabled={loading} onclick={() => void reload()}>{t(i18n, "action.retry")}</button>
+            <button class="glean-btn" aria-busy={loading} disabled={loading} onclick={() => void reload()}>{t(i18n, "action.retry")}</button>
         </div>
     {/if}
 
     {#if facade.isMobile && offline}
         <div class="glean-offline-notice" role="status" aria-live="polite">
             <span>{t(i18n, "mobile.offlineHint")}</span>
-            <button class="glean-btn" disabled={loading} onclick={() => void reload()}>{t(i18n, "action.retry")}</button>
+            <button class="glean-btn" aria-busy={loading} disabled={loading} onclick={() => void reload()}>{t(i18n, "action.retry")}</button>
         </div>
     {/if}
 
@@ -1396,6 +1398,7 @@ function metaLine(entry: Row): string {
                 <button
                     class="glean-q"
                     class:glean-q--on={!authorTimeline && activeQueue === queue}
+                    aria-pressed={!authorTimeline && activeQueue === queue}
                     onclick={() => selectQueue(queue)}
                 >
                     {queueLabel(queue)}
@@ -1552,6 +1555,7 @@ function metaLine(entry: Row): string {
                                 type="button"
                                 class="glean-mobile-filter-direction"
                                 aria-label={t(i18n, "library.toggleDirection")}
+                                aria-pressed={mobileFilterDraft.direction === "asc"}
                                 onclick={() => (mobileFilterDraft.direction = mobileFilterDraft.direction === "desc" ? "asc" : "desc")}
                             >
                                 <svg class="glean-icon glean-icon--xs" aria-hidden="true"><use href={mobileFilterDraft.direction === "desc" ? "#iconGleanArrowDown" : "#iconGleanArrowUp"} /></svg>

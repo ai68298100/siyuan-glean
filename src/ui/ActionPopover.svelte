@@ -33,11 +33,18 @@
             event.stopPropagation();
             close(true);
         };
+        const onFocusIn = (event: FocusEvent) => {
+            const target = event.target;
+            if (!open || !(target instanceof Node) || element.contains(target) || target === trigger) return;
+            close();
+        };
         element.addEventListener("click", stopClick);
         element.addEventListener("keydown", onKey);
+        document.addEventListener("focusin", onFocusIn, true);
         return () => {
             element.removeEventListener("click", stopClick);
             element.removeEventListener("keydown", onKey);
+            document.removeEventListener("focusin", onFocusIn, true);
         };
     });
 
@@ -57,9 +64,9 @@
     });
 </script>
 
-<button class="glean-btn glean-btn--ghost glean-action-popover__trigger" class:glean-action-popover__trigger--compact={compact} bind:this={trigger} aria-label={label} aria-expanded={open} popovertarget={id} onclick={(event) => { event.stopPropagation(); position(); }}>
+<button type="button" class="glean-btn glean-btn--ghost glean-action-popover__trigger" class:glean-action-popover__trigger--compact={compact} bind:this={trigger} aria-label={label} aria-controls={id} aria-expanded={open} popovertarget={id} onclick={(event) => { event.stopPropagation(); position(); }}>
     {#if compact}<span class="glean-action-popover__trigger-icon" aria-hidden="true">⋯</span><span class="glean-action-popover__trigger-label">{label}</span>{:else}{label}{/if}
 </button>
-<div {id} class="glean-action-popover__body" bind:this={root} popover="auto" role="group" aria-label={label} style:left={`${left}px`} style:top={`${top}px`} ontoggle={(event) => { open = event.newState === "open"; if (open) position(); }}>
+<div {id} class="glean-action-popover__body" bind:this={root} popover="auto" role="group" aria-label={label} tabindex="-1" style:left={`${left}px`} style:top={`${top}px`} ontoggle={(event) => { open = event.newState === "open"; if (open) position(); }}>
     {@render children()}
 </div>
