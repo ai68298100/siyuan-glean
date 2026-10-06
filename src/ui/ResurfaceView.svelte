@@ -263,7 +263,7 @@ function reasonText(reason: SurfaceReason): string {
     {/if}
 
     {#if picks.length === 0 && facade.settings.anchorNotebooks.length === 0}
-        <div class="glean-empty">
+        <div class="glean-empty" role="status">
             <div class="glean-empty__art"><svg aria-hidden="true"><use href="#iconGleanWheat" /></svg></div>
             <div class="glean-empty__title">{t(i18n, "resurface.noAnchor")}</div>
             <div class="glean-empty__hint">{t(i18n, "panel.noAnchorHint")}</div>
@@ -272,7 +272,7 @@ function reasonText(reason: SurfaceReason): string {
             </button>
         </div>
     {:else if picks.length === 0 && startedToday.length === 0}
-        <div class="glean-empty">
+        <div class="glean-empty" role="status">
             <div class="glean-empty__art"><svg aria-hidden="true"><use href="#iconGleanSpark" /></svg></div>
             <div class="glean-empty__title">{t(i18n, "resurface.allDone")}</div>
             <div class="glean-empty__hint">{t(i18n, "resurface.allDoneHint")}</div>
@@ -292,7 +292,7 @@ function reasonText(reason: SurfaceReason): string {
             </div>
         {/if}
         {#if picks.length === 0}
-            <div class="glean-empty glean-resurface__done-empty">
+            <div class="glean-empty glean-resurface__done-empty" role="status">
                 <div class="glean-empty__hint">{t(i18n, "resurface.allDoneHint")}</div>
             </div>
         {/if}

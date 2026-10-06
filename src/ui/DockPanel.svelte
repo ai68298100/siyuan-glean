@@ -1380,7 +1380,7 @@ function metaLine(entry: Row): string {
     </header>
 
     {#if loadError}
-        <div class="glean-load-error" role="alert">
+        <div class="glean-load-error" role="alert" aria-live="assertive">
             <span>{t(i18n, "panel.reloadFailed")}</span>
             <button class="glean-btn" aria-busy={loading} disabled={loading} onclick={() => void reload()}>{t(i18n, "action.retry")}</button>
         </div>
@@ -1657,7 +1657,10 @@ function metaLine(entry: Row): string {
         {/if}
 
         {#if loading && !index.updatedAt}
-            <div class="glean-panel__loading">{t(i18n, "panel.loading")}</div>
+            <div class="glean-panel__loading" role="status" aria-live="polite">
+                <span class="glean-panel__loading-dot" aria-hidden="true"></span>
+                <span>{t(i18n, "panel.loading")}</span>
+            </div>
         {:else if isTabCanvas && layoutMode === "kanban"}
             <div class="glean-kanban">
                 {#each visibleKanbanCols as col (col.status)}
@@ -1758,8 +1761,8 @@ function metaLine(entry: Row): string {
                 </aside>
                 <div class="glean-lib__main">
                     {#if rows.length === 0}
-                        <div class="glean-empty">
-                            <div class="glean-empty__art"><svg><use href="#iconGleanWheat" /></svg></div>
+                        <div class="glean-empty" role="status">
+                            <div class="glean-empty__art"><svg aria-hidden="true"><use href="#iconGleanWheat" /></svg></div>
                             <div class="glean-empty__title">{t(i18n, "panel.empty")}</div>
                             <div class="glean-empty__hint">
                                 {facade.settings.anchorNotebooks.length === 0
@@ -1889,8 +1892,8 @@ function metaLine(entry: Row): string {
         {:else}
             <div class="glean-list">
                 {#if rows.length === 0 && !(candidateCount > 0 && activeQueue === "inbox" && !authorTimeline)}
-                    <div class="glean-empty">
-                        <div class="glean-empty__art"><svg><use href="#iconGleanWheat" /></svg></div>
+                    <div class="glean-empty" role="status">
+                        <div class="glean-empty__art"><svg aria-hidden="true"><use href="#iconGleanWheat" /></svg></div>
                         <div class="glean-empty__title">{t(i18n, "panel.empty")}</div>
                         <div class="glean-empty__hint">
                             {facade.settings.anchorNotebooks.length === 0

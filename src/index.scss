@@ -44,6 +44,8 @@
     --glean-radius: 16px;
     --glean-shadow-card: 0 1px 2px rgba(16, 24, 40, 0.04), 0 8px 24px -12px rgba(16, 24, 40, 0.14);
     --glean-shadow-float: 0 12px 32px -8px rgba(16, 24, 40, 0.22), 0 2px 6px rgba(16, 24, 40, 0.08);
+    --glean-shadow-control: 0 1px 4px rgba(16, 24, 40, 0.14), 0 0 0 0.5px var(--b3-border-color);
+    --glean-shadow-knob: 0 1px 3px rgba(16, 24, 40, 0.25);
     --glean-shadow-accent: 0 4px 14px -4px color-mix(in srgb, var(--glean-accent-b) 50%, transparent);
     /* v2 视觉令牌：所有新增间距按 4px 栅格，避免组件各自漂移。 */
     --glean-space-1: 4px;
@@ -69,6 +71,7 @@
     --glean-status-surface: color-mix(in srgb, var(--b3-theme-surface) 86%, transparent);
     --glean-section-surface: color-mix(in srgb, var(--b3-theme-surface) 76%, transparent);
     --glean-inset-surface: color-mix(in srgb, var(--b3-theme-background) 72%, transparent);
+    --glean-muted-badge-surface: color-mix(in srgb, var(--b3-theme-on-surface) 12%, transparent);
 }
 
 [data-theme-mode="dark"],
@@ -76,6 +79,8 @@ body.body--dark,
 body.b3-theme-dark {
     --glean-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.25), 0 10px 28px -14px rgba(0, 0, 0, 0.5);
     --glean-shadow-float: 0 16px 40px -10px rgba(0, 0, 0, 0.6), 0 2px 8px rgba(0, 0, 0, 0.4);
+    --glean-shadow-control: 0 1px 3px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    --glean-shadow-knob: 0 1px 3px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.08);
     --glean-grad-soft: linear-gradient(135deg, color-mix(in srgb, var(--glean-accent-a) 12%, var(--b3-theme-surface)), color-mix(in srgb, var(--glean-accent-b) 8%, var(--b3-theme-surface)));
     --glean-border-soft: color-mix(in srgb, var(--b3-border-color) 54%, transparent);
     /* 暗色表面需要更明显的占位层级，避免低透明度骨架和选中态融入背景。 */
@@ -87,10 +92,30 @@ body.b3-theme-dark {
     --glean-status-surface: color-mix(in srgb, var(--b3-theme-surface) 92%, var(--b3-theme-background));
     --glean-section-surface: color-mix(in srgb, var(--b3-theme-surface) 90%, var(--b3-theme-background));
     --glean-inset-surface: color-mix(in srgb, var(--b3-theme-background) 84%, var(--b3-theme-surface));
+    --glean-muted-badge-surface: color-mix(in srgb, var(--glean-accent-b) 4%, var(--b3-theme-surface));
     --glean-st-inbox-text: #ffc15e;
     --glean-st-later-text: #91bfff;
     --glean-st-reading-text: #c1a0ff;
     --glean-st-done-text: #73ddb0;
+}
+
+/* 暗色宿主需要明确把原生控件也纳入主题，否则 select/checkbox 会闪出浅色系统表面。 */
+:where([data-theme-mode="dark"], body.body--dark, body.b3-theme-dark) .glean-panel,
+:where([data-theme-mode="dark"], body.body--dark, body.b3-theme-dark) .glean-tab-root,
+:where([data-theme-mode="dark"], body.body--dark, body.b3-theme-dark) .glean-dialog-tab {
+    color-scheme: dark;
+}
+
+:where([data-theme-mode="dark"], body.body--dark, body.b3-theme-dark) .glean-btn:hover:not(:disabled):not(.glean-btn--pri) {
+    /* filter: brightness() 会把暗色控件继续压黑；使用宿主的下一层表面保留悬停边界。 */
+    filter: none;
+    background: var(--b3-theme-surface-lighter, var(--b3-theme-background-light));
+}
+
+:where([data-theme-mode="dark"], body.body--dark, body.b3-theme-dark) .glean-st-badge,
+:where([data-theme-mode="dark"], body.body--dark, body.b3-theme-dark) .glean-mrow__st {
+    /* 深色下 1px 彩色描边比继续提高背景饱和度更容易读，也不抢主色动作。 */
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 16%, transparent);
 }
 
 /* ============ 面板骨架 ============ */
@@ -516,7 +541,7 @@ body.b3-theme-dark {
     &.glean-views__btn--on {
         background: var(--b3-theme-surface);
         color: var(--b3-theme-on-background);
-        box-shadow: 0 1px 4px rgba(16, 24, 40, 0.14), 0 0 0 0.5px var(--b3-border-color);
+        box-shadow: var(--glean-shadow-control);
     }
 }
 
@@ -1793,6 +1818,123 @@ body.b3-theme-dark {
     }
 }
 
+/* 窄阅读器收口：动作文字不应把模式组和正文挤出可视区。 */
+@media (max-width: 720px) {
+    .glean-reader__toolbar-heading {
+        max-width: 100%;
+    }
+
+    .glean-reader__toolbar :where(.glean-btn, .glean-seg__btn) {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .glean-reader__side {
+        gap: 10px;
+    }
+
+    .glean-reader__ops > .glean-btn {
+        flex: 1 1 112px;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .glean-reader__question .glean-reader__ops > .glean-btn {
+        flex-basis: 88px;
+    }
+}
+
+@container glean-workbench (max-width: 720px) {
+    .glean-reader__toolbar-heading {
+        max-width: 100%;
+    }
+
+    .glean-reader__toolbar :where(.glean-btn, .glean-seg__btn) {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .glean-reader__side {
+        gap: 10px;
+    }
+
+    .glean-reader__ops > .glean-btn {
+        flex: 1 1 112px;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .glean-reader__question .glean-reader__ops > .glean-btn {
+        flex-basis: 88px;
+    }
+}
+
+@media (max-width: 420px) {
+    .glean-reader__toolbar {
+        gap: 4px;
+        padding-block: 6px;
+    }
+
+    .glean-reader__toolbar :where(.glean-btn, .glean-seg__btn) {
+        min-height: 36px;
+        padding-inline: 8px;
+    }
+
+    .glean-reader__toolbar-meta {
+        font-size: 10px;
+    }
+
+    .glean-reader__mode {
+        flex-basis: 112px;
+    }
+
+    .glean-reader__toolbar-sidebar {
+        flex-basis: 108px;
+    }
+
+    .glean-reader__toolbar-focus,
+    .glean-reader__toolbar-shortcut {
+        flex-basis: 106px;
+    }
+}
+
+@container glean-workbench (max-width: 420px) {
+    .glean-reader__toolbar {
+        gap: 4px;
+        padding-block: 6px;
+    }
+
+    .glean-reader__toolbar :where(.glean-btn, .glean-seg__btn) {
+        min-height: 36px;
+        padding-inline: 8px;
+    }
+
+    .glean-reader__toolbar-meta {
+        font-size: 10px;
+    }
+
+    .glean-reader__mode {
+        flex-basis: 112px;
+    }
+
+    .glean-reader__toolbar-sidebar {
+        flex-basis: 108px;
+    }
+
+    .glean-reader__toolbar-focus,
+    .glean-reader__toolbar-shortcut {
+        flex-basis: 106px;
+    }
+}
+
 /* UX 审计 #5：引导内文字链接（导入器降级） */
 .glean-linkish {
     display: inline-flex;
@@ -1933,7 +2075,7 @@ body.b3-theme-dark {
     display: grid;
     place-items: center;
     cursor: pointer;
-    box-shadow: 0 2px 8px rgba(16, 24, 40, 0.1);
+    box-shadow: var(--glean-shadow-control);
     transition: all 0.18s;
 
     &:hover {
@@ -2115,6 +2257,7 @@ body.b3-theme-dark {
 .glean-empty {
     text-align: center;
     padding: 52px 24px;
+    color: var(--b3-theme-on-background);
 }
 
 .glean-empty__art {
@@ -2149,11 +2292,25 @@ body.b3-theme-dark {
 }
 
 .glean-panel__loading {
-    padding: 40px 16px;
-    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    min-height: 132px;
+    padding: 28px 16px;
     color: var(--b3-theme-on-surface);
-    opacity: 0.6;
+    opacity: 0.78;
     font-size: 12px;
+}
+
+.glean-panel__loading-dot {
+    width: 9px;
+    height: 9px;
+    flex: 0 0 9px;
+    border: 1.5px solid color-mix(in srgb, var(--b3-theme-primary) 24%, transparent);
+    border-top-color: var(--b3-theme-primary);
+    border-radius: 50%;
+    animation: glean-loading-spin 760ms linear infinite;
 }
 
 .glean-load-error {
@@ -2161,15 +2318,30 @@ body.b3-theme-dark {
     align-items: center;
     gap: 8px;
     margin: 8px 12px;
-    padding: 8px 10px;
-    border: 1px solid var(--b3-theme-primary);
-    border-radius: 8px;
-    background: var(--b3-theme-surface);
-    color: var(--b3-theme-on-surface);
+    padding: 9px 10px;
+    border: 1px solid color-mix(in srgb, var(--b3-theme-error) 28%, var(--glean-border-soft));
+    border-radius: var(--glean-radius-sm);
+    background: var(--glean-error-surface);
+    color: var(--b3-theme-error);
     font-size: 12px;
 }
 
+.glean-load-error::before {
+    content: "!";
+    display: inline-grid;
+    place-items: center;
+    width: 17px;
+    height: 17px;
+    flex: 0 0 17px;
+    border: 1px solid color-mix(in srgb, currentColor 48%, transparent);
+    border-radius: 50%;
+    font-size: 11px;
+    font-weight: 750;
+    line-height: 1;
+}
+
 .glean-load-error span { flex: 1; }
+.glean-load-error .glean-btn { border-color: color-mix(in srgb, var(--b3-theme-error) 32%, var(--glean-border-soft)); }
 
 .glean-section-label {
     display: flex;
@@ -3104,7 +3276,7 @@ body.b3-theme-dark {
 
             &.glean-mrow__st--ok { background: color-mix(in srgb, var(--glean-st-done) 14%, transparent); color: var(--glean-st-done); }
             &.glean-mrow__st--manual { background: color-mix(in srgb, var(--glean-st-inbox) 14%, transparent); color: var(--glean-st-inbox); }
-            &.glean-mrow__st--skip { background: color-mix(in srgb, var(--b3-theme-on-surface) 12%, transparent); color: var(--b3-theme-on-surface); }
+            &.glean-mrow__st--skip { background: var(--glean-muted-badge-surface); color: var(--b3-theme-on-surface); }
             &.glean-mrow__st--err { background: color-mix(in srgb, var(--b3-theme-error) 14%, transparent); color: var(--b3-theme-error); }
         }
     }
@@ -3343,7 +3515,7 @@ body.b3-theme-dark {
         height: 17px;
         border-radius: 50%;
         background: var(--b3-theme-surface);
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+        box-shadow: var(--glean-shadow-knob);
         transition: transform 220ms var(--glean-ease-spring);
     }
 
@@ -3803,7 +3975,7 @@ body.b3-theme-dark {
     &.glean-seg__btn--on {
         background: var(--b3-theme-surface);
         color: var(--b3-theme-on-background);
-        box-shadow: 0 1px 4px rgba(16, 24, 40, 0.14);
+        box-shadow: var(--glean-shadow-control);
     }
 }
 
@@ -4151,7 +4323,18 @@ body.b3-theme-dark {
 .glean-rail__value { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .glean-rail__search { width: calc(100% - 12px); margin: 4px 6px; box-sizing: border-box; border-color: var(--glean-border-soft); background: var(--b3-theme-surface); }
 .glean-rail__search:focus-visible { outline: 2px solid var(--b3-theme-primary); outline-offset: 1px; }
-.glean-rail__empty { padding: 4px 10px; font-size: 11px; color: var(--b3-theme-on-surface); }
+.glean-rail__empty {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 2px 4px;
+    padding: 7px 8px;
+    border: 1px dashed var(--glean-border-soft);
+    border-radius: var(--glean-radius-sm);
+    color: var(--b3-theme-on-surface);
+    font-size: 11px;
+}
+.glean-rail__empty::before { content: "⌕"; color: var(--b3-theme-primary); font-size: 13px; line-height: 1; }
 .glean-rail__more { border: 0; border-radius: var(--glean-radius-sm); background: transparent; color: var(--b3-theme-primary); font-size: 11px; text-align: left; padding: 6px 10px; cursor: pointer; transition: background 180ms ease; }
 .glean-rail__more:hover { background: var(--glean-primary-soft); }
 .glean-rail__more:focus-visible { outline: 2px solid var(--b3-theme-primary); outline-offset: -2px; }
@@ -4316,7 +4499,7 @@ body.b3-theme-dark {
     &.glean-st-badge--later { background: color-mix(in srgb, var(--glean-st-later) 13%, var(--b3-theme-surface)); color: var(--glean-st-later-text); &::before { content: "◷"; } }
     &.glean-st-badge--reading { background: color-mix(in srgb, var(--glean-st-reading) 13%, var(--b3-theme-surface)); color: var(--glean-st-reading-text); &::before { content: "◉"; } }
     &.glean-st-badge--done { background: color-mix(in srgb, var(--glean-st-done) 13%, var(--b3-theme-surface)); color: var(--glean-st-done-text); &::before { content: "✓"; } }
-    &.glean-st-badge--archived { background: color-mix(in srgb, var(--b3-theme-on-surface) 12%, transparent); color: var(--b3-theme-on-surface); &::before { content: "▱"; } }
+    &.glean-st-badge--archived { background: var(--glean-muted-badge-surface); color: var(--b3-theme-on-surface); &::before { content: "▱"; } }
 }
 
 /* 相关旧文（T-1301，AI 元素带 ✨ 前缀，UI-STANDARD §5.6） */
@@ -4863,6 +5046,14 @@ body.b3-theme-dark {
         opacity: 1;
         transform: none;
     }
+}
+
+@keyframes glean-loading-spin {
+    to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .glean-panel__loading-dot { animation: none; }
 }
 
 .glean-surf-card { animation-delay: calc(var(--glean-surf-index, 0) * 60ms); }

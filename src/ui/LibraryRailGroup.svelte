@@ -73,7 +73,7 @@
             </button>
         {/each}
         {#if effectiveQuery.trim() && !items.some((item) => item.value.toLocaleLowerCase().includes(effectiveQuery.trim().toLocaleLowerCase()))}
-            <div class="glean-rail__empty">{t(i18n, "rail.noMatch")}</div>
+            <div class="glean-rail__empty" role="status" aria-live="polite">{t(i18n, "rail.noMatch")}</div>
         {/if}
         {#if group !== "queues" && items.length > 8 && !effectiveQuery.trim()}
             <button class="glean-rail__more" disabled={busy} aria-expanded={prefs.expanded} onclick={() => void toggle("expanded")}>

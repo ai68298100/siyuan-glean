@@ -95,7 +95,7 @@ async function dismiss(item: Shorthand) {
         {#if expanded}
             <div id="glean-inbox-content">
                 {#if items.length === 0}
-                    <div class="glean-inbox__empty">{t(i18n, "inbox.empty")}</div>
+                    <div class="glean-inbox__empty" role="status">{t(i18n, "inbox.empty")}</div>
                 {:else}
                     {#each items as item (item.oId)}
                         <div class="glean-inbox__item">

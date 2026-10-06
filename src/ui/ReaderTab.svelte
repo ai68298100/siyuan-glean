@@ -923,8 +923,8 @@
         {/if}
     </div>
     {#if docId}
-        <aside id="glean-reader-sidebar" class="glean-reader__side" hidden={sidebarCollapsed} aria-label={t(i18n, "reader.title")}>
-            <div class="glean-reader__title" title={context?.title}>{context?.title || t(i18n, "panel.untitled")}</div>
+        <aside id="glean-reader-sidebar" class="glean-reader__side" hidden={sidebarCollapsed} aria-labelledby="glean-reader-sidebar-title">
+            <div id="glean-reader-sidebar-title" class="glean-reader__title" title={context?.title}>{context?.title || t(i18n, "panel.untitled")}</div>
             <div class="glean-reader__meta">
                 <span class={`glean-carrier-badge glean-carrier-badge--${resolveCarrier(context?.contentType)}`}>
                     {carrierLabel(context?.contentType)}
