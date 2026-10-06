@@ -207,8 +207,8 @@ function rowStateLabel(row: MigrateRow): string {
 
 <div class="glean-migrate" aria-labelledby="glean-migrate-title" aria-busy={phase === "scanning" || phase === "running"}>
     <div class="glean-dlg-head">
-        <div class="glean-brand__mark" style="width:26px;height:26px;border-radius:9px">
-            <svg style="width:13px;height:13px"><use href="#iconGleanWheat" /></svg>
+        <div class="glean-brand__mark glean-dlg-head__mark">
+            <svg aria-hidden="true"><use href="#iconGleanWheat" /></svg>
         </div>
         <div>
             <h2 id="glean-migrate-title" class="glean-dlg-head__t">{t(i18n, "migrate.title")}</h2>
@@ -237,7 +237,7 @@ function rowStateLabel(row: MigrateRow): string {
 
     {#if phase === "intro"}
         {#if resumeAvailable}
-            <div style="display:flex; gap:8px">
+            <div class="glean-migrate__resume">
                 <button class="glean-btn glean-btn--pri" onclick={() => void resume()}>
                     {t(i18n, "migrate.continue")}（{cursor}/{rows.length}）
                 </button>
@@ -307,7 +307,7 @@ function rowStateLabel(row: MigrateRow): string {
                 <option value="error">{t(i18n, "import.failed")}</option>
             </select>
             <button class="glean-btn glean-btn--ghost" onclick={() => void startScan()}>{t(i18n, "migrate.rescan")}</button>
-            <label style="display:inline-flex; align-items:center; gap:5px; font-size:11px; color:var(--b3-theme-on-surface)">
+            <label class="glean-migrate__batch-size">
                 {t(i18n, "migrate.batchSize")}
                 <input
                     class="glean-mini-input"

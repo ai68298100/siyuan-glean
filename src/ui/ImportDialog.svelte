@@ -241,8 +241,8 @@ function openProgressDocument(id: string): void {
 
 <div class="glean-migrate" aria-labelledby="glean-import-title" aria-busy={busy}>
     <div class="glean-dlg-head">
-        <div class="glean-brand__mark" style="width:26px;height:26px;border-radius:9px">
-            <svg style="width:13px;height:13px"><use href="#iconGleanWheat" /></svg>
+        <div class="glean-brand__mark glean-dlg-head__mark">
+            <svg aria-hidden="true"><use href="#iconGleanWheat" /></svg>
         </div>
         <div>
             <h2 id="glean-import-title" class="glean-dlg-head__t">{t(i18n, "import.title")}</h2>
@@ -418,11 +418,36 @@ function openProgressDocument(id: string): void {
 </div>
 
 <style>
-    .glean-import-progress { display: grid; gap: 8px; padding: 12px; margin: 8px 0; border: 1px solid var(--b3-border-color); border-radius: 6px; }
-    .glean-import-progress h3, .glean-import-progress p { margin: 0; overflow-wrap: anywhere; }
-    .glean-import-progress__actions, .glean-import-progress__check { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-    .glean-import-progress__rows { max-height: 260px; overflow: auto; }
-    .glean-import-progress__row { display: flex; align-items: center; gap: 8px; padding: 6px 0; flex-wrap: wrap; overflow-wrap: anywhere; }
-    .glean-import-progress__error { color: var(--b3-theme-error); overflow-wrap: anywhere; }
+    .glean-import-progress {
+        display: grid;
+        gap: var(--glean-space-2);
+        padding: var(--glean-space-3);
+        margin: var(--glean-space-2) 0;
+        border: 1px solid var(--glean-border-soft);
+        border-radius: var(--glean-radius-lg);
+        background: color-mix(in srgb, var(--b3-theme-surface) 84%, transparent);
+        box-shadow: var(--glean-shadow-card);
+    }
+    .glean-import-progress h3,
+    .glean-import-progress p { margin: 0; overflow-wrap: anywhere; }
+    .glean-import-progress h3 {
+        color: var(--b3-theme-on-background);
+        font-size: var(--glean-text-sm);
+        line-height: 1.4;
+    }
+    .glean-import-progress p { color: var(--b3-theme-on-surface); font-size: var(--glean-text-xs); line-height: 1.5; }
+    .glean-import-progress__actions,
+    .glean-import-progress__check { display: flex; align-items: center; gap: var(--glean-space-2); flex-wrap: wrap; }
+    .glean-import-progress__rows { max-height: 260px; overflow: auto; padding-top: 2px; }
+    .glean-import-progress__row { display: flex; align-items: center; gap: var(--glean-space-2); padding: 7px 0; border-top: 1px solid var(--glean-border-soft); flex-wrap: wrap; overflow-wrap: anywhere; }
+    .glean-import-progress__error {
+        margin: 0;
+        padding: var(--glean-space-2) var(--glean-space-3);
+        border: 1px solid color-mix(in srgb, var(--b3-theme-error) 24%, transparent);
+        border-radius: var(--glean-radius-md);
+        background: color-mix(in srgb, var(--b3-theme-error) 8%, transparent);
+        color: var(--b3-theme-error);
+        overflow-wrap: anywhere;
+    }
     @media (max-width: 560px) { .glean-import-progress :is(button, summary), .glean-import-progress__check { min-height: 44px; } }
 </style>

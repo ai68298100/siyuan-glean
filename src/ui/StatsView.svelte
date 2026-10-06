@@ -124,60 +124,69 @@ function downloadCsv(): void {
 </script>
 
 <div class="glean-stats" aria-busy={busy}>
-    <h2>{t(i18n, "review.title")}</h2>
-    <div class="glean-stats__toolbar">
-        <label>
-            {t(i18n, "review.period")}
-            <select class="glean-stats__field" bind:value={period} disabled={busy || !!session}>
-                <option value="week">{t(i18n, "review.week")}</option>
-                <option value="month">{t(i18n, "review.month")}</option>
-                <option value="year">{t(i18n, "review.year")}</option>
-            </select>
-        </label>
-        <label>
-            {t(i18n, "review.referenceDate")}
-            <input class="glean-stats__field" type="date" min="0001-01-01" max="9998-12-31" bind:value={referenceDate} disabled={busy || !!session} />
-        </label>
-    </div>
-    <p class="glean-stats__hint">{t(i18n, "review.scope")}</p>
-    <p class="glean-stats__period">{t(i18n, "review.period")}: {stats.period.label}</p>
-    {#if review.snapshotAt}<p class="glean-stats__hint">{t(i18n, "review.snapshot")}: {review.snapshotAt}</p>{/if}
-    {#if !reference}<p class="glean-stats__warning">{t(i18n, "review.invalidDate")}</p>{/if}
-    <dl class="glean-stats__metrics">
-        {#each [
-            { key: "stats.total", count: stats.total },
-            { key: "review.doneState", count: stats.done },
-            { key: "review.archived", count: stats.archived },
-            { key: "review.libraryWords", count: stats.totalWords },
-            { key: "review.completed", count: stats.periodCompleted },
-            { key: "review.captured", count: stats.periodCaptured },
-            { key: "review.unknownDoneTime", count: stats.unknownDoneTime },
-            { key: "review.archivedUnknown", count: stats.archivedWithoutCompletion },
-        ] as metric (metric.key)}
-            <div class="glean-stats__metric"><dt>{t(i18n, metric.key)}</dt><dd>{metric.count}</dd></div>
-        {/each}
-    </dl>
-    <p class="glean-stats__candidates">{t(i18n, "review.candidates")}: {review.candidateCount}</p>
-    <h3>{t(i18n, "review.heatmap", { year: reference?.getFullYear() ?? new Date().getFullYear() })}</h3>
-    <div class="glean-stats__heatmap-scroll" role="img" aria-label={t(i18n, "review.heatmap", { year: reference?.getFullYear() ?? new Date().getFullYear() })}>
-        <div class="glean-stats__heatmap">
-            {#each Array.from({ length: heatmapPadding }, (_, index) => index) as padding (padding)}<span></span>{/each}
-            {#each stats.heatmap as day (day.date)}
-                <span class="glean-stats__day" title={`${day.date}: ${day.count}`} style={`background:${day.count ? "var(--b3-theme-primary)" : "var(--b3-theme-surface)"};opacity:${day.count ? 0.25 + 0.75 * day.count / maxHeat : 1}`}></span>
+    <section class="glean-stats__overview">
+        <div class="glean-stats__intro">
+            <div>
+                <h2>{t(i18n, "review.title")}</h2>
+                <p class="glean-stats__hint">{t(i18n, "review.scope")}</p>
+            </div>
+            <div class="glean-stats__toolbar glean-stats__toolbar--filters">
+                <label>
+                    {t(i18n, "review.period")}
+                    <select class="glean-stats__field" bind:value={period} disabled={busy || !!session}>
+                        <option value="week">{t(i18n, "review.week")}</option>
+                        <option value="month">{t(i18n, "review.month")}</option>
+                        <option value="year">{t(i18n, "review.year")}</option>
+                    </select>
+                </label>
+                <label>
+                    {t(i18n, "review.referenceDate")}
+                    <input class="glean-stats__field" type="date" min="0001-01-01" max="9998-12-31" bind:value={referenceDate} disabled={busy || !!session} />
+                </label>
+            </div>
+        </div>
+        <p class="glean-stats__period">{t(i18n, "review.period")}: {stats.period.label}</p>
+        {#if review.snapshotAt}<p class="glean-stats__hint">{t(i18n, "review.snapshot")}: {review.snapshotAt}</p>{/if}
+        {#if !reference}<p class="glean-stats__warning">{t(i18n, "review.invalidDate")}</p>{/if}
+        <dl class="glean-stats__metrics">
+            {#each [
+                { key: "stats.total", count: stats.total },
+                { key: "review.doneState", count: stats.done },
+                { key: "review.archived", count: stats.archived },
+                { key: "review.libraryWords", count: stats.totalWords },
+                { key: "review.completed", count: stats.periodCompleted },
+                { key: "review.captured", count: stats.periodCaptured },
+                { key: "review.unknownDoneTime", count: stats.unknownDoneTime },
+                { key: "review.archivedUnknown", count: stats.archivedWithoutCompletion },
+            ] as metric (metric.key)}
+                <div class="glean-stats__metric"><dt>{t(i18n, metric.key)}</dt><dd>{metric.count}</dd></div>
             {/each}
+        </dl>
+        <p class="glean-stats__candidates">{t(i18n, "review.candidates")}: {review.candidateCount}</p>
+    </section>
+    <section class="glean-stats__activity">
+        <h3>{t(i18n, "review.heatmap", { year: reference?.getFullYear() ?? new Date().getFullYear() })}</h3>
+        <div class="glean-stats__heatmap-scroll" role="img" aria-label={t(i18n, "review.heatmap", { year: reference?.getFullYear() ?? new Date().getFullYear() })}>
+            <div class="glean-stats__heatmap">
+                {#each Array.from({ length: heatmapPadding }, (_, index) => index) as padding (padding)}<span></span>{/each}
+                {#each stats.heatmap as day (day.date)}
+                    <span class="glean-stats__day" title={`${day.date}: ${day.count}`} style={`background:${day.count ? "var(--b3-theme-primary)" : "var(--b3-theme-surface)"};opacity:${day.count ? 0.25 + 0.75 * day.count / maxHeat : 1}`}></span>
+                {/each}
+            </div>
         </div>
-    </div>
-    <details class="glean-stats__days">
-        <summary>{t(i18n, "review.dailyList")}</summary>
-        <div class="glean-stats__table-scroll">
-            <table>
-                <caption>{t(i18n, "review.heatmap", { year: reference?.getFullYear() ?? new Date().getFullYear() })}</caption>
-                <thead><tr><th scope="col">{t(i18n, "review.date")}</th><th scope="col">{t(i18n, "review.completed")}</th></tr></thead>
-                <tbody>{#each stats.heatmap as day (day.date)}<tr><th scope="row">{day.date}</th><td>{day.count}</td></tr>{/each}</tbody>
-            </table>
-        </div>
-    </details>
-    <div class="glean-stats__distributions">
+        <details class="glean-stats__days">
+            <summary>{t(i18n, "review.dailyList")}</summary>
+            <div class="glean-stats__table-scroll">
+                <table>
+                    <caption>{t(i18n, "review.heatmap", { year: reference?.getFullYear() ?? new Date().getFullYear() })}</caption>
+                    <thead><tr><th scope="col">{t(i18n, "review.date")}</th><th scope="col">{t(i18n, "review.completed")}</th></tr></thead>
+                    <tbody>{#each stats.heatmap as day (day.date)}<tr><th scope="row">{day.date}</th><td>{day.count}</td></tr>{/each}</tbody>
+                </table>
+            </div>
+        </details>
+    </section>
+    <section class="glean-stats__breakdown">
+      <div class="glean-stats__distributions">
         {#each distributions as distribution (distribution.key)}
             <section class="glean-stats__distribution">
             <h3>{t(i18n, distribution.key)}</h3>
@@ -196,17 +205,20 @@ function downloadCsv(): void {
             {#if distribution.key === "review.byAuthor"}<p>{t(i18n, "review.authorUnknown", { n: stats.periodAuthorUnknown })}</p>{/if}
             </section>
         {/each}
-    </div>
-    <p class="glean-stats__hint">{t(i18n, "review.authorHint")}</p>
-    <h3>{t(i18n, "review.completedList")}</h3>
-    <ul class="glean-stats__completed">
-        {#each review.completedItems as item (item.id)}
-            <li>
-                <button class="glean-stats__link" onclick={() => facade.openReadingDocument(item.id)}>{item.title || t(i18n, "review.untitled")}</button>
-                <span>{item.doneTime.slice(0, 4)}-{item.doneTime.slice(4, 6)}-{item.doneTime.slice(6, 8)}</span>
-            </li>
-        {:else}<li class="glean-stats__completed-empty">{t(i18n, "review.noCompleted")}</li>{/each}
-    </ul>
+      </div>
+      <p class="glean-stats__hint">{t(i18n, "review.authorHint")}</p>
+    </section>
+    <section class="glean-stats__completed-section">
+        <h3>{t(i18n, "review.completedList")}</h3>
+        <ul class="glean-stats__completed">
+            {#each review.completedItems as item (item.id)}
+                <li>
+                    <button class="glean-stats__link" onclick={() => facade.openReadingDocument(item.id)}>{item.title || t(i18n, "review.untitled")}</button>
+                    <span>{item.doneTime.slice(0, 4)}-{item.doneTime.slice(4, 6)}-{item.doneTime.slice(6, 8)}</span>
+                </li>
+            {:else}<li class="glean-stats__completed-empty">{t(i18n, "review.noCompleted")}</li>{/each}
+        </ul>
+    </section>
     <p class="glean-stats__status" role="status" aria-live="polite">{busy ? t(i18n, "panel.loading") : message}</p>
     <div class="glean-stats__toolbar">
         {#if !session}

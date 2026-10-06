@@ -292,13 +292,13 @@ async function doMountBoard() {
 </script>
 
 <div class="glean-settings" aria-labelledby="glean-settings-title" aria-busy={saveBusy}>
-    <div class="glean-set-group" style="padding:12px 14px; display:flex; align-items:center; gap:9px">
-        <div class="glean-brand__mark" style="width:28px;height:28px;border-radius:9px">
-            <svg style="width:14px;height:14px"><use href="#iconGleanWheat" /></svg>
+    <div class="glean-settings__head">
+        <div class="glean-brand__mark glean-settings__head-mark">
+            <svg aria-hidden="true"><use href="#iconGleanWheat" /></svg>
         </div>
-        <div>
-            <h2 id="glean-settings-title" style="font-size:13.5px; font-weight:700; margin:0">{t(i18n, "settings.title")}</h2>
-            <div style="font-size:10px; color:var(--b3-theme-on-surface)">{t(i18n, "settings.sovereigntyNote")}</div>
+        <div class="glean-settings__head-copy">
+            <h2 id="glean-settings-title" class="glean-settings__head-title">{t(i18n, "settings.title")}</h2>
+            <div class="glean-settings__head-sub">{t(i18n, "settings.sovereigntyNote")}</div>
         </div>
     </div>
     {#if showNewbieHint}
@@ -679,7 +679,7 @@ async function doMountBoard() {
     </div>
 
     <div class="glean-settings__footer">
-        <div class="glean-settings__status" aria-live="polite">
+        <div class="glean-settings__status" class:glean-settings__status--dirty={draftDirty} aria-live="polite">
             {#if draftDirty}{t(i18n, "settings.unsavedChanges")}{:else}{t(i18n, "settings.saved")}{/if}
         </div>
         <button class="glean-btn" disabled={saveBusy} onclick={resetDefaults}>
