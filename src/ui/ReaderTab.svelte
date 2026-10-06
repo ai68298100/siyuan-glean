@@ -927,7 +927,7 @@
                 </div>
             {/if}
             {#if displayedReadMinutes > 0}
-                <div class="glean-reader__hint" aria-live="polite">{t(i18n, "reader.readMinutes", { n: displayedReadMinutes })}</div>
+                <div class="glean-reader__hint glean-reader__reading-time" aria-live="polite">{t(i18n, "reader.readMinutes", { n: displayedReadMinutes })}</div>
             {/if}
             <div class="glean-reader__section glean-reader__section--utility glean-reader__recent">
                 <div class="glean-reader__section-title">{t(i18n, "reader.recentTitle")}</div>

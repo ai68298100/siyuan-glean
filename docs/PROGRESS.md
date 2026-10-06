@@ -1,5 +1,13 @@
 # 进度（PROGRESS）
 
+## T-3260/D-0141（2026-10-06：移动批量状态与阅读伴生层收口）
+
+- [x] 移动批量操作条避开底部导航和安全区，动作按钮保持 44px 命中区、支持换行，批处理期间补 `aria-busy` 与整体降噪。
+- [x] 移动更多菜单补 `aria-controls` 与 Escape 焦点回退；设置页提升数据与恢复卡、导入主动作并降低维护工具标题权重。
+- [x] 阅读时长改为轻量状态胶囊，utility/enhanced 标题和 AI 卡片完成表面分层；未改变业务逻辑、数据、属性、端点或设置语义。
+- [x] 最小预览页完成 390px 移动截图复核：`output/playwright/round18-mobile-full.png`。
+- [x] `pnpm run check` 0 错误/0 警告；定向 UI 回归 74/74；`pnpm test` 1146/1146；`pnpm build`、`pnpm task:ledger --check`、`git diff --check` 通过。
+
 ## T-3260/D-0140（2026-10-06：新增能力视觉降噪）
 
 - [x] 工作台列表/看板、保存视图、预览侧栏和批量 AI 使用紧凑次级控件、轻表面、容器断点和按压反馈；列表/看板切换补 `aria-pressed`。

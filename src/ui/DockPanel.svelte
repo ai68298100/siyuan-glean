@@ -139,6 +139,7 @@ let pendingFocusId = $state("");
 let focusRequested = false;
 let popupOpen = $state(false);
 let mobileMoreOpen = $state(false);
+let mobileMoreTrigger = $state<HTMLButtonElement | null>(null);
 let savedViews = $state<SavedView[]>([]);
 let defaultSavedViewId = $state("");
 let savedViewId = $state("");
@@ -155,6 +156,13 @@ function openPopup() {
     facade.openWorkbenchPopup();
     // 弹窗关闭时机未知，保守复位
     window.setTimeout(() => (popupOpen = false), 1500);
+}
+
+function closeMobileMore(returnFocus = false) {
+    mobileMoreOpen = false;
+    if (returnFocus) {
+        void tick().then(() => mobileMoreTrigger?.focus());
+    }
 }
 let snappingId = $state("");
 let archivingStale = $state(false);
@@ -1068,16 +1076,16 @@ $effect(() => {
     const onPointerDown = (event: PointerEvent) => {
         const target = event.target;
         if (target instanceof Element && target.closest(".glean-mobile-topbar__more")) return;
-        mobileMoreOpen = false;
+        closeMobileMore();
     };
     const onFocusIn = (event: FocusEvent) => {
         const target = event.target;
         if (target instanceof Element && target.closest(".glean-mobile-topbar__more")) return;
-        mobileMoreOpen = false;
+        closeMobileMore();
     };
     const onKeyDown = (event: KeyboardEvent) => {
         if (event.key !== "Escape" || event.defaultPrevented || event.isComposing || event.repeat) return;
-        mobileMoreOpen = false;
+        closeMobileMore(true);
         event.preventDefault();
         event.stopPropagation();
     };
@@ -1261,35 +1269,37 @@ function metaLine(entry: Row): string {
                     <button
                         type="button"
                         class="glean-mobile-topbar__more-btn"
+                        bind:this={mobileMoreTrigger}
                         title={t(i18n, "mobile.more")}
                         aria-label={t(i18n, "mobile.more")}
                         aria-haspopup="menu"
+                        aria-controls="glean-mobile-more-menu"
                         aria-expanded={mobileMoreOpen}
-                        onclick={() => (mobileMoreOpen = !mobileMoreOpen)}
+                        onclick={() => mobileMoreOpen ? closeMobileMore() : (mobileMoreOpen = true)}
                     >
                         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 10.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Zm7 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Zm7 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Z" /></svg>
                     </button>
                     {#if mobileMoreOpen}
-                        <div class="glean-mobile-more" role="menu" aria-label={t(i18n, "mobile.moreLabel")}>
-                            <button type="button" class="glean-mobile-more__item" role="menuitem" onclick={() => { mobileMoreOpen = false; void reload(); }}>
+                        <div id="glean-mobile-more-menu" class="glean-mobile-more" role="menu" aria-label={t(i18n, "mobile.moreLabel")}>
+                            <button type="button" class="glean-mobile-more__item" role="menuitem" onclick={() => { closeMobileMore(); void reload(); }}>
                                 <svg class="glean-mobile-more__icon" aria-hidden="true"><use href="#iconGleanRefresh" /></svg>
                                 {t(i18n, "action.refresh")}
                             </button>
-                            <button type="button" class="glean-mobile-more__item" role="menuitem" onclick={() => { mobileMoreOpen = false; openPopup(); }}>
+                            <button type="button" class="glean-mobile-more__item" role="menuitem" onclick={() => { closeMobileMore(); openPopup(); }}>
                                 <svg class="glean-mobile-more__icon" aria-hidden="true"><use href="#iconGleanPopup" /></svg>
                                 {t(i18n, "panel.popup")}
                             </button>
                             <div class="glean-mobile-more__group" role="group" aria-label={t(i18n, "settings.dangerGroup")}>
                                 <div class="glean-mobile-more__group-label">{t(i18n, "settings.dangerGroup")}</div>
-                                <button type="button" class="glean-mobile-more__item" role="menuitem" onclick={() => { mobileMoreOpen = false; facade.openMigrate(); }}>
+                                <button type="button" class="glean-mobile-more__item" role="menuitem" onclick={() => { closeMobileMore(); facade.openMigrate(); }}>
                                     <svg class="glean-mobile-more__icon" aria-hidden="true"><use href="#iconGleanRefresh" /></svg>
                                     {t(i18n, "panel.migrate")}
                                 </button>
-                                <button type="button" class="glean-mobile-more__item" role="menuitem" onclick={() => { mobileMoreOpen = false; facade.openImport(); }}>
+                                <button type="button" class="glean-mobile-more__item" role="menuitem" onclick={() => { closeMobileMore(); facade.openImport(); }}>
                                     <svg class="glean-mobile-more__icon" aria-hidden="true"><use href="#iconGleanInbox" /></svg>
                                     {t(i18n, "import.title")}
                                 </button>
-                                <button type="button" class="glean-mobile-more__item" role="menuitem" onclick={() => { mobileMoreOpen = false; facade.openSettings(); }}>
+                                <button type="button" class="glean-mobile-more__item" role="menuitem" onclick={() => { closeMobileMore(); facade.openSettings(); }}>
                                     <svg class="glean-mobile-more__icon" aria-hidden="true"><use href="#iconGleanGear" /></svg>
                                     {t(i18n, "panel.settings")}
                                 </button>
@@ -2038,7 +2048,7 @@ function metaLine(entry: Row): string {
             {/if}
 
             {#if selection.size > 0}
-                <footer class="glean-batchbar">
+                <footer class="glean-batchbar" aria-busy={batchBusy}>
                     <b>{t(i18n, "action.selected")} {selection.size}</b>
                     <div class="glean-batchbar__ops">
                         <button class="glean-bb" disabled={batchBusy} onclick={() => void batchApply("reading")}>{t(i18n, "status.reading")}</button>
