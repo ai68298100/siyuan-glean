@@ -18,6 +18,8 @@ import type { GleanSettings } from "../services/settings";
 
 interface Props { facade: GleanFacade }
 let { facade }: Props = $props();
+const instanceId = $props.id();
+const previewTitleId = `glean-highlights-preview-title-${instanceId}`;
 const i18n = $derived(facade.i18n);
 const currentDocId = $derived(facade.currentDocId());
 let scope = $state<"current" | "library">("current");
@@ -257,8 +259,8 @@ function openDoc(id: string) {
     {/if}
     {#if exportStatus}<p class="glean-highlights__status" role="status">{exportStatus}</p>{/if}
     {#if session}
-        <section class="glean-highlights__preview" aria-label={t(i18n, "highlight.preview")}>
-            <h3>{t(i18n, "highlight.preview")}</h3>
+        <section class="glean-highlights__preview" aria-labelledby={previewTitleId}>
+            <h3 id={previewTitleId}>{t(i18n, "highlight.preview")}</h3>
             <p>{t(i18n, "highlight.exportHint")}</p>
             <p>{session.hpath}</p>
             <pre>{session.markdown}</pre>
@@ -293,11 +295,13 @@ function openDoc(id: string) {
             </article>
         {/each}
     </div>
-    <nav class="glean-highlights__tools glean-highlights__pagination" aria-label={t(i18n, "highlight.pageInfo", { page: visible.page, pages: visible.pages, n: visible.total })}>
-        <button disabled={visible.page <= 1} onclick={() => page = visible.page - 1}>{t(i18n, "highlight.previousPage")}</button>
-        <span>{t(i18n, "highlight.pageInfo", { page: visible.page, pages: visible.pages, n: visible.total })}</span>
-        <button disabled={visible.page >= visible.pages} onclick={() => page = visible.page + 1}>{t(i18n, "highlight.nextPage")}</button>
-    </nav>
+    {#if !loading && !loadError && visible.pages > 1}
+        <nav class="glean-highlights__tools glean-highlights__pagination" aria-label={t(i18n, "highlight.pageInfo", { page: visible.page, pages: visible.pages, n: visible.total })}>
+            <button disabled={visible.page <= 1} onclick={() => page = visible.page - 1}>{t(i18n, "highlight.previousPage")}</button>
+            <span>{t(i18n, "highlight.pageInfo", { page: visible.page, pages: visible.pages, n: visible.total })}</span>
+            <button disabled={visible.page >= visible.pages} onclick={() => page = visible.page + 1}>{t(i18n, "highlight.nextPage")}</button>
+        </nav>
+    {/if}
     {#if scope === "current" && related.length}
         <div class="glean-sect">✨ {t(i18n, "ai.relatedTitle")}</div>
         {#each related as item (item.id)}<button class="glean-rel" onclick={() => openDoc(item.id)}><span class="glean-rel__t">{item.title}</span><svg class="glean-rel__go glean-icon glean-icon--xs" aria-hidden="true"><use href="#iconGleanArrowRight" /></svg></button>{/each}

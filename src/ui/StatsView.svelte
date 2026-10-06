@@ -1,6 +1,7 @@
 <script lang="ts">
 // 宽屏布局契约集中在 src/index.scss：@container glean-workbench (min-width: 760px)
-// 下 .glean-stats__metrics { grid-template-columns: repeat(4, minmax(0, 1fr)); }，
+// 下 .glean-stats__metrics 具备四列基础网格；本页首屏只展示三张主卡，
+// 其余指标收进“索引快照”，避免统计页一打开就被次要数字淹没。
 // .glean-stats__distributions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }，
 // .glean-stats__distribution { min-width: 0; }。
 import { onDestroy } from "svelte";
@@ -40,6 +41,19 @@ const distributions = $derived([
     { key: "review.byAuthor", counts: stats.periodByAuthor },
     { key: "review.byUserTag", counts: stats.periodByUserTag },
     { key: "review.byAiTag", counts: stats.periodByAiTag },
+]);
+const primaryMetrics = $derived([
+    { key: "review.completed", count: stats.periodCompleted },
+    { key: "stats.total", count: stats.total },
+    { key: "review.candidateMetric", count: review.candidateCount },
+]);
+const supplementaryMetrics = $derived([
+    { key: "review.doneState", count: stats.done },
+    { key: "review.archived", count: stats.archived },
+    { key: "review.libraryWords", count: stats.totalWords },
+    { key: "review.captured", count: stats.periodCaptured },
+    { key: "review.unknownDoneTime", count: stats.unknownDoneTime },
+    { key: "review.archivedUnknown", count: stats.archivedWithoutCompletion },
 ]);
 
 onDestroy(() => { disposed = true; });
@@ -149,20 +163,18 @@ function downloadCsv(): void {
         {#if review.snapshotAt}<p class="glean-stats__hint">{t(i18n, "review.snapshot")}: {review.snapshotAt}</p>{/if}
         {#if !reference}<p class="glean-stats__warning">{t(i18n, "review.invalidDate")}</p>{/if}
         <dl class="glean-stats__metrics">
-            {#each [
-                { key: "stats.total", count: stats.total },
-                { key: "review.doneState", count: stats.done },
-                { key: "review.archived", count: stats.archived },
-                { key: "review.libraryWords", count: stats.totalWords },
-                { key: "review.completed", count: stats.periodCompleted },
-                { key: "review.captured", count: stats.periodCaptured },
-                { key: "review.unknownDoneTime", count: stats.unknownDoneTime },
-                { key: "review.archivedUnknown", count: stats.archivedWithoutCompletion },
-            ] as metric (metric.key)}
+            {#each primaryMetrics as metric (metric.key)}
                 <div class="glean-stats__metric"><dt>{t(i18n, metric.key)}</dt><dd>{metric.count}</dd></div>
             {/each}
         </dl>
-        <p class="glean-stats__candidates">{t(i18n, "review.candidates")}: {review.candidateCount}</p>
+        <details class="glean-stats__supplement">
+            <summary>{t(i18n, "review.snapshot")}</summary>
+            <dl class="glean-stats__metrics glean-stats__metrics--supplemental">
+                {#each supplementaryMetrics as metric (metric.key)}
+                    <div class="glean-stats__metric"><dt>{t(i18n, metric.key)}</dt><dd>{metric.count}</dd></div>
+                {/each}
+            </dl>
+        </details>
     </section>
     <section class="glean-stats__activity" aria-labelledby="glean-stats-activity-title">
         <h3 id="glean-stats-activity-title">{t(i18n, "review.heatmap", { year: reference?.getFullYear() ?? new Date().getFullYear() })}</h3>
@@ -194,7 +206,7 @@ function downloadCsv(): void {
         </details>
     </section>
     <section class="glean-stats__breakdown" aria-labelledby="glean-stats-breakdown-title">
-      <h3 id="glean-stats-breakdown-title" class="glean-sr-only">{t(i18n, "review.title")}</h3>
+      <h3 id="glean-stats-breakdown-title" class="glean-sr-only">{t(i18n, "review.bySite")}</h3>
       <div class="glean-stats__distributions">
         {#each distributions as distribution, distributionIndex (distribution.key)}
             <section class="glean-stats__distribution" aria-labelledby={`glean-stats-distribution-${distributionIndex}`}>
@@ -264,6 +276,49 @@ function downloadCsv(): void {
     .glean-stats__overview .glean-stats__field {
         min-width: 136px;
         margin-top: 3px;
+    }
+
+    .glean-stats__supplement {
+        min-width: 0;
+    }
+
+    .glean-stats__overview > .glean-stats__metrics {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .glean-stats__supplement > summary {
+        display: flex;
+        align-items: center;
+        min-height: 40px;
+        padding: 0 var(--glean-space-3);
+        border: 1px solid var(--glean-border-soft);
+        border-radius: var(--glean-radius-sm);
+        background: var(--glean-inset-surface);
+        color: var(--b3-theme-on-surface);
+        cursor: pointer;
+        transition: color 160ms var(--glean-ease-out), border-color 160ms var(--glean-ease-out), background-color 160ms var(--glean-ease-out);
+    }
+
+    .glean-stats__supplement > summary:hover {
+        border-color: color-mix(in srgb, var(--b3-theme-primary) 28%, var(--glean-border-soft));
+        color: var(--b3-theme-primary);
+    }
+
+    .glean-stats__metrics--supplemental {
+        margin-top: var(--glean-space-3);
+    }
+
+    .glean-stats__metrics--supplemental .glean-stats__metric,
+    .glean-stats__metrics--supplemental .glean-stats__metric:nth-child(-n + 3) {
+        min-height: 72px;
+        padding: var(--glean-space-3);
+        border-color: var(--glean-border-soft);
+        background: var(--glean-section-surface);
+        box-shadow: none;
+    }
+
+    .glean-stats__metrics--supplemental .glean-stats__metric dd {
+        font-size: 19px;
     }
 
     .glean-stats__period {
@@ -347,7 +402,11 @@ function downloadCsv(): void {
             min-height: 44px;
         }
 
-        .glean-stats__metrics {
+        .glean-stats__overview > .glean-stats__metrics {
+            grid-template-columns: 1fr;
+        }
+
+        .glean-stats__metrics--supplemental {
             grid-template-columns: repeat(2, minmax(0, 1fr));
         }
 

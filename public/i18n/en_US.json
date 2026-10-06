@@ -28,6 +28,7 @@
   "review.byUserTag": "Period completions · user tags",
   "review.byAiTag": "Period completions · AI tags",
   "review.candidates": "Unconfirmed candidate snapshot (separate)",
+  "review.candidateMetric": "Pending candidates",
   "review.scope": "Uses local calendar dates and each article's latest trusted completion time, retained after archiving, restoring or rereading; this is not a full rereading history. Missing, invalid or future completion times are never inferred from document updates. Capture times may come from the source service or document creation, not plugin capture actions. Library states, word counts and candidates are a current index snapshot. Sites, user tags and AI tags count current metadata of articles completed in the selected period, once per article per tag. Candidates are excluded from library and completion totals.",
   "review.snapshot": "Index snapshot",
   "review.heatmap": "Completion heatmap for ${year}",

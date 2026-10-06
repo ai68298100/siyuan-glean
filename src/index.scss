@@ -9194,6 +9194,17 @@ body.b3-theme-dark .glean-panel--mobile,
     }
 }
 
+/* 第三十一轮：侧栏是阅读器的长期停留区，辅助文字保持正文最小可读字号。 */
+.glean-reader__side > .glean-reader__meta,
+.glean-reader__side .glean-reader__appearance label,
+.glean-reader__side .glean-reader__outline-item {
+    font-size: var(--glean-text-sm);
+}
+
+.glean-reader__side > .glean-reader__meta {
+    line-height: 1.45;
+}
+
 /* 第二十八轮：工作台阅读预览、筛选和空态的最后一层收口。
    标题与动作分组保持明确边界，正在执行时给出稳定锚点；筛选结果和空态动作不再像无关控件堆在内容边缘。 */
 .glean-preview__header h2 {

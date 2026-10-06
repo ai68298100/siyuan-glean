@@ -8,9 +8,11 @@ const read = (file: string) => readFileSync(resolve(root, file), "utf8");
 
 test("onboarding exposes dialog naming, progress, selection and async states", () => {
     const source = read("src/ui/OnboardingDialog.svelte");
-    assert.match(source, /aria-labelledby="glean-onboarding-title"/);
+    assert.match(source, /const instanceId = \$props\.id\(\);/);
+    assert.match(source, /aria-labelledby=\{titleId\}/);
     assert.match(source, /aria-busy=\{scanning\}/);
-    assert.match(source, /<h2 id="glean-onboarding-title"/);
+    assert.match(source, /<h2 id=\{titleId\}/);
+    assert.match(source, /role="group" aria-labelledby=\{anchorTitleId\}/);
     assert.match(source, /aria-live="polite"/);
     assert.match(source, /aria-pressed=\{anchorNotebooks\.includes\(notebook\.id\)\}/);
     assert.match(source, /role="alert"/);
@@ -18,7 +20,8 @@ test("onboarding exposes dialog naming, progress, selection and async states", (
 
 test("settings exposes names for groups, controls and save state", () => {
     const source = read("src/ui/SettingsView.svelte");
-    assert.match(source, /aria-labelledby="glean-settings-title"/);
+    assert.match(source, /const instanceId = \$props\.id\(\);/);
+    assert.match(source, /aria-labelledby=\{titleId\}/);
     assert.match(source, /aria-busy=\{saveBusy\}/);
     assert.match(source, /aria-pressed=\{anchorNotebooks\.includes\(notebook\.id\)\}/);
     assert.match(source, /role="group" aria-label=\{t\(i18n, "settings\.aiEnrichMode"\)\}/);
@@ -67,15 +70,19 @@ test("shared dialogs expose modal semantics and return focus after closing", () 
     assert.match(modalFocus, /focusableElements\(root\)\[0\]/);
 });
 
-test("import and migration dialogs provide headings and live progress", () => {
+test("import and migration dialogs provide unique headings and accessible progress values", () => {
     const importDialog = read("src/ui/ImportDialog.svelte");
     const migrateDialog = read("src/ui/MigrateDialog.svelte");
-    assert.match(importDialog, /aria-labelledby="glean-import-title"/);
-    assert.match(importDialog, /<h2 id="glean-import-title"/);
-    assert.match(importDialog, /role="status" aria-live="polite" aria-atomic="true"/);
-    assert.match(migrateDialog, /aria-labelledby="glean-migrate-title"/);
-    assert.match(migrateDialog, /<h2 id="glean-migrate-title"/);
-    assert.match(migrateDialog, /role="status" aria-live="polite" aria-atomic="true"/);
+    assert.match(importDialog, /const instanceId = \$props\.id\(\);/);
+    assert.match(importDialog, /aria-labelledby=\{titleId\}/);
+    assert.match(importDialog, /<h2 id=\{titleId\}/);
+    assert.match(importDialog, /role="group" aria-label=\{t\(i18n, "import\.importing"\)\}/);
+    assert.match(importDialog, /role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow=\{progress\}/);
+    assert.match(migrateDialog, /const instanceId = \$props\.id\(\);/);
+    assert.match(migrateDialog, /aria-labelledby=\{titleId\}/);
+    assert.match(migrateDialog, /<h2 id=\{titleId\}/);
+    assert.match(migrateDialog, /role="group" aria-label=\{t\(i18n, "migrate\.writing"\)\}/);
+    assert.match(migrateDialog, /role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow=\{progressPct\}/);
 });
 
 test("icon-only actions expose labels independent of hover tooltips", () => {

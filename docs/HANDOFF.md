@@ -1,5 +1,14 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-07 T-3260/D-0154）
+
+第三十一轮继续收口统计主路径、维护弹窗和阅读侧栏：统计首屏按原型保留三张主指标卡，候选指标使用短文案，索引快照折叠收纳其余数字，390px 改为单列；分布区恢复命名 section。摘录预览和今日拾遗标题 ID 按组件实例隔离，导入/迁移进度恢复读屏播报，阅读侧栏辅助文字统一主题字号。只调整 UI、CSS、i18n、测试与可访问表达，未改变业务逻辑、数据、文章属性、索引、端点或设置语义。
+
+- 当前改动文件：`src/index.scss`、`src/ui/BackupPanel.svelte`、`src/ui/HighlightView.svelte`、`src/ui/ImportDialog.svelte`、`src/ui/MigrateDialog.svelte`、`src/ui/OnboardingDialog.svelte`、`src/ui/ResurfaceView.svelte`、`src/ui/SettingsView.svelte`、`src/ui/StatsView.svelte`、`public/i18n/zh_CN.json`、`public/i18n/en_US.json`、`tests/accessibility.test.ts`、`tests/header-actions.test.ts`。
+- 已生成统计页预览截图：`output/playwright/round31-stats-current-desktop.png`、`output/playwright/round31-stats-current-mobile.png`；截图为本地组件预览，非真实思源内核运行或 Android 真机验收。
+- `pnpm run check` 0 错误/0 警告；定向 UI/i18n/可访问性 67/67；全量 `pnpm test` 曾因旧四列断言失败，断言已同步新契约，提交前需复跑全量测试、`pnpm build`、`pnpm task:ledger -- --check` 与 `git diff --check`。
+- 版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 package.zip。
+
 ## 当前有效交接（2026-10-07 T-3260/D-0153）
 
 第三十轮收口工作台、阅读与全局控件状态：预览/收件箱补实例唯一 ID、加载错误播报和操作状态；阅读工具栏拆分次级动作，上下文切换增加加载骨架，Protyle 标签 ID 关联修正；全局按钮、输入、状态表面、滚动条及移动导航补焦点和主题层级。未改变业务逻辑、数据、文章属性、端点或设置语义。

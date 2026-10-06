@@ -11,6 +11,8 @@
     interface Props { facade: GleanFacade; settingsDirty?: boolean; settingsBusy?: boolean; onPreferencesRestored?: () => void }
     let { facade, settingsDirty = false, settingsBusy = false, onPreferencesRestored }: Props = $props();
     const i18n = $derived(facade.i18n);
+    const instanceId = $props.id();
+    const titleId = `glean-backup-title-${instanceId}`;
     let content = $state("");
     let filename = $state("");
     let busy = $state<"" | "file" | "export" | "preview" | "restore">("");
@@ -134,10 +136,10 @@
     }
 </script>
 
-<section class="glean-backup" aria-labelledby="glean-backup-title" aria-busy={Boolean(busy)}>
+<section class="glean-backup" aria-labelledby={titleId} aria-busy={Boolean(busy)}>
     <header class="glean-backup__head">
         <div>
-            <h3 id="glean-backup-title">{t(i18n, "backup.title")}</h3>
+            <h3 id={titleId}>{t(i18n, "backup.title")}</h3>
             <p>{t(i18n, "backup.desc")}</p>
         </div>
         <span class="glean-backup__mode">JSON</span>
@@ -185,7 +187,7 @@
                 {:else if row.state === "ready"}<p>{t(i18n, "backup.noChanges")}</p>{/if}
             </details>
         {/each}
-        <nav class="glean-backup__actions glean-backup__pagination" aria-label={t(i18n, "backup.preview")}>
+        <nav class="glean-backup__actions glean-backup__pagination" aria-label={t(i18n, "backup.page", { page: page + 1, total: pageCount })}>
             <button class="glean-btn glean-btn--ghost" disabled={Boolean(busy) || page === 0} onclick={() => page -= 1}>{t(i18n, "backup.previous")}</button>
             <span>{t(i18n, "backup.page", { page: page + 1, total: pageCount })}</span>
             <button class="glean-btn glean-btn--ghost" disabled={Boolean(busy) || page + 1 >= pageCount} onclick={() => page += 1}>{t(i18n, "backup.next")}</button>

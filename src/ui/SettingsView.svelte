@@ -24,6 +24,9 @@ interface Props {
 let { facade, onClose }: Props = $props();
 
 const i18n = $derived(facade.i18n);
+const instanceId = $props.id();
+const idPrefix = `glean-settings-${instanceId}`;
+const titleId = `${idPrefix}-title`;
 
 let notebooks = $state<NotebookMeta[]>([]);
 let anchorNotebooks = $state<string[]>([...DEFAULT_SETTINGS.anchorNotebooks]);
@@ -296,13 +299,13 @@ async function doMountBoard() {
 }
 </script>
 
-<div class="glean-settings" aria-labelledby="glean-settings-title" aria-busy={saveBusy || testBusy || boardBusy || rebuildBusy || Boolean(exportBusy) || dismissHintBusy}>
+<section class="glean-settings" aria-labelledby={titleId} aria-busy={saveBusy || testBusy || boardBusy || rebuildBusy || Boolean(exportBusy) || dismissHintBusy}>
     <div class="glean-settings__head">
         <div class="glean-brand__mark glean-settings__head-mark">
             <svg aria-hidden="true"><use href="#iconGleanWheat" /></svg>
         </div>
         <div class="glean-settings__head-copy">
-            <h2 id="glean-settings-title" class="glean-settings__head-title">{t(i18n, "settings.title")}</h2>
+            <h2 id={titleId} class="glean-settings__head-title">{t(i18n, "settings.title")}</h2>
             <div class="glean-settings__head-sub">{t(i18n, "settings.sovereigntyNote")}</div>
         </div>
     </div>
@@ -315,10 +318,10 @@ async function doMountBoard() {
         </div>
     {/if}
 
-    <div class="glean-settings__section glean-settings__section--core glean-settings__section--workspace" aria-labelledby="glean-settings-workspace-title">
-        <div id="glean-settings-workspace-title" class="glean-set-title" role="heading" aria-level="2">{t(i18n, "settings.workspaceGroup")}</div>
+    <div class="glean-settings__section glean-settings__section--core glean-settings__section--workspace" aria-labelledby={`${idPrefix}-workspace-title`}>
+        <div id={`${idPrefix}-workspace-title`} class="glean-set-title" role="heading" aria-level="2">{t(i18n, "settings.workspaceGroup")}</div>
         <div class="glean-set-group">
-            <div class="glean-nb-wrap">
+            <div class="glean-nb-wrap" role="group" aria-label={t(i18n, "settings.anchorNotebooks")}>
                 {#each notebooks as notebook (notebook.id)}
                     <button
                         class="glean-nb"
@@ -349,8 +352,8 @@ async function doMountBoard() {
         </div>
     </div>
 
-    <div class="glean-settings__section glean-settings__section--core" aria-labelledby="glean-settings-ai-title">
-        <div id="glean-settings-ai-title" class="glean-set-title" role="heading" aria-level="2">{t(i18n, "settings.aiGroup")}</div>
+    <div class="glean-settings__section glean-settings__section--core" aria-labelledby={`${idPrefix}-ai-title`}>
+        <div id={`${idPrefix}-ai-title`} class="glean-set-title" role="heading" aria-level="2">{t(i18n, "settings.aiGroup")}</div>
         <div class="glean-set-group">
             <div class="glean-set-row">
                 <div class="glean-set-row__lb">
@@ -440,8 +443,8 @@ async function doMountBoard() {
         </div>
     </div>
 
-    <div class="glean-settings__section glean-settings__section--advanced" aria-labelledby="glean-settings-ai-channel-title">
-        <div id="glean-settings-ai-channel-title" class="glean-set-title" role="heading" aria-level="2">{t(i18n, "settings.aiChannelGroup")}</div>
+    <div class="glean-settings__section glean-settings__section--advanced" aria-labelledby={`${idPrefix}-ai-channel-title`}>
+        <div id={`${idPrefix}-ai-channel-title`} class="glean-set-title" role="heading" aria-level="2">{t(i18n, "settings.aiChannelGroup")}</div>
         <div class="glean-set-group">
             <div class="glean-set-row">
                 <div class="glean-set-row__lb">
@@ -496,8 +499,8 @@ async function doMountBoard() {
         </div>
     </div>
 
-    <div class="glean-settings__section glean-settings__section--core" aria-labelledby="glean-settings-resurface-title">
-        <div id="glean-settings-resurface-title" class="glean-set-title" role="heading" aria-level="2">{t(i18n, "settings.resurfaceGroup")}</div>
+    <div class="glean-settings__section glean-settings__section--core" aria-labelledby={`${idPrefix}-resurface-title`}>
+        <div id={`${idPrefix}-resurface-title`} class="glean-set-title" role="heading" aria-level="2">{t(i18n, "settings.resurfaceGroup")}</div>
         <div class="glean-set-group">
             <div class="glean-set-row">
                 <div class="glean-set-row__lb">{t(i18n, "settings.resurfaceCount")}</div>
@@ -518,8 +521,8 @@ async function doMountBoard() {
         </div>
     </div>
 
-    <div class="glean-settings__section glean-settings__section--maintenance" aria-labelledby="glean-settings-board-title">
-        <div id="glean-settings-board-title" class="glean-set-title" role="heading" aria-level="2">{t(i18n, "board.groupTitle")}</div>
+    <div class="glean-settings__section glean-settings__section--maintenance" aria-labelledby={`${idPrefix}-board-title`}>
+        <div id={`${idPrefix}-board-title`} class="glean-set-title" role="heading" aria-level="2">{t(i18n, "board.groupTitle")}</div>
         <div class="glean-set-group">
             <div class="glean-set-row">
                 <div class="glean-set-row__lb">
@@ -557,8 +560,8 @@ async function doMountBoard() {
         </div>
     </div>
 
-    <div class="glean-settings__section glean-settings__section--maintenance glean-settings__section--data" aria-labelledby="glean-settings-data-title">
-        <div id="glean-settings-data-title" class="glean-set-title" role="heading" aria-level="2">{t(i18n, "settings.dataGroup")}</div>
+    <div class="glean-settings__section glean-settings__section--maintenance glean-settings__section--data" aria-labelledby={`${idPrefix}-data-title`}>
+        <div id={`${idPrefix}-data-title`} class="glean-set-title" role="heading" aria-level="2">{t(i18n, "settings.dataGroup")}</div>
         <div class="glean-set-group">
             <div class="glean-settings__extension-card">
                 <BackupPanel {facade} settingsDirty={draftDirty} settingsBusy={saveBusy} onPreferencesRestored={() => { originalSettings = cloneSettings(facade.settings); loadDraft(originalSettings); }} />
@@ -578,8 +581,8 @@ async function doMountBoard() {
         </div>
     </div>
 
-    <div class="glean-settings__section glean-settings__section--integration" aria-labelledby="glean-settings-checkin-title">
-        <div id="glean-settings-checkin-title" class="glean-set-title" role="heading" aria-level="2">{t(i18n, "settings.checkinGroup")}</div>
+    <div class="glean-settings__section glean-settings__section--integration" aria-labelledby={`${idPrefix}-checkin-title`}>
+        <div id={`${idPrefix}-checkin-title`} class="glean-set-title" role="heading" aria-level="2">{t(i18n, "settings.checkinGroup")}</div>
         <div class="glean-set-group">
             <div class="glean-set-row">
                 <div class="glean-set-row__lb">
@@ -614,8 +617,8 @@ async function doMountBoard() {
         </div>
     </div>
 
-    <div class="glean-settings__section glean-settings__section--experimental" aria-labelledby="glean-settings-reader-title">
-        <div id="glean-settings-reader-title" class="glean-set-title" role="heading" aria-level="2">{t(i18n, "settings.readerGroup")}</div>
+    <div class="glean-settings__section glean-settings__section--experimental" aria-labelledby={`${idPrefix}-reader-title`}>
+        <div id={`${idPrefix}-reader-title`} class="glean-set-title" role="heading" aria-level="2">{t(i18n, "settings.readerGroup")}</div>
         <div class="glean-set-group">
             <div class="glean-set-row">
                 <div class="glean-set-row__lb">
@@ -654,8 +657,8 @@ async function doMountBoard() {
         </div>
     </div>
 
-    <div class="glean-settings__section glean-settings__section--maintenance glean-settings__section--danger" aria-labelledby="glean-settings-tools-title">
-        <div id="glean-settings-tools-title" class="glean-set-title" role="heading" aria-level="2">{t(i18n, "settings.maintenanceToolsGroup")}</div>
+    <div class="glean-settings__section glean-settings__section--maintenance glean-settings__section--danger" aria-labelledby={`${idPrefix}-tools-title`}>
+        <div id={`${idPrefix}-tools-title`} class="glean-set-title" role="heading" aria-level="2">{t(i18n, "settings.maintenanceToolsGroup")}</div>
         <div class="glean-set-group">
             <div class="glean-set-row">
                 <div class="glean-set-row__lb">
@@ -707,7 +710,7 @@ async function doMountBoard() {
             {saveBusy ? t(i18n, "panel.loading") : t(i18n, "action.save")}
         </button>
     </div>
-</div>
+</section>
 
 <style>
     .glean-settings__section {

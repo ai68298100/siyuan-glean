@@ -16,6 +16,12 @@ interface Props {
 let { facade, onClose }: Props = $props();
 
 const i18n = $derived(facade.i18n);
+const instanceId = $props.id();
+const idPrefix = `glean-onboarding-${instanceId}`;
+const titleId = `${idPrefix}-title`;
+const descId = `${idPrefix}-desc`;
+const anchorTitleId = `${idPrefix}-anchor-title`;
+const previewTitleId = `${idPrefix}-preview-title`;
 
 let step = $state<OnboardingStep>(1);
 let notebooks = $state<NotebookMeta[]>([]);
@@ -147,14 +153,14 @@ function continueLater(): void {
 }
 </script>
 
-<div class="glean-migrate glean-onboarding" class:glean-onboarding--scanning={scanning} aria-labelledby="glean-onboarding-title" aria-describedby="glean-onboarding-desc" aria-busy={scanning}>
+<div class="glean-migrate glean-onboarding" class:glean-onboarding--scanning={scanning} aria-labelledby={titleId} aria-describedby={descId} aria-busy={scanning}>
     <div class="glean-dlg-head">
         <div class="glean-brand__mark glean-dlg-head__mark">
             <svg aria-hidden="true"><use href="#iconGleanWheat" /></svg>
         </div>
         <div>
-            <h2 id="glean-onboarding-title" class="glean-dlg-head__t">{t(i18n, "onboarding.title")}</h2>
-            <div id="glean-onboarding-desc" class="glean-dlg-head__sub">{t(i18n, "tagline")}</div>
+            <h2 id={titleId} class="glean-dlg-head__t">{t(i18n, "onboarding.title")}</h2>
+            <div id={descId} class="glean-dlg-head__sub">{t(i18n, "tagline")}</div>
         </div>
     </div>
     <div class="glean-sr-only" aria-live="polite">{t(i18n, "onboarding.stepProgress", { n: step })}</div>
@@ -169,9 +175,9 @@ function continueLater(): void {
     </nav>
 
     {#if step === 1}
-        <div class="glean-onb-hero" role="region" aria-labelledby="glean-onboarding-welcome-title">
+        <div class="glean-onb-hero" role="region" aria-labelledby={`${idPrefix}-welcome-title`}>
             <div class="glean-empty__art"><svg aria-hidden="true"><use href="#iconGleanWheat" /></svg></div>
-            <h3 id="glean-onboarding-welcome-title" class="glean-empty__title">{t(i18n, "onboarding.welcomeTitle")}</h3>
+            <h3 id={`${idPrefix}-welcome-title`} class="glean-empty__title">{t(i18n, "onboarding.welcomeTitle")}</h3>
             <div class="glean-empty__hint">{t(i18n, "onboarding.welcomeBody")}</div>
         </div>
         <div class="glean-migrate__ops">
@@ -182,9 +188,9 @@ function continueLater(): void {
             <button class="glean-btn glean-btn--pri" onclick={() => void moveTo(2)}>{t(i18n, "onboarding.next")}</button>
         </div>
     {:else if step === 2}
-        <div id="glean-onboarding-anchor-title" class="glean-sect" role="heading" aria-level="3">{t(i18n, "settings.anchorNotebooks")}</div>
+        <div id={anchorTitleId} class="glean-sect" role="heading" aria-level="3">{t(i18n, "settings.anchorNotebooks")}</div>
         <div class="glean-set-group">
-            <div class="glean-nb-wrap">
+            <div class="glean-nb-wrap" role="group" aria-labelledby={anchorTitleId}>
                 {#each notebooks as notebook (notebook.id)}
                     <button
                         class="glean-nb"
@@ -213,7 +219,7 @@ function continueLater(): void {
             <button class="glean-btn glean-btn--pri" onclick={() => void next()}>{t(i18n, "onboarding.next")}</button>
         </div>
     {:else if step === 3}
-        <div id="glean-onboarding-preview-title" class="glean-sect" role="heading" aria-level="3">{t(i18n, "onboarding.previewTitle")}</div>
+        <div id={previewTitleId} class="glean-sect" role="heading" aria-level="3">{t(i18n, "onboarding.previewTitle")}</div>
         {#if scanning}
             <div class="glean-panel__loading" role="status" aria-live="polite">{t(i18n, "panel.loading")}</div>
         {:else if scanFailed}
@@ -226,7 +232,7 @@ function continueLater(): void {
                 <button class="glean-btn glean-btn--pri" onclick={() => void runScan()}>{t(i18n, "onboarding.rescan")}</button>
             </div>
         {:else if preview}
-            <div class="glean-mstats" role="region" aria-label={t(i18n, "onboarding.previewTitle")}>
+            <div class="glean-mstats" role="region" aria-labelledby={previewTitleId}>
                 <div class="glean-mstat"><div class="glean-mstat__n">{preview.confirmed}</div><div class="glean-mstat__l">{t(i18n, "onboarding.previewClips")}</div></div>
                 <div class="glean-mstat"><div class="glean-mstat__n">{preview.candidates}</div><div class="glean-mstat__l">{t(i18n, "onboarding.previewCandidates")}</div></div>
                 <div class="glean-mstat"><div class="glean-mstat__n">{preview.candidatesMissingUrl}</div><div class="glean-mstat__l">{t(i18n, "onboarding.previewMissingUrl")}</div></div>

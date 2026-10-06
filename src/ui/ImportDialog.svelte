@@ -26,6 +26,14 @@ interface Props {
 let { facade, onClose }: Props = $props();
 
 const i18n = $derived(facade.i18n);
+const instanceId = $props.id();
+const idPrefix = `glean-import-${instanceId}`;
+const titleId = `${idPrefix}-title`;
+const descId = `${idPrefix}-desc`;
+const progressTitleId = `${idPrefix}-progress-title`;
+const formatId = `${idPrefix}-format`;
+const notebookIdControl = `${idPrefix}-notebook`;
+const folderId = `${idPrefix}-folder`;
 
 type Phase = "pick" | "preview" | "importing" | "done";
 
@@ -239,14 +247,14 @@ function openProgressDocument(id: string): void {
 }
 </script>
 
-<div class="glean-migrate glean-import" class:glean-import--busy={busy} data-phase={phase} aria-labelledby="glean-import-title" aria-describedby="glean-import-desc" aria-busy={busy}>
+<div class="glean-migrate glean-import" class:glean-import--busy={busy} data-phase={phase} aria-labelledby={titleId} aria-describedby={descId} aria-busy={busy}>
     <div class="glean-dlg-head glean-import__head">
         <div class="glean-brand__mark glean-dlg-head__mark">
             <svg aria-hidden="true"><use href="#iconGleanWheat" /></svg>
         </div>
         <div>
-            <h2 id="glean-import-title" class="glean-dlg-head__t">{t(i18n, "import.title")}</h2>
-            <div id="glean-import-desc" class="glean-dlg-head__sub">{t(i18n, "import.intro")}</div>
+            <h2 id={titleId} class="glean-dlg-head__t">{t(i18n, "import.title")}</h2>
+            <div id={descId} class="glean-dlg-head__sub">{t(i18n, "import.intro")}</div>
         </div>
     </div>
 
@@ -258,8 +266,8 @@ function openProgressDocument(id: string): void {
         </div>
     {/if}
     {#if progressRecord && progressCounts}
-        <section class="glean-import-progress" aria-labelledby="glean-import-progress-title">
-            <h3 id="glean-import-progress-title">{t(i18n, "import.progress.title")} · {t(i18n, `import.progress.state.${progressRecord.state}`)}</h3>
+        <section class="glean-import-progress" aria-labelledby={progressTitleId}>
+            <h3 id={progressTitleId}>{t(i18n, "import.progress.title")} · {t(i18n, `import.progress.state.${progressRecord.state}`)}</h3>
             <p>{t(i18n, "import.progress.target", { notebook: notebooks.find((notebook) => notebook.id === progressRecord?.notebookId)?.name ?? progressRecord.notebookId, folder: progressRecord.folder })}</p>
             <p role="status" aria-live="polite" aria-atomic="true">{t(i18n, "import.progress.counts", { ...progressCounts, total: progressRecord.rows.length })}</p>
             {#if unfinished}<p>{t(i18n, "import.progress.hint")}</p>{/if}
@@ -291,8 +299,8 @@ function openProgressDocument(id: string): void {
     {#if phase === "pick" || phase === "preview"}
         <div class="glean-set-group">
             <div class="glean-set-row glean-import__field">
-                <div class="glean-set-row__lb">{t(i18n, "import.format")}</div>
-                <select class="b3-select glean-import__select" aria-label={t(i18n, "import.format")} disabled={busy || unfinished} bind:value={format} onchange={() => { preview = null; importConfirmed = false; phase = "pick"; }}>
+                <label class="glean-set-row__lb" for={formatId}>{t(i18n, "import.format")}</label>
+                <select id={formatId} class="b3-select glean-import__select" disabled={busy || unfinished} bind:value={format} onchange={() => { preview = null; importConfirmed = false; phase = "pick"; }}>
                     <option value="auto">{t(i18n, "import.formatAuto")}</option>
                     <option value="pocket-html">Pocket HTML</option>
                     <option value="pocket-csv">Pocket CSV</option>
@@ -305,7 +313,8 @@ function openProgressDocument(id: string): void {
                     {t(i18n, "import.notebook")}
                     <div class="glean-set-row__desc">{t(i18n, "import.notebookDesc")}</div>
                 </div>
-                <select class="b3-select glean-import__select" aria-label={t(i18n, "import.notebook")} disabled={busy || unfinished || notebookLoading || notebookError} bind:value={notebookId} onchange={() => (importConfirmed = false)}>
+                <label class="glean-sr-only" for={notebookIdControl}>{t(i18n, "import.notebook")}</label>
+                <select id={notebookIdControl} class="b3-select glean-import__select" disabled={busy || unfinished || notebookLoading || notebookError} bind:value={notebookId} onchange={() => (importConfirmed = false)}>
                     {#each notebooks as notebook (notebook.id)}
                         <option value={notebook.id}>{notebook.name}</option>
                     {/each}
@@ -324,8 +333,8 @@ function openProgressDocument(id: string): void {
                 {#if unfinished && !notebookLoading && !targetAvailable}<p role="alert">{t(i18n, "import.progress.error.target")}</p>{/if}
             </div>
             <div class="glean-set-row glean-import__field">
-                <div class="glean-set-row__lb">{t(i18n, "import.folder")}</div>
-                <input class="glean-mini-input glean-import__folder" aria-label={t(i18n, "import.folder")} disabled={busy || unfinished} bind:value={folder} oninput={() => (importConfirmed = false)} />
+                <label class="glean-set-row__lb" for={folderId}>{t(i18n, "import.folder")}</label>
+                <input id={folderId} class="glean-mini-input glean-import__folder" disabled={busy || unfinished} bind:value={folder} oninput={() => (importConfirmed = false)} />
             </div>
             <div class="glean-set-row glean-import__field glean-import__file-field">
                 <div class="glean-set-row__lb">{t(i18n, "import.file")}</div>
@@ -383,11 +392,11 @@ function openProgressDocument(id: string): void {
             {/each}
         </div>
         {#if previewPageCount > 1}
-            <div class="glean-prog-meta glean-import__pagination">
+            <nav class="glean-prog-meta glean-import__pagination" aria-label={t(i18n, "import.pageInfo", { page: previewPage, total: previewPageCount })}>
                 <button class="glean-btn glean-btn--ghost glean-import__page-btn" disabled={previewPage <= 1} onclick={() => (previewPage -= 1)}><svg class="glean-icon glean-icon--xs" aria-hidden="true"><use href="#iconGleanArrowLeft" /></svg>{t(i18n, "import.prevPage")}</button>
                 <span>{t(i18n, "import.pageInfo", { page: previewPage, total: previewPageCount })}</span>
                 <button class="glean-btn glean-btn--ghost glean-import__page-btn" disabled={previewPage >= previewPageCount} onclick={() => (previewPage += 1)}>{t(i18n, "import.nextPage")}<svg class="glean-icon glean-icon--xs" aria-hidden="true"><use href="#iconGleanArrowRight" /></svg></button>
-            </div>
+            </nav>
         {/if}
         <div class="glean-migrate__ops glean-migrate__ops--footer">
             <button class="glean-btn glean-btn--ghost" onclick={resetToPick}>{t(i18n, "migrate.rescan")}</button>
@@ -396,9 +405,9 @@ function openProgressDocument(id: string): void {
             </button>
         </div>
     {:else if phase === "importing"}
-        <div role="status" aria-live="polite" aria-atomic="true">
+        <div role="group" aria-label={t(i18n, "import.importing")}>
             <div class="glean-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow={progress} aria-label={t(i18n, "import.importing")}><div class="glean-progress__bar" style={`width:${progress}%`}></div></div>
-            <div class="glean-prog-meta"><span>{t(i18n, "import.importing")}</span><span>{progress}%</span></div>
+            <div class="glean-prog-meta" role="status" aria-live="polite" aria-atomic="true"><span>{t(i18n, "import.importing")}</span><span>{progress}%</span></div>
         </div>
         <div class="glean-migrate__ops glean-migrate__ops--footer">
             <button class="glean-btn glean-btn--ghost" disabled={stopping} onclick={() => { stopping = true; controller?.abort(); }}>{t(i18n, stopping ? "import.progress.stopping" : "import.progress.pause")}</button>

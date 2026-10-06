@@ -24,6 +24,10 @@ interface Props {
 let { facade, onClose }: Props = $props();
 
 const i18n = $derived(facade.i18n);
+const instanceId = $props.id();
+const idPrefix = `glean-migrate-${instanceId}`;
+const titleId = `${idPrefix}-title`;
+const descId = `${idPrefix}-desc`;
 
 /** 每批写入条数（UX 审计 #7）：控件从设置页迁到执行现场，回填前就近调整。 */
 async function updateBatchSize(input: HTMLInputElement): Promise<void> {
@@ -205,14 +209,14 @@ function rowStateLabel(row: MigrateRow): string {
 }
 </script>
 
-<div class="glean-migrate" data-phase={phase} aria-labelledby="glean-migrate-title" aria-describedby="glean-migrate-desc" aria-busy={phase === "scanning" || phase === "running"}>
+<div class="glean-migrate" data-phase={phase} aria-labelledby={titleId} aria-describedby={descId} aria-busy={phase === "scanning" || phase === "running"}>
     <div class="glean-dlg-head">
         <div class="glean-brand__mark glean-dlg-head__mark">
             <svg aria-hidden="true"><use href="#iconGleanWheat" /></svg>
         </div>
         <div>
-            <h2 id="glean-migrate-title" class="glean-dlg-head__t">{t(i18n, "migrate.title")}</h2>
-            <div id="glean-migrate-desc" class="glean-dlg-head__sub">{t(i18n, "migrate.intro")}</div>
+            <h2 id={titleId} class="glean-dlg-head__t">{t(i18n, "migrate.title")}</h2>
+            <div id={descId} class="glean-dlg-head__sub">{t(i18n, "migrate.intro")}</div>
         </div>
     </div>
 
@@ -325,9 +329,9 @@ function rowStateLabel(row: MigrateRow): string {
             </button>
         </div>
     {:else if phase === "running" || phase === "paused"}
-        <div role="status" aria-live="polite" aria-atomic="true">
+        <div role="group" aria-label={t(i18n, "migrate.writing")}>
             <div class="glean-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow={progressPct} aria-label={t(i18n, "migrate.writing")}><div class="glean-progress__bar" style={`width:${progressPct}%`}></div></div>
-            <div class="glean-prog-meta">
+            <div class="glean-prog-meta" role="status" aria-live="polite" aria-atomic="true">
                 <span>{t(i18n, "migrate.writing")} {cursor} / {rows.length}{phase === "paused" ? `（${t(i18n, "migrate.paused")}）` : ""}</span>
                 <span>{t(i18n, "migrate.batchNote", { n: facade.settings.migrateBatchSize })}</span>
             </div>

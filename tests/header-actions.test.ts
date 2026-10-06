@@ -62,12 +62,17 @@ test("wide canvas highlights use a two-column card area and center empty states"
     assert.match(source, /\.glean-highlights__empty\s*\{\s*width:\s*min\(100%, 720px\);\s*align-self:\s*center;/);
 });
 
-test("wide canvas stats use four metric columns and a bounded distribution grid", () => {
+test("stats prioritize three primary metrics and keep the supplemental snapshot compact", () => {
     const source = read("src/ui/StatsView.svelte");
+    const styles = read("src/index.scss");
     assert.match(source, /class="glean-stats__distribution"/);
     assert.match(source, /class="glean-stats__distributions"/);
     assert.match(source, /@container\s+glean-workbench\s*\(min-width:\s*760px\)/);
-    assert.match(source, /\.glean-stats__metrics\s*\{\s*grid-template-columns:\s*repeat\(4, minmax\(0, 1fr\)\)/);
+    assert.match(source, /\.glean-stats__overview\s*>\s*\.glean-stats__metrics\s*\{\s*grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\)/);
+    assert.match(source, /\.glean-stats__metrics--supplemental\s*\{\s*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
+    assert.match(source, /aria-labelledby="glean-stats-breakdown-title"/);
+    assert.match(source, /class="glean-sr-only">\{t\(i18n, "review\.bySite"\)\}/);
+    assert.match(styles, /\.glean-stats__metrics\s*\{\s*grid-template-columns:\s*repeat\(4, minmax\(0, 1fr\)\)/);
     assert.match(source, /\.glean-stats__distributions\s*\{\s*display:\s*grid;\s*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
     assert.match(source, /\.glean-stats__distribution\s*\{\s*min-width:\s*0/);
 });
