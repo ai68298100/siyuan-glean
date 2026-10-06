@@ -397,7 +397,7 @@ function openProgressDocument(id: string): void {
         </div>
     {:else if phase === "importing"}
         <div role="status" aria-live="polite" aria-atomic="true">
-            <div class="glean-progress"><div class="glean-progress__bar" style={`width:${progress}%`}></div></div>
+            <div class="glean-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow={progress} aria-label={t(i18n, "import.importing")}><div class="glean-progress__bar" style={`width:${progress}%`}></div></div>
             <div class="glean-prog-meta"><span>{t(i18n, "import.importing")}</span><span>{progress}%</span></div>
         </div>
         <div class="glean-migrate__ops glean-migrate__ops--footer">

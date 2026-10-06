@@ -140,7 +140,7 @@
     <p class="glean-formatting__hint">
         {aiOn ? t(i18n, "formatting.aiPrivacy", { channel: settings.ai.channel === "custom" ? settings.ai.customModel || t(i18n, "settings.channelCustom") : t(i18n, "settings.channelSiyuan") }) : t(i18n, "formatting.aiOff")}
     </p>
-    <div class="glean-formatting__status {loading || busy ? "glean-formatting__status--busy" : message ? "glean-formatting__status--message" : ""}" role="status" aria-live="polite">{loading || busy ? t(i18n, "panel.loading") : message}</div>
+    <div class="glean-formatting__status {loading || busy ? "glean-formatting__status--busy" : message ? "glean-formatting__status--message" : ""}" role="status" aria-live="polite" aria-atomic="true">{loading || busy ? t(i18n, "panel.loading") : message}</div>
     {#if session}
         {#if session.analysis.encodingWarnings}
             <p class="glean-formatting__warning">{t(i18n, "formatting.encoding", { n: session.analysis.encodingWarnings })}</p>

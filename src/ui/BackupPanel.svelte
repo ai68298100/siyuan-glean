@@ -185,11 +185,11 @@
                 {:else if row.state === "ready"}<p>{t(i18n, "backup.noChanges")}</p>{/if}
             </details>
         {/each}
-        <div class="glean-backup__actions">
+        <nav class="glean-backup__actions glean-backup__pagination" aria-label={t(i18n, "backup.preview")}>
             <button class="glean-btn glean-btn--ghost" disabled={Boolean(busy) || page === 0} onclick={() => page -= 1}>{t(i18n, "backup.previous")}</button>
             <span>{t(i18n, "backup.page", { page: page + 1, total: pageCount })}</span>
             <button class="glean-btn glean-btn--ghost" disabled={Boolean(busy) || page + 1 >= pageCount} onclick={() => page += 1}>{t(i18n, "backup.next")}</button>
-        </div>
+        </nav>
         <p class="glean-backup__section-hint">{t(i18n, "backup.prefsHint")}</p>
         <label class="glean-backup__check"><input type="checkbox" bind:checked={restoreSettings} disabled={Boolean(busy) || session.used || !configAllowed} />{t(i18n, "backup.restoreSettings")}</label>
         {#if settingsDirty}<p>{t(i18n, "backup.settingsDraft")}</p>{/if}
@@ -204,12 +204,12 @@
             {#if busy === "restore" || busy === "preview"}<button class="glean-btn glean-btn--ghost" onclick={() => controller?.abort()}>{t(i18n, "backup.stop")}</button>{/if}
         </div>
     {/if}
-    {#if busy}<p class="glean-backup__status glean-backup__status--busy" role="status"><span class="glean-backup__status-dot" aria-hidden="true"></span>{busy === "restore" ? t(i18n, "backup.progress", { done: processed, total }) : t(i18n, "panel.loading")}</p>{/if}
-    {#if error}<p class="glean-backup__status glean-backup__status--error" role="alert">{error}</p>{/if}
+    {#if busy}<p class="glean-backup__status glean-backup__status--busy" role="status" aria-live="polite"><span class="glean-backup__status-dot" aria-hidden="true"></span>{busy === "restore" ? t(i18n, "backup.progress", { done: processed, total }) : t(i18n, "panel.loading")}</p>{/if}
+    {#if error}<p class="glean-backup__status glean-backup__status--error" role="alert" aria-live="assertive">{error}</p>{/if}
     {#if report}
-        <p class="glean-backup__status glean-backup__status--success" role="status">{t(i18n, "backup.report", { applied: report.applied, total: report.selected, settings: t(i18n, `backup.state.${report.settings}`), uiPrefs: t(i18n, `backup.state.${report.uiPrefs}`) })}</p>
+        <p class="glean-backup__status glean-backup__status--success" role="status" aria-live="polite">{t(i18n, "backup.report", { applied: report.applied, total: report.selected, settings: t(i18n, `backup.state.${report.settings}`), uiPrefs: t(i18n, `backup.state.${report.uiPrefs}`) })}</p>
         {#if report.stopped}<p class="glean-backup__status glean-backup__status--notice">{t(i18n, "backup.stopped")}</p>{/if}
-        {#if !report.indexFresh}<p class="glean-backup__status glean-backup__status--error" role="alert">{t(i18n, "backup.indexFailed")}</p>{/if}
+        {#if !report.indexFresh}<p class="glean-backup__status glean-backup__status--error" role="alert" aria-live="assertive">{t(i18n, "backup.indexFailed")}</p>{/if}
     {/if}
 </section>
 
@@ -222,6 +222,8 @@
     .glean-backup__head p { margin-top: var(--glean-space-1); }
     .glean-backup__mode { flex: 0 0 auto; padding: 4px 8px; border: 1px solid color-mix(in srgb, var(--glean-accent-b) 24%, var(--glean-border-soft)); border-radius: 999px; color: var(--glean-accent-b); background: var(--glean-primary-soft); font: 600 var(--glean-text-xs)/1.2 var(--b3-font-family); letter-spacing: .05em; }
     .glean-backup__actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--glean-space-2); }
+    .glean-backup__pagination { justify-content: space-between; padding-top: var(--glean-space-1); }
+    .glean-backup__pagination > span { min-width: 0; flex: 1 1 auto; text-align: center; color: var(--b3-theme-on-surface); font-size: var(--glean-text-xs); overflow-wrap: anywhere; }
     .glean-backup__actions--primary { padding-bottom: var(--glean-space-1); }
     .glean-backup__actions--tools { padding: var(--glean-space-2) 0; border-block: 1px solid var(--glean-border-soft); }
     .glean-backup__file { display: grid; gap: var(--glean-space-1); min-width: 160px; padding: 7px 10px; border: 1px dashed var(--glean-border-soft); border-radius: var(--glean-radius-sm); color: var(--b3-theme-on-surface); font-size: var(--glean-text-sm); cursor: pointer; transition: background-color 160ms var(--glean-ease-out), border-color 160ms var(--glean-ease-out); }
@@ -256,6 +258,7 @@
     .glean-backup__status-dot { width: 7px; height: 7px; flex: 0 0 7px; border-radius: 50%; background: currentColor; box-shadow: 0 0 0 4px color-mix(in srgb, currentColor 12%, transparent); animation: glean-backup-pulse 1.4s ease-in-out infinite; }
     .glean-backup :is(input, button, summary):focus-visible { outline: 2px solid var(--b3-theme-primary); outline-offset: 2px; }
     @keyframes glean-backup-pulse { 50% { opacity: .45; transform: scale(.82); } }
+    @media (prefers-reduced-motion: reduce) { .glean-backup__status-dot { animation: none; } }
     @media (max-width: 560px) {
         .glean-backup { padding: var(--glean-space-3); }
         .glean-backup__head { padding: var(--glean-space-3); }
@@ -264,5 +267,8 @@
         .glean-backup__file { min-width: min(100%, 220px); }
         .glean-backup summary { align-items: flex-start; }
         .glean-backup__row-state { margin-left: auto; }
+        .glean-backup__pagination { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) minmax(0, 1fr); }
+        .glean-backup__pagination > :is(button, span) { min-width: 0; text-align: center; }
+        .glean-backup__pagination > button { width: 100%; }
     }
 </style>

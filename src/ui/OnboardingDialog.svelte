@@ -169,9 +169,9 @@ function continueLater(): void {
     </nav>
 
     {#if step === 1}
-        <div class="glean-onb-hero">
+        <div class="glean-onb-hero" role="region" aria-labelledby="glean-onboarding-welcome-title">
             <div class="glean-empty__art"><svg aria-hidden="true"><use href="#iconGleanWheat" /></svg></div>
-            <div class="glean-empty__title">{t(i18n, "onboarding.welcomeTitle")}</div>
+            <h3 id="glean-onboarding-welcome-title" class="glean-empty__title">{t(i18n, "onboarding.welcomeTitle")}</h3>
             <div class="glean-empty__hint">{t(i18n, "onboarding.welcomeBody")}</div>
         </div>
         <div class="glean-migrate__ops">
@@ -182,7 +182,7 @@ function continueLater(): void {
             <button class="glean-btn glean-btn--pri" onclick={() => void moveTo(2)}>{t(i18n, "onboarding.next")}</button>
         </div>
     {:else if step === 2}
-        <div class="glean-sect">{t(i18n, "settings.anchorNotebooks")}</div>
+        <div id="glean-onboarding-anchor-title" class="glean-sect" role="heading" aria-level="3">{t(i18n, "settings.anchorNotebooks")}</div>
         <div class="glean-set-group">
             <div class="glean-nb-wrap">
                 {#each notebooks as notebook (notebook.id)}
@@ -213,7 +213,7 @@ function continueLater(): void {
             <button class="glean-btn glean-btn--pri" onclick={() => void next()}>{t(i18n, "onboarding.next")}</button>
         </div>
     {:else if step === 3}
-        <div class="glean-sect">{t(i18n, "onboarding.previewTitle")}</div>
+        <div id="glean-onboarding-preview-title" class="glean-sect" role="heading" aria-level="3">{t(i18n, "onboarding.previewTitle")}</div>
         {#if scanning}
             <div class="glean-panel__loading" role="status" aria-live="polite">{t(i18n, "panel.loading")}</div>
         {:else if scanFailed}

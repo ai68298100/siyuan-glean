@@ -1,5 +1,14 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-07 T-3260/D-0152）
+
+第二十九轮收口统计摘录、设置长页与弹窗表单：统计分布补标题和忙碌层级，摘录制卡保持卡片级反馈；备份分页、首启欢迎与选择状态适配窄屏；浮层、导入/迁移、排版和制卡弹窗补进度、步骤、错误关联及状态播报。未改变业务逻辑、数据、文章属性、端点或设置语义。
+
+- 当前改动文件：`src/index.scss`、`src/ui/ActionPopover.svelte`、`src/ui/BackupPanel.svelte`、`src/ui/FlashcardDialog.svelte`、`src/ui/FormattingDialog.svelte`、`src/ui/HighlightView.svelte`、`src/ui/ImportDialog.svelte`、`src/ui/MigrateDialog.svelte`、`src/ui/OnboardingDialog.svelte`、`src/ui/StatsView.svelte`。
+- 已生成静态回归截图：`output/playwright/round29-desktop.png`、`output/playwright/round29-mobile.png`；截图为当前暗色 prototype fixture 回归，非真实思源内核运行或 Android 真机验收。
+- `pnpm run check` 0 错误/0 警告；定向回归 322/322；全量测试、构建、任务账本和最终差异检查在提交前执行。
+- 版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 package.zip。
+
 ## 当前有效交接（2026-10-07 T-3260/D-0151）
 
 第二十八轮收口阅读伴生、维护流程和工作台状态：阅读上下文/作者编辑/阅读位置补标题与控件关联、操作分组和状态层级；导入/迁移/备份/制卡恢复补进度播报、阶段表面、长文案边界和忙碌反馈；预览/筛选/收件箱/空结果补当前筛选高亮、条目忙碌态和清除筛选动作。未改变业务逻辑、数据、文章属性、端点或设置语义。

@@ -276,7 +276,7 @@ function openDoc(id: string) {
     {/if}
     <div class="glean-highlights__items">
         {#each visible.items as item (item.id)}
-            <article class="glean-highlights__item">
+            <article class="glean-highlights__item" aria-busy={cardingKey === item.id}>
                 <div class="glean-highlights__item-head">
                     <span class="glean-highlights__item-label">{t(i18n, "highlight.quoteTag")}</span>
                     <span class="glean-highlights__item-index">{visible.items.indexOf(item) + 1}</span>
@@ -288,7 +288,7 @@ function openDoc(id: string) {
                 <div class="glean-highlights__tools glean-highlights__tools--card">
                     <button onclick={() => openDoc(item.id)}>{t(i18n, "highlight.original")}</button>
                     <button onclick={() => openDoc(item.rootId)}>{t(i18n, "action.openDoc")}</button>
-                    {#if scope === "current"}<button disabled={!!cardingKey} onclick={() => void card(item)}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanCard" /></svg>{t(i18n, "flashcard.make")}</button>{/if}
+                    {#if scope === "current"}<button aria-busy={cardingKey === item.id} disabled={!!cardingKey} onclick={() => void card(item)}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanCard" /></svg>{t(i18n, "flashcard.make")}</button>{/if}
                 </div>
             </article>
         {/each}

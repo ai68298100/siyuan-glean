@@ -110,20 +110,20 @@
     <div class="glean-flashcard__sides">
         <label>
             <span>{t(i18n, "flashcard.front")} ({[...front].length}/{FLASHCARD_FRONT_LIMIT})</span>
-            <textarea class="b3-text-field" bind:value={front} disabled={busy || locked} rows="7"></textarea>
+            <textarea class="b3-text-field" bind:value={front} disabled={busy || locked} rows="7" aria-invalid={validation === "emptyFront" || validation === "frontTooLong"} aria-describedby={validation && !locked ? "glean-flashcard-error" : undefined}></textarea>
         </label>
         <label>
             <span>{t(i18n, "flashcard.back")} ({[...back].length}/{FLASHCARD_BACK_LIMIT})</span>
-            <textarea class="b3-text-field" bind:value={back} disabled={busy || locked} rows="10"></textarea>
+            <textarea class="b3-text-field" bind:value={back} disabled={busy || locked} rows="10" aria-invalid={validation === "emptyBack" || validation === "backTooLong"} aria-describedby={validation && !locked ? "glean-flashcard-error" : undefined}></textarea>
         </label>
     </div>
     {#if validation && !locked}
-        <p class="glean-flashcard__error" role="alert">{t(i18n, `flashcard.validation.${validation}`, { n: validationLimit })}</p>
+        <p id="glean-flashcard-error" class="glean-flashcard__error" role="alert">{t(i18n, `flashcard.validation.${validation}`, { n: validationLimit })}</p>
     {/if}
     <p class="glean-flashcard__hint">
         {aiOn ? t(i18n, "flashcard.aiPrivacy", { n: FLASHCARD_AI_QUOTE_LIMIT, channel }) : t(i18n, "flashcard.aiOff")}
     </p>
-    <div class="glean-flashcard__status {confirming || busy ? "glean-flashcard__status--busy" : message ? "glean-flashcard__status--message" : ""}" role="status" aria-live="polite">{confirming ? t(i18n, "flashcard.saving") : busy ? t(i18n, "panel.loading") : message}</div>
+    <div class="glean-flashcard__status {confirming || busy ? "glean-flashcard__status--busy" : message ? "glean-flashcard__status--message" : ""}" role="status" aria-live="polite" aria-atomic="true">{confirming ? t(i18n, "flashcard.saving") : busy ? t(i18n, "panel.loading") : message}</div>
     <div class="glean-flashcard__actions glean-flashcard__actions--footer">
         {#if aiOn}
             <button class="glean-btn glean-btn--ghost" disabled={busy || locked} onclick={() => void questionDraft()}>{t(i18n, "flashcard.aiDraft")}</button>

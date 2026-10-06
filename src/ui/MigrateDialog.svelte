@@ -217,18 +217,18 @@ function rowStateLabel(row: MigrateRow): string {
     </div>
 
     {#if phase !== "intro"}
-        <div class="glean-stepper">
-            <div class="glean-step" class:glean-step--done={step > 1} class:glean-step--on={step === 1}>
+        <div class="glean-stepper" role="list" aria-label={t(i18n, "migrate.title")}>
+            <div class="glean-step" role="listitem" aria-current={step === 1 ? "step" : undefined} class:glean-step--done={step > 1} class:glean-step--on={step === 1}>
                 <div class="glean-step__ball">{step > 1 ? "✓" : "1"}</div>
                 <div class="glean-step__lb">{t(i18n, "migrate.stepScan")}</div>
             </div>
             <div class="glean-stepper__line" class:glean-stepper__line--done={step > 2}></div>
-            <div class="glean-step" class:glean-step--done={step > 2} class:glean-step--on={step === 2}>
+            <div class="glean-step" role="listitem" aria-current={step === 2 ? "step" : undefined} class:glean-step--done={step > 2} class:glean-step--on={step === 2}>
                 <div class="glean-step__ball">{step > 2 ? "✓" : "2"}</div>
                 <div class="glean-step__lb">{t(i18n, "migrate.stepRun")}</div>
             </div>
             <div class="glean-stepper__line" class:glean-stepper__line--done={step > 2}></div>
-            <div class="glean-step" class:glean-step--on={step === 3}>
+            <div class="glean-step" role="listitem" aria-current={step === 3 ? "step" : undefined} class:glean-step--on={step === 3}>
                 <div class="glean-step__ball">3</div>
                 <div class="glean-step__lb">{t(i18n, "migrate.stepDone")}</div>
             </div>
@@ -326,7 +326,7 @@ function rowStateLabel(row: MigrateRow): string {
         </div>
     {:else if phase === "running" || phase === "paused"}
         <div role="status" aria-live="polite" aria-atomic="true">
-            <div class="glean-progress"><div class="glean-progress__bar" style={`width:${progressPct}%`}></div></div>
+            <div class="glean-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow={progressPct} aria-label={t(i18n, "migrate.writing")}><div class="glean-progress__bar" style={`width:${progressPct}%`}></div></div>
             <div class="glean-prog-meta">
                 <span>{t(i18n, "migrate.writing")} {cursor} / {rows.length}{phase === "paused" ? `（${t(i18n, "migrate.paused")}）` : ""}</span>
                 <span>{t(i18n, "migrate.batchNote", { n: facade.settings.migrateBatchSize })}</span>

@@ -193,11 +193,12 @@ function downloadCsv(): void {
             </div>
         </details>
     </section>
-    <section class="glean-stats__breakdown">
+    <section class="glean-stats__breakdown" aria-labelledby="glean-stats-breakdown-title">
+      <h3 id="glean-stats-breakdown-title" class="glean-sr-only">{t(i18n, "review.title")}</h3>
       <div class="glean-stats__distributions">
-        {#each distributions as distribution (distribution.key)}
-            <section class="glean-stats__distribution">
-            <h3>{t(i18n, distribution.key)}</h3>
+        {#each distributions as distribution, distributionIndex (distribution.key)}
+            <section class="glean-stats__distribution" aria-labelledby={`glean-stats-distribution-${distributionIndex}`}>
+            <h3 id={`glean-stats-distribution-${distributionIndex}`}>{t(i18n, distribution.key)}</h3>
             <DistributionList {i18n} counts={distribution.counts}>
                 {#snippet detailsFor(group)}
                     {#if distribution.key === "review.bySite"}
@@ -227,7 +228,7 @@ function downloadCsv(): void {
             {:else}<li class="glean-stats__completed-empty">{t(i18n, "review.noCompleted")}</li>{/each}
         </ul>
     </section>
-    <p class="glean-stats__status" role="status" aria-live="polite">{busy ? t(i18n, "panel.loading") : message}</p>
+    <p class="glean-stats__status" role="status" aria-live="polite" aria-busy={busy}>{busy ? t(i18n, "panel.loading") : message}</p>
     <div class="glean-stats__toolbar">
         {#if !session}
             <button class="glean-btn glean-btn--pri" disabled={busy || !reference} onclick={() => void preview()}>{t(i18n, "review.preview")}</button>
