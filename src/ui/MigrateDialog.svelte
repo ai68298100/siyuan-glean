@@ -299,7 +299,7 @@ function rowStateLabel(row: MigrateRow): string {
             {/each}
         </div>
         <div class="glean-migrate__ops">
-            <select class="b3-select" style="font-size:12px" aria-label={t(i18n, "migrate.filterAll")} bind:value={filter}>
+            <select class="b3-select glean-migrate__filter" aria-label={t(i18n, "migrate.filterAll")} bind:value={filter}>
                 <option value="all">{t(i18n, "migrate.filterAll")}</option>
                 <option value="pending">{t(i18n, "migrate.filterPending")}</option>
                 <option value="manual">{t(i18n, "migrate.needUrl")}</option>
@@ -310,11 +310,10 @@ function rowStateLabel(row: MigrateRow): string {
             <label class="glean-migrate__batch-size">
                 {t(i18n, "migrate.batchSize")}
                 <input
-                    class="glean-mini-input"
                     type="number"
                     min="1"
                     max="50"
-                    style="width:64px"
+                    class="glean-mini-input glean-migrate__batch-input"
                     value={facade.settings.migrateBatchSize}
                     onchange={(e) => void updateBatchSize(e.currentTarget)}
                 />

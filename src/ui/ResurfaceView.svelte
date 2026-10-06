@@ -230,7 +230,7 @@ function reasonText(reason: SurfaceReason): string {
 </script>
 
 <div class="glean-panel glean-resurface" class:glean-resurface--embedded={embedded}>
-    {#if !embedded}<header class="glean-panel__head" style="padding-bottom: 4px">
+    {#if !embedded}<header class="glean-panel__head glean-resurface__head">
         <div class="glean-brand">
             <div class="glean-brand__mark"><svg><use href="#iconGleanWheat" /></svg></div>
             <div>
@@ -267,7 +267,7 @@ function reasonText(reason: SurfaceReason): string {
             <div class="glean-empty__art"><svg aria-hidden="true"><use href="#iconGleanWheat" /></svg></div>
             <div class="glean-empty__title">{t(i18n, "resurface.noAnchor")}</div>
             <div class="glean-empty__hint">{t(i18n, "panel.noAnchorHint")}</div>
-            <button class="glean-btn" style="margin-top:10px" onclick={() => facade.openSettings()}>
+            <button class="glean-btn glean-resurface__setup" onclick={() => facade.openSettings()}>
                 {t(i18n, "panel.setupAnchor")}
             </button>
         </div>
@@ -292,7 +292,7 @@ function reasonText(reason: SurfaceReason): string {
             </div>
         {/if}
         {#if picks.length === 0}
-            <div class="glean-empty" style="padding: 24px 12px">
+            <div class="glean-empty glean-resurface__done-empty">
                 <div class="glean-empty__hint">{t(i18n, "resurface.allDoneHint")}</div>
             </div>
         {/if}

@@ -325,7 +325,7 @@ async function doMountBoard() {
                     </button>
                 {/each}
                 {#if notebooks.length === 0}
-                    <span style="font-size:11.5px; color:var(--b3-theme-on-surface)">—</span>
+                    <span class="glean-settings__empty">—</span>
                 {/if}
             </div>
             <div class="glean-set-row">
@@ -483,7 +483,7 @@ async function doMountBoard() {
                 </div>
                 <div class="glean-set-row">
                     <div class="glean-set-row__lb">{t(i18n, "settings.testConnection")}</div>
-                    <button class="glean-btn" style="flex-shrink:0" disabled={testBusy} onclick={() => void testChannel()}>
+                    <button class="glean-btn glean-action-btn" disabled={testBusy} onclick={() => void testChannel()}>
                         {testBusy ? t(i18n, "panel.loading") : t(i18n, "settings.testConnection")}
                     </button>
                 </div>
@@ -521,7 +521,7 @@ async function doMountBoard() {
                     {t(i18n, "board.mountTitle")}
                     <div class="glean-set-row__desc">{t(i18n, "board.mountDesc")}</div>
                 </div>
-                <button class="glean-btn glean-btn--pri" style="flex-shrink:0" disabled={boardBusy} onclick={() => void doMountBoard()}>
+                <button class="glean-btn glean-btn--pri glean-action-btn" disabled={boardBusy} onclick={() => void doMountBoard()}>
                     {boardBusy ? t(i18n, "panel.loading") : t(i18n, "board.mountAction")}
                 </button>
             </div>
@@ -530,7 +530,7 @@ async function doMountBoard() {
                     {t(i18n, "settings.exportLibraryCsv")}
                     <div class="glean-set-row__desc">{t(i18n, "settings.exportLibraryCsvDesc")}</div>
                 </div>
-                <button class="glean-btn" style="flex-shrink:0" disabled={Boolean(exportBusy)} onclick={() => void exportData("csv")}>
+                <button class="glean-btn glean-action-btn" disabled={Boolean(exportBusy)} onclick={() => void exportData("csv")}>
                     {exportBusy === "csv" ? t(i18n, "settings.exporting") : t(i18n, "settings.exportLibraryCsv")}
                 </button>
             </div>
@@ -539,7 +539,7 @@ async function doMountBoard() {
                     {t(i18n, "settings.exportDiagnostic")}
                     <div class="glean-set-row__desc">{t(i18n, "settings.exportDiagnosticDesc")}</div>
                 </div>
-                <button class="glean-btn" style="flex-shrink:0" disabled={Boolean(exportBusy)} onclick={() => void exportData("diagnostic")}>
+                <button class="glean-btn glean-action-btn" disabled={Boolean(exportBusy)} onclick={() => void exportData("diagnostic")}>
                     {exportBusy === "diagnostic" ? t(i18n, "settings.exporting") : t(i18n, "settings.exportDiagnostic")}
                 </button>
             </div>
@@ -638,7 +638,7 @@ async function doMountBoard() {
                     {t(i18n, "settings.rebuildIndex")}
                     <div class="glean-set-row__desc">{t(i18n, "settings.rebuildIndexDesc")}</div>
                 </div>
-                <button class="glean-btn" style="flex-shrink:0" onclick={() => void doRebuildIndex()}>
+                <button class="glean-btn glean-action-btn" onclick={() => void doRebuildIndex()}>
                     {t(i18n, "settings.rebuildIndex")}
                 </button>
             </div>
@@ -647,7 +647,7 @@ async function doMountBoard() {
                     {t(i18n, "import.title")}
                     <div class="glean-set-row__desc">{t(i18n, "import.entryDesc")}</div>
                 </div>
-                <button class="glean-btn" style="flex-shrink:0" onclick={() => facade.openImport()}>
+                <button class="glean-btn glean-action-btn" onclick={() => facade.openImport()}>
                     {t(i18n, "import.entryAction")}
                 </button>
             </div>
@@ -656,12 +656,12 @@ async function doMountBoard() {
                     {t(i18n, "settings.aiLog")}
                     <div class="glean-set-row__desc">{t(i18n, "settings.aiLogDesc")}</div>
                 </div>
-                <button class="glean-btn" style="flex-shrink:0" onclick={() => void toggleAiLog()}>
+                <button class="glean-btn glean-action-btn" onclick={() => void toggleAiLog()}>
                     {aiLog === null ? t(i18n, "settings.aiLogView") : t(i18n, "action.close")}
                 </button>
             </div>
             {#if aiLog !== null && aiLog.length > 0}
-                <div class="glean-set-row" style="flex-direction:column; align-items:stretch; gap:6px">
+                <div class="glean-set-row glean-settings__log-list">
                     {#each aiLog as entry (entry.at + entry.docId)}
                         <div class="glean-logrow">
                             <span class="glean-logrow__time">{entry.at.slice(5, 16).replace("T", " ")}</span>
@@ -671,7 +671,7 @@ async function doMountBoard() {
                     {/each}
                 </div>
             {:else if aiLog !== null}
-                <div class="glean-set-row" style="font-size:11.5px; color:var(--b3-theme-on-surface)">
+                <div class="glean-set-row glean-settings__log-empty">
                     {t(i18n, "settings.aiLogEmpty")}
                 </div>
             {/if}
