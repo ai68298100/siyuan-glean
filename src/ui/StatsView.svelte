@@ -159,7 +159,7 @@ function downloadCsv(): void {
     </dl>
     <p class="glean-stats__candidates">{t(i18n, "review.candidates")}: {review.candidateCount}</p>
     <h3>{t(i18n, "review.heatmap", { year: reference?.getFullYear() ?? new Date().getFullYear() })}</h3>
-    <div class="glean-stats__heatmap-scroll" aria-hidden="true">
+    <div class="glean-stats__heatmap-scroll" role="img" aria-label={t(i18n, "review.heatmap", { year: reference?.getFullYear() ?? new Date().getFullYear() })}>
         <div class="glean-stats__heatmap">
             {#each Array.from({ length: heatmapPadding }, (_, index) => index) as padding (padding)}<span></span>{/each}
             {#each stats.heatmap as day (day.date)}
@@ -205,7 +205,7 @@ function downloadCsv(): void {
                 <button class="glean-stats__link" onclick={() => facade.openReadingDocument(item.id)}>{item.title || t(i18n, "review.untitled")}</button>
                 <span>{item.doneTime.slice(0, 4)}-{item.doneTime.slice(4, 6)}-{item.doneTime.slice(6, 8)}</span>
             </li>
-        {:else}<li>{t(i18n, "review.noCompleted")}</li>{/each}
+        {:else}<li class="glean-stats__completed-empty">{t(i18n, "review.noCompleted")}</li>{/each}
     </ul>
     <p class="glean-stats__status" role="status" aria-live="polite">{busy ? t(i18n, "panel.loading") : message}</p>
     <div class="glean-stats__toolbar">

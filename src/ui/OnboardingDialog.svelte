@@ -289,7 +289,7 @@ function continueLater(): void {
         <div class="glean-empty" style="padding: 0 12px">
             <div class="glean-empty__hint">
                 {t(i18n, "onboarding.importLink")}
-                <button class="glean-linkish" onclick={() => void finish(true)}>{t(i18n, "import.title")} →</button>
+                <button class="glean-linkish" onclick={() => void finish(true)}>{t(i18n, "import.title")} <svg class="glean-icon glean-icon--xs" aria-hidden="true"><use href="#iconGleanArrowRight" /></svg></button>
             </div>
         </div>
         <div class="glean-migrate__ops">

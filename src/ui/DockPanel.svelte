@@ -1062,6 +1062,35 @@ $effect(() => {
     return installEscapeHandler(root, onKey);
 });
 
+/** 移动端更多菜单是轻量浮层：点击边界外或按 Escape 时收起，避免菜单残留在下一次视图里。 */
+$effect(() => {
+    if (!facade.isMobile || !mobileMoreOpen || !rootEl) return;
+    const onPointerDown = (event: PointerEvent) => {
+        const target = event.target;
+        if (target instanceof Element && target.closest(".glean-mobile-topbar__more")) return;
+        mobileMoreOpen = false;
+    };
+    const onFocusIn = (event: FocusEvent) => {
+        const target = event.target;
+        if (target instanceof Element && target.closest(".glean-mobile-topbar__more")) return;
+        mobileMoreOpen = false;
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+        if (event.key !== "Escape" || event.defaultPrevented || event.isComposing || event.repeat) return;
+        mobileMoreOpen = false;
+        event.preventDefault();
+        event.stopPropagation();
+    };
+    document.addEventListener("pointerdown", onPointerDown, true);
+    document.addEventListener("focusin", onFocusIn, true);
+    document.addEventListener("keydown", onKeyDown, true);
+    return () => {
+        document.removeEventListener("pointerdown", onPointerDown, true);
+        document.removeEventListener("focusin", onFocusIn, true);
+        document.removeEventListener("keydown", onKeyDown, true);
+    };
+});
+
 /** 全文/仅链接的有效来源是次级动作；打开来源不会改变文章状态。 */
 function openSource(entry: ClipIndexEntry) {
     const url = sourceUrlForCarrier(entry.contentType, entry.url);
@@ -1416,7 +1445,7 @@ function metaLine(entry: Row): string {
         {#if filterChips.length > 0}
             <div class="glean-filter-chips" aria-label={t(i18n, "library.filters")}>
                 {#each filterChips as chip (chip.key)}
-                    <button class="glean-filter-chip" title={filterChipText(chip.key, chip.value)} aria-label={t(i18n, "library.removeFilter", { name: filterChipText(chip.key, chip.value) })} onclick={() => removeFilterChip(chip.key)}>{filterChipText(chip.key, chip.value)} <span aria-hidden="true">×</span></button>
+                    <button class="glean-filter-chip" title={filterChipText(chip.key, chip.value)} aria-label={t(i18n, "library.removeFilter", { name: filterChipText(chip.key, chip.value) })} onclick={() => removeFilterChip(chip.key)}><span class="glean-filter-chip__label">{filterChipText(chip.key, chip.value)}</span><svg class="glean-icon glean-icon--xs" aria-hidden="true"><use href="#iconGleanClose" /></svg></button>
                 {/each}
             </div>
         {/if}
@@ -1511,7 +1540,7 @@ function metaLine(entry: Row): string {
                                 aria-label={t(i18n, "library.toggleDirection")}
                                 onclick={() => (mobileFilterDraft.direction = mobileFilterDraft.direction === "desc" ? "asc" : "desc")}
                             >
-                                {mobileFilterDraft.direction === "desc" ? "↓" : "↑"}
+                                <svg class="glean-icon glean-icon--xs" aria-hidden="true"><use href={mobileFilterDraft.direction === "desc" ? "#iconGleanArrowDown" : "#iconGleanArrowUp"} /></svg>
                             </button>
                         </div>
                     </div>
@@ -1986,7 +2015,7 @@ function metaLine(entry: Row): string {
                         <button class="glean-bb" disabled={batchBusy} onclick={() => void batchApply("done")}>{t(i18n, "status.done")}</button>
                         <button class="glean-bb glean-bb--pri" disabled={batchBusy} onclick={() => void batchApply("archived")}>{t(i18n, "action.batchArchive")}</button>
                         <button class="glean-bb" disabled={batchBusy} onclick={() => { aiBatchIds = [...selection]; aiBatchOpen = true; }}>{t(i18n, "aiBatch.title")}</button>
-                        <button class="glean-bb" aria-label={t(i18n, "action.cancel")} onclick={() => (selection = new Set())}>✕</button>
+                        <button class="glean-bb" aria-label={t(i18n, "action.cancel")} onclick={() => (selection = new Set())}><svg class="glean-icon glean-icon--xs" aria-hidden="true"><use href="#iconGleanClose" /></svg></button>
                     </div>
                 </footer>
             {/if}

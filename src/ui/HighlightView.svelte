@@ -209,7 +209,7 @@ function openDoc(id: string) {
 </script>
 
 <div class="glean-panel glean-highlights" aria-busy={loading || exportBusy}>
-    <div class="glean-highlights__tools">
+    <div class="glean-highlights__tools" role="group" aria-label={t(i18n, "highlight.title")}>
         <button aria-pressed={scope === "current"} disabled={exportBusy} onclick={() => scope = "current"}>{t(i18n, "highlight.current")}</button>
         <button aria-pressed={scope === "library"} disabled={exportBusy} onclick={() => scope = "library"}>{t(i18n, "highlight.allLibrary")}</button>
         <button disabled={loading || exportBusy} onclick={refresh}>{t(i18n, "action.refresh")}</button>
@@ -220,15 +220,23 @@ function openDoc(id: string) {
         <label>{t(i18n, "library.filterTag")}<select bind:value={tag} onchange={() => page = 1}><option value="">{t(i18n, "action.filterAll")}</option>{#each facets.tags as value}<option value={value}>{value}</option>{/each}</select></label>
         <label>{t(i18n, "library.filterAiTag")}<select bind:value={aiTag} onchange={() => page = 1}><option value="">{t(i18n, "action.filterAll")}</option>{#each facets.aiTags as value}<option value={value}>{value}</option>{/each}</select></label>
         <label>{t(i18n, "library.sort")}<select bind:value={sort} onchange={() => page = 1}><option value="id">{t(i18n, "action.sortTime")}</option><option value="title">{t(i18n, "library.sortTitle")}</option><option value="site">{t(i18n, "library.filterSite")}</option></select></label>
-        <button class="glean-filter-dir" aria-label={t(i18n, "library.toggleDirection")} title={t(i18n, "library.toggleDirection")} onclick={() => { direction = direction === "asc" ? "desc" : "asc"; page = 1; }}><span class="glean-filter-dir__icon" aria-hidden="true">{direction === "asc" ? "↑" : "↓"}</span><span class="glean-filter-dir__label">{t(i18n, "library.toggleDirection")}</span></button>
+        <button class="glean-filter-dir" aria-label={t(i18n, "library.toggleDirection")} title={t(i18n, "library.toggleDirection")} onclick={() => { direction = direction === "asc" ? "desc" : "asc"; page = 1; }}><span class="glean-filter-dir__icon" aria-hidden="true"><svg class="glean-icon glean-icon--xs"><use href={direction === "asc" ? "#iconGleanArrowUp" : "#iconGleanArrowDown"} /></svg></span><span class="glean-filter-dir__label">{t(i18n, "library.toggleDirection")}</span></button>
         <button onclick={clearFilters}>{t(i18n, "library.clearFilters")}</button>
     </div>
-    {#if loading}<p role="status">{t(i18n, "panel.loading")}</p>{/if}
+    {#if loading}
+        <div class="glean-highlights__loading" role="status" aria-live="polite" aria-label={t(i18n, "panel.loading")}>
+            {#each [0, 1, 2] as placeholder (placeholder)}
+                <div class="glean-highlights__loading-card" aria-hidden="true">
+                    <span></span><span></span><span></span>
+                </div>
+            {/each}
+        </div>
+    {/if}
     {#if loadError}
         <div class="glean-highlights__error" role="alert"><p>{loadError}</p><button disabled={loading} onclick={refresh}>{t(i18n, "action.retry")}</button></div>
     {/if}
-    <div class="glean-highlights__tools glean-highlights__tools--selection">
-        <span class="glean-highlights__selection-count">{t(i18n, "action.selected")} {selected.length}</span>
+    <div class="glean-highlights__tools glean-highlights__tools--selection" role="group" aria-label={t(i18n, "action.selected")}>
+        <span class="glean-highlights__selection-count" aria-live="polite" aria-atomic="true">{t(i18n, "action.selected")} {selected.length}</span>
         <button disabled={loading || exportBusy || !visible.items.length} onclick={selectPage}>{t(i18n, "highlight.selectPage")}</button>
         <button disabled={exportBusy || !selected.length} onclick={() => selected = []}>{t(i18n, "highlight.clearSelection")}</button>
         <button disabled={loading || exportBusy || !selected.length} onclick={() => void runExport("copy")}>{t(i18n, "highlight.copy")}</button>
@@ -283,7 +291,7 @@ function openDoc(id: string) {
     </nav>
     {#if scope === "current" && related.length}
         <div class="glean-sect">✨ {t(i18n, "ai.relatedTitle")}</div>
-        {#each related as item (item.id)}<button class="glean-rel" onclick={() => openDoc(item.id)}><span class="glean-rel__t">{item.title}</span><span class="glean-rel__go">→</span></button>{/each}
+        {#each related as item (item.id)}<button class="glean-rel" onclick={() => openDoc(item.id)}><span class="glean-rel__t">{item.title}</span><svg class="glean-rel__go glean-icon glean-icon--xs" aria-hidden="true"><use href="#iconGleanArrowRight" /></svg></button>{/each}
         <div class="glean-highlights__meta">AI · {t(i18n, "ai.actionsPreview")}</div>
     {/if}
 </div>

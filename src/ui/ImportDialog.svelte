@@ -382,9 +382,9 @@ function openProgressDocument(id: string): void {
         </div>
         {#if previewPageCount > 1}
             <div class="glean-prog-meta" style="margin-top:6px">
-                <button class="glean-btn glean-btn--ghost" style="font-size:11px; padding:4px 10px" disabled={previewPage <= 1} onclick={() => (previewPage -= 1)}>← {t(i18n, "import.prevPage")}</button>
+                <button class="glean-btn glean-btn--ghost" style="font-size:11px; padding:4px 10px" disabled={previewPage <= 1} onclick={() => (previewPage -= 1)}><svg class="glean-icon glean-icon--xs" aria-hidden="true"><use href="#iconGleanArrowLeft" /></svg>{t(i18n, "import.prevPage")}</button>
                 <span>{t(i18n, "import.pageInfo", { page: previewPage, total: previewPageCount })}</span>
-                <button class="glean-btn glean-btn--ghost" style="font-size:11px; padding:4px 10px" disabled={previewPage >= previewPageCount} onclick={() => (previewPage += 1)}>{t(i18n, "import.nextPage")} →</button>
+                <button class="glean-btn glean-btn--ghost" style="font-size:11px; padding:4px 10px" disabled={previewPage >= previewPageCount} onclick={() => (previewPage += 1)}>{t(i18n, "import.nextPage")}<svg class="glean-icon glean-icon--xs" aria-hidden="true"><use href="#iconGleanArrowRight" /></svg></button>
             </div>
         {/if}
         <div class="glean-migrate__ops">

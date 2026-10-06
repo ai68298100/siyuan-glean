@@ -303,7 +303,7 @@ async function doMountBoard() {
     </div>
     {#if showNewbieHint}
         <div class="glean-set-group glean-settings__newbie-hint" role="status">
-            <span class="glean-settings__newbie-hint-text">🌾 {t(i18n, "settings.newbieHint")}</span>
+            <span class="glean-settings__newbie-hint-text"><svg class="glean-icon glean-icon--sm" aria-hidden="true"><use href="#iconGleanWheat" /></svg>{t(i18n, "settings.newbieHint")}</span>
             <button class="glean-linkish glean-settings__newbie-hint-dismiss" disabled={dismissHintBusy} onclick={() => void dismissNewbieHint()}>
                 {t(i18n, "settings.dismissNewbieHint")}
             </button>

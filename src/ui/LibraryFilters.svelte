@@ -42,7 +42,7 @@
         <option value="rating">{t(i18n, "library.sortRating")}</option>
         <option value="title">{t(i18n, "library.sortTitle")}</option>
     </select>
-    <button class="glean-filter-dir" aria-label={t(i18n, "library.toggleDirection")} title={t(i18n, "library.toggleDirection")} onclick={() => direction = direction === "desc" ? "asc" : "desc"}><span class="glean-filter-dir__icon" aria-hidden="true">{direction === "desc" ? "↓" : "↑"}</span><span class="glean-filter-dir__label">{t(i18n, "library.toggleDirection")}</span></button>
+    <button class="glean-filter-dir" aria-label={t(i18n, "library.toggleDirection")} title={t(i18n, "library.toggleDirection")} onclick={() => direction = direction === "desc" ? "asc" : "desc"}><span class="glean-filter-dir__icon" aria-hidden="true"><svg class="glean-icon glean-icon--xs"><use href={direction === "desc" ? "#iconGleanArrowDown" : "#iconGleanArrowUp"} /></svg></span><span class="glean-filter-dir__label">{t(i18n, "library.toggleDirection")}</span></button>
     <ActionPopover label={t(i18n, "library.moreFilters")}>
         <label>{t(i18n, "library.filterAuthor")}
             <select class="b3-select glean-filter" bind:value={author}>

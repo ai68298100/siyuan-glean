@@ -59,7 +59,7 @@
     </button>
     {#if selected && group !== "queues" && (prefs.collapsed || selectedMissing)}
         <button class="glean-rail__item glean-rail__item--on" title={t(i18n, "rail.clearSelected", { value: selected })} onclick={() => onSelect(selected)}>
-            <span class="glean-rail__value">{prefix}{itemLabel(selected)}</span><span aria-hidden="true">×</span>
+            <span class="glean-rail__value">{prefix}{itemLabel(selected)}</span><svg class="glean-icon glean-icon--xs" aria-hidden="true"><use href="#iconGleanClose" /></svg>
         </button>
     {/if}
     {#if !prefs.collapsed}
