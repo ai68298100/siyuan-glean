@@ -1085,13 +1085,33 @@ body.b3-theme-dark {
 }
 
 .glean-reader__toolbar-title {
-    flex: 1;
+    flex: 0 1 auto;
     min-width: 80px;
     color: var(--b3-theme-on-background);
     font-size: var(--glean-text-md);
     font-weight: 650;
     line-height: 1.35;
     overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.glean-reader__toolbar-heading {
+    display: flex;
+    flex: 1 1 auto;
+    min-width: 0;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.glean-reader__toolbar-meta {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--b3-theme-on-surface);
+    font-size: var(--glean-text-xs);
+    font-weight: 450;
+    line-height: 1.25;
+    opacity: .78;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
@@ -1127,22 +1147,37 @@ body.b3-theme-dark {
     min-width: 0;
     display: flex;
     flex-direction: column;
+    background: var(--glean-reader-background, var(--b3-theme-background));
+    overflow: hidden;
 }
 
 .glean-reader__host {
     flex: 1;
     min-height: 0;
+    min-width: 0;
     overflow: auto;
+    background: var(--glean-reader-background, var(--b3-theme-background));
+    overscroll-behavior: contain;
+    scroll-padding-block: 32px;
     scrollbar-gutter: stable;
+    scrollbar-width: thin;
 }
 
 .glean-reader__host .protyle-wysiwyg {
+    box-sizing: border-box;
+    width: 100%;
     background: var(--glean-reader-background, var(--b3-theme-background));
     color: var(--glean-reader-foreground, var(--b3-theme-on-background));
     font-size: var(--glean-reader-font-size, 1em);
     line-height: var(--glean-reader-line-height, 1.6);
     max-width: var(--glean-reader-width, none);
+    min-height: 100%;
+    padding: 32px clamp(24px, 5vw, 56px) 64px;
     margin-inline: auto;
+}
+
+.glean-reader__host .protyle-wysiwyg ::selection {
+    background: var(--glean-selection-surface);
 }
 
 .glean-reader[data-reader-font-size="small"] .protyle-wysiwyg { --glean-reader-font-size: .92em; }
@@ -1156,16 +1191,19 @@ body.b3-theme-dark {
 .glean-reader[data-reader-theme="eye"] { --glean-reader-background: var(--b3-theme-surface-light); --glean-reader-foreground: var(--b3-theme-on-surface); }
 
 .glean-reader__side {
-    width: 264px;
+    width: 300px;
+    max-width: min(300px, 34vw);
     flex-shrink: 0;
     border-left: 1px solid var(--glean-border-soft);
-    padding: 12px;
+    padding: 16px;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 12px;
     overflow-y: auto;
     background: var(--glean-section-surface);
+    overscroll-behavior: contain;
     scrollbar-gutter: stable;
+    scrollbar-width: thin;
 }
 
 .glean-reader__side[hidden] { display: none; }
@@ -1227,6 +1265,7 @@ body.b3-theme-dark {
 .glean-reader__title {
     font-size: 14px;
     font-weight: 700;
+    letter-spacing: -0.01em;
     line-height: 1.4;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -1259,6 +1298,10 @@ body.b3-theme-dark {
 
 .glean-reader__toolbar-primary {
     box-shadow: var(--glean-shadow-accent);
+}
+
+.glean-reader__toolbar {
+    min-height: 48px;
 }
 
 .glean-reader__toolbar :where(.glean-btn, .glean-seg__btn) {
@@ -1603,6 +1646,7 @@ body.b3-theme-dark {
 
     .glean-reader__side {
         width: auto;
+        max-width: none;
         max-height: none;
         border-top: 1px solid var(--glean-border-soft);
         border-left: 0;
@@ -1614,6 +1658,11 @@ body.b3-theme-dark {
     }
 
     .glean-reader__toolbar-title {
+        flex-basis: auto;
+        order: -1;
+    }
+
+    .glean-reader__toolbar-heading {
         flex-basis: 100%;
         order: -1;
     }
@@ -1676,6 +1725,7 @@ body.b3-theme-dark {
 
     .glean-reader__side {
         width: auto;
+        max-width: none;
         max-height: none;
         border-top: 1px solid var(--glean-border-soft);
         border-left: 0;
@@ -1705,6 +1755,10 @@ body.b3-theme-dark {
     }
 
     .glean-reader__toolbar-title {
+        flex-basis: auto;
+    }
+
+    .glean-reader__toolbar-heading {
         flex-basis: 100%;
     }
 
@@ -7775,5 +7829,215 @@ body.b3-theme-dark .glean-panel--mobile,
 
     .glean-settings__extension-card {
         background: transparent;
+    }
+}
+
+/* 第二十一轮：宽屏工作台的密度与滚动边界。保持原型的 rail + 内容层级，
+   让桌面导航轻量、列表列宽稳定、看板和预览各自滚动。 */
+@container glean-workbench (min-width: 760px) {
+    .glean-panel__head {
+        padding-inline: 18px;
+        gap: var(--glean-space-2);
+    }
+
+    .glean-views {
+        align-self: flex-start;
+        width: max-content;
+        max-width: 100%;
+        overflow-x: auto;
+        scrollbar-width: none;
+    }
+
+    .glean-views::-webkit-scrollbar {
+        display: none;
+    }
+
+    .glean-views__btn {
+        flex: 0 0 auto;
+        min-width: 82px;
+    }
+
+    .glean-libbar {
+        min-height: 44px;
+        padding-inline: 18px;
+    }
+
+    .glean-libbar > strong {
+        color: var(--b3-theme-on-background);
+        font-size: var(--glean-text-lg);
+        font-weight: 720;
+        letter-spacing: -0.01em;
+    }
+
+    .glean-lib__main {
+        scroll-padding-block: var(--glean-space-3);
+        overscroll-behavior: contain;
+    }
+
+    .glean-kanban {
+        overscroll-behavior: contain;
+        scrollbar-gutter: stable;
+    }
+
+    .glean-kcol {
+        min-width: 0;
+        overscroll-behavior: contain;
+    }
+
+    .glean-preview-separator {
+        background: color-mix(in srgb, var(--glean-inset-surface) 84%, var(--b3-theme-surface));
+    }
+
+    .glean-preview-separator::-webkit-slider-thumb {
+        width: 5px;
+        border-radius: 999px;
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--b3-theme-primary) 10%, transparent);
+    }
+
+    .glean-preview-separator::-moz-range-thumb {
+        width: 5px;
+        border-radius: 999px;
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--b3-theme-primary) 10%, transparent);
+    }
+}
+
+/* 无预览的宽屏列表可以保持一行信息密度；带预览的列表继续允许自然换行，
+   避免右侧上下文被窄内容区挤压。 */
+@container glean-workbench (min-width: 1040px) {
+    .glean-lib:not(.glean-lib--preview) .glean-drow {
+        flex-wrap: nowrap;
+        min-height: 46px;
+        padding-inline: 14px;
+    }
+
+    .glean-lib:not(.glean-lib--preview) .glean-drow__site {
+        width: 164px;
+    }
+
+    .glean-lib:not(.glean-lib--preview) .glean-drow__len {
+        width: 128px;
+    }
+
+    .glean-lib:not(.glean-lib--preview) .glean-drow__st {
+        width: 84px;
+    }
+}
+
+/* 第二十一轮：设置长页的边界和异常状态收口。让 sticky footer 不遮挡最后一组操作，
+   错误/日志在窄屏保持可读，备份文件控件也与插件按钮共享视觉重量。 */
+.glean-settings {
+    scroll-padding-block: var(--glean-space-3) calc(88px + env(safe-area-inset-bottom, 0px));
+}
+
+.glean-settings__footer {
+    bottom: calc(-16px + env(safe-area-inset-bottom, 0px));
+    box-shadow: 0 -8px 18px color-mix(in srgb, var(--b3-theme-background) 26%, transparent);
+}
+
+.glean-settings .glean-set-row[role="alert"] {
+    align-items: flex-start;
+    color: var(--b3-theme-error);
+    background: var(--glean-error-surface);
+    border-bottom-color: color-mix(in srgb, var(--b3-theme-error) 22%, var(--glean-border-soft));
+}
+
+.glean-settings__error {
+    display: inline-flex;
+    align-items: flex-start;
+    gap: var(--glean-space-2);
+    min-width: 0;
+    color: var(--b3-theme-error);
+    font-size: var(--glean-text-sm);
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+
+.glean-settings__error::before {
+    content: "!";
+    display: inline-grid;
+    place-items: center;
+    width: 16px;
+    height: 16px;
+    flex: 0 0 16px;
+    margin-top: 1px;
+    border: 1px solid color-mix(in srgb, var(--b3-theme-error) 42%, transparent);
+    border-radius: 50%;
+    font-size: 11px;
+    font-weight: 750;
+    line-height: 1;
+}
+
+.glean-backup__file input::file-selector-button {
+    min-height: 28px;
+    margin-right: var(--glean-space-2);
+    padding: 4px 9px;
+    border: 1px solid var(--glean-border-soft);
+    border-radius: var(--glean-radius-sm);
+    color: var(--b3-theme-on-surface);
+    background: var(--glean-inset-surface);
+    font: inherit;
+    cursor: pointer;
+    transition: background-color 160ms var(--glean-ease-out), border-color 160ms var(--glean-ease-out);
+}
+
+.glean-backup__file input:hover::file-selector-button {
+    border-color: color-mix(in srgb, var(--b3-theme-primary) 45%, var(--glean-border-soft));
+    background: var(--glean-primary-soft);
+}
+
+.glean-backup__file input:disabled::file-selector-button {
+    cursor: not-allowed;
+    opacity: .56;
+}
+
+.glean-backup__status {
+    align-items: flex-start;
+    line-height: 1.45;
+}
+
+.glean-backup__status--success::before,
+.glean-backup__status--error::before,
+.glean-backup__status--notice::before {
+    display: inline-grid;
+    place-items: center;
+    width: 16px;
+    height: 16px;
+    flex: 0 0 16px;
+    margin-top: 1px;
+    border: 1px solid currentColor;
+    border-radius: 50%;
+    font-size: 10px;
+    font-weight: 750;
+    line-height: 1;
+}
+
+.glean-backup__status--success::before { content: "✓"; }
+.glean-backup__status--error::before { content: "!"; }
+.glean-backup__status--notice::before { content: "i"; }
+
+.glean-logrow {
+    line-height: 1.45;
+}
+
+@media (max-width: 560px) {
+    .glean-settings__footer {
+        bottom: calc(-12px + env(safe-area-inset-bottom, 0px));
+    }
+
+    .glean-logrow {
+        align-items: flex-start;
+        flex-wrap: wrap;
+        gap: 4px var(--glean-space-2);
+    }
+
+    .glean-logrow__msg {
+        flex-basis: 100%;
+        overflow: visible;
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+
+    .glean-backup__file input::file-selector-button {
+        min-height: 36px;
     }
 }

@@ -871,7 +871,14 @@
 >
     {#if docId}
         <div class="glean-reader__toolbar">
-            <span class="glean-reader__toolbar-title" title={context?.title}>{context?.title || t(i18n, "panel.untitled")}</span>
+            <span class="glean-reader__toolbar-heading">
+                <span class="glean-reader__toolbar-title" title={context?.title}>{context?.title || t(i18n, "panel.untitled")}</span>
+                {#if context}
+                    <span class="glean-reader__toolbar-meta">
+                        {carrierLabel(context.contentType)}{#if context.site} · {context.site}{/if} · {t(i18n, `status.${context.status}`)}
+                    </span>
+                {/if}
+            </span>
             <div class="glean-reader__mode" role="group" aria-label={t(i18n, "settings.readerMode")}>
                 <button class="glean-seg__btn" class:glean-seg__btn--on={mode === "read"} aria-pressed={mode === "read"} title={t(i18n, "reader.readHint")} onclick={() => setMode("read")}>{t(i18n, "reader.modeRead")}</button>
                 <button class="glean-seg__btn" class:glean-seg__btn--on={mode === "edit"} aria-pressed={mode === "edit"} title={t(i18n, "reader.editHint")} onclick={() => setMode("edit")}>{t(i18n, "reader.modeEdit")}</button>
