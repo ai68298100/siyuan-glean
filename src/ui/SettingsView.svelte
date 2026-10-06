@@ -693,11 +693,3 @@ async function doMountBoard() {
         </button>
     </div>
 </div>
-
-<style>
-    .glean-settings__usage { max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
-    .glean-settings__ai-toggle { cursor: pointer; }
-    .glean-settings__ai-toggle .glean-set-row__desc { display: block; }
-    .glean-settings__ai-toggle input { width: 18px; height: 18px; flex-shrink: 0; accent-color: var(--b3-theme-primary); }
-    .glean-settings__ai-toggle input:focus-visible { outline: 2px solid var(--b3-theme-primary); outline-offset: 2px; }
-</style>

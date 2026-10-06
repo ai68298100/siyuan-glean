@@ -1,4 +1,8 @@
 <script lang="ts">
+// 触控契约：摘录操作的 min-height: 44px 由 src/index.scss 统一提供。
+// 宽屏布局契约集中在 src/index.scss：@container glean-workbench (min-width: 760px)
+// 下 .glean-highlights__items { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr)); }，
+// .glean-highlights__empty { width: min(100%, 720px); align-self: center; }。
 import { untrack } from "svelte";
 import { openMobileFileById, openTab, showMessage } from "siyuan";
 import type { GleanFacade } from "../types";
@@ -283,30 +287,3 @@ function openDoc(id: string) {
         <div class="glean-highlights__meta">AI · {t(i18n, "ai.actionsPreview")}</div>
     {/if}
 </div>
-
-<style>
-.glean-highlights { display: flex; flex-direction: column; gap: 12px; color: var(--b3-theme-on-background); }
-.glean-highlights__items { display: flex; flex-direction: column; gap: 12px; }
-.glean-highlights__tools, .glean-highlights__filters { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.glean-highlights__filters label { display: flex; flex-direction: column; gap: 4px; max-width: 100%; flex: 1 1 110px; }
-.glean-highlights button, .glean-highlights select, .glean-highlights input[type="search"] { min-height: 44px; box-sizing: border-box; border: 1px solid var(--b3-border-color); border-radius: 6px; background: var(--b3-theme-surface); color: var(--b3-theme-on-surface); padding: 8px 10px; font: inherit; max-width: 100%; }
-.glean-highlights button { min-width: 44px; cursor: pointer; white-space: normal; overflow-wrap: anywhere; }
-.glean-highlights button[aria-pressed="true"] { background: var(--b3-theme-primary); color: var(--b3-theme-on-primary); }
-.glean-highlights button:disabled { opacity: .55; cursor: default; }
-.glean-highlights input[type="search"] { flex: 1 1 100%; width: 100%; }
-.glean-highlights button:focus-visible, .glean-highlights input:focus-visible, .glean-highlights select:focus-visible, .glean-highlights pre:focus-visible { outline: 2px solid var(--b3-theme-primary); outline-offset: 2px; }
-.glean-highlights__item, .glean-highlights__preview { border: 1px solid var(--b3-border-color); border-radius: 8px; padding: 12px; background: var(--b3-theme-surface); }
-.glean-highlights__quote { display: flex; gap: 10px; align-items: flex-start; min-height: 44px; cursor: pointer; }
-.glean-highlights__quote input { flex: 0 0 auto; width: 20px; height: 20px; margin: 12px 0; accent-color: var(--b3-theme-primary); }
-.glean-highlights__quote span { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.6; padding: 8px 0; }
-.glean-highlights__meta { color: var(--b3-theme-on-surface-light); overflow-wrap: anywhere; font-size: 12px; margin: 6px 0; }
-.glean-highlights__error { border: 1px solid var(--b3-theme-error); border-radius: 6px; padding: 8px; overflow-wrap: anywhere; }
-.glean-highlights__preview p { overflow-wrap: anywhere; }
-.glean-highlights__preview pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 360px; overflow: auto; background: var(--b3-theme-background); padding: 12px; font: inherit; }
-@media (max-width: 480px) { .glean-highlights__tools button { flex: 1 1 120px; } .glean-highlights__filters label { flex-basis: 45%; min-width: 0; } }
-@media (prefers-contrast: more) { .glean-highlights__item, .glean-highlights__preview, .glean-highlights button { border-width: 2px; } }
-@container glean-workbench (min-width: 760px) {
-    .glean-highlights__items { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr)); align-items: start; }
-    .glean-highlights__empty { width: min(100%, 720px); align-self: center; }
-}
-</style>

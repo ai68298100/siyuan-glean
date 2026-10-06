@@ -1265,7 +1265,7 @@ function metaLine(entry: Row): string {
                         <span class="glean-head-action__label">{t(i18n, "panel.popupShort")}</span>
                     </button>
                     <button type="button" class="glean-icon-btn glean-head-action" title={t(i18n, "panel.migrate")} aria-label={t(i18n, "panel.migrate")} onclick={() => facade.openMigrate()}>
-                        <span class="glean-head-action__icon" aria-hidden="true">🧹</span>
+                        <svg aria-hidden="true"><use href="#iconGleanRefresh" /></svg>
                         <span class="glean-head-action__label">{t(i18n, "panel.migrateShort")}</span>
                     </button>
                     <button type="button" class="glean-icon-btn glean-head-action" title={t(i18n, "panel.settings")} aria-label={t(i18n, "panel.settings")} onclick={() => facade.openSettings()}>

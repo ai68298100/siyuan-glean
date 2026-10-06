@@ -1,4 +1,8 @@
 <script lang="ts">
+// 宽屏布局契约集中在 src/index.scss：@container glean-workbench (min-width: 760px)
+// 下 .glean-stats__metrics { grid-template-columns: repeat(4, minmax(0, 1fr)); }，
+// .glean-stats__distributions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }，
+// .glean-stats__distribution { min-width: 0; }。
 import { onDestroy } from "svelte";
 import { showMessage } from "siyuan";
 import type { GleanFacade } from "../types";
@@ -227,48 +231,3 @@ function downloadCsv(): void {
         </label>
     {/if}
 </div>
-
-<style>
-    .glean-stats { width: 100%; min-width: 0; padding: 16px; box-sizing: border-box; overflow: auto; color: var(--b3-theme-on-background); }
-    .glean-stats h2 { margin-top: 0; }
-    .glean-stats__toolbar { display: flex; flex-wrap: wrap; align-items: end; gap: 8px; }
-    .glean-stats__toolbar label, .glean-stats__preview { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-    .glean-stats__field { min-height: 32px; box-sizing: border-box; background: var(--b3-theme-background); color: var(--b3-theme-on-background); border: 1px solid var(--b3-border-color); border-radius: 4px; padding: 6px; }
-    .glean-stats__hint { font-size: 12px; line-height: 1.6; color: var(--b3-theme-on-surface); overflow-wrap: anywhere; }
-    .glean-stats__warning { color: var(--b3-theme-error); }
-    .glean-stats__metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
-    .glean-stats__metric { padding: 12px; border: 1px solid var(--b3-border-color); border-radius: 6px; background: var(--b3-theme-surface); }
-    .glean-stats__metric dt { font-size: 12px; }
-    .glean-stats__metric dd { margin: 4px 0 0; font-size: 24px; font-weight: 600; }
-    .glean-stats__candidates { padding: 10px; border: 1px dashed var(--b3-border-color); }
-    .glean-stats__heatmap-scroll { overflow-x: auto; margin-bottom: 8px; }
-    .glean-stats__heatmap { display: grid; grid-template-rows: repeat(7, 12px); grid-auto-columns: 12px; grid-auto-flow: column; gap: 3px; width: max-content; }
-    .glean-stats__day { border: 1px solid var(--b3-border-color); border-radius: 2px; }
-    .glean-stats__days summary { cursor: pointer; padding: 8px 0; }
-    .glean-stats__table-scroll { max-height: 240px; overflow: auto; }
-    .glean-stats table { width: 100%; border-collapse: collapse; text-align: left; }
-    .glean-stats th, .glean-stats td { padding: 6px; border-bottom: 1px solid var(--b3-border-color); }
-    .glean-stats__site-authors { padding-top: 6px; }
-    .glean-stats__site-authors summary { cursor: pointer; }
-    .glean-stats__completed { padding-left: 20px; }
-    .glean-stats__completed li { margin: 6px 0; overflow-wrap: anywhere; }
-    .glean-stats__completed span { margin-left: 8px; font-size: 12px; }
-    .glean-stats__link { background: var(--b3-theme-background); color: var(--b3-theme-primary); border: 0; text-decoration: underline; cursor: pointer; font: inherit; text-align: left; }
-    .glean-stats__status { min-height: 24px; overflow-wrap: anywhere; }
-    .glean-stats__preview { margin-top: 12px; }
-    .glean-stats__preview textarea { width: 100%; min-height: 300px; resize: vertical; font-family: var(--b3-font-family-code); }
-    .glean-stats :is(button, input, select, textarea, summary):focus-visible { outline: 2px solid var(--b3-theme-primary); outline-offset: 2px; }
-    @container glean-workbench (min-width: 760px) {
-        .glean-stats { padding: 18px 22px; }
-        .glean-stats__metrics { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-        .glean-stats__distributions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 24px; align-items: start; }
-        .glean-stats__distribution { min-width: 0; }
-        .glean-stats__distribution :global(.glean-distribution) { min-width: 0; }
-    }
-    @media (max-width: 640px) {
-        .glean-stats__toolbar { align-items: stretch; }
-        .glean-stats__toolbar label { width: 100%; }
-        .glean-stats__toolbar :is(button, input, select) { min-height: 44px; }
-        .glean-stats { padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
-    }
-</style>

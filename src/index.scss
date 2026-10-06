@@ -41,6 +41,22 @@
     --glean-shadow-card: 0 1px 2px rgba(16, 24, 40, 0.04), 0 8px 24px -12px rgba(16, 24, 40, 0.14);
     --glean-shadow-float: 0 12px 32px -8px rgba(16, 24, 40, 0.22), 0 2px 6px rgba(16, 24, 40, 0.08);
     --glean-shadow-accent: 0 4px 14px -4px rgba(249, 115, 22, 0.5);
+    /* v2 视觉令牌：所有新增间距按 4px 栅格，避免组件各自漂移。 */
+    --glean-space-1: 4px;
+    --glean-space-2: 8px;
+    --glean-space-3: 12px;
+    --glean-space-4: 16px;
+    --glean-space-5: 20px;
+    --glean-space-6: 24px;
+    --glean-text-xs: 11px;
+    --glean-text-sm: 12px;
+    --glean-text-md: 13px;
+    --glean-text-lg: 15px;
+    --glean-text-xl: 17px;
+    --glean-radius-sm: 8px;
+    --glean-radius-md: 12px;
+    --glean-radius-lg: 16px;
+    --glean-border-soft: color-mix(in srgb, var(--b3-border-color) 72%, transparent);
 }
 
 [data-theme-mode="dark"] {
@@ -4053,5 +4069,595 @@
     .glean-panel :where(button, a, input, select, textarea, [tabindex]):focus-visible,
     .glean-tab-root :where(button, a, input, select, textarea, [tabindex]):focus-visible {
         outline-color: Highlight;
+    }
+}
+
+/* ============ v2 视觉收口（D-0124） ============
+ * 这组规则只调整层级、节奏和反馈，不改变组件事件、状态或数据来源。
+ */
+
+.glean-panel,
+.glean-tab-root {
+    font-size: var(--glean-text-md);
+    scrollbar-color: color-mix(in srgb, var(--b3-theme-on-surface) 28%, transparent) transparent;
+    scrollbar-width: thin;
+}
+
+.glean-panel ::-webkit-scrollbar,
+.glean-tab-root ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.glean-panel ::-webkit-scrollbar-track,
+.glean-tab-root ::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.glean-panel ::-webkit-scrollbar-thumb,
+.glean-tab-root ::-webkit-scrollbar-thumb {
+    border: 2px solid transparent;
+    border-radius: 999px;
+    background-clip: padding-box;
+    background-color: color-mix(in srgb, var(--b3-theme-on-surface) 28%, transparent);
+}
+
+.glean-panel__head {
+    padding: var(--glean-space-3) var(--glean-space-4) var(--glean-space-2);
+    gap: var(--glean-space-3);
+    border-bottom: 1px solid var(--glean-border-soft);
+    background: linear-gradient(to bottom, color-mix(in srgb, var(--glean-accent-a) 6%, transparent), transparent 78%);
+}
+
+.glean-brand__name {
+    font-size: var(--glean-text-xl);
+    letter-spacing: 0;
+}
+
+.glean-brand__sub {
+    font-size: var(--glean-text-xs);
+    line-height: 1.4;
+    letter-spacing: 0.15px;
+}
+
+.glean-views {
+    gap: 2px;
+    padding: 3px;
+    background: var(--b3-theme-background-light);
+    border: 1px solid color-mix(in srgb, var(--b3-border-color) 70%, transparent);
+}
+
+.glean-views__btn {
+    min-height: 32px;
+    padding: var(--glean-space-2) var(--glean-space-3);
+    color: var(--b3-theme-on-surface);
+    transition: transform 180ms var(--glean-ease-out), opacity 180ms ease;
+}
+
+.glean-views__btn.glean-views__btn--on {
+    background: var(--glean-grad-soft);
+    color: var(--glean-accent-b);
+    font-weight: 650;
+    box-shadow: 0 1px 3px color-mix(in srgb, var(--b3-border-color) 70%, transparent);
+}
+
+.glean-search {
+    padding: var(--glean-space-2) var(--glean-space-3);
+    border-radius: var(--glean-radius-md);
+    background: color-mix(in srgb, var(--b3-theme-surface) 88%, transparent);
+    border-color: var(--glean-border-soft);
+    backdrop-filter: blur(12px) saturate(1.15);
+    -webkit-backdrop-filter: blur(12px) saturate(1.15);
+}
+
+.glean-q {
+    min-height: 32px;
+    padding: var(--glean-space-2) var(--glean-space-3);
+}
+
+.glean-card {
+    border-color: var(--glean-border-soft);
+    box-shadow: 0 1px 1px color-mix(in srgb, var(--b3-border-color) 45%, transparent);
+}
+
+.glean-card__title {
+    font-size: 14px;
+    line-height: 1.5;
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+}
+
+.glean-card__meta {
+    margin-top: var(--glean-space-2);
+    font-size: var(--glean-text-xs);
+    line-height: 1.45;
+}
+
+.glean-st-badge {
+    font-size: 10.5px;
+    padding: 4px 9px;
+    border: 1px solid color-mix(in srgb, currentColor 20%, transparent);
+}
+
+.glean-btn,
+.glean-primary-btn,
+.glean-surf-act {
+    transition: transform 180ms var(--glean-ease-out), opacity 180ms ease, box-shadow 180ms ease;
+}
+
+.glean-btn:hover:not(:disabled),
+.glean-primary-btn:hover:not(:disabled),
+.glean-surf-act:hover:not(:disabled) {
+    transform: translateY(-1px);
+}
+
+.glean-btn:active:not(:disabled),
+.glean-primary-btn:active:not(:disabled),
+.glean-surf-act:active:not(:disabled) {
+    transform: translateY(0) scale(0.985);
+}
+
+.glean-btn:focus-visible,
+.glean-primary-btn:focus-visible,
+.glean-surf-act:focus-visible,
+.glean-views__btn:focus-visible,
+.glean-q:focus-visible,
+.glean-card:focus-visible {
+    outline: 2px solid var(--b3-theme-primary);
+    outline-offset: 2px;
+}
+
+.glean-surf-card {
+    padding: var(--glean-space-4);
+    border-color: var(--glean-border-soft);
+    box-shadow: 0 1px 2px color-mix(in srgb, var(--b3-border-color) 45%, transparent);
+}
+
+.glean-surf-card .glean-surf__tag {
+    font-size: var(--glean-text-xs);
+    letter-spacing: 0.55px;
+}
+
+.glean-surf-card .glean-surf__title {
+    margin-top: var(--glean-space-2);
+    font-size: 14.5px;
+    line-height: 1.5;
+}
+
+.glean-surf-card .glean-surf__summary {
+    margin-top: var(--glean-space-2);
+    font-size: var(--glean-text-sm);
+    line-height: 1.7;
+}
+
+.glean-surf-card .glean-surf__meta {
+    margin-top: var(--glean-space-3);
+    font-size: var(--glean-text-xs);
+}
+
+.glean-surf-card .glean-surf__acts {
+    margin-top: var(--glean-space-3);
+    gap: var(--glean-space-2);
+}
+
+.glean-surf-act {
+    min-height: 32px;
+    border-radius: var(--glean-radius-sm);
+}
+
+.glean-stats {
+    gap: var(--glean-space-4);
+}
+
+.glean-stats__metric {
+    padding: var(--glean-space-4);
+    border-radius: var(--glean-radius-lg);
+    border-color: var(--glean-border-soft);
+    box-shadow: 0 1px 2px color-mix(in srgb, var(--b3-border-color) 45%, transparent);
+}
+
+.glean-stats__metric dt {
+    font-size: var(--glean-text-sm);
+    color: var(--b3-theme-on-surface);
+}
+
+.glean-stats__metric dd {
+    margin-top: var(--glean-space-2);
+    font-size: 23px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.3px;
+    background: linear-gradient(135deg, var(--b3-theme-on-background) 20%, var(--glean-accent-b) 130%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.glean-stats__field,
+.glean-highlights input[type="search"],
+.glean-highlights select,
+.glean-highlights button {
+    border-radius: var(--glean-radius-sm);
+}
+
+.glean-highlights {
+    display: flex;
+    flex-direction: column;
+    gap: var(--glean-space-4);
+    color: var(--b3-theme-on-background);
+}
+
+.glean-highlights__items {
+    display: flex;
+    flex-direction: column;
+    gap: var(--glean-space-3);
+}
+
+.glean-highlights__tools,
+.glean-highlights__filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--glean-space-2);
+}
+
+.glean-highlights__filters label {
+    display: flex;
+    flex: 1 1 110px;
+    flex-direction: column;
+    gap: var(--glean-space-1);
+    max-width: 100%;
+}
+
+.glean-highlights button,
+.glean-highlights select,
+.glean-highlights input[type="search"] {
+    box-sizing: border-box;
+    min-height: 44px;
+    max-width: 100%;
+    padding: var(--glean-space-2) 10px;
+    border: 1px solid var(--b3-border-color);
+    border-radius: var(--glean-radius-sm);
+    background: var(--b3-theme-surface);
+    color: var(--b3-theme-on-surface);
+    font: inherit;
+}
+
+.glean-highlights button {
+    min-width: 44px;
+    cursor: pointer;
+    overflow-wrap: anywhere;
+    white-space: normal;
+}
+
+.glean-highlights button[aria-pressed="true"] {
+    background: var(--b3-theme-primary);
+    color: var(--b3-theme-on-primary);
+}
+
+.glean-highlights button:disabled {
+    opacity: 0.55;
+    cursor: default;
+}
+
+.glean-highlights input[type="search"] {
+    flex: 1 1 100%;
+    width: 100%;
+}
+
+.glean-highlights button:focus-visible,
+.glean-highlights input:focus-visible,
+.glean-highlights select:focus-visible,
+.glean-highlights pre:focus-visible,
+.glean-stats :is(button, input, select, textarea, summary):focus-visible {
+    outline: 2px solid var(--b3-theme-primary);
+    outline-offset: 2px;
+}
+
+.glean-highlights__item,
+.glean-highlights__preview {
+    padding: var(--glean-space-4);
+    border-radius: var(--glean-radius-lg);
+    border-color: var(--glean-border-soft);
+    box-shadow: 0 1px 2px color-mix(in srgb, var(--b3-border-color) 45%, transparent);
+}
+
+.glean-highlights__quote {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    min-height: 44px;
+    cursor: pointer;
+}
+
+.glean-highlights__quote input {
+    flex: 0 0 auto;
+    width: 20px;
+    height: 20px;
+    margin: 12px 0;
+    accent-color: var(--b3-theme-primary);
+}
+
+.glean-highlights__quote span {
+    padding: var(--glean-space-2) 0;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+    line-height: 1.6;
+}
+
+.glean-highlights__meta {
+    font-size: var(--glean-text-xs);
+    line-height: 1.5;
+    margin: 6px 0;
+}
+
+.glean-highlights__error {
+    padding: var(--glean-space-2);
+    overflow-wrap: anywhere;
+    border: 1px solid var(--b3-theme-error);
+    border-radius: var(--glean-radius-sm);
+}
+
+.glean-highlights__preview p {
+    overflow-wrap: anywhere;
+}
+
+.glean-highlights__preview pre {
+    max-height: 360px;
+    padding: var(--glean-space-3);
+    overflow: auto;
+    background: var(--b3-theme-background);
+    font: inherit;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+}
+
+.glean-stats {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    padding: var(--glean-space-4);
+    overflow: auto;
+    color: var(--b3-theme-on-background);
+}
+
+.glean-stats h2 {
+    margin-top: 0;
+}
+
+.glean-stats__toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: var(--glean-space-2);
+}
+
+.glean-stats__toolbar label,
+.glean-stats__preview {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+
+.glean-stats__field {
+    box-sizing: border-box;
+    min-height: 32px;
+    padding: 6px;
+    border: 1px solid var(--b3-border-color);
+    border-radius: var(--glean-radius-sm);
+    background: var(--b3-theme-background);
+    color: var(--b3-theme-on-background);
+}
+
+.glean-stats__hint {
+    font-size: var(--glean-text-sm);
+    line-height: 1.6;
+    color: var(--b3-theme-on-surface);
+    overflow-wrap: anywhere;
+}
+
+.glean-stats__warning {
+    color: var(--b3-theme-error);
+}
+
+.glean-stats__metrics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: var(--glean-space-2);
+}
+
+.glean-stats__candidates {
+    padding: 10px;
+    border: 1px dashed var(--b3-border-color);
+}
+
+.glean-stats__heatmap-scroll {
+    margin-bottom: 8px;
+    overflow-x: auto;
+}
+
+.glean-stats__heatmap {
+    display: grid;
+    grid-template-rows: repeat(7, 12px);
+    grid-auto-columns: 12px;
+    grid-auto-flow: column;
+    gap: 3px;
+    width: max-content;
+}
+
+.glean-stats__day {
+    border: 1px solid var(--b3-border-color);
+    border-radius: 2px;
+}
+
+.glean-stats__days summary,
+.glean-stats__site-authors summary {
+    padding: 8px 0;
+    cursor: pointer;
+}
+
+.glean-stats__table-scroll {
+    max-height: 240px;
+    overflow: auto;
+}
+
+.glean-stats table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+}
+
+.glean-stats th,
+.glean-stats td {
+    padding: 6px;
+    border-bottom: 1px solid var(--b3-border-color);
+}
+
+.glean-stats__site-authors {
+    padding-top: 6px;
+}
+
+.glean-stats__completed {
+    padding-left: 20px;
+}
+
+.glean-stats__completed li {
+    margin: 6px 0;
+    overflow-wrap: anywhere;
+}
+
+.glean-stats__completed span {
+    margin-left: 8px;
+    font-size: var(--glean-text-sm);
+}
+
+.glean-stats__link {
+    border: 0;
+    background: var(--b3-theme-background);
+    color: var(--b3-theme-primary);
+    font: inherit;
+    text-align: left;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.glean-stats__status {
+    min-height: 24px;
+    overflow-wrap: anywhere;
+}
+
+.glean-stats__preview {
+    margin-top: var(--glean-space-3);
+}
+
+.glean-stats__preview textarea {
+    width: 100%;
+    min-height: 300px;
+    resize: vertical;
+    font-family: var(--b3-font-family-code);
+}
+
+.glean-settings__usage {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    white-space: normal;
+}
+
+.glean-settings__ai-toggle {
+    cursor: pointer;
+}
+
+.glean-settings__ai-toggle .glean-set-row__desc {
+    display: block;
+}
+
+.glean-settings__ai-toggle input {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    accent-color: var(--b3-theme-primary);
+}
+
+@container glean-workbench (min-width: 760px) {
+    .glean-stats {
+        padding: 18px 22px;
+    }
+
+    .glean-stats__metrics {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .glean-stats__distributions {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px 24px;
+        align-items: start;
+    }
+
+    .glean-stats__distribution {
+        min-width: 0;
+    }
+
+    .glean-stats__distribution .glean-distribution {
+        min-width: 0;
+    }
+
+    .glean-highlights__items {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
+        align-items: start;
+    }
+
+    .glean-highlights__empty {
+        width: min(100%, 720px);
+        align-self: center;
+    }
+
+    .glean-surf-card .glean-surf__title {
+        font-size: 16px;
+    }
+
+    .glean-surf-card {
+        padding: var(--glean-space-5);
+    }
+}
+
+@media (max-width: 640px) {
+    .glean-stats__toolbar {
+        align-items: stretch;
+    }
+
+    .glean-stats__toolbar label {
+        width: 100%;
+    }
+
+    .glean-stats__toolbar :is(button, input, select) {
+        min-height: 44px;
+    }
+
+    .glean-stats {
+        padding-bottom: calc(var(--glean-space-4) + env(safe-area-inset-bottom, 0px));
+    }
+}
+
+@media (max-width: 480px) {
+    .glean-highlights__tools button {
+        flex: 1 1 120px;
+    }
+
+    .glean-highlights__filters label {
+        flex-basis: 45%;
+        min-width: 0;
+    }
+}
+
+@media (prefers-contrast: more) {
+    .glean-highlights__item,
+    .glean-highlights__preview,
+    .glean-highlights button {
+        border-width: 2px;
     }
 }
