@@ -1191,12 +1191,17 @@ function metaLine(entry: Row): string {
                 <button
                     type="button"
                     class="glean-mobile-topbar__back"
+                    class:glean-mobile-topbar__back--home={view === "resurface"}
                     disabled={view === "resurface"}
                     title={t(i18n, "mobile.back")}
                     aria-label={t(i18n, "mobile.back")}
                     onclick={() => mobileBack()}
                 >
-                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14.7 5.3-6.7 6.7 6.7 6.7 1.4-1.4-5.3-5.3 5.3-5.3-1.4-1.4Z" /></svg>
+                    {#if view === "resurface"}
+                        <span class="glean-mobile-topbar__mark" aria-hidden="true"><svg><use href="#iconGleanWheat" /></svg></span>
+                    {:else}
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14.7 5.3-6.7 6.7 6.7 6.7 1.4-1.4-5.3-5.3 5.3-5.3-1.4-1.4Z" /></svg>
+                    {/if}
                 </button>
                 <div class="glean-mobile-topbar__copy">
                     <h1 class="glean-mobile-topbar__title">{t(i18n, mobileTitleKey)}</h1>
@@ -1881,9 +1886,9 @@ function metaLine(entry: Row): string {
                             {#if entry.kind === "candidate"}
                                 <div class="glean-card__ops">
                                     {#if entry.url}<button class="glean-card__capture" onclick={() => void capture(entry)}>{t(i18n, "action.addToInbox")}</button>{/if}
-                                    <button class="glean-op-btn" title={t(i18n, "candidate.fixUrl")} aria-label={t(i18n, "candidate.fixUrl")} onclick={() => startCandidateUrlEdit(entry)}>✎</button>
-                                    {#if !entry.url}<button class="glean-op-btn" title={t(i18n, "candidate.captureLocal")} aria-label={t(i18n, "candidate.captureLocal")} onclick={() => void captureAsLocal(entry)}>▤</button>{/if}
-                                    <button class="glean-op-btn" title={t(i18n, "candidate.exclude")} aria-label={t(i18n, "candidate.exclude")} onclick={() => void excludeCandidate(entry)}>×</button>
+                                    <button class="glean-op-btn" title={t(i18n, "candidate.fixUrl")} aria-label={t(i18n, "candidate.fixUrl")} onclick={() => startCandidateUrlEdit(entry)}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanEdit" /></svg></button>
+                                    {#if !entry.url}<button class="glean-op-btn" title={t(i18n, "candidate.captureLocal")} aria-label={t(i18n, "candidate.captureLocal")} onclick={() => void captureAsLocal(entry)}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanLocal" /></svg></button>{/if}
+                                    <button class="glean-op-btn" title={t(i18n, "candidate.exclude")} aria-label={t(i18n, "candidate.exclude")} onclick={() => void excludeCandidate(entry)}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanClose" /></svg></button>
                                 </div>
                                 <div class="glean-candidate-detail">
                                     <span>{t(i18n, "candidate.evidenceLabel")}: {candidateEvidence(entry)}</span>

@@ -272,6 +272,28 @@ body.b3-theme-dark {
     min-width: 0;
 }
 
+.glean-mobile-topbar__mark {
+    display: grid;
+    width: 28px;
+    height: 28px;
+    place-items: center;
+    border-radius: 9px;
+    background: var(--glean-grad);
+    color: #fff;
+    box-shadow: var(--glean-shadow-accent);
+}
+
+.glean-mobile-topbar__mark svg {
+    width: 18px;
+    height: 18px;
+    fill: currentColor;
+}
+
+.glean-mobile-topbar__back--home:disabled {
+    opacity: 1;
+    cursor: default;
+}
+
 .glean-mobile-topbar__title {
     margin: 0;
     overflow: hidden;
