@@ -232,14 +232,69 @@
 {/if}
 
 <style>
-    .glean-ai-batch { flex: 0 0 auto; max-height: 65vh; overflow: auto; display: grid; gap: 8px; padding: 12px; border: 1px solid var(--b3-border-color); color: var(--b3-theme-on-background); }
-    .glean-ai-batch h3, .glean-ai-batch p { margin: 0; overflow-wrap: anywhere; }
-    .glean-ai-batch p { font-size: 12px; line-height: 1.6; color: var(--b3-theme-on-surface); }
-    .glean-ai-batch__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-    .glean-ai-batch__row { display: grid; gap: 6px; padding: 8px; border: 1px solid var(--b3-border-color); }
-    .glean-ai-batch__count { display: inline-block; margin-inline-end: 10px; }
+    .glean-ai-batch {
+        flex: 0 0 auto;
+        max-height: 65vh;
+        overflow: auto;
+        display: grid;
+        gap: var(--glean-space-3, 12px);
+        padding: var(--glean-space-4, 16px);
+        border: 1px solid var(--glean-border-soft, var(--b3-border-color));
+        border-radius: var(--glean-radius-lg, 16px);
+        background: var(--glean-section-surface, var(--b3-theme-surface));
+        box-shadow: var(--glean-shadow-card, none);
+        color: var(--b3-theme-on-background);
+        scrollbar-gutter: stable;
+    }
+    .glean-ai-batch h3,
+    .glean-ai-batch p { margin: 0; overflow-wrap: anywhere; }
+    .glean-ai-batch h3 { font-size: var(--glean-text-lg, 15px); line-height: 1.35; }
+    .glean-ai-batch p { font-size: var(--glean-text-sm, 12px); line-height: 1.6; color: var(--b3-theme-on-surface); }
+    .glean-ai-batch__actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--glean-space-2, 8px); }
+    .glean-ai-batch__row {
+        display: grid;
+        gap: var(--glean-space-2, 8px);
+        padding: var(--glean-space-3, 12px);
+        border: 1px solid var(--glean-border-soft, var(--b3-border-color));
+        border-radius: var(--glean-radius-md, 12px);
+        background: var(--glean-inset-surface, var(--b3-theme-background));
+    }
+    .glean-ai-batch__count {
+        display: inline-flex;
+        align-items: center;
+        min-height: 24px;
+        margin-inline-end: var(--glean-space-2, 8px);
+        padding: 2px 8px;
+        border: 1px solid var(--glean-border-soft, var(--b3-border-color));
+        border-radius: 999px;
+        background: var(--glean-primary-soft, transparent);
+        color: var(--b3-theme-on-background);
+        font-size: var(--glean-text-xs, 11px);
+    }
     .glean-ai-batch label { display: flex; align-items: center; gap: 8px; overflow-wrap: anywhere; min-height: 44px; }
     .glean-ai-batch input[type="checkbox"] { flex: 0 0 auto; }
-    .glean-ai-batch pre { white-space: pre-wrap; overflow-wrap: anywhere; margin: 4px 0; }
-    @media (max-width: 600px) { .glean-ai-batch button { min-height: 44px; } }
+    .glean-ai-batch pre {
+        max-height: 220px;
+        overflow: auto;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        margin: 4px 0;
+        padding: var(--glean-space-2, 8px);
+        border-radius: var(--glean-radius-sm, 8px);
+        background: var(--glean-status-surface, var(--b3-theme-surface));
+        scrollbar-gutter: stable;
+    }
+    .glean-ai-batch details summary { cursor: pointer; color: var(--b3-theme-primary); }
+    .glean-ai-batch [role="alert"] {
+        padding: var(--glean-space-2, 8px) var(--glean-space-3, 12px);
+        border: 1px solid color-mix(in srgb, var(--b3-theme-error) 30%, var(--glean-border-soft, transparent));
+        border-radius: var(--glean-radius-sm, 8px);
+        background: var(--glean-error-surface, transparent);
+        color: var(--b3-theme-error);
+    }
+    @media (max-width: 600px) {
+        .glean-ai-batch { max-height: none; padding: var(--glean-space-3, 12px); border-radius: var(--glean-radius-md, 12px); }
+        .glean-ai-batch button { min-height: 44px; }
+        .glean-ai-batch__actions > .glean-btn { flex: 1 1 132px; }
+    }
 </style>

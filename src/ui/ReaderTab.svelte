@@ -954,9 +954,9 @@
             <div class="glean-reader__section">
                 <div class="glean-reader__section-title">{t(i18n, "reader.outlineTitle")}</div>
                 {#if outlineLoading}
-                    <div class="glean-reader__hint">{t(i18n, "reader.outlineLoading")}</div>
+                    <div class="glean-reader__hint" role="status" aria-live="polite">{t(i18n, "reader.outlineLoading")}</div>
                 {:else if outlineError}
-                    <div class="glean-reader__issue">{t(i18n, "reader.outlineFailed")}</div>
+                    <div class="glean-reader__issue" role="alert">{t(i18n, "reader.outlineFailed")}</div>
                     <button class="glean-btn glean-btn--ghost" onclick={() => docId && void loadOutline(docId)}>{t(i18n, "reader.outlineRetry")}</button>
                 {:else if outline.length === 0}
                     <div class="glean-reader__hint">{t(i18n, "reader.outlineEmpty")}</div>
@@ -1081,7 +1081,7 @@
                                 {/if}
                             </div>
                             {#if aiResult}
-                                <div class="glean-reader__ai-card">
+                                <div class="glean-reader__ai-card" role="status" aria-live="polite">
                                     <div class="glean-reader__ai-src">
                                         {t(i18n, "reader.aiSource", { channel: channelLabel, action: aiResult.action })}
                                     </div>
@@ -1099,7 +1099,7 @@
                                 </div>
                             {/if}
                             {#if questionResult}
-                                <div class="glean-reader__ai-card">
+                                <div class="glean-reader__ai-card" role="status" aria-live="polite">
                                     <div class="glean-reader__ai-src">{t(i18n, "reader.articleQuestion.action")}</div>
                                     <div class="glean-reader__ai-text">{questionResult.answer}</div>
                                     {#if questionResult.truncated}<div class="glean-reader__hint">{t(i18n, "reader.articleQuestion.truncated")}</div>{/if}

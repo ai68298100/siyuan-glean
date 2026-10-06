@@ -1351,7 +1351,7 @@ function metaLine(entry: Row): string {
                     aria-label={t(i18n, "panel.searchPlaceholder")}
                     onclick={() => (searchOpen = true)}
                 >
-                    <svg viewBox="0 0 24 24" style="width:14px;height:14px"><path d="M10.5 3a7.5 7.5 0 0 1 5.9 12.1l4.2 4.2a1 1 0 0 1-1.4 1.4l-4.2-4.2A7.5 7.5 0 1 1 10.5 3zm0 2a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11z"/></svg>
+                    <svg class="glean-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.5 3a7.5 7.5 0 0 1 5.9 12.1l4.2 4.2a1 1 0 0 1-1.4 1.4l-4.2-4.2A7.5 7.5 0 1 1 10.5 3zm0 2a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11z"/></svg>
                 </button>
             {/if}
         {/if}
