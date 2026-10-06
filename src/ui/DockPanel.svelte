@@ -1406,7 +1406,7 @@ function metaLine(entry: Row): string {
     {/if}
 
     {#if view === "library"}
-        <nav class="glean-queues">
+        <nav class="glean-queues" aria-label={t(i18n, "view.library")}>
             {#each queues as queue (queue)}
                 <button
                     class="glean-q"
@@ -1744,7 +1744,7 @@ function metaLine(entry: Row): string {
             {/if}
         {:else if isTabCanvas && layoutMode === "list"}
             <div class="glean-lib" class:glean-lib--preview={Boolean(previewEntry)} bind:this={previewSplit}>
-                <aside class="glean-rail">
+                <aside class="glean-rail" aria-label={t(i18n, "view.library")}>
                     <LibraryRailGroup plugin={facade.pluginInstance} {i18n} group="queues" label={t(i18n, "rail.queues")} items={queues.map((queue) => ({ value: queue, count: queueCount(queue) }))} selected={authorTimeline ? "" : activeQueue} itemLabel={(value) => queueLabel(value as ClipStatus)} dotClass={(value) => statusDotClass(value as ClipStatus)} onSelect={(value) => selectQueue(value as ClipStatus)} />
                     {#if railStats.authors.length > 0 || selectedAuthor}
                         <LibraryRailGroup plugin={facade.pluginInstance} {i18n} group="authors" label={t(i18n, "rail.authors")} items={railStats.authors} selected={selectedAuthor} onSelect={selectAuthor} />

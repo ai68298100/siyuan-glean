@@ -859,7 +859,7 @@
 
 <div
     class="glean-reader"
-    aria-busy={Boolean(aiBusy || sidebarBusy || statusBusy || appearanceBusy || measuring || snapping)}
+    aria-busy={Boolean(aiBusy || sidebarBusy || statusBusy || appearanceBusy || measuring || snapping || contextLoading || outlineLoading)}
     bind:this={readerRoot}
     role="region"
     tabindex="-1"
@@ -870,7 +870,7 @@
     data-reader-theme={readerAppearance.theme}
 >
     {#if docId}
-        <div class="glean-reader__toolbar">
+        <div class="glean-reader__toolbar" role="group" aria-label={t(i18n, "reader.title")}>
             <span class="glean-reader__toolbar-heading">
                 <span class="glean-reader__toolbar-title" title={context?.title}>{context?.title || t(i18n, "panel.untitled")}</span>
                 {#if context}
@@ -946,7 +946,7 @@
                 <div class="glean-reader__hint glean-reader__reading-time" aria-live="polite">{t(i18n, "reader.readMinutes", { n: displayedReadMinutes })}</div>
             {/if}
             <div class="glean-reader__section glean-reader__section--utility glean-reader__recent">
-                <div class="glean-reader__section-title">{t(i18n, "reader.recentTitle")}</div>
+                <div class="glean-reader__section-title" role="heading" aria-level="3">{t(i18n, "reader.recentTitle")}</div>
                 <div class="glean-reader__recent-list">
                     {#each recentReadings as item (item.id)}
                         <button
@@ -964,7 +964,7 @@
             {#if context?.id === docId}<AuthorEditor {facade} {docId} onSaved={() => { if (docId) return loadContext(docId); }} />{/if}
             <ReadingPositionControls {facade} {docId} host={protyleHost} />
             <div class="glean-reader__section glean-reader__section--utility glean-reader__appearance">
-                <div class="glean-reader__section-title">{t(i18n, "reader.appearanceTitle")}</div>
+                <div class="glean-reader__section-title" role="heading" aria-level="3">{t(i18n, "reader.appearanceTitle")}</div>
                 <label>{t(i18n, "reader.appearanceFontSize")}
                     <select class="b3-select" disabled={appearanceBusy} value={readerAppearance.fontSize} onchange={(event) => void updateAppearance("fontSize", (event.currentTarget as HTMLSelectElement).value)}>
                         <option value="small">{t(i18n, "reader.appearanceSmall")}</option>
@@ -995,7 +995,7 @@
                 </label>
             </div>
             <div class="glean-reader__section glean-reader__section--utility">
-                <div class="glean-reader__section-title">{t(i18n, "reader.outlineTitle")}</div>
+                <div class="glean-reader__section-title" role="heading" aria-level="3">{t(i18n, "reader.outlineTitle")}</div>
                 {#if outlineLoading}
                     <div class="glean-reader__hint" role="status" aria-live="polite">{t(i18n, "reader.outlineLoading")}</div>
                 {:else if outlineError}
@@ -1024,7 +1024,7 @@
                 </div>
                 {#if docId}
                     <div class="glean-reader__section glean-reader__section--enhanced">
-                        <div class="glean-reader__section-title">{t(i18n, "reader.excerptTitle")}</div>
+                        <div class="glean-reader__section-title" role="heading" aria-level="3">{t(i18n, "reader.excerptTitle")}</div>
                         {#if excerpt}
                             <div class="glean-reader__excerpt" title={excerpt.text}>
                                 {excerpt.text.slice(0, 80)}{excerpt.text.length > 80 ? "…" : ""}
@@ -1053,7 +1053,7 @@
                     </div>
                     {#if speechSupported}
                         <div class="glean-reader__section glean-reader__section--enhanced">
-                            <div class="glean-reader__section-title">{t(i18n, "reader.speechTitle")}</div>
+                            <div class="glean-reader__section-title" role="heading" aria-level="3">{t(i18n, "reader.speechTitle")}</div>
                             <div class="glean-reader__speech-rate">
                                 <label for="glean-speech-rate">{t(i18n, "reader.speechRate")}</label>
                                 <input
@@ -1091,7 +1091,7 @@
                         </div>
                     {/if}
                     <div class="glean-reader__section glean-reader__section--enhanced">
-                        <div class="glean-reader__section-title">{t(i18n, "reader.aiTitle")}</div>
+                        <div class="glean-reader__section-title" role="heading" aria-level="3">{t(i18n, "reader.aiTitle")}</div>
                         {#if !aiOn}
                             <div class="glean-reader__hint">{t(i18n, "reader.aiOff")}</div>
                         {:else}
@@ -1172,7 +1172,7 @@
                 {/if}
                 {#if context}
                     <div class="glean-reader__section glean-reader__section--utility">
-                        <div class="glean-reader__section-title">{t(i18n, "panel.rankTitle")}</div>
+                        <div class="glean-reader__section-title" role="heading" aria-level="3">{t(i18n, "panel.rankTitle")}</div>
                         <ClipRankControls
                             {i18n}
                             priority={context.priority}

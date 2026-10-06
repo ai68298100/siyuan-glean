@@ -1,5 +1,13 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-07 T-3260/D-0147）
+
+第二十四轮收口工作台、阅读和设置的响应式层级：筛选/rail/行表/看板统一低对比表面和选中边界；阅读工具栏、伴生栏标题、忙碌反馈与窄屏正文留白统一；设置页在 420px 容器内让控件按内容顺序落行，footer 状态与动作清晰分栏。静态桌面与 390px 预览复核无横向溢出。未改变业务逻辑、数据、文章属性、端点或设置语义。
+
+- 当前改动文件：`src/index.scss`、`src/ui/DockPanel.svelte`、`src/ui/ReaderTab.svelte`。
+- 已通过：`pnpm run check` 0 错误/0 警告；reader/accessibility 定向回归 12/12；静态截图为 `output/playwright/round24-desktop.png`、`output/playwright/round24-mobile.png`。
+- `pnpm test` 1146/1146、`pnpm build`、`pnpm task:ledger --check`、`git diff --check` 已通过；版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 package.zip。
+
 ## 当前有效交接（2026-10-07 T-3260/D-0146）
 
 第二十三轮继续按原型收口统计、摘录与维护流程：统计指标卡、热图图例、日报表和完成列表建立更清晰的层级与边界，摘录根面板、首启进度和闪卡恢复补齐标题/状态语义；迁移、导入、备份和闪卡恢复在窄屏按内容顺序换行或堆叠，保留 44px 操作高度。暗色桌面和移动截图已复核，未发现需要继续改 CSS 的明显掉分项。未改变业务逻辑、数据、文章属性、端点或设置语义。
