@@ -73,7 +73,7 @@
             <div class="glean-set-row__desc">{t(i18n, "flashcard.recovery.hint")}</div>
         </div>
         {#if panelState === "loading" || panelState === "busy"}
-            <span class="glean-flashcard-recovery__message glean-flashcard-recovery__message--busy"><span class="glean-flashcard-recovery__dot" aria-hidden="true"></span>{t(i18n, "panel.loading")}</span>
+            <span class="glean-flashcard-recovery__message glean-flashcard-recovery__message--busy" role="status" aria-live="polite"><span class="glean-flashcard-recovery__dot" aria-hidden="true"></span>{t(i18n, "panel.loading")}</span>
         {:else if panelState === "empty"}
             <span class="glean-flashcard-recovery__message">{message || t(i18n, "flashcard.recovery.empty")}</span>
         {:else if recovery}

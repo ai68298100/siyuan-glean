@@ -160,7 +160,7 @@ function continueLater(): void {
     <div class="glean-sr-only" aria-live="polite">{t(i18n, "onboarding.stepProgress", { n: step })}</div>
     <nav class="glean-onb-progress" aria-label={t(i18n, "onboarding.stepProgress", { n: step })}>
         {#each [1, 2, 3, 4] as progressStep, index}
-            <span class="glean-onb-progress__item" class:glean-onb-progress__item--done={progressStep < step} class:glean-onb-progress__item--current={progressStep === step}>
+            <span class="glean-onb-progress__item" class:glean-onb-progress__item--done={progressStep < step} class:glean-onb-progress__item--current={progressStep === step} aria-current={progressStep === step ? "step" : undefined}>
                 <span class="glean-onb-progress__dot" aria-hidden="true">{progressStep < step ? "✓" : progressStep}</span>
                 <span class="glean-sr-only">{t(i18n, "onboarding.stepProgress", { n: progressStep })}</span>
             </span>

@@ -124,10 +124,10 @@ function downloadCsv(): void {
 </script>
 
 <div class="glean-stats" aria-busy={busy}>
-    <section class="glean-stats__overview">
+    <section class="glean-stats__overview" aria-labelledby="glean-stats-overview-title">
         <div class="glean-stats__intro">
             <div>
-                <h2>{t(i18n, "review.title")}</h2>
+                <h2 id="glean-stats-overview-title">{t(i18n, "review.title")}</h2>
                 <p class="glean-stats__hint">{t(i18n, "review.scope")}</p>
             </div>
             <div class="glean-stats__toolbar glean-stats__toolbar--filters">
@@ -164,14 +164,22 @@ function downloadCsv(): void {
         </dl>
         <p class="glean-stats__candidates">{t(i18n, "review.candidates")}: {review.candidateCount}</p>
     </section>
-    <section class="glean-stats__activity">
-        <h3>{t(i18n, "review.heatmap", { year: reference?.getFullYear() ?? new Date().getFullYear() })}</h3>
+    <section class="glean-stats__activity" aria-labelledby="glean-stats-activity-title">
+        <h3 id="glean-stats-activity-title">{t(i18n, "review.heatmap", { year: reference?.getFullYear() ?? new Date().getFullYear() })}</h3>
         <div class="glean-stats__heatmap-scroll" role="img" aria-label={t(i18n, "review.heatmap", { year: reference?.getFullYear() ?? new Date().getFullYear() })}>
             <div class="glean-stats__heatmap">
                 {#each Array.from({ length: heatmapPadding }, (_, index) => index) as padding (padding)}<span></span>{/each}
                 {#each stats.heatmap as day (day.date)}
                     <span class="glean-stats__day" title={`${day.date}: ${day.count}`} style={`background:${day.count ? "var(--b3-theme-primary)" : "var(--b3-theme-surface)"};opacity:${day.count ? 0.25 + 0.75 * day.count / maxHeat : 1}`}></span>
                 {/each}
+            </div>
+            <div class="glean-stats__heatmap-legend" aria-hidden="true">
+                <span class="glean-stats__heatmap-legend-label">0</span>
+                <i class="glean-stats__legend-swatch glean-stats__legend-swatch--0"></i>
+                <i class="glean-stats__legend-swatch glean-stats__legend-swatch--1"></i>
+                <i class="glean-stats__legend-swatch glean-stats__legend-swatch--2"></i>
+                <i class="glean-stats__legend-swatch glean-stats__legend-swatch--3"></i>
+                <span class="glean-stats__heatmap-legend-label">{maxHeat}</span>
             </div>
         </div>
         <details class="glean-stats__days">
@@ -208,8 +216,8 @@ function downloadCsv(): void {
       </div>
       <p class="glean-stats__hint">{t(i18n, "review.authorHint")}</p>
     </section>
-    <section class="glean-stats__completed-section">
-        <h3>{t(i18n, "review.completedList")}</h3>
+    <section class="glean-stats__completed-section" aria-labelledby="glean-stats-completed-title">
+        <h3 id="glean-stats-completed-title">{t(i18n, "review.completedList")}</h3>
         <ul class="glean-stats__completed">
             {#each review.completedItems as item (item.id)}
                 <li>

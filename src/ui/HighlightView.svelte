@@ -208,10 +208,10 @@ function openDoc(id: string) {
 }
 </script>
 
-<div class="glean-panel glean-highlights" aria-busy={loading || exportBusy}>
+<div class="glean-panel glean-highlights" aria-busy={loading || exportBusy} aria-labelledby="glean-highlights-title">
     <div class="glean-highlights__head">
         <div>
-            <h2 class="glean-highlights__title">{t(i18n, "highlight.title")}</h2>
+            <h2 id="glean-highlights-title" class="glean-highlights__title">{t(i18n, "highlight.title")}</h2>
             <p class="glean-highlights__subtitle">{scope === "current" ? t(i18n, "highlight.current") : t(i18n, "highlight.allLibrary")}</p>
         </div>
         <div class="glean-highlights__tools glean-highlights__tools--scope" role="group" aria-label={t(i18n, "highlight.title")}>

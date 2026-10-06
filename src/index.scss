@@ -6243,6 +6243,11 @@ body.b3-theme-dark {
 }
 
 .glean-stats__metric {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-width: 0;
+    min-height: 92px;
     padding: var(--glean-space-4);
     border-radius: var(--glean-radius-lg);
     border: 1px solid var(--glean-border-soft);
@@ -6268,6 +6273,8 @@ body.b3-theme-dark {
 }
 
 .glean-stats__metric dt {
+    min-width: 0;
+    overflow-wrap: anywhere;
     font-size: var(--glean-text-sm);
     color: var(--b3-theme-on-surface);
 }
@@ -6282,6 +6289,10 @@ body.b3-theme-dark {
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
+}
+
+.glean-stats__metric:nth-child(n + 4) dd {
+    font-size: 19px;
 }
 
 .glean-stats__status:empty {
@@ -7017,6 +7028,36 @@ body.b3-theme-dark {
     gap: 4px;
 }
 
+.glean-stats__heatmap-legend {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4px;
+    margin-top: calc(var(--glean-space-2) * -1);
+    color: var(--b3-theme-on-surface);
+    font-size: var(--glean-text-xs);
+    font-variant-numeric: tabular-nums;
+}
+
+.glean-stats__heatmap-legend-label {
+    min-width: 1ch;
+    line-height: 1;
+}
+
+.glean-stats__legend-swatch {
+    display: block;
+    width: 12px;
+    height: 12px;
+    border: 1px solid color-mix(in srgb, var(--b3-border-color) 70%, transparent);
+    border-radius: 3px;
+    background: var(--b3-theme-primary);
+}
+
+.glean-stats__legend-swatch--0 { opacity: 0.2; }
+.glean-stats__legend-swatch--1 { opacity: 0.4; }
+.glean-stats__legend-swatch--2 { opacity: 0.65; }
+.glean-stats__legend-swatch--3 { opacity: 0.95; }
+
 .glean-stats__activity .glean-stats__day {
     border-color: color-mix(in srgb, var(--b3-border-color) 70%, transparent);
     border-radius: 4px;
@@ -7026,6 +7067,18 @@ body.b3-theme-dark {
 .glean-stats__activity .glean-stats__day:hover {
     filter: saturate(1.18) brightness(1.04);
     transform: scale(1.14);
+}
+
+.glean-stats table tbody tr {
+    transition: background-color 150ms var(--glean-ease-out);
+}
+
+.glean-stats table tbody tr:nth-child(even) {
+    background: color-mix(in srgb, var(--glean-inset-surface) 46%, transparent);
+}
+
+.glean-stats table tbody tr:hover {
+    background: var(--glean-primary-soft);
 }
 
 .glean-stats__days {
@@ -7060,8 +7113,26 @@ body.b3-theme-dark {
     line-height: 1.45;
 }
 
+.glean-stats__distribution h3::before {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    margin: 0 7px 2px 0;
+    border-radius: 50%;
+    background: var(--glean-accent-b);
+    content: "";
+}
+
 .glean-stats__completed-section .glean-stats__completed {
     margin: 0;
+}
+
+.glean-stats__completed li:not(.glean-stats__completed-empty) {
+    border: 1px solid transparent;
+}
+
+.glean-stats__completed li:not(.glean-stats__completed-empty):hover {
+    border-color: var(--glean-border-soft);
 }
 
 .glean-stats__preview {
@@ -8230,5 +8301,80 @@ body.b3-theme-dark .glean-panel--mobile,
 
     .glean-backup__file input::file-selector-button {
         min-height: 36px;
+    }
+}
+
+/* 第二十三轮：维护流程的窄屏动作边界。长中文操作保持可见，状态恢复卡在小屏按内容顺序堆叠。 */
+.glean-migrate__ops--footer {
+    min-width: 0;
+    flex-wrap: wrap;
+    row-gap: var(--glean-space-2);
+}
+
+.glean-migrate__ops--footer > :where(.glean-btn, .glean-linkish) {
+    min-width: 0;
+    max-width: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+.glean-import-progress__actions > .glean-btn {
+    min-width: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+
+.glean-backup__actions--primary {
+    align-items: stretch;
+}
+
+.glean-backup__actions--primary > :where(.glean-btn, .glean-backup__file) {
+    min-width: 0;
+}
+
+.glean-backup__file {
+    flex: 1 1 160px;
+}
+
+.glean-flashcard-recovery__body {
+    min-width: 0;
+}
+
+@media (max-width: 560px) {
+    .glean-migrate__ops--footer > :where(.glean-btn, .glean-linkish) {
+        flex: 1 1 140px;
+    }
+
+    .glean-backup__actions--primary > :where(.glean-btn, .glean-backup__file) {
+        flex: 1 1 100%;
+        width: 100%;
+    }
+
+    .glean-backup__file {
+        min-width: 0;
+    }
+
+    .glean-flashcard-recovery .glean-set-row {
+        align-items: stretch;
+        gap: var(--glean-space-2);
+    }
+
+    .glean-flashcard-recovery__body,
+    .glean-flashcard-recovery__actions {
+        width: 100%;
+        justify-content: flex-start;
+    }
+
+    .glean-flashcard-recovery__id {
+        flex: 1 1 100%;
+        max-width: 100%;
+    }
+
+    .glean-flashcard-recovery__actions .glean-btn {
+        flex: 1 1 132px;
+        min-width: 0;
+        min-height: 44px;
+        white-space: normal;
+        overflow-wrap: anywhere;
     }
 }
