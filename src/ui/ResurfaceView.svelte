@@ -327,7 +327,7 @@ function reasonText(reason: SurfaceReason): string {
                     <div class="glean-surf__summary">{summaryText(pick)}</div>
                     <div class="glean-surf__meta">
                         <span class={`glean-carrier-badge glean-carrier-badge--${resolveCarrier(pick.item.contentType)}`}>{carrierLabel(pick)}</span>
-                        {#if isPinnedToday(pick)}<span class="glean-surf__pinned">📌 {t(i18n, "resurface.pinnedToday")}</span>{/if}
+                        {#if isPinnedToday(pick)}<span class="glean-surf__pinned"><svg class="glean-icon glean-icon--xs" aria-hidden="true"><use href="#iconGleanPin" /></svg>{t(i18n, "resurface.pinnedToday")}</span>{/if}
                         {#if pick.item.aiTags.length > 0}
                             <span>#{pick.item.aiTags.slice(0, 3).join(" #")}</span>
                         {/if}
@@ -342,7 +342,7 @@ function reasonText(reason: SurfaceReason): string {
                     {/if}
                     <div class="glean-surf__acts">
                         <button class="glean-surf-act" aria-pressed={isPinnedToday(pick)} disabled={actingId === pick.item.id} onclick={() => void togglePin(pick)}>
-                            📌 {t(i18n, isPinnedToday(pick) ? "resurface.unpinToday" : "resurface.pinToday")}
+                            <svg class="glean-icon glean-icon--sm" aria-hidden="true"><use href="#iconGleanPin" /></svg>{t(i18n, isPinnedToday(pick) ? "resurface.unpinToday" : "resurface.pinToday")}
                         </button>
                         {#if hasSourceAction(pick.item.contentType, pick.item.url)}
                             <button class="glean-surf-act" disabled={actingId === pick.item.id} onclick={() => openSource(pick)}>

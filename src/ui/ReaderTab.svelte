@@ -1149,7 +1149,7 @@
                         aria-label={context.snapshot ? t(i18n, "snapshot.open") : t(i18n, "snapshot.take")}
                         onclick={() => void takeSnapshot()}
                     >
-                        {context.snapshot ? "⟐" : "📷"}
+                        <svg class="glean-icon glean-icon--sm" aria-hidden="true"><use href={context.snapshot ? "#iconGleanArchive" : "#iconGleanCamera"} /></svg>
                     </button>
                 </div>
                 {#if bodyState === "unmeasured"}

@@ -1543,7 +1543,7 @@ function metaLine(entry: Row): string {
             {/if}
             {#if stalePool.length > 0 && (activeQueue === "inbox" || activeQueue === "later") && !governanceCueMuted("stale", governanceMuted)}
             <div class="glean-quota">
-                <span>🧹</span>
+                <svg class="glean-icon glean-icon--sm" aria-hidden="true"><use href="#iconGleanArchive" /></svg>
                 <span style="flex:1">{t(i18n, "panel.staleCandidates", { n: stalePool.length })}</span>
                 <button class="glean-cap-btn" onclick={() => toggleStalePreview()}>
                     {stalePreviewOpen ? t(i18n, "panel.staleHide") : t(i18n, "panel.archiveStale")}
@@ -1579,7 +1579,7 @@ function metaLine(entry: Row): string {
             {/if}
             {#if candidateCount > 0 && !governanceCueMuted("candidates", governanceMuted)}
             <div class="glean-candidates">
-                <span>📥</span>
+                <svg class="glean-icon glean-icon--sm" aria-hidden="true"><use href="#iconGleanInbox" /></svg>
                 <span style="flex:1">{t(i18n, "panel.candidatesDetected", { n: candidateCount })}</span>
                 <button class="glean-cap-btn" onclick={openCandidateQueue}>{t(i18n, "panel.viewCandidates")}</button>
                 <button class="glean-linkish" onclick={() => void muteGovernanceCue("candidates")}>{t(i18n, "panel.governanceMuteToday")}</button>
@@ -1633,7 +1633,7 @@ function metaLine(entry: Row): string {
                                     {#if bodyPending(entry)}
                                         <span class="glean-body-pending" title={t(i18n, "clip.bodyPendingHint")}>{t(i18n, "clip.bodyPending")}</span>
                                     {/if}
-                                    {#if entry.site}<span>📰 {entry.site}</span>{/if}
+                                    {#if entry.site}<span class="glean-meta-icon"><svg class="glean-icon glean-icon--xs" aria-hidden="true"><use href="#iconGleanNews" /></svg>{entry.site}</span>{/if}
                                     {#if entry.author}<button class="glean-source-author" onclick={(event) => { event.stopPropagation(); selectAuthor(entry.author!); }}>· {entry.author}</button>{/if}
                                     {#if entry.minutes > 0}<span>· {t(i18n, "panel.minutes", { n: entry.minutes })}</span>{/if}
                                     {#if (entry.status === "inbox" || entry.status === "later") && staleText(entry.time) !== null}
@@ -1906,14 +1906,14 @@ function metaLine(entry: Row): string {
                                         aria-label={snapshotLabel(entry)}
                                         disabled={snappingId === entry.id}
                                         onclick={(e) => { e.stopPropagation(); void takeSnapshot(entry); }}
-                                    >{entry.snapshot ? "⟐" : "📷"}</button>
+                                    ><svg class="glean-icon" aria-hidden="true"><use href={entry.snapshot ? "#iconGleanArchive" : "#iconGleanCamera"} /></svg></button>
                                     <button
                                         class="glean-op-btn"
                                         title={t(i18n, "ai.actionEnrich")}
                                         aria-label={t(i18n, "ai.actionEnrich")}
                                         disabled={enrichingId === entry.id}
                                         onclick={(e) => { e.stopPropagation(); void enrich(entry); }}
-                                    >✨</button>
+                                    ><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanSpark" /></svg></button>
                                     <button
                                         class="glean-op-btn"
                                         title={surfacePinLabel(entry)}
@@ -1921,7 +1921,7 @@ function metaLine(entry: Row): string {
                                         aria-pressed={isPinnedToday(entry)}
                                         disabled={statusActionId === entry.id}
                                         onclick={(e) => { e.stopPropagation(); void toggleSurfacePin(entry); }}
-                                    >📌</button>
+                                    ><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanPin" /></svg></button>
                                      {#if hasSourceAction(entry.contentType, entry.url)}
                                          <button
                                              class="glean-op-btn"

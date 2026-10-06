@@ -87,7 +87,7 @@ async function dismiss(item: Shorthand) {
 {#if checked && available}
     <div class="glean-inbox" aria-busy={Boolean(busyId)}>
         <button class="glean-inbox__toggle" onclick={() => (expanded = !expanded)}>
-            <span>📥 {t(i18n, "inbox.title")}</span>
+            <span class="glean-meta-icon"><svg class="glean-icon glean-icon--sm" aria-hidden="true"><use href="#iconGleanInbox" /></svg>{t(i18n, "inbox.title")}</span>
             <span class="glean-inbox__count">{items.length}</span>
             <span class="glean-inbox__spacer"></span>
             <span class="glean-inbox__arrow">{expanded ? "▾" : "▸"}</span>

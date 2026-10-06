@@ -76,7 +76,13 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
 <path d="M15.2 12.8H29v13.6H15.2zM17.4 15v9.2h9.4V15z"/></symbol>
 <symbol id="iconGleanRefresh" viewBox="0 0 32 32">
 <path d="M16 6a10 10 0 0 1 8.6 4.9l-2.4 1.4A7.4 7.4 0 0 0 16 8.6 7.4 7.4 0 1 0 23.4 16h2.6A10 10 0 1 1 16 6z"/>
-<path d="M22 4h6v6h-2.4V6.4H22z"/></symbol>`);
+<path d="M22 4h6v6h-2.4V6.4H22z"/></symbol>
+<symbol id="iconGleanArchive" viewBox="0 0 32 32"><path d="M5 6h22v5H5zM7.5 13h17v13h-17zM12 16h8v2h-8zm0 4h8v2h-8z"/></symbol>
+<symbol id="iconGleanInbox" viewBox="0 0 32 32"><path d="M4 7h24l-3 18H7L4 7zm3 3 1.8 12h14.4L25 10H7zM5.5 19h6l1.8 3h5.4l1.8-3h6"/></symbol>
+<symbol id="iconGleanNews" viewBox="0 0 32 32"><path d="M5 5h22v19H8a3 3 0 0 1-3-3V5zm3 3v13c0 .6.4 1 1 1h15V8H8zm3 3h10v2H11zm0 4h10v2H11z"/></symbol>
+<symbol id="iconGleanCamera" viewBox="0 0 32 32"><path d="M6 9h5l2-3h6l2 3h5v17H6V9zm3 3v11h14V12H9zm7 2.5a4 4 0 1 1 0 8 4 4 0 0 1 0-8zm0 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"/></symbol>
+<symbol id="iconGleanSpark" viewBox="0 0 32 32"><path d="m16 3 2.2 8.8L27 14l-8.8 2.2L16 25l-2.2-8.8L5 14l8.8-2.2L16 3zm8 18 .8 3.2L28 25l-3.2.8L24 29l-.8-3.2L20 25l3.2-.8L24 21z"/></symbol>
+<symbol id="iconGleanPin" viewBox="0 0 32 32"><path d="m20 4 8 8-3 3-2-2-4 4v5l-3 3-3-7-6-3 3-3h5l4-4-2-2 3-3zM12 23l-5 5"/></symbol>`);
 
         // 设置只在此处加载一次；面板/弹窗都读这个缓存
         this.settings = await loadSettings(this);
