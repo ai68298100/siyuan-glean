@@ -1245,15 +1245,17 @@ function metaLine(entry: Row): string {
                     aria-busy={loading}
                 >
                     <span class="glean-mobile-task__dot" aria-hidden="true"></span>
-                    {#if mobileTaskState === "loading"}
-                        {t(i18n, "mobile.taskLoading")}
-                    {:else if mobileTaskState === "error"}
-                        {t(i18n, "mobile.taskError")}
-                    {:else if mobileTaskState === "offline"}
-                        {t(i18n, "mobile.taskOffline")}
-                    {:else}
-                        {t(i18n, "mobile.taskReady")}
-                    {/if}
+                    <span class="glean-mobile-task__label">
+                        {#if mobileTaskState === "loading"}
+                            {t(i18n, "mobile.taskLoading")}
+                        {:else if mobileTaskState === "error"}
+                            {t(i18n, "mobile.taskError")}
+                        {:else if mobileTaskState === "offline"}
+                            {t(i18n, "mobile.taskOffline")}
+                        {:else}
+                            {t(i18n, "mobile.taskReady")}
+                        {/if}
+                    </span>
                 </span>
                 <div class="glean-mobile-topbar__more">
                     <button
@@ -1270,18 +1272,23 @@ function metaLine(entry: Row): string {
                     {#if mobileMoreOpen}
                         <div class="glean-mobile-more" role="menu" aria-label={t(i18n, "mobile.moreLabel")}>
                             <button type="button" class="glean-mobile-more__item" role="menuitem" onclick={() => { mobileMoreOpen = false; void reload(); }}>
+                                <svg class="glean-mobile-more__icon" aria-hidden="true"><use href="#iconGleanRefresh" /></svg>
                                 {t(i18n, "action.refresh")}
                             </button>
                             <button type="button" class="glean-mobile-more__item" role="menuitem" onclick={() => { mobileMoreOpen = false; openPopup(); }}>
+                                <svg class="glean-mobile-more__icon" aria-hidden="true"><use href="#iconGleanPopup" /></svg>
                                 {t(i18n, "panel.popup")}
                             </button>
                             <button type="button" class="glean-mobile-more__item" role="menuitem" onclick={() => { mobileMoreOpen = false; facade.openMigrate(); }}>
+                                <svg class="glean-mobile-more__icon" aria-hidden="true"><use href="#iconGleanRefresh" /></svg>
                                 {t(i18n, "panel.migrate")}
                             </button>
                             <button type="button" class="glean-mobile-more__item" role="menuitem" onclick={() => { mobileMoreOpen = false; facade.openImport(); }}>
+                                <svg class="glean-mobile-more__icon" aria-hidden="true"><use href="#iconGleanInbox" /></svg>
                                 {t(i18n, "import.title")}
                             </button>
                             <button type="button" class="glean-mobile-more__item" role="menuitem" onclick={() => { mobileMoreOpen = false; facade.openSettings(); }}>
+                                <svg class="glean-mobile-more__icon" aria-hidden="true"><use href="#iconGleanGear" /></svg>
                                 {t(i18n, "panel.settings")}
                             </button>
                         </div>

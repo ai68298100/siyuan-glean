@@ -155,11 +155,14 @@
 </script>
 
 {#if open}
-    <section class="glean-ai-batch" aria-label={t(i18n, "aiBatch.title")} aria-busy={busy}>
-        <div class="glean-ai-batch__actions">
-            <h3>{t(i18n, "aiBatch.title")}</h3>
+    <section class="glean-ai-batch" class:glean-ai-batch--busy={busy} aria-label={t(i18n, "aiBatch.title")} aria-busy={busy}>
+        <header class="glean-ai-batch__head">
+            <div class="glean-ai-batch__heading">
+                <span class="glean-ai-batch__eyebrow"><svg class="glean-icon glean-icon--xs" aria-hidden="true"><use href="#iconGleanSpark" /></svg> AI</span>
+                <h3>{t(i18n, "aiBatch.title")}</h3>
+            </div>
             <button class="glean-btn glean-btn--ghost" onclick={close}>{t(i18n, "action.close")}</button>
-        </div>
+        </header>
         <p>{t(i18n, "aiBatch.hint")}</p>
         <p>{t(i18n, "aiBatch.stopHint")}</p>
         <div class="glean-ai-batch__actions">
@@ -168,7 +171,7 @@
             {#if task.busy === "run"}<button class="glean-btn" disabled={task.stopRequested} onclick={() => stopAiBatchAfterCurrent(facade.pluginInstance)}>{t(i18n, "aiBatch.pause")}</button>{/if}
         </div>
         {#if task.journal}
-            <p role="status" aria-live="polite">{#each Object.entries(counts) as [stage, count]}<span class="glean-ai-batch__count">{t(i18n, `aiBatch.stage.${stage}`)}: {count}</span>{/each}</p>
+            <p class="glean-ai-batch__counts" role="status" aria-live="polite">{#each Object.entries(counts) as [stage, count]}<span class="glean-ai-batch__count glean-ai-batch__count--{stage}"><i aria-hidden="true"></i>{t(i18n, `aiBatch.stage.${stage}`)}: {count}</span>{/each}</p>
             <p>{t(i18n, "aiBatch.resumeHint")}</p>
             {#if counts.unknown > 0}<p>{t(i18n, "aiBatch.unknownHint")}</p>{/if}
             <div class="glean-ai-batch__actions">
@@ -176,12 +179,12 @@
                 <button class="glean-btn" disabled={busy || selected.size === 0} onclick={() => void prepare("resume")}>{t(i18n, "aiBatch.previewResume")}</button>
             </div>
             {#each pageRows as row (row.docId)}
-                <div class="glean-ai-batch__row">
+                <div class="glean-ai-batch__row glean-ai-batch__row--{row.stage}">
                     <div class="glean-ai-batch__actions">
                         {#if row.stage === "pending" || row.stage === "failed"}
                             <label><input type="checkbox" checked={selected.has(row.docId)} disabled={busy} onchange={(event) => toggle(row.docId, event.currentTarget.checked)} />{row.docId}</label>
                         {:else}<span>{row.docId}</span>{/if}
-                        <span>{t(i18n, `aiBatch.stage.${row.stage}`)}</span>
+                        <span class="glean-ai-batch__stage"><i aria-hidden="true"></i>{t(i18n, `aiBatch.stage.${row.stage}`)}</span>
                         <button class="glean-btn glean-btn--ghost" disabled={busy} onclick={() => review(row)}>{t(i18n, "action.openDoc")}</button>
                     </div>
                     {#if row.reason}<p>{t(i18n, `aiBatch.reason.${row.reason}`)}</p>{/if}
@@ -202,7 +205,7 @@
             <p>{t(i18n, `aiBatch.channel.${preview.channel.kind}`, { model: preview.channel.model })}</p>
             {#if !preview.enabled}<p>{t(i18n, "ai.disabled")}</p>{/if}
             {#each previewRows as row (row.docId)}
-                <div class="glean-ai-batch__row">
+                <div class="glean-ai-batch__row glean-ai-batch__row--{row.stage}">
                     <span>{row.document?.title || row.docId}</span>
                     {#if row.document}
                         <p>{row.docId} · {row.document.expectedLocation.hpath}</p>
@@ -250,7 +253,12 @@
     .glean-ai-batch p { margin: 0; overflow-wrap: anywhere; }
     .glean-ai-batch h3 { font-size: var(--glean-text-lg, 15px); line-height: 1.35; }
     .glean-ai-batch p { font-size: var(--glean-text-sm, 12px); line-height: 1.6; color: var(--b3-theme-on-surface); }
+    .glean-ai-batch__head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--glean-space-3, 12px); padding-bottom: var(--glean-space-2, 8px); border-bottom: 1px solid var(--glean-border-soft, var(--b3-border-color)); }
+    .glean-ai-batch__heading { min-width: 0; display: grid; gap: 3px; }
+    .glean-ai-batch__eyebrow { display: inline-flex; align-items: center; gap: 5px; color: var(--b3-theme-primary); font-size: var(--glean-text-xs, 11px); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+    .glean-ai-batch__head > .glean-btn { flex: 0 0 auto; min-height: 32px; }
     .glean-ai-batch__actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--glean-space-2, 8px); }
+    .glean-ai-batch__counts { display: flex; flex-wrap: wrap; gap: var(--glean-space-1, 4px); }
     .glean-ai-batch__row {
         display: grid;
         gap: var(--glean-space-2, 8px);
@@ -258,7 +266,12 @@
         border: 1px solid var(--glean-border-soft, var(--b3-border-color));
         border-radius: var(--glean-radius-md, 12px);
         background: var(--glean-inset-surface, var(--b3-theme-background));
+        transition: border-color 160ms var(--glean-ease-out, ease), box-shadow 160ms var(--glean-ease-out, ease), transform 160ms var(--glean-ease-out, ease);
     }
+    .glean-ai-batch__row:hover { border-color: color-mix(in srgb, var(--b3-theme-primary) 24%, var(--glean-border-soft, transparent)); box-shadow: var(--glean-shadow-card, none); }
+    .glean-ai-batch__stage { display: inline-flex; align-items: center; gap: 5px; color: var(--b3-theme-on-surface); font-size: var(--glean-text-xs, 11px); }
+    .glean-ai-batch__stage i,
+    .glean-ai-batch__count i { width: 6px; height: 6px; flex: 0 0 auto; border-radius: 999px; background: currentColor; opacity: .78; }
     .glean-ai-batch__count {
         display: inline-flex;
         align-items: center;
@@ -271,6 +284,15 @@
         color: var(--b3-theme-on-background);
         font-size: var(--glean-text-xs, 11px);
     }
+    .glean-ai-batch__count--pending,
+    .glean-ai-batch__row--pending .glean-ai-batch__stage { color: var(--glean-st-inbox, var(--b3-theme-primary)); }
+    .glean-ai-batch__count--failed,
+    .glean-ai-batch__row--failed .glean-ai-batch__stage { color: var(--b3-theme-error); }
+    .glean-ai-batch__count--done,
+    .glean-ai-batch__row--done .glean-ai-batch__stage { color: var(--glean-st-done, var(--b3-theme-primary)); }
+    .glean-ai-batch__count--unknown,
+    .glean-ai-batch__row--unknown .glean-ai-batch__stage { color: var(--b3-theme-on-surface); }
+    .glean-ai-batch--busy { box-shadow: var(--glean-shadow-card, none), 0 0 0 1px color-mix(in srgb, var(--b3-theme-primary) 8%, transparent); }
     .glean-ai-batch label { display: flex; align-items: center; gap: 8px; overflow-wrap: anywhere; min-height: 44px; }
     .glean-ai-batch input[type="checkbox"] { flex: 0 0 auto; }
     .glean-ai-batch pre {
@@ -294,6 +316,7 @@
     }
     @media (max-width: 600px) {
         .glean-ai-batch { max-height: none; padding: var(--glean-space-3, 12px); border-radius: var(--glean-radius-md, 12px); }
+        .glean-ai-batch__head > .glean-btn { min-height: 44px; }
         .glean-ai-batch button { min-height: 44px; }
         .glean-ai-batch__actions > .glean-btn { flex: 1 1 132px; }
     }

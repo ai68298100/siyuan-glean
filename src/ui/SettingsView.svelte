@@ -310,7 +310,7 @@ async function doMountBoard() {
         </div>
     {/if}
 
-    <div>
+    <div class="glean-settings__section">
         <div class="glean-set-title" role="heading" aria-level="2">{t(i18n, "settings.anchorNotebooks")}</div>
         <div class="glean-set-group">
             <div class="glean-nb-wrap">
@@ -344,7 +344,7 @@ async function doMountBoard() {
         </div>
     </div>
 
-    <div>
+    <div class="glean-settings__section">
         <div class="glean-set-title" role="heading" aria-level="2">{t(i18n, "settings.aiGroup")}</div>
         <div class="glean-set-group">
             <div class="glean-set-row">
@@ -435,7 +435,7 @@ async function doMountBoard() {
         </div>
     </div>
 
-    <div>
+    <div class="glean-settings__section">
         <div class="glean-set-title" role="heading" aria-level="2">{t(i18n, "settings.aiChannelGroup")}</div>
         <div class="glean-set-group">
             <div class="glean-set-row">
@@ -491,7 +491,7 @@ async function doMountBoard() {
         </div>
     </div>
 
-    <div>
+    <div class="glean-settings__section">
         <div class="glean-set-title" role="heading" aria-level="2">{t(i18n, "settings.resurfaceGroup")}</div>
         <div class="glean-set-group">
             <div class="glean-set-row">
@@ -513,7 +513,7 @@ async function doMountBoard() {
         </div>
     </div>
 
-    <div>
+    <div class="glean-settings__section">
         <div class="glean-set-title" role="heading" aria-level="2">{t(i18n, "board.groupTitle")}</div>
         <div class="glean-set-group">
             <div class="glean-set-row">
@@ -554,7 +554,7 @@ async function doMountBoard() {
         </div>
     </div>
 
-    <div>
+    <div class="glean-settings__section">
         <div class="glean-set-title" role="heading" aria-level="2">{t(i18n, "settings.checkinGroup")}</div>
         <div class="glean-set-group">
             <div class="glean-set-row">
@@ -590,7 +590,7 @@ async function doMountBoard() {
         </div>
     </div>
 
-    <div>
+    <div class="glean-settings__section">
         <div class="glean-set-title" role="heading" aria-level="2">{t(i18n, "settings.readerGroup")}</div>
         <div class="glean-set-group">
             <div class="glean-set-row">
@@ -630,7 +630,7 @@ async function doMountBoard() {
         </div>
     </div>
 
-    <div>
+    <div class="glean-settings__section">
         <div class="glean-set-title" role="heading" aria-level="2">{t(i18n, "settings.dangerGroup")}</div>
         <div class="glean-set-group">
             <div class="glean-set-row">
@@ -693,3 +693,119 @@ async function doMountBoard() {
         </button>
     </div>
 </div>
+
+<style>
+    .glean-settings__section {
+        display: flex;
+        flex-direction: column;
+        gap: var(--glean-space-2);
+        min-width: 0;
+    }
+
+    .glean-settings__section > .glean-set-title {
+        margin: 0 var(--glean-space-1);
+        color: var(--b3-theme-on-surface);
+        font-size: var(--glean-text-xs);
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        line-height: 1.35;
+    }
+
+    .glean-settings__section > .glean-set-group {
+        min-width: 0;
+        border-color: var(--glean-border-soft);
+        background: var(--glean-section-surface);
+    }
+
+    .glean-settings__section .glean-set-row {
+        min-width: 0;
+    }
+
+    .glean-settings__section .glean-set-row__lb {
+        line-height: 1.4;
+    }
+
+    .glean-settings__section .glean-set-row__desc {
+        max-width: 58ch;
+    }
+
+    .glean-settings__ai-toggle input[type="checkbox"] {
+        appearance: none;
+        position: relative;
+        box-sizing: border-box;
+        width: 40px;
+        height: 24px;
+        margin: 0;
+        flex: 0 0 auto;
+        border: 1px solid var(--glean-border-soft);
+        border-radius: 999px;
+        background: var(--glean-inset-surface);
+        cursor: pointer;
+        transition: background-color 180ms var(--glean-ease-out), border-color 180ms var(--glean-ease-out), box-shadow 180ms var(--glean-ease-out);
+    }
+
+    .glean-settings__ai-toggle input[type="checkbox"]::after {
+        content: "";
+        position: absolute;
+        top: 3px;
+        left: 3px;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: var(--b3-theme-on-surface);
+        box-shadow: 0 1px 3px color-mix(in srgb, var(--b3-theme-on-background) 20%, transparent);
+        transition: transform 180ms var(--glean-ease-out), background-color 180ms var(--glean-ease-out);
+    }
+
+    .glean-settings__ai-toggle input[type="checkbox"]:checked {
+        border-color: color-mix(in srgb, var(--b3-theme-primary) 58%, var(--glean-border-soft));
+        background: var(--b3-theme-primary);
+        box-shadow: 0 0 0 3px var(--glean-primary-soft);
+    }
+
+    .glean-settings__ai-toggle input[type="checkbox"]:checked::after {
+        transform: translateX(16px);
+        background: var(--b3-theme-on-primary);
+    }
+
+    .glean-settings__ai-toggle input[type="checkbox"]:focus-visible {
+        outline: 2px solid var(--b3-theme-primary);
+        outline-offset: 2px;
+    }
+
+    .glean-settings__ai-toggle input[type="checkbox"]:disabled {
+        cursor: default;
+        opacity: 0.5;
+    }
+
+    .glean-settings .glean-nb.glean-nb--on {
+        border-color: color-mix(in srgb, var(--b3-theme-primary) 52%, var(--glean-border-soft));
+        background: var(--glean-primary-soft);
+        color: var(--b3-theme-primary);
+    }
+
+    @media (max-width: 560px) {
+        .glean-settings__section .glean-set-row {
+            align-items: flex-start;
+            flex-wrap: wrap;
+        }
+
+        .glean-settings__section .glean-set-row > :last-child:not(.glean-set-row__lb) {
+            margin-left: auto;
+        }
+
+        .glean-settings__ai-toggle input[type="checkbox"] {
+            width: 44px;
+            height: 26px;
+        }
+
+        .glean-settings__ai-toggle input[type="checkbox"]::after {
+            width: 18px;
+            height: 18px;
+        }
+
+        .glean-settings__ai-toggle input[type="checkbox"]:checked::after {
+            transform: translateX(17px);
+        }
+    }
+</style>

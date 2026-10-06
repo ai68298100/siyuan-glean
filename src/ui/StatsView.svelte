@@ -243,3 +243,118 @@ function downloadCsv(): void {
         </label>
     {/if}
 </div>
+
+<style>
+    .glean-stats__overview .glean-stats__toolbar--filters label {
+        color: var(--b3-theme-on-surface);
+        font-size: var(--glean-text-xs);
+        font-weight: 650;
+        line-height: 1.35;
+    }
+
+    .glean-stats__overview .glean-stats__field {
+        min-width: 136px;
+        margin-top: 3px;
+    }
+
+    .glean-stats__period {
+        margin: 0;
+        align-self: flex-start;
+        font-weight: 600;
+    }
+
+    .glean-stats__days summary,
+    .glean-stats__site-authors summary {
+        display: flex;
+        align-items: center;
+        min-height: 36px;
+        border-radius: var(--glean-radius-sm);
+        transition: color 160ms var(--glean-ease-out), background-color 160ms var(--glean-ease-out);
+    }
+
+    .glean-stats__days summary:hover,
+    .glean-stats__site-authors summary:hover {
+        background: var(--glean-inset-surface);
+        color: var(--b3-theme-primary);
+    }
+
+    .glean-stats__table-scroll {
+        scrollbar-gutter: stable;
+        border: 1px solid var(--glean-border-soft);
+        border-radius: var(--glean-radius-md);
+        background: var(--glean-inset-surface);
+    }
+
+    .glean-stats table thead {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        background: var(--glean-inset-surface);
+    }
+
+    .glean-stats th {
+        color: var(--b3-theme-on-surface);
+        font-size: var(--glean-text-xs);
+        font-weight: 700;
+    }
+
+    .glean-stats td,
+    .glean-stats th {
+        border-bottom-color: var(--glean-border-soft);
+    }
+
+    .glean-stats__status:not(:empty) {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--glean-space-2);
+        width: fit-content;
+        max-width: 100%;
+        color: var(--b3-theme-on-surface);
+    }
+
+    .glean-stats__status:not(:empty)::before {
+        content: "";
+        width: 7px;
+        height: 7px;
+        flex: 0 0 auto;
+        border-radius: 50%;
+        background: var(--b3-theme-primary);
+    }
+
+    .glean-stats__completed li {
+        min-height: 34px;
+        box-sizing: border-box;
+    }
+
+    .glean-stats__completed .glean-stats__link {
+        min-width: 0;
+        overflow-wrap: anywhere;
+    }
+
+    @media (max-width: 560px) {
+        .glean-stats__overview .glean-stats__field {
+            width: 100%;
+            min-width: 0;
+            min-height: 44px;
+        }
+
+        .glean-stats__metrics {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .glean-stats__metric,
+        .glean-stats__metric:nth-child(n + 4) {
+            min-width: 0;
+            padding: var(--glean-space-3);
+        }
+
+        .glean-stats__metric dt {
+            min-height: 2.7em;
+            line-height: 1.35;
+        }
+
+        .glean-stats__metric dd {
+            font-size: 20px;
+        }
+    }
+</style>

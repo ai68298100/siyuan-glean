@@ -147,7 +147,7 @@ function continueLater(): void {
 }
 </script>
 
-<div class="glean-migrate" aria-labelledby="glean-onboarding-title" aria-busy={scanning}>
+<div class="glean-migrate glean-onboarding" class:glean-onboarding--scanning={scanning} aria-labelledby="glean-onboarding-title" aria-busy={scanning}>
     <div class="glean-dlg-head">
         <div class="glean-brand__mark glean-dlg-head__mark">
             <svg aria-hidden="true"><use href="#iconGleanWheat" /></svg>
@@ -158,6 +158,15 @@ function continueLater(): void {
         </div>
     </div>
     <div class="glean-sr-only" aria-live="polite">{t(i18n, "onboarding.stepProgress", { n: step })}</div>
+    <nav class="glean-onb-progress" aria-label={t(i18n, "onboarding.stepProgress", { n: step })}>
+        {#each [1, 2, 3, 4] as progressStep, index}
+            <span class="glean-onb-progress__item" class:glean-onb-progress__item--done={progressStep < step} class:glean-onb-progress__item--current={progressStep === step}>
+                <span class="glean-onb-progress__dot" aria-hidden="true">{progressStep < step ? "✓" : progressStep}</span>
+                <span class="glean-sr-only">{t(i18n, "onboarding.stepProgress", { n: progressStep })}</span>
+            </span>
+            {#if index < 3}<span class="glean-onb-progress__line" class:glean-onb-progress__line--done={progressStep < step} aria-hidden="true"></span>{/if}
+        {/each}
+    </nav>
 
     {#if step === 1}
         <div class="glean-onb-hero">

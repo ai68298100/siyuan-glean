@@ -239,8 +239,8 @@ function openProgressDocument(id: string): void {
 }
 </script>
 
-<div class="glean-migrate" aria-labelledby="glean-import-title" aria-busy={busy}>
-    <div class="glean-dlg-head">
+<div class="glean-migrate glean-import" class:glean-import--busy={busy} data-phase={phase} aria-labelledby="glean-import-title" aria-busy={busy}>
+    <div class="glean-dlg-head glean-import__head">
         <div class="glean-brand__mark glean-dlg-head__mark">
             <svg aria-hidden="true"><use href="#iconGleanWheat" /></svg>
         </div>
@@ -290,7 +290,7 @@ function openProgressDocument(id: string): void {
 
     {#if phase === "pick" || phase === "preview"}
         <div class="glean-set-group">
-            <div class="glean-set-row">
+            <div class="glean-set-row glean-import__field">
                 <div class="glean-set-row__lb">{t(i18n, "import.format")}</div>
                 <select class="b3-select glean-import__select" aria-label={t(i18n, "import.format")} disabled={busy || unfinished} bind:value={format} onchange={() => { preview = null; importConfirmed = false; phase = "pick"; }}>
                     <option value="auto">{t(i18n, "import.formatAuto")}</option>
@@ -300,7 +300,7 @@ function openProgressDocument(id: string): void {
                     <option value="wallabag-json">wallabag JSON</option>
                 </select>
             </div>
-            <div class="glean-set-row">
+            <div class="glean-set-row glean-import__field">
                 <div class="glean-set-row__lb">
                     {t(i18n, "import.notebook")}
                     <div class="glean-set-row__desc">{t(i18n, "import.notebookDesc")}</div>
@@ -323,11 +323,11 @@ function openProgressDocument(id: string): void {
                 {/if}
                 {#if unfinished && !notebookLoading && !targetAvailable}<p role="alert">{t(i18n, "import.progress.error.target")}</p>{/if}
             </div>
-            <div class="glean-set-row">
+            <div class="glean-set-row glean-import__field">
                 <div class="glean-set-row__lb">{t(i18n, "import.folder")}</div>
                 <input class="glean-mini-input glean-import__folder" aria-label={t(i18n, "import.folder")} disabled={busy || unfinished} bind:value={folder} oninput={() => (importConfirmed = false)} />
             </div>
-            <div class="glean-set-row">
+            <div class="glean-set-row glean-import__field glean-import__file-field">
                 <div class="glean-set-row__lb">{t(i18n, "import.file")}</div>
                 <input
                     bind:this={fileInput}
@@ -349,7 +349,7 @@ function openProgressDocument(id: string): void {
             <div class="glean-mstat"><div class="glean-mstat__n">{preview.duplicateCount}</div><div class="glean-mstat__l">{t(i18n, "import.dupCount")}</div></div>
             <div class="glean-mstat"><div class="glean-mstat__n">{preview.rows.length}</div><div class="glean-mstat__l">{t(i18n, "import.parsedCount")}</div></div>
         </div>
-        <div class="glean-import-confirm">
+        <div class="glean-import-confirm glean-import__mapping">
             <div class="glean-import-confirm__title">{t(i18n, "import.statusMapping")}</div>
             <div class="glean-import-confirm__desc">{t(i18n, "import.statusMappingDesc")}</div>
             <div class="glean-import-confirm__statuses">
@@ -369,9 +369,9 @@ function openProgressDocument(id: string): void {
                 <span>{t(i18n, "import.confirm", { n: importable })}</span>
             </label>
         </div>
-        <div class="glean-mtable">
+        <div class="glean-mtable glean-import__table">
             {#each pagedRows as row (row.url)}
-                <div class="glean-mrow">
+                <div class="glean-mrow" class:glean-mrow--duplicate={row.duplicate} data-status={row.duplicate ? "duplicate" : row.status}>
                     <span class="glean-mrow__ti">{row.title || row.url}</span>
                     <span class="glean-mrow__url">{row.site || "—"}</span>
                     <span class="glean-mrow__st" class:glean-mrow__st--skip={row.duplicate}>

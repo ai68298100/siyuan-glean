@@ -364,6 +364,13 @@ body.b3-theme-dark {
     background: var(--glean-st-done);
 }
 
+.glean-mobile-task__label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .glean-mobile-task--loading .glean-mobile-task__dot {
     background: var(--glean-accent-a);
 }
@@ -437,6 +444,9 @@ body.b3-theme-dark {
     font-size: 13px;
     text-align: left;
     cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
 
     &:hover,
     &:focus-visible {
@@ -448,6 +458,14 @@ body.b3-theme-dark {
         background: var(--glean-grad-soft);
         transform: scale(0.98);
     }
+}
+
+.glean-mobile-more__icon {
+    width: 16px;
+    height: 16px;
+    flex: 0 0 16px;
+    fill: currentColor;
+    color: var(--b3-theme-on-surface);
 }
 
 /* 视图胶囊分段（iOS 滑块式） */
@@ -4651,6 +4669,40 @@ body.b3-theme-dark {
         text-overflow: ellipsis;
     }
 
+    .glean-inbox__item {
+        align-items: flex-start;
+        flex-wrap: wrap;
+        gap: 8px;
+        padding: 10px;
+    }
+
+    .glean-inbox__body {
+        flex: 1 1 calc(100% - 20px);
+        width: 100%;
+    }
+
+    .glean-inbox__title {
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+        overflow: hidden;
+        white-space: normal;
+        overflow-wrap: anywhere;
+        line-height: 1.45;
+    }
+
+    .glean-inbox__ops {
+        width: 100%;
+        padding-top: 2px;
+        border-top: 1px solid var(--glean-border-soft);
+    }
+
+    .glean-inbox__ops .glean-cap-btn {
+        flex: 1 1 auto;
+        margin-left: 0;
+        min-height: 44px;
+    }
+
     .glean-panel--mobile .glean-mobile-more {
         box-sizing: border-box;
         min-width: min(190px, calc(100vw - 24px - var(--glean-safe-left, 0px) - var(--glean-safe-right, 0px)));
@@ -4709,6 +4761,17 @@ body.b3-theme-dark {
 
     .glean-panel--mobile .glean-mobile-task {
         max-width: 24%;
+    }
+
+    .glean-panel--mobile .glean-mobile-task__label {
+        display: none;
+    }
+
+    .glean-panel--mobile .glean-mobile-task {
+        width: 24px;
+        min-width: 24px;
+        justify-content: center;
+        padding-inline: 6px;
     }
 
     .glean-panel--mobile .glean-mobile-filter-summary {
@@ -4791,6 +4854,96 @@ body.b3-theme-dark {
     .glean-status-actions__btn {
         border: 1px solid currentColor;
     }
+}
+
+/* ============ v2.1 高频流程收口（D-0135） ============
+ * 候选、导入、首启与批量 AI 共享同一层级：状态先于动作，长内容有边界，移动端操作可触达。
+ */
+.glean-candidates,
+.glean-quota {
+    border-color: color-mix(in srgb, var(--glean-accent-a) 34%, var(--glean-border-soft));
+    background: color-mix(in srgb, var(--glean-accent-a) 7%, var(--glean-section-surface));
+    box-shadow: var(--glean-shadow-card);
+}
+
+.glean-candidates > :first-child,
+.glean-quota > :first-child { color: var(--glean-accent-b); }
+
+.glean-card--candidate {
+    box-shadow: var(--glean-shadow-card);
+}
+
+.glean-card--candidate .glean-card__meta,
+.glean-candidate-detail {
+    line-height: 1.55;
+}
+
+.glean-card--candidate .glean-card__ops {
+    padding-top: var(--glean-space-2);
+    border-top: 1px dashed var(--glean-border-soft);
+}
+
+.glean-onb-progress {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    padding: var(--glean-space-1) var(--glean-space-2);
+}
+
+.glean-onb-progress__item { display: inline-flex; align-items: center; justify-content: center; }
+.glean-onb-progress__dot {
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    border: 1px solid var(--glean-border-soft);
+    border-radius: 999px;
+    background: var(--glean-inset-surface);
+    color: var(--b3-theme-on-surface);
+    font-size: var(--glean-text-xs);
+    font-variant-numeric: tabular-nums;
+}
+.glean-onb-progress__item--current .glean-onb-progress__dot { border-color: transparent; background: var(--glean-grad); color: var(--b3-theme-on-primary); box-shadow: var(--glean-shadow-accent); font-weight: 700; }
+.glean-onb-progress__item--done .glean-onb-progress__dot { border-color: color-mix(in srgb, var(--glean-st-done) 34%, var(--glean-border-soft)); color: var(--glean-st-done); background: color-mix(in srgb, var(--glean-st-done) 10%, var(--glean-inset-surface)); }
+.glean-onb-progress__line { flex: 1; height: 1px; min-width: 18px; margin-inline: 6px; background: var(--glean-border-soft); }
+.glean-onb-progress__line--done { background: var(--glean-st-done); }
+
+.glean-onboarding .glean-set-group,
+.glean-import .glean-set-group {
+    border-color: var(--glean-border-soft);
+    background: var(--glean-section-surface);
+    box-shadow: var(--glean-shadow-card);
+}
+
+.glean-onboarding .glean-nb-wrap { gap: var(--glean-space-2); }
+.glean-onboarding .glean-nb { border-color: var(--glean-border-soft); background: var(--glean-inset-surface); transition: transform 160ms var(--glean-ease-out), border-color 160ms var(--glean-ease-out), background-color 160ms var(--glean-ease-out); }
+.glean-onboarding .glean-nb:hover { transform: translateY(-1px); border-color: color-mix(in srgb, var(--b3-theme-primary) 42%, var(--glean-border-soft)); }
+.glean-onboarding .glean-nb--on { border-color: color-mix(in srgb, var(--glean-accent-b) 48%, var(--glean-border-soft)); background: var(--glean-primary-soft); color: var(--b3-theme-on-background); box-shadow: var(--glean-shadow-card); }
+.glean-onboarding .glean-mstats { margin-top: var(--glean-space-2); }
+.glean-onboarding .glean-mstat,
+.glean-import .glean-mstat { min-height: 64px; }
+
+.glean-onb-preview__group { box-shadow: var(--glean-shadow-card); }
+.glean-onb-preview__item { min-height: 28px; border-bottom: 1px solid color-mix(in srgb, var(--glean-border-soft) 70%, transparent); }
+.glean-onb-preview__item:last-child { border-bottom: 0; }
+
+.glean-import__head { position: sticky; top: 0; z-index: 2; }
+.glean-import[data-phase="importing"] .glean-dlg-head { border-color: color-mix(in srgb, var(--glean-accent-b) 34%, var(--glean-border-soft)); }
+.glean-import__field:focus-within { background: var(--glean-primary-soft); box-shadow: inset 3px 0 0 var(--b3-theme-primary); }
+.glean-import__mapping { box-shadow: var(--glean-shadow-card); }
+.glean-import__table { box-shadow: var(--glean-shadow-card); }
+.glean-import .glean-mrow--duplicate { background: color-mix(in srgb, var(--b3-theme-on-surface) 4%, var(--glean-section-surface)); }
+.glean-import .glean-mrow__st { min-width: 64px; text-align: center; }
+.glean-import[data-phase="done"] .glean-mstats .glean-mstat:first-child .glean-mstat__n { color: var(--glean-st-done); }
+.glean-import--busy .glean-dlg-head { opacity: .78; }
+
+@media (max-width: 560px) {
+    .glean-onb-progress { padding-inline: 0; }
+    .glean-onb-progress__line { min-width: 12px; margin-inline: 4px; }
+    .glean-onboarding .glean-nb { min-height: 44px; }
+    .glean-import__field { align-items: stretch; }
+    .glean-import__file-field .glean-import__pick { width: 100%; }
+    .glean-import .glean-mrow__st { order: 3; }
 }
 
 /* 第十轮：设置与导入/迁移弹窗的收口细节。保留思源主题变量，强化表面层级与窄屏节奏。 */
