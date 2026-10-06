@@ -877,6 +877,15 @@
                 <button class="glean-seg__btn" class:glean-seg__btn--on={mode === "edit"} aria-pressed={mode === "edit"} title={t(i18n, "reader.editHint")} onclick={() => setMode("edit")}>{t(i18n, "reader.modeEdit")}</button>
             </div>
             <button class="glean-btn glean-btn--ghost" aria-busy={sidebarBusy} disabled={sidebarBusy} aria-expanded={!sidebarCollapsed} onclick={() => void toggleSidebar()}>{t(i18n, sidebarCollapsed ? "reader.sidebarShow" : "reader.sidebarHide")}</button>
+            {#if context}
+                <button
+                    class="glean-btn glean-btn--pri glean-reader__toolbar-primary"
+                    aria-busy={statusBusy}
+                    disabled={statusBusy}
+                    title={t(i18n, "reader.doneNextHint")}
+                    onclick={() => void doneAndNext()}
+                >✓→ {t(i18n, "reader.doneNext")}</button>
+            {/if}
             <button class="glean-btn glean-btn--ghost glean-reader__toolbar-utility" disabled={mode !== "read"} onclick={() => readerRoot?.focus({ preventScroll: true })}>{t(i18n, "reader.keyboardFocus")}</button>
             <button class="glean-btn glean-btn--ghost glean-reader__toolbar-utility" aria-expanded={shortcutHelp} onclick={() => shortcutHelp = !shortcutHelp}>{t(i18n, "reader.shortcuts")}</button>
         </div>
@@ -1000,16 +1009,10 @@
                     {i18n}
                     status={context.status}
                     disabled={statusBusy}
+                    showDone={false}
                     onStartReading={() => void startReading()}
                     onSetStatus={(status) => void writeStatus(status)}
                 />
-                <button
-                    class="glean-btn glean-btn--pri"
-                    aria-busy={statusBusy}
-                    disabled={statusBusy}
-                    title={t(i18n, "reader.doneNextHint")}
-                    onclick={() => void doneAndNext()}
-                >✓→ {t(i18n, "reader.doneNext")}</button>
                 {#if docId}
                     <div class="glean-reader__section glean-reader__section--enhanced">
                         <div class="glean-reader__section-title">{t(i18n, "reader.excerptTitle")}</div>

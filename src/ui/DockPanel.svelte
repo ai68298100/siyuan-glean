@@ -1289,8 +1289,8 @@ function metaLine(entry: Row): string {
                                 <svg class="glean-mobile-more__icon" aria-hidden="true"><use href="#iconGleanPopup" /></svg>
                                 {t(i18n, "panel.popup")}
                             </button>
-                            <div class="glean-mobile-more__group" role="group" aria-label={t(i18n, "settings.dangerGroup")}>
-                                <div class="glean-mobile-more__group-label">{t(i18n, "settings.dangerGroup")}</div>
+                            <div class="glean-mobile-more__group" role="group" aria-label={t(i18n, "settings.maintenanceToolsGroup")}>
+                                <div class="glean-mobile-more__group-label">{t(i18n, "settings.maintenanceToolsGroup")}</div>
                                 <button type="button" class="glean-mobile-more__item" role="menuitem" onclick={() => { closeMobileMore(); facade.openMigrate(); }}>
                                     <svg class="glean-mobile-more__icon" aria-hidden="true"><use href="#iconGleanRefresh" /></svg>
                                     {t(i18n, "panel.migrate")}

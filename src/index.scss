@@ -344,6 +344,8 @@ body.b3-theme-dark {
     align-items: center;
     gap: 5px;
     flex-shrink: 0;
+    box-sizing: border-box;
+    max-width: min(112px, 28vw);
     color: var(--b3-theme-on-surface);
     font-size: 10px;
     white-space: nowrap;
@@ -418,6 +420,7 @@ body.b3-theme-dark {
     top: 48px;
     right: 0;
     z-index: 8;
+    box-sizing: border-box;
     min-width: 190px;
     max-width: min(280px, calc(100vw - 24px));
     max-height: min(520px, calc(100dvh - 76px));
@@ -1254,6 +1257,10 @@ body.b3-theme-dark {
     font-weight: 550;
 }
 
+.glean-reader__toolbar-primary {
+    box-shadow: var(--glean-shadow-accent);
+}
+
 .glean-reader__section--utility {
     border-top-style: dashed;
     border-top-color: color-mix(in srgb, var(--glean-border-soft) 82%, transparent);
@@ -1570,6 +1577,11 @@ body.b3-theme-dark {
         order: -1;
     }
 
+    .glean-panel--mobile .glean-reader__toolbar-primary {
+        flex: 1 1 150px;
+        min-width: 0;
+    }
+
     .glean-reader__outline-item {
         min-height: 36px;
     }
@@ -1601,6 +1613,11 @@ body.b3-theme-dark {
     .glean-reader__toolbar-title {
         flex-basis: 100%;
         order: -1;
+    }
+
+    .glean-reader__toolbar-primary {
+        flex: 1 1 150px;
+        min-width: 0;
     }
 
     .glean-reader__outline-item {
@@ -5233,8 +5250,10 @@ body.b3-theme-dark {
 
 /* 合并后的数据入口与扩展卡保持清晰分隔，避免恢复组件和导入操作视觉粘连。 */
 .glean-settings__import-row {
-    margin-top: var(--glean-space-2);
-    border-top: 1px solid var(--glean-border-soft);
+    margin: var(--glean-space-2) var(--glean-space-3) var(--glean-space-3);
+    border: 1px solid var(--glean-border-soft);
+    border-radius: var(--glean-radius-md);
+    background: var(--glean-section-surface);
 }
 
 .glean-settings .glean-set-row {
@@ -5380,6 +5399,15 @@ body.b3-theme-dark {
 @media (max-width: 560px) {
     .glean-settings .glean-set-row {
         gap: var(--glean-space-2);
+    }
+
+    .glean-settings__extension-card {
+        margin-inline: var(--glean-space-2);
+        padding: var(--glean-space-1);
+    }
+
+    .glean-settings__import-row {
+        margin-inline: var(--glean-space-2);
     }
 
     .glean-settings .glean-set-row > .glean-action-btn,

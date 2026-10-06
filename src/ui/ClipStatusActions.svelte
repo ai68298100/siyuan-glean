@@ -13,11 +13,13 @@
         i18n: I18nBundle;
         status: ClipStatus;
         disabled?: boolean;
+        /** 阅读页签将完成动作提升到顶栏；其他画布保持默认显示。 */
+        showDone?: boolean;
         onStartReading: () => void | Promise<void>;
         onSetStatus: (status: ClipStatus) => void | Promise<void>;
     }
 
-    let { i18n, status, disabled = false, onStartReading, onSetStatus }: Props = $props();
+    let { i18n, status, disabled = false, showDone = true, onStartReading, onSetStatus }: Props = $props();
     let pending = $state(false);
 
     async function invoke(action: () => void | Promise<void>) {
@@ -64,12 +66,14 @@
             onclick={(event) => { stop(event); void invoke(() => onSetStatus("later")); }}
         ><span aria-hidden="true">↷</span><span>{t(i18n, "action.moveToLater")}</span></button>
 
-        <button
-            class="glean-status-actions__btn"
-            disabled={disabled || pending || status === "done"}
-            title={t(i18n, "action.markDone")}
-            onclick={(event) => { stop(event); void invoke(() => onSetStatus("done")); }}
-        ><span aria-hidden="true">✓</span><span>{t(i18n, "action.markDone")}</span></button>
+        {#if showDone}
+            <button
+                class="glean-status-actions__btn"
+                disabled={disabled || pending || status === "done"}
+                title={t(i18n, "action.markDone")}
+                onclick={(event) => { stop(event); void invoke(() => onSetStatus("done")); }}
+            ><span aria-hidden="true">✓</span><span>{t(i18n, "action.markDone")}</span></button>
+        {/if}
 
         <button
             class="glean-status-actions__btn glean-status-actions__btn--archive"
