@@ -155,17 +155,19 @@
 </script>
 
 {#if open}
-    <section class="glean-ai-batch" class:glean-ai-batch--busy={busy} aria-label={t(i18n, "aiBatch.title")} aria-busy={busy}>
+    <section class="glean-ai-batch" class:glean-ai-batch--busy={busy} aria-labelledby="glean-ai-batch-title" aria-busy={busy}>
         <header class="glean-ai-batch__head">
             <div class="glean-ai-batch__heading">
                 <span class="glean-ai-batch__eyebrow"><svg class="glean-icon glean-icon--xs" aria-hidden="true"><use href="#iconGleanSpark" /></svg> AI</span>
-                <h3>{t(i18n, "aiBatch.title")}</h3>
+                <h3 id="glean-ai-batch-title">{t(i18n, "aiBatch.title")}</h3>
             </div>
             <button class="glean-btn glean-btn--ghost" onclick={close}>{t(i18n, "action.close")}</button>
         </header>
-        <p>{t(i18n, "aiBatch.hint")}</p>
-        <p>{t(i18n, "aiBatch.stopHint")}</p>
-        <div class="glean-ai-batch__actions">
+        <div class="glean-ai-batch__intro">
+            <p>{t(i18n, "aiBatch.hint")}</p>
+            <p class="glean-ai-batch__stop-hint">{t(i18n, "aiBatch.stopHint")}</p>
+        </div>
+        <div class="glean-ai-batch__actions glean-ai-batch__primary-actions">
             <button class="glean-btn" disabled={busy || docIds.length === 0 || unresolved || task.error === "journalRead" || task.error === "journalInvalid"} onclick={() => void prepare("new")}>{t(i18n, "aiBatch.previewNew")}</button>
             <button class="glean-btn glean-btn--ghost" disabled={busy} onclick={() => void reload()}>{t(i18n, "action.retry")}</button>
             {#if task.busy === "run"}<button class="glean-btn" disabled={task.stopRequested} onclick={() => stopAiBatchAfterCurrent(facade.pluginInstance)}>{t(i18n, "aiBatch.pause")}</button>{/if}
@@ -174,7 +176,7 @@
             <p class="glean-ai-batch__counts" role="status" aria-live="polite">{#each Object.entries(counts) as [stage, count]}<span class="glean-ai-batch__count glean-ai-batch__count--{stage}"><i aria-hidden="true"></i>{t(i18n, `aiBatch.stage.${stage}`)}: {count}</span>{/each}</p>
             <p>{t(i18n, "aiBatch.resumeHint")}</p>
             {#if counts.unknown > 0}<p>{t(i18n, "aiBatch.unknownHint")}</p>{/if}
-            <div class="glean-ai-batch__actions">
+            <div class="glean-ai-batch__actions glean-ai-batch__resume-actions">
                 <button class="glean-btn glean-btn--ghost" disabled={busy} onclick={selectPending}>{t(i18n, "aiBatch.selectPending")}</button>
                 <button class="glean-btn" disabled={busy || selected.size === 0} onclick={() => void prepare("resume")}>{t(i18n, "aiBatch.previewResume")}</button>
             </div>
@@ -193,42 +195,52 @@
                     {/if}
                 </div>
             {/each}
-            <div class="glean-ai-batch__actions">
+            <div class="glean-ai-batch__actions glean-ai-batch__pager">
                 <button class="glean-btn glean-btn--ghost" disabled={page === 0} onclick={() => page -= 1}>{t(i18n, "backup.previous")}</button>
                 <span>{t(i18n, "aiBatch.page", { page: page + 1, total: pageCount })}</span>
                 <button class="glean-btn glean-btn--ghost" disabled={page + 1 >= pageCount} onclick={() => page += 1}>{t(i18n, "backup.next")}</button>
             </div>
         {/if}
         {#if preview}
-            <p>{t(i18n, "aiBatch.replacements", { n: preview.rows.filter((row) => row.document?.eligible).length, summaries: preview.replacements.summaries, tags: preview.replacements.aiTags, skipped: preview.rows.filter((row) => !row.document?.eligible).length })}</p>
-            <p>{preview.quota.remaining === null ? t(i18n, "aiBatch.unlimited", { used: preview.quota.used }) : t(i18n, "aiBatch.quota", { used: preview.quota.used, cap: preview.quota.cap, remaining: preview.quota.remaining })}</p>
-            <p>{t(i18n, `aiBatch.channel.${preview.channel.kind}`, { model: preview.channel.model })}</p>
-            {#if !preview.enabled}<p>{t(i18n, "ai.disabled")}</p>{/if}
-            {#each previewRows as row (row.docId)}
-                <div class="glean-ai-batch__row glean-ai-batch__row--{row.stage}">
-                    <span>{row.document?.title || row.docId}</span>
-                    {#if row.document}
-                        <p>{row.docId} · {row.document.expectedLocation.hpath}</p>
-                        <p>{t(i18n, "aiBatch.aiTags", { n: row.document.aiTagCount })}</p>
-                        <details><summary>{t(i18n, "aiBatch.summary")}</summary><pre>{row.document.summary.slice(0, 2000) || t(i18n, "aiBatch.noSummary")}</pre>{#if row.document.summary.length > 2000}<p>{t(i18n, "aiBatch.summaryTruncated")}</p>{/if}</details>
-                    {/if}
-                    {#if row.reason}<p>{t(i18n, `aiBatch.reason.${row.reason}`)}</p>{/if}
+            <section class="glean-ai-batch__preview" aria-labelledby="glean-ai-batch-preview-summary">
+                <div class="glean-ai-batch__preview-meta">
+                    <p id="glean-ai-batch-preview-summary">{t(i18n, "aiBatch.replacements", { n: preview.rows.filter((row) => row.document?.eligible).length, summaries: preview.replacements.summaries, tags: preview.replacements.aiTags, skipped: preview.rows.filter((row) => !row.document?.eligible).length })}</p>
+                    <p>{preview.quota.remaining === null ? t(i18n, "aiBatch.unlimited", { used: preview.quota.used }) : t(i18n, "aiBatch.quota", { used: preview.quota.used, cap: preview.quota.cap, remaining: preview.quota.remaining })}</p>
+                    <p>{t(i18n, `aiBatch.channel.${preview.channel.kind}`, { model: preview.channel.model })}</p>
+                    {#if !preview.enabled}<p class="glean-ai-batch__preview-disabled">{t(i18n, "ai.disabled")}</p>{/if}
                 </div>
-            {/each}
-            <div class="glean-ai-batch__actions">
-                <button class="glean-btn glean-btn--ghost" disabled={previewPage === 0} onclick={() => previewPage -= 1}>{t(i18n, "backup.previous")}</button>
-                <span>{t(i18n, "aiBatch.page", { page: previewPage + 1, total: previewPageCount })}</span>
-                <button class="glean-btn glean-btn--ghost" disabled={previewPage + 1 >= previewPageCount} onclick={() => previewPage += 1}>{t(i18n, "backup.next")}</button>
-            </div>
-            <label><input type="checkbox" bind:checked={confirmed} disabled={busy} />{t(i18n, "aiBatch.confirm")}</label>
-            <button class="glean-btn glean-btn--pri" disabled={busy || !confirmed || !preview.enabled || preview.quota.remaining === 0} onclick={() => void start()}>{t(i18n, "aiBatch.start")}</button>
+                <div class="glean-ai-batch__preview-list">
+                    {#each previewRows as row (row.docId)}
+                        <div class="glean-ai-batch__row glean-ai-batch__row--{row.stage}">
+                            <span class="glean-ai-batch__preview-title">{row.document?.title || row.docId}</span>
+                            {#if row.document}
+                                <p>{row.docId} · {row.document.expectedLocation.hpath}</p>
+                                <p>{t(i18n, "aiBatch.aiTags", { n: row.document.aiTagCount })}</p>
+                                <details><summary>{t(i18n, "aiBatch.summary")}</summary><pre>{row.document.summary.slice(0, 2000) || t(i18n, "aiBatch.noSummary")}</pre>{#if row.document.summary.length > 2000}<p>{t(i18n, "aiBatch.summaryTruncated")}</p>{/if}</details>
+                            {/if}
+                            {#if row.reason}<p>{t(i18n, `aiBatch.reason.${row.reason}`)}</p>{/if}
+                        </div>
+                    {/each}
+                </div>
+                <div class="glean-ai-batch__actions glean-ai-batch__pager">
+                    <button class="glean-btn glean-btn--ghost" disabled={previewPage === 0} onclick={() => previewPage -= 1}>{t(i18n, "backup.previous")}</button>
+                    <span>{t(i18n, "aiBatch.page", { page: previewPage + 1, total: previewPageCount })}</span>
+                    <button class="glean-btn glean-btn--ghost" disabled={previewPage + 1 >= previewPageCount} onclick={() => previewPage += 1}>{t(i18n, "backup.next")}</button>
+                </div>
+                <div class="glean-ai-batch__confirm">
+                    <label><input type="checkbox" bind:checked={confirmed} disabled={busy} />{t(i18n, "aiBatch.confirm")}</label>
+                    <button class="glean-btn glean-btn--pri" disabled={busy || !confirmed || !preview.enabled || preview.quota.remaining === 0} onclick={() => void start()}>{t(i18n, "aiBatch.start")}</button>
+                </div>
+            </section>
         {/if}
         {#if task.journal || task.error === "journalInvalid"}
-            <label><input type="checkbox" bind:checked={discardConfirmed} disabled={busy} />{t(i18n, "aiBatch.discardConfirm")}</label>
-            <button class="glean-btn glean-btn--ghost" disabled={busy || !discardConfirmed || !task.journalSignature} onclick={() => void discard()}>{t(i18n, "aiBatch.discard")}</button>
+            <div class="glean-ai-batch__discard">
+                <label><input type="checkbox" bind:checked={discardConfirmed} disabled={busy} />{t(i18n, "aiBatch.discardConfirm")}</label>
+                <button class="glean-btn glean-btn--ghost" disabled={busy || !discardConfirmed || !task.journalSignature} onclick={() => void discard()}>{t(i18n, "aiBatch.discard")}</button>
+            </div>
         {/if}
-        {#if busy}<p role="status">{task.busy === "run" ? t(i18n, "ai.enriching") : t(i18n, "panel.loading")}</p>{/if}
-        {#if errorKey || task.error}<p role="alert">{t(i18n, errorKey || `aiBatch.error.${task.error}`)}</p>{/if}
+        {#if busy}<p class="glean-ai-batch__busy" role="status" aria-live="polite">{task.busy === "run" ? t(i18n, "ai.enriching") : t(i18n, "panel.loading")}</p>{/if}
+        {#if errorKey || task.error}<p class="glean-ai-batch__error" role="alert" aria-live="assertive">{t(i18n, errorKey || `aiBatch.error.${task.error}`)}</p>{/if}
     </section>
 {:else if task.journal || task.error}
     <button class="glean-btn glean-btn--ghost" onclick={() => open = true}>{t(i18n, "aiBatch.title")}</button>
@@ -253,6 +265,8 @@
     .glean-ai-batch p { margin: 0; overflow-wrap: anywhere; }
     .glean-ai-batch h3 { font-size: var(--glean-text-lg, 15px); line-height: 1.35; }
     .glean-ai-batch p { font-size: var(--glean-text-sm, 12px); line-height: 1.6; color: var(--b3-theme-on-surface); }
+    .glean-ai-batch__intro { display: grid; gap: 4px; }
+    .glean-ai-batch__stop-hint { color: var(--b3-theme-on-background); font-size: var(--glean-text-xs, 11px) !important; }
     .glean-ai-batch__head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--glean-space-3, 12px); padding-bottom: var(--glean-space-2, 8px); border-bottom: 1px solid var(--glean-border-soft, var(--b3-border-color)); }
     .glean-ai-batch__heading { min-width: 0; display: grid; gap: 3px; }
     .glean-ai-batch__eyebrow { display: inline-flex; align-items: center; gap: 5px; color: var(--b3-theme-primary); font-size: var(--glean-text-xs, 11px); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
@@ -292,6 +306,9 @@
     .glean-ai-batch__row--done .glean-ai-batch__stage { color: var(--glean-st-done, var(--b3-theme-primary)); }
     .glean-ai-batch__count--unknown,
     .glean-ai-batch__row--unknown .glean-ai-batch__stage { color: var(--b3-theme-on-surface); }
+    .glean-ai-batch__counts { margin-block: 2px; padding: 6px 8px; border: 1px solid var(--glean-border-soft, var(--b3-border-color)); border-radius: var(--glean-radius-sm, 8px); background: var(--glean-status-surface, var(--b3-theme-surface)); }
+    .glean-ai-batch__primary-actions { padding-top: 2px; }
+    .glean-ai-batch__resume-actions { padding-block: 2px; }
     .glean-ai-batch--busy { box-shadow: var(--glean-shadow-card, none), 0 0 0 1px color-mix(in srgb, var(--b3-theme-primary) 8%, transparent); }
     .glean-ai-batch label { display: flex; align-items: center; gap: 8px; overflow-wrap: anywhere; min-height: 44px; }
     .glean-ai-batch input[type="checkbox"] { flex: 0 0 auto; }
@@ -307,6 +324,21 @@
         scrollbar-gutter: stable;
     }
     .glean-ai-batch details summary { cursor: pointer; color: var(--b3-theme-primary); }
+    .glean-ai-batch__preview { display: grid; gap: var(--glean-space-3, 12px); padding: var(--glean-space-3, 12px); border: 1px solid color-mix(in srgb, var(--b3-theme-primary) 24%, var(--glean-border-soft, var(--b3-border-color))); border-radius: var(--glean-radius-md, 12px); background: var(--glean-grad-soft, var(--glean-section-surface, var(--b3-theme-surface))); box-shadow: var(--glean-shadow-card, none); }
+    .glean-ai-batch__preview-meta { display: grid; gap: 4px; padding-bottom: var(--glean-space-2, 8px); border-bottom: 1px solid color-mix(in srgb, var(--glean-border-soft, var(--b3-border-color)) 72%, transparent); }
+    .glean-ai-batch__preview-meta p:first-child { color: var(--b3-theme-on-background); font-weight: 650; }
+    .glean-ai-batch__preview-disabled { color: var(--b3-theme-error) !important; font-weight: 650; }
+    .glean-ai-batch__preview-list { display: grid; gap: var(--glean-space-2, 8px); max-height: 38vh; overflow: auto; padding-inline-end: 2px; scrollbar-gutter: stable; }
+    .glean-ai-batch__preview-title { font-weight: 650; color: var(--b3-theme-on-background); }
+    .glean-ai-batch__confirm { display: grid; gap: var(--glean-space-2, 8px); padding-top: var(--glean-space-2, 8px); border-top: 1px solid color-mix(in srgb, var(--glean-border-soft, var(--b3-border-color)) 72%, transparent); }
+    .glean-ai-batch__confirm .glean-btn { justify-self: end; min-width: 132px; }
+    .glean-ai-batch__pager { justify-content: center; padding-top: 2px; }
+    .glean-ai-batch__pager > span { min-width: 90px; color: var(--b3-theme-on-surface); font-size: var(--glean-text-xs, 11px); text-align: center; font-variant-numeric: tabular-nums; }
+    .glean-ai-batch__discard { display: grid; gap: var(--glean-space-2, 8px); padding-top: var(--glean-space-2, 8px); border-top: 1px dashed var(--glean-border-soft, var(--b3-border-color)); }
+    .glean-ai-batch__discard .glean-btn { justify-self: start; }
+    .glean-ai-batch__busy { display: inline-flex; align-items: center; gap: 7px; color: var(--b3-theme-primary) !important; }
+    .glean-ai-batch__busy::before { width: 8px; height: 8px; border: 2px solid color-mix(in srgb, var(--b3-theme-primary) 28%, transparent); border-top-color: var(--b3-theme-primary); border-radius: 50%; animation: glean-ai-batch-spin 700ms linear infinite; content: ""; }
+    .glean-ai-batch__error { margin-top: 2px !important; }
     .glean-ai-batch [role="alert"] {
         padding: var(--glean-space-2, 8px) var(--glean-space-3, 12px);
         border: 1px solid color-mix(in srgb, var(--b3-theme-error) 30%, var(--glean-border-soft, transparent));
@@ -314,10 +346,18 @@
         background: var(--glean-error-surface, transparent);
         color: var(--b3-theme-error);
     }
+    @keyframes glean-ai-batch-spin { to { transform: rotate(360deg); } }
+    @media (prefers-reduced-motion: reduce) { .glean-ai-batch__busy::before { animation: none; } }
     @media (max-width: 600px) {
         .glean-ai-batch { max-height: none; padding: var(--glean-space-3, 12px); border-radius: var(--glean-radius-md, 12px); }
         .glean-ai-batch__head > .glean-btn { min-height: 44px; }
         .glean-ai-batch button { min-height: 44px; }
         .glean-ai-batch__actions > .glean-btn { flex: 1 1 132px; }
+        .glean-ai-batch__preview { padding: var(--glean-space-2, 8px); }
+        .glean-ai-batch__preview-list { max-height: none; }
+        .glean-ai-batch__pager { display: grid; grid-template-columns: 1fr auto 1fr; width: 100%; }
+        .glean-ai-batch__pager .glean-btn:last-child { justify-self: end; }
+        .glean-ai-batch__confirm .glean-btn,
+        .glean-ai-batch__discard .glean-btn { width: 100%; justify-self: stretch; }
     }
 </style>

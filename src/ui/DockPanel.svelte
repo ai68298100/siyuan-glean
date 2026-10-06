@@ -1652,7 +1652,7 @@ function metaLine(entry: Row): string {
             {/if}
             {/if}
             {#if candidateCount > 0 && !governanceCueMuted("candidates", governanceMuted)}
-            <div class="glean-candidates">
+            <div class="glean-candidates" role="status" aria-live="polite" aria-atomic="true">
                 <svg class="glean-icon glean-icon--sm" aria-hidden="true"><use href="#iconGleanInbox" /></svg>
                 <span style="flex:1">{t(i18n, "panel.candidatesDetected", { n: candidateCount })}</span>
                 <button class="glean-cap-btn" onclick={openCandidateQueue}>{t(i18n, "panel.viewCandidates")}</button>
@@ -1841,7 +1841,7 @@ function metaLine(entry: Row): string {
                                     </div>
                                 {:else}
                                     <div
-                                        class="glean-drow"
+                                        class="glean-drow glean-drow--candidate"
                                         data-glean-clip-id={entry.id}
                                         class:glean-drow--preview={previewId === entry.id}
                                         onclick={() => selectPreview(entry.id)}
@@ -1857,8 +1857,9 @@ function metaLine(entry: Row): string {
                                         <span class="glean-dot glean-dot--inbox"></span>
                                         <span class="glean-drow__ti" title={entry.title || t(i18n, "panel.untitled")}>{entry.title || t(i18n, "panel.untitled")}</span>
                                         <span class="glean-drow__site" title={entry.url || entry.hpath}>{entry.site || candidateEvidence(entry)}</span>
-                                        <span class="glean-drow__len">{candidateMissing(entry) || t(i18n, "candidate.pending")}</span>
+                                        {#if candidateMissing(entry)}<span class="glean-drow__len">{candidateMissing(entry)}</span>{/if}
                                         <span class="glean-drow__st">
+                                            <span class="glean-candidate-state">{t(i18n, "candidate.pending")}</span>
                                             {#if entry.url}<button class="glean-card__capture" onclick={(e) => { e.stopPropagation(); void capture(entry); }}>{t(i18n, "action.addToInbox")}</button>{/if}
                                         </span>
                                         <div class="glean-drow__ops">

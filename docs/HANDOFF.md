@@ -1,5 +1,14 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-07 T-3260/D-0149）
+
+第二十六轮收口 AI 批处理、候选迁移和 Protyle/阅读伴生区：AI 面板按说明、任务状态、预览和确认层级重排，并补忙碌/错误/窄屏分页反馈；候选治理提示、候选行、迁移/导入结果按来源、状态与操作分层；Protyle 加载/失败状态和阅读伴生区补标题关联及失败操作触控高度。只调整 UI、CSS 和可访问表达，未改变业务逻辑、数据、文章属性、端点或设置语义。
+
+- 当前改动文件：`src/index.scss`、`src/ui/AiBatchPanel.svelte`、`src/ui/DockPanel.svelte`、`src/ui/ProtyleHost.svelte`、`src/ui/ReaderTab.svelte`。
+- 已生成静态回归截图：`output/playwright/round26-desktop.png`、`output/playwright/round26-mobile.png`；截图包含现有工作台/阅读基线和本轮 AI/候选静态 fixture，非真实思源内核运行验收。
+- `pnpm run check` 0 错误/0 警告；定向回归 119/119；`pnpm test` 1146/1146、`pnpm build`、`pnpm task:ledger -- --check`、`git diff --check` 已通过。
+- 版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 package.zip。
+
 ## 当前有效交接（2026-10-07 T-3260/D-0148）
 
 第二十五轮继续收口回顾、移动筛选和维护状态：统计/摘录/今日拾遗建立更清晰的内容起线、预览、忙碌和已开始状态层级；移动筛选抽屉在 420px 以下保留并排等宽动作，入口、抽屉和批量选择补齐可访问关联；首启、导入、备份和闪卡恢复处理窄屏边界与状态播报。未改变业务逻辑、数据、文章属性、端点或设置语义。

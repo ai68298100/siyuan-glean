@@ -62,9 +62,9 @@
 
 <div class="glean-protyle-shell glean-protyle-shell--{stage} {className}" aria-busy={stage === "loading"}>
     {#if stage !== "ready"}
-        <div class="glean-protyle-status glean-protyle-status--{stage}" role="status" aria-live="polite">
+        <div class="glean-protyle-status glean-protyle-status--{stage}" role="status" aria-live="polite" aria-labelledby="glean-protyle-status-label">
             {#if stage === "loading"}<span class="glean-protyle-status__dot" aria-hidden="true"></span>{/if}
-            <span class="glean-protyle-status__label">{t(i18n, stage === "loading" ? "panel.loading" : "preview.failed")}</span>
+            <span id="glean-protyle-status-label" class="glean-protyle-status__label">{t(i18n, stage === "loading" ? "panel.loading" : "preview.failed")}</span>
             {#if stage === "failed"}
                 <button class="glean-btn" onclick={() => attempt += 1}>{t(i18n, "action.retry")}</button>
                 <button class="glean-btn glean-btn--ghost" onclick={onOpenDocument}>{t(i18n, "preview.openDocument")}</button>

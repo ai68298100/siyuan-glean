@@ -4281,6 +4281,8 @@ body.b3-theme-dark {
 .glean-protyle-status__label { min-width: 0; overflow-wrap: anywhere; }
 .glean-protyle-status__dot { width: 7px; height: 7px; flex: 0 0 7px; border-radius: 50%; background: currentColor; box-shadow: 0 0 0 4px color-mix(in srgb, currentColor 12%, transparent); animation: glean-protyle-pulse 1.4s ease-in-out infinite; }
 .glean-protyle-status--failed .glean-btn { border-color: color-mix(in srgb, var(--b3-theme-error) 28%, var(--glean-border-soft)); }
+.glean-protyle-status--failed .glean-protyle-status__label { flex: 1 1 240px; }
+.glean-protyle-status--failed .glean-btn { min-height: 34px; }
 @keyframes glean-protyle-pulse { 50% { opacity: .45; transform: scale(.82); } }
 .glean-preview-sheet { position: fixed; inset: 0; z-index: 5; display: flex; padding-block: env(safe-area-inset-top) env(safe-area-inset-bottom); background: var(--b3-theme-background); }
 .glean-panel--mobile .glean-preview-sheet .glean-btn { min-height: 44px; }
@@ -8971,5 +8973,115 @@ body.b3-theme-dark .glean-panel--mobile,
     .glean-import-progress__row > .glean-btn {
         flex-basis: 100%;
         margin-left: 0;
+    }
+}
+
+/* 第二十六轮：候选内容与迁移结果的视觉分层。候选需要先看状态，再决定收录或修正来源；窄屏下每个动作保持独立触达。 */
+.glean-candidates {
+    align-items: flex-start;
+    min-height: 44px;
+}
+
+.glean-candidates > .glean-icon {
+    margin-top: 2px;
+    flex: 0 0 auto;
+}
+
+.glean-drow--candidate {
+    border-left: 3px solid var(--glean-accent-a);
+    background: color-mix(in srgb, var(--glean-accent-a) 4%, var(--b3-theme-surface));
+}
+
+.glean-drow--candidate:hover,
+.glean-drow--candidate.glean-drow--preview {
+    border-left-color: var(--glean-accent-b);
+}
+
+.glean-drow--candidate .glean-drow__site,
+.glean-drow--candidate .glean-drow__len {
+    min-width: 0;
+}
+
+.glean-drow--candidate .glean-drow__st {
+    width: auto;
+    min-width: 108px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--glean-space-1);
+}
+
+.glean-candidate-state {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+    padding: 3px 8px;
+    border: 1px solid color-mix(in srgb, var(--glean-accent-a) 34%, var(--glean-border-soft));
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--glean-accent-a) 10%, var(--glean-inset-surface));
+    color: var(--glean-accent-b);
+    font-size: var(--glean-text-xs);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.glean-drow--candidate .glean-card__capture {
+    min-height: 30px;
+    padding-inline: 9px;
+}
+
+.glean-drow--candidate .glean-drow__ops {
+    border-left-color: color-mix(in srgb, var(--glean-accent-a) 30%, var(--glean-border-soft));
+}
+
+.glean-import-progress__row > span:nth-child(2) {
+    color: var(--b3-theme-on-surface);
+    font-size: var(--glean-text-xs);
+    overflow-wrap: anywhere;
+}
+
+.glean-migrate .glean-mrow__st {
+    max-width: min(34%, 220px);
+    overflow-wrap: anywhere;
+    text-align: center;
+}
+
+@media (max-width: 600px) {
+    .glean-drow--candidate .glean-drow__site,
+    .glean-drow--candidate .glean-drow__len {
+        width: auto;
+        flex: 1 1 calc(50% - 8px);
+    }
+
+    .glean-drow--candidate .glean-drow__st,
+    .glean-drow--candidate .glean-drow__ops {
+        flex-basis: 100%;
+        justify-content: flex-start;
+        border-left: 0;
+        border-top: 1px solid var(--glean-border-soft);
+        padding-top: var(--glean-space-2);
+        margin-left: 0;
+    }
+
+    .glean-drow--candidate .glean-drow__ops {
+        gap: var(--glean-space-2);
+    }
+
+    .glean-drow--candidate .glean-drow__ops .glean-op-btn {
+        width: 40px;
+        min-width: 40px;
+        height: 40px;
+    }
+
+    .glean-migrate .glean-mrow__st {
+        max-width: none;
+        width: auto;
+        flex: 1 1 100%;
+        order: 3;
+        text-align: left;
+    }
+
+    .glean-import-progress__row > span:nth-child(2) {
+        flex: 1 1 100%;
     }
 }
