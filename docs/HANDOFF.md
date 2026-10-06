@@ -1,5 +1,14 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-07 T-3260/D-0153）
+
+第三十轮收口工作台、阅读与全局控件状态：预览/收件箱补实例唯一 ID、加载错误播报和操作状态；阅读工具栏拆分次级动作，上下文切换增加加载骨架，Protyle 标签 ID 关联修正；全局按钮、输入、状态表面、滚动条及移动导航补焦点和主题层级。未改变业务逻辑、数据、文章属性、端点或设置语义。
+
+- 当前改动文件：`src/index.scss`、`src/ui/AuthorEditor.svelte`、`src/ui/ClipRankControls.svelte`、`src/ui/InboxSection.svelte`、`src/ui/LibraryFilters.svelte`、`src/ui/ProtyleHost.svelte`、`src/ui/ReaderTab.svelte`、`src/ui/ReadingContext.svelte`、`src/ui/ReadingPositionControls.svelte`、`src/ui/WorkbenchPreview.svelte`。
+- 已生成静态回归截图：`output/playwright/round30-desktop.png`、`output/playwright/round30-mobile.png`；截图为暗色 prototype fixture 回归，非真实思源内核运行或 Android 真机验收。
+- 定向回归 100/100；全量检查、测试、构建、任务账本和最终差异检查在提交前执行。
+- 版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 package.zip。
+
 ## 当前有效交接（2026-10-07 T-3260/D-0152）
 
 第二十九轮收口统计摘录、设置长页与弹窗表单：统计分布补标题和忙碌层级，摘录制卡保持卡片级反馈；备份分页、首启欢迎与选择状态适配窄屏；浮层、导入/迁移、排版和制卡弹窗补进度、步骤、错误关联及状态播报。未改变业务逻辑、数据、文章属性、端点或设置语义。

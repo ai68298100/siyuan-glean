@@ -23,7 +23,7 @@
     let { i18n, facets, site = $bindable(""), author = $bindable(""), tag = $bindable(""), aiTag = $bindable(""), source = $bindable(""), timeSource = $bindable(""), contentType = $bindable(""), sortBy = $bindable("time"), direction = $bindable("desc"), hasFilters, onClear, sourceLabel, facetLabel }: Props = $props();
 </script>
 
-<div class="glean-filters glean-filters--compact" aria-label={t(i18n, "library.filters")}>
+<div class="glean-filters glean-filters--compact" role="group" aria-label={t(i18n, "library.filters")}>
     <select class="b3-select glean-filter" class:glean-filter--active={Boolean(site)} aria-label={t(i18n, "library.filterSite")} bind:value={site}>
         <option value="">{t(i18n, "library.filterSite")}</option>
         {#each facets.sites as facet (facet.value)}<option value={facet.value}>{facet.value} · {facet.count}</option>{/each}

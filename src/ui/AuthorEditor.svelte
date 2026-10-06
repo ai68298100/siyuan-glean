@@ -182,6 +182,7 @@
     <button type="button" class="glean-btn glean-btn--ghost" bind:this={trigger} aria-expanded={editing} aria-controls={`glean-author-editor-form-${docId}`} disabled={busy} onclick={(event) => { event.stopPropagation(); if (editing) close(); else void load(); }}>{t(i18n, "author.edit")}</button>
     {#if editing}
         <form id={`glean-author-editor-form-${docId}`} class="glean-author-editor__form" aria-busy={busy} onsubmit={(event) => { event.preventDefault(); void save(); }}>
+            {#if busy}<p class="glean-author-editor__status glean-author-editor__status--busy" role="status" aria-live="polite"><span class="glean-author-editor__status-dot" aria-hidden="true"></span>{t(i18n, "panel.loading")}</p>{/if}
             <label for={`glean-author-editor-input-${docId}`}>{t(i18n, "author.label")}
                 <input id={`glean-author-editor-input-${docId}`} class="b3-text-field" bind:this={input} bind:value={draft} disabled={busy} autocomplete="off" />
             </label>

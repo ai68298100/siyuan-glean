@@ -893,8 +893,10 @@
                     onclick={() => void doneAndNext()}
                 >✓→ {t(i18n, "reader.doneNext")}</button>
             {/if}
-            <button class="glean-btn glean-btn--ghost glean-reader__toolbar-utility glean-reader__toolbar-focus" disabled={mode !== "read"} title={t(i18n, "reader.keyboardFocus")} onclick={() => readerRoot?.focus({ preventScroll: true })}>{t(i18n, "reader.keyboardFocus")}</button>
-            <button class="glean-btn glean-btn--ghost glean-reader__toolbar-utility glean-reader__toolbar-shortcut" aria-expanded={shortcutHelp} aria-controls="glean-reader-shortcuts" onclick={() => shortcutHelp = !shortcutHelp}>{t(i18n, "reader.shortcuts")}</button>
+            <div class="glean-reader__toolbar-secondary" role="group" aria-label={t(i18n, "reader.shortcuts")}>
+                <button class="glean-btn glean-btn--ghost glean-reader__toolbar-utility glean-reader__toolbar-focus" disabled={mode !== "read"} title={t(i18n, "reader.keyboardFocus")} onclick={() => readerRoot?.focus({ preventScroll: true })}>{t(i18n, "reader.keyboardFocus")}</button>
+                <button class="glean-btn glean-btn--ghost glean-reader__toolbar-utility glean-reader__toolbar-shortcut" aria-expanded={shortcutHelp} aria-controls="glean-reader-shortcuts" onclick={() => shortcutHelp = !shortcutHelp}>{t(i18n, "reader.shortcuts")}</button>
+            </div>
         </div>
         {#if shortcutHelp}
             <div id="glean-reader-shortcuts" class="glean-reader__shortcuts" role="region" aria-label={t(i18n, "reader.shortcuts")}>

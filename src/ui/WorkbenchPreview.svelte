@@ -24,6 +24,9 @@
         onRefresh: () => Promise<void>;
     }
     let { facade, entry, onClose, onProcessed, onRefresh }: Props = $props();
+    const instanceId = $props.id();
+    const titleId = `glean-preview-title-${instanceId}`;
+    const metaId = `glean-preview-meta-${instanceId}`;
     const i18n = $derived(facade.i18n);
     let host = $state<HTMLDivElement | null>(null);
     let attrs = $state<ClipAttrs | null>(null);
@@ -149,15 +152,15 @@
     }
 </script>
 
-<section class="glean-preview" aria-labelledby="glean-preview-title">
+<section class="glean-preview" aria-labelledby={titleId} aria-describedby={metaId} aria-busy={busy}>
     <div class="glean-preview__header">
-        <h2 id="glean-preview-title" title={entry.title}>{entry.title || t(i18n, "panel.untitled")}</h2>
+        <h2 id={titleId} title={entry.title}>{entry.title || t(i18n, "panel.untitled")}</h2>
         <div class="glean-preview__header-actions" role="group" aria-label={t(i18n, "preview.title")}>
-            <button class="glean-btn glean-btn--ghost" onclick={() => facade.openReadingDocument(entry.id)}>{t(i18n, "preview.openDocument")}</button>
-            <button class="glean-btn glean-btn--ghost" onclick={onClose}>{t(i18n, "preview.close")}</button>
+            <button type="button" class="glean-btn glean-btn--ghost" onclick={() => facade.openReadingDocument(entry.id)}>{t(i18n, "preview.openDocument")}</button>
+            <button type="button" class="glean-btn glean-btn--ghost" onclick={onClose}>{t(i18n, "preview.close")}</button>
         </div>
     </div>
-    <div class="glean-preview__meta">
+    <div id={metaId} class="glean-preview__meta">
         <span>{t(i18n, "preview.readonly")}</span>
         {#if normalizeUrl(sourceUrl)}<a href={sourceUrl} target="_blank" rel="noopener noreferrer">{sourceUrl}</a>
         {:else if sourceUrl}<span>{sourceUrl}</span>{/if}
@@ -172,28 +175,29 @@
     </div>
     <div class="glean-preview__actions" role="group" aria-label={t(i18n, "preview.title")} aria-busy={busy}>
         {#if loadFailed}
-            <span>{t(i18n, "preview.changed")}</span>
-            <button class="glean-btn" onclick={() => void load()}>{t(i18n, "action.retry")}</button>
+            <span class="glean-preview__state glean-preview__state--error" role="alert">{t(i18n, "preview.changed")}</span>
+            <button type="button" class="glean-btn" onclick={() => void load()}>{t(i18n, "action.retry")}</button>
         {:else if !attrs}
-            <span role="status">{t(i18n, "panel.loading")}</span>
+            <span class="glean-preview__state glean-preview__state--loading" role="status" aria-live="polite">{t(i18n, "panel.loading")}</span>
         {:else if candidate}
-            <button class="glean-btn" disabled={busy || !normalizeUrl(sourceUrl)} onclick={() => confirm()}>{t(i18n, "action.addToInbox")}</button>
-            {#if !sourceUrl}<button class="glean-btn" disabled={busy} onclick={() => confirm(true)}>{t(i18n, "candidate.captureLocal")}</button>{/if}
-            <button class="glean-btn glean-btn--ghost" disabled={busy} onclick={editUrl}>{t(i18n, "candidate.fixUrl")}</button>
-            <button class="glean-btn glean-btn--ghost" disabled={busy} onclick={() => { const id = entry.id; void process(() => excludePreviewCandidate(facade.pluginInstance, id), "msg.candidateExcluded"); }}>{t(i18n, "candidate.exclude")}</button>
+            <button type="button" class="glean-btn" disabled={busy || !normalizeUrl(sourceUrl)} onclick={() => confirm()}>{t(i18n, "action.addToInbox")}</button>
+            {#if !sourceUrl}<button type="button" class="glean-btn" disabled={busy} onclick={() => confirm(true)}>{t(i18n, "candidate.captureLocal")}</button>{/if}
+            <button type="button" class="glean-btn glean-btn--ghost" disabled={busy} onclick={editUrl}>{t(i18n, "candidate.fixUrl")}</button>
+            <button type="button" class="glean-btn glean-btn--ghost" disabled={busy} onclick={() => { const id = entry.id; void process(() => excludePreviewCandidate(facade.pluginInstance, id), "msg.candidateExcluded"); }}>{t(i18n, "candidate.exclude")}</button>
         {:else if confirmed}
             {#each statuses as status}
-                <button class="glean-btn glean-btn--ghost" disabled={busy || attrs.status === status} onclick={() => statusAction(status)}>{t(i18n, `queue.${status}`)}</button>
+                <button type="button" class="glean-btn glean-btn--ghost" aria-pressed={attrs.status === status} disabled={busy || attrs.status === status} onclick={() => statusAction(status)}>{t(i18n, `queue.${status}`)}</button>
             {/each}
         {:else}
-            <span role="status">{t(i18n, "preview.changed")}</span>
+            <span class="glean-preview__state glean-preview__state--error" role="alert">{t(i18n, "preview.changed")}</span>
+            <button type="button" class="glean-btn glean-btn--ghost" disabled={busy} onclick={() => void load()}>{t(i18n, "action.retry")}</button>
         {/if}
     </div>
     {#if editingUrl && candidate}
         <div class="glean-preview__url">
             <input class="b3-text-field" type="url" bind:value={urlDraft} disabled={busy} aria-label={t(i18n, "candidate.urlPlaceholder")} />
-            <button class="glean-btn" disabled={busy} onclick={saveUrl}>{t(i18n, "action.save")}</button>
-            <button class="glean-btn glean-btn--ghost" disabled={busy} onclick={() => editingUrl = false}>{t(i18n, "action.cancel")}</button>
+            <button type="button" class="glean-btn" disabled={busy} onclick={saveUrl}>{t(i18n, "action.save")}</button>
+            <button type="button" class="glean-btn glean-btn--ghost" disabled={busy} onclick={() => editingUrl = false}>{t(i18n, "action.cancel")}</button>
         </div>
     {/if}
     {#if confirmed}
@@ -204,8 +208,8 @@
     {#if excerpt}
         <div class="glean-preview__excerpt">
             <span title={excerpt.text}>{excerpt.text.slice(0, 100)}</span>
-            <button class="glean-btn" disabled={busy || !confirmed || !excerpt.blockId} title={excerpt.blockId ? "" : t(i18n, "reader.excerptNoBlock")} onclick={quote}>{t(i18n, "reader.excerptQuote")}</button>
-            <button class="glean-btn glean-btn--ghost" onclick={() => void copyExcerpt()}>{t(i18n, "reader.copy")}</button>
+            <button type="button" class="glean-btn" disabled={busy || !confirmed || !excerpt.blockId} title={excerpt.blockId ? "" : t(i18n, "reader.excerptNoBlock")} onclick={quote}>{t(i18n, "reader.excerptQuote")}</button>
+            <button type="button" class="glean-btn glean-btn--ghost" onclick={() => void copyExcerpt()}>{t(i18n, "reader.copy")}</button>
         </div>
     {/if}
 </section>

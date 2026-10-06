@@ -13,6 +13,9 @@ interface Props {
 
 let { facade, onMutated }: Props = $props();
 
+const instanceId = $props.id();
+const titleId = `glean-inbox-title-${instanceId}`;
+const contentId = `glean-inbox-content-${instanceId}`;
 const i18n = $derived(facade.i18n);
 
 let available = $state(false);
@@ -85,15 +88,15 @@ async function dismiss(item: Shorthand) {
 </script>
 
 {#if checked && available}
-    <div class="glean-inbox" role="region" aria-labelledby="glean-inbox-title" aria-busy={Boolean(busyId)}>
-        <button class="glean-inbox__toggle" aria-expanded={expanded} aria-controls="glean-inbox-content" onclick={() => (expanded = !expanded)}>
-            <span id="glean-inbox-title" class="glean-meta-icon"><svg class="glean-icon glean-icon--sm" aria-hidden="true"><use href="#iconGleanInbox" /></svg>{t(i18n, "inbox.title")}</span>
+    <div class="glean-inbox" role="region" aria-labelledby={titleId} aria-busy={Boolean(busyId)}>
+        <button type="button" class="glean-inbox__toggle" aria-expanded={expanded} aria-controls={contentId} onclick={() => (expanded = !expanded)}>
+            <span id={titleId} class="glean-meta-icon"><svg class="glean-icon glean-icon--sm" aria-hidden="true"><use href="#iconGleanInbox" /></svg>{t(i18n, "inbox.title")}</span>
             <span class="glean-inbox__count">{items.length}</span>
             <span class="glean-inbox__spacer"></span>
             <span class="glean-inbox__arrow">{expanded ? "▾" : "▸"}</span>
         </button>
         {#if expanded}
-            <div id="glean-inbox-content">
+            <div id={contentId} role="group" aria-labelledby={titleId}>
                 {#if items.length === 0}
                     <div class="glean-inbox__empty" role="status">{t(i18n, "inbox.empty")}</div>
                 {:else}
@@ -106,24 +109,24 @@ async function dismiss(item: Shorthand) {
                                 {/if}
                             </div>
                             <div class="glean-inbox__ops">
-                                <button class="glean-cap-btn" aria-busy={busyId === item.oId} disabled={Boolean(busyId)} onclick={() => pendingRemoval[item.oId] ? void dismiss(item) : void migrate(item)}>
+                                <button type="button" class="glean-cap-btn" aria-busy={busyId === item.oId} disabled={Boolean(busyId)} onclick={() => pendingRemoval[item.oId] ? void dismiss(item) : void migrate(item)}>
                                     {t(i18n, pendingRemoval[item.oId] ? "inbox.retryCloudRemoval" : "inbox.migrate")}
                                 </button>
-                                <button class="glean-inbox__dismiss" aria-busy={busyId === item.oId} disabled={Boolean(busyId)} title={t(i18n, "inbox.dismiss")} aria-label={t(i18n, "inbox.dismiss")} onclick={() => void dismiss(item)}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanClose" /></svg></button>
+                                <button type="button" class="glean-inbox__dismiss" aria-busy={busyId === item.oId} disabled={Boolean(busyId)} title={t(i18n, "inbox.dismiss")} aria-label={t(i18n, "inbox.dismiss")} onclick={() => void dismiss(item)}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanClose" /></svg></button>
                             </div>
                         </div>
                         {#if pendingRemoval[item.oId]}
-                            <div class="glean-inbox__duplicate" role="status">
-                                <span>{t(i18n, "inbox.cloudRemoveFailed")}</span>
-                                <button class="glean-op-btn" onclick={() => void openTab({ app: facade.pluginInstance.app, doc: { id: pendingRemoval[item.oId] }, keepCursor: false })}>{t(i18n, "inbox.openExisting")}</button>
+                            <div class="glean-inbox__duplicate" role="group" aria-label={t(i18n, "inbox.cloudRemoveFailed")}>
+                                <span role="alert">{t(i18n, "inbox.cloudRemoveFailed")}</span>
+                                <button type="button" class="glean-op-btn" onclick={() => void openTab({ app: facade.pluginInstance.app, doc: { id: pendingRemoval[item.oId] }, keepCursor: false })}>{t(i18n, "inbox.openExisting")}</button>
                             </div>
                         {/if}
                         {#if duplicate?.item.oId === item.oId}
-                            <div class="glean-inbox__duplicate">
-                                <span>{t(i18n, "inbox.duplicate")}</span>
-                                <button class="glean-op-btn" onclick={() => duplicate && void openTab({ app: facade.pluginInstance.app, doc: { id: duplicate.existingId }, keepCursor: false })}>{t(i18n, "inbox.openExisting")}</button>
-                                <button class="glean-op-btn" disabled={Boolean(busyId)} onclick={() => void migrate(item, true)}>{t(i18n, "inbox.keepDuplicate")}</button>
-                                <button class="glean-op-btn" onclick={() => (duplicate = null)}>{t(i18n, "action.cancel")}</button>
+                            <div class="glean-inbox__duplicate" role="group" aria-label={t(i18n, "inbox.duplicate")}>
+                                <span role="status">{t(i18n, "inbox.duplicate")}</span>
+                                <button type="button" class="glean-op-btn" onclick={() => duplicate && void openTab({ app: facade.pluginInstance.app, doc: { id: duplicate.existingId }, keepCursor: false })}>{t(i18n, "inbox.openExisting")}</button>
+                                <button type="button" class="glean-op-btn" disabled={Boolean(busyId)} onclick={() => void migrate(item, true)}>{t(i18n, "inbox.keepDuplicate")}</button>
+                                <button type="button" class="glean-op-btn" onclick={() => (duplicate = null)}>{t(i18n, "action.cancel")}</button>
                             </div>
                         {/if}
                     {/each}

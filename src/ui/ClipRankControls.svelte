@@ -16,7 +16,7 @@
 
 </script>
 
-<div class="glean-rank-controls" role="group" aria-label={t(i18n, "action.rankActions")}>
+<div class="glean-rank-controls" role="group" aria-label={t(i18n, "action.rankActions")} aria-busy={disabled}>
     <label class="glean-rank-controls__field">
         <span>{t(i18n, "action.priority")}</span>
         <select

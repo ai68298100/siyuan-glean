@@ -169,7 +169,15 @@
     }
 </script>
 
-{#if !loading && context}
+{#if loading}
+    <aside class="glean-reading-context glean-reading-context--loading" aria-label={t(i18n, "panel.loading")} aria-busy="true">
+        <div class="glean-reading-context__loading-main" aria-hidden="true">
+            <span class="glean-reading-context__skeleton glean-reading-context__skeleton--title"></span>
+            <span class="glean-reading-context__skeleton glean-reading-context__skeleton--meta"></span>
+        </div>
+        <div class="glean-reading-context__loading-label" role="status" aria-live="polite">{t(i18n, "panel.loading")}</div>
+    </aside>
+{:else if context}
     <aside class="glean-reading-context" aria-labelledby="glean-reading-context-title" aria-busy={busy || measuring}>
         <div class="glean-reading-context__main">
             <div id="glean-reading-context-title" class="glean-reading-context__title" role="heading" aria-level="2" title={context.title}>{context.title || t(i18n, "panel.untitled")}</div>
@@ -198,6 +206,7 @@
                     disabled={measuring}
                     title={t(i18n, "clip.bodyCheckHint")}
                     aria-label={t(i18n, "clip.bodyCheckHint")}
+                    aria-busy={measuring}
                     onclick={checkBody}
                 ><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanSearch" /></svg></button>
             {:else if bodyState === "missing"}
