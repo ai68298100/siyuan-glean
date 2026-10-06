@@ -250,6 +250,7 @@
   "resurface.reason.freshTopic": "A topic you have not read recently",
   "resurface.archive": "Archive",
   "resurface.continueReading": "Continue reading",
+  "resurface.startedToday": "Started today",
   "resurface.noAnchor": "Choose your library notebooks first",
   "resurface.allDone": "Nothing to glean today",
   "resurface.allDoneHint": "See you tomorrow — no strings attached",

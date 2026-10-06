@@ -1280,7 +1280,7 @@ function metaLine(entry: Row): string {
                         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 10.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Zm7 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Zm7 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Z" /></svg>
                     </button>
                     {#if mobileMoreOpen}
-                        <div id="glean-mobile-more-menu" class="glean-mobile-more" role="menu" aria-label={t(i18n, "mobile.moreLabel")}>
+                        <div id="glean-mobile-more-menu" class="glean-mobile-more" role="menu" aria-orientation="vertical" aria-label={t(i18n, "mobile.moreLabel")}>
                             <button type="button" class="glean-mobile-more__item" role="menuitem" onclick={() => { closeMobileMore(); void reload(); }}>
                                 <svg class="glean-mobile-more__icon" aria-hidden="true"><use href="#iconGleanRefresh" /></svg>
                                 {t(i18n, "action.refresh")}
@@ -1427,6 +1427,9 @@ function metaLine(entry: Row): string {
                     class="glean-mobile-filter-trigger"
                     class:glean-mobile-filter-trigger--active={activeFilterCount > 0}
                     aria-label={t(i18n, "library.filters")}
+                    aria-haspopup="dialog"
+                    aria-controls="glean-mobile-filter-sheet"
+                    aria-expanded={mobileFilterOpen}
                     onclick={openMobileFilters}
                 >
                     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4h13a1.5 1.5 0 0 1 1.2 2.4l-5.2 6.9v5.2a1.5 1.5 0 0 1-.8 1.3l-2.5 1.2a1.5 1.5 0 0 1-2.2-1.3v-6.4L3.3 6.4A1.5 1.5 0 0 1 4 5.5Zm1.5.5 5 6.7v5l1-.5v-4.5l5-6.7h-11Z" /></svg>
@@ -1490,16 +1493,18 @@ function metaLine(entry: Row): string {
                     onclick={closeMobileFilters}
                 ></button>
                 <div
+                    id="glean-mobile-filter-sheet"
                     class="glean-mobile-filter-sheet"
                     bind:this={mobileFilterSheet}
                     role="dialog"
                     aria-modal="true"
                     aria-labelledby="glean-mobile-filter-title"
+                    aria-describedby="glean-mobile-filter-results"
                 >
                     <header class="glean-mobile-filter-sheet__head">
                         <div>
                             <h2 id="glean-mobile-filter-title">{t(i18n, "library.filters")}</h2>
-                            <span>{t(i18n, "library.resultCount", { n: rows.length })}</span>
+                            <span id="glean-mobile-filter-results">{t(i18n, "library.resultCount", { n: rows.length })}</span>
                         </div>
                         <button type="button" class="glean-mobile-filter-sheet__close" aria-label={t(i18n, "library.filterClose")} onclick={closeMobileFilters}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanClose" /></svg></button>
                     </header>
@@ -2052,7 +2057,7 @@ function metaLine(entry: Row): string {
 
             {#if selection.size > 0}
                 <footer class="glean-batchbar" aria-busy={batchBusy}>
-                    <b>{t(i18n, "action.selected")} {selection.size}</b>
+                    <b aria-live="polite">{t(i18n, "action.selected")} {selection.size}</b>
                     <div class="glean-batchbar__ops">
                         <button class="glean-bb" disabled={batchBusy} onclick={() => void batchApply("reading")}>{t(i18n, "status.reading")}</button>
                         <button class="glean-bb" disabled={batchBusy} onclick={() => void batchApply("done")}>{t(i18n, "status.done")}</button>

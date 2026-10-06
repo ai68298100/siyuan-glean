@@ -229,12 +229,12 @@ function reasonText(reason: SurfaceReason): string {
 }
 </script>
 
-<div class="glean-panel glean-resurface" class:glean-resurface--embedded={embedded}>
+<div class="glean-panel glean-resurface" class:glean-resurface--embedded={embedded} aria-labelledby={!embedded ? "glean-resurface-title" : undefined}>
     {#if !embedded}<header class="glean-panel__head glean-resurface__head">
         <div class="glean-brand">
             <div class="glean-brand__mark"><svg><use href="#iconGleanWheat" /></svg></div>
             <div>
-                <div class="glean-brand__name">{t(i18n, "resurface.title")}</div>
+                <div id="glean-resurface-title" class="glean-brand__name">{t(i18n, "resurface.title")}</div>
                 <div class="glean-brand__sub">
                     {dateLabel} · {t(i18n, "resurface.subtitle", { n: picks.length })}
                     {#if recentCount > 0}· {t(i18n, "resurface.recent", { n: recentCount })}{/if}
@@ -282,7 +282,7 @@ function reasonText(reason: SurfaceReason): string {
             <div class="glean-surf-started">
                 {#each startedToday as item (item.id)}
                     <span class="glean-surf-started__item" title={item.title}>
-                        <span class="glean-surf-started__label">今天已开始</span>
+                        <span class="glean-surf-started__label">{t(i18n, "resurface.startedToday")}</span>
                         <span class="glean-surf-started__title">{item.title}</span>
                         <button class="glean-surf-act" onclick={() => facade.openReadingDocument(item.id)}>
                             {t(i18n, "resurface.continueReading")}
@@ -304,6 +304,7 @@ function reasonText(reason: SurfaceReason): string {
                     <article
                         class:glean-surf-card--swiping={swipeState?.id === pick.item.id}
                         class="glean-surf-card"
+                        aria-label={pick.item.title || t(i18n, "panel.untitled")}
                         aria-busy={actingId === pick.item.id || undoingId === pick.item.id}
                         style="--glean-surf-index: {index}; --glean-swipe-offset: {swipeOffsetFor(pick.item.id)}px"
                         onpointerdown={(event) => beginSwipe(pick, event)}

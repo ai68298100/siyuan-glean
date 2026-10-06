@@ -78,7 +78,7 @@
             <span class="glean-flashcard-recovery__message">{message || t(i18n, "flashcard.recovery.empty")}</span>
         {:else if recovery}
             <div class="glean-flashcard-recovery__body">
-                <span class="glean-flashcard-recovery__status glean-flashcard-recovery__status--{panelState}">
+                <span class="glean-flashcard-recovery__status glean-flashcard-recovery__status--{panelState}" role="status" aria-live="polite">
                     {#if panelState === "missing"}
                         {t(i18n, "flashcard.recovery.missing")}
                     {:else if recovery.phase === "registered"}

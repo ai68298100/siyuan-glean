@@ -1,5 +1,13 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-07 T-3260/D-0148）
+
+第二十五轮继续收口回顾、移动筛选和维护状态：统计/摘录/今日拾遗建立更清晰的内容起线、预览、忙碌和已开始状态层级；移动筛选抽屉在 420px 以下保留并排等宽动作，入口、抽屉和批量选择补齐可访问关联；首启、导入、备份和闪卡恢复处理窄屏边界与状态播报。未改变业务逻辑、数据、文章属性、端点或设置语义。
+
+- 当前改动文件：`src/index.scss`、`src/ui/DockPanel.svelte`、`src/ui/FlashcardRecoveryPanel.svelte`、`src/ui/ResurfaceView.svelte`、`public/i18n/zh_CN.json`、`public/i18n/en_US.json`。
+- 已通过：`pnpm run check` 0 错误/0 警告；定向回归 134/134；`pnpm test` 1146/1146；`pnpm build`、`pnpm task:ledger --check`、`git diff --check`。
+- 版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 package.zip。
+
 ## 当前有效交接（2026-10-07 T-3260/D-0147）
 
 第二十四轮收口工作台、阅读和设置的响应式层级：筛选/rail/行表/看板统一低对比表面和选中边界；阅读工具栏、伴生栏标题、忙碌反馈与窄屏正文留白统一；设置页在 420px 容器内让控件按内容顺序落行，footer 状态与动作清晰分栏。静态桌面与 390px 预览复核无横向溢出。未改变业务逻辑、数据、文章属性、端点或设置语义。

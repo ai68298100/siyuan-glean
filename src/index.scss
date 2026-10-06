@@ -5419,8 +5419,18 @@ body.b3-theme-dark {
         padding-left: calc(8px + var(--glean-safe-left, 0px));
     }
 
+    /* 窄屏底部操作仍保持同一行，避免清空/应用被推成一列而挤占筛选内容。 */
+    .glean-panel--mobile .glean-mobile-filter-sheet__foot {
+        flex-wrap: nowrap;
+        gap: 8px;
+    }
+
     .glean-panel--mobile .glean-mobile-filter-sheet__foot .glean-btn {
-        flex-basis: 100%;
+        flex: 1 1 0;
+        min-width: 0;
+        flex-basis: 0;
+        padding-inline: 8px;
+        white-space: nowrap;
     }
 }
 
@@ -7699,6 +7709,96 @@ body.b3-theme-dark {
     font-variant-numeric: tabular-nums;
 }
 
+/* 第二十五轮：统计、摘录与拾遗的内容列保持同一条阅读起线。 */
+.glean-highlights__meta {
+    /* metadata follows the quote text rather than the checkbox edge */
+    margin: 6px 0 6px 30px;
+}
+
+.glean-highlights__tags {
+    margin-top: var(--glean-space-2);
+}
+
+.glean-highlights__tools--selection {
+    align-items: center;
+    row-gap: var(--glean-space-2);
+}
+
+.glean-highlights__tools--selection button {
+    transition: background-color 160ms var(--glean-ease-out), border-color 160ms var(--glean-ease-out), color 160ms var(--glean-ease-out), transform 160ms var(--glean-ease-out);
+}
+
+.glean-highlights__tools--selection button:active:not(:disabled) {
+    transform: translateY(1px);
+}
+
+.glean-stats > .glean-stats__toolbar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--glean-space-2);
+    margin-top: calc(var(--glean-space-2) * -1);
+    padding-top: var(--glean-space-3);
+    border-top: 1px solid var(--glean-border-soft);
+}
+
+.glean-stats > .glean-stats__toolbar .glean-btn {
+    min-height: 36px;
+}
+
+.glean-stats__preview {
+    padding: var(--glean-space-3);
+    border: 1px solid var(--glean-border-soft);
+    border-radius: var(--glean-radius-md);
+    background: var(--glean-inset-surface);
+}
+
+.glean-stats__preview textarea {
+    border-color: var(--glean-border-soft);
+    background: var(--b3-theme-background);
+}
+
+.glean-surf-started__item {
+    padding: 6px 8px;
+    border: 1px solid var(--glean-border-soft);
+    border-radius: var(--glean-radius-sm);
+    background: var(--glean-inset-surface);
+}
+
+.glean-surf-started__label {
+    color: var(--glean-accent-b);
+    font-weight: 650;
+}
+
+.glean-surf-card[aria-busy="true"] {
+    cursor: wait;
+}
+
+.glean-surf-card[aria-busy="true"] .glean-surf__acts {
+    opacity: 0.7;
+}
+
+@media (max-width: 560px) {
+    .glean-highlights__meta {
+        margin-left: 30px;
+    }
+
+    .glean-surf-started__item {
+        align-items: flex-start;
+        flex-wrap: wrap;
+        row-gap: 4px;
+    }
+
+    .glean-surf-started__title {
+        flex-basis: calc(100% - 82px);
+    }
+
+    .glean-surf-started__item .glean-surf-act {
+        flex: 1 1 100%;
+        min-height: 40px;
+    }
+}
+
 .glean-reader__ops {
     row-gap: 8px;
 }
@@ -8804,5 +8904,72 @@ body.b3-theme-dark .glean-panel--mobile,
 @media (prefers-reduced-motion: reduce) {
     .glean-settings__head {
         box-shadow: var(--glean-shadow-card);
+    }
+}
+
+/* 第二十五轮：维护弹窗的窄屏边界和状态层级。让首启 footer 不越出内容面，
+   导入进度行在窄宽度下仍有明确的操作锚点，恢复卡的状态变化可被读屏感知。 */
+.glean-onboarding > .glean-migrate__ops,
+.glean-import-progress__row,
+.glean-import__pagination {
+    min-width: 0;
+}
+
+.glean-onboarding > .glean-migrate__ops > :where(.glean-btn, .glean-linkish) {
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    white-space: normal;
+}
+
+.glean-import-progress__row > span:first-child {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.glean-import-progress__row > .glean-btn {
+    flex: 0 0 auto;
+    margin-left: auto;
+}
+
+.glean-import__pagination {
+    align-items: center;
+    gap: var(--glean-space-2);
+}
+
+.glean-import__pagination > span {
+    min-width: 0;
+    flex: 1 1 auto;
+    text-align: center;
+    overflow-wrap: anywhere;
+}
+
+.glean-backup summary {
+    min-width: 0;
+}
+
+@media (max-width: 600px) {
+    .glean-onboarding > .glean-migrate__ops {
+        margin-inline: calc(-12px - env(safe-area-inset-left, 0px)) calc(-12px - env(safe-area-inset-right, 0px));
+        padding-inline: calc(12px + env(safe-area-inset-left, 0px)) calc(12px + env(safe-area-inset-right, 0px));
+    }
+
+    .glean-import__pagination > :where(.glean-btn, .glean-linkish) {
+        flex: 1 1 0;
+        min-width: 0;
+        min-height: 44px;
+        padding-inline: var(--glean-space-2);
+    }
+
+    .glean-import__pagination > span {
+        flex: 0 1 auto;
+        max-width: 28%;
+    }
+}
+
+@media (max-width: 360px) {
+    .glean-import-progress__row > .glean-btn {
+        flex-basis: 100%;
+        margin-left: 0;
     }
 }
