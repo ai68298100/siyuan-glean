@@ -239,14 +239,14 @@ function openProgressDocument(id: string): void {
 }
 </script>
 
-<div class="glean-migrate glean-import" class:glean-import--busy={busy} data-phase={phase} aria-labelledby="glean-import-title" aria-busy={busy}>
+<div class="glean-migrate glean-import" class:glean-import--busy={busy} data-phase={phase} aria-labelledby="glean-import-title" aria-describedby="glean-import-desc" aria-busy={busy}>
     <div class="glean-dlg-head glean-import__head">
         <div class="glean-brand__mark glean-dlg-head__mark">
             <svg aria-hidden="true"><use href="#iconGleanWheat" /></svg>
         </div>
         <div>
             <h2 id="glean-import-title" class="glean-dlg-head__t">{t(i18n, "import.title")}</h2>
-            <div class="glean-dlg-head__sub">{t(i18n, "import.intro")}</div>
+            <div id="glean-import-desc" class="glean-dlg-head__sub">{t(i18n, "import.intro")}</div>
         </div>
     </div>
 
@@ -378,6 +378,8 @@ function openProgressDocument(id: string): void {
                         {row.duplicate ? t(i18n, "import.dupLabel") : row.status}
                     </span>
                 </div>
+            {:else}
+                <div class="glean-mtable__empty" role="status">{t(i18n, "import.noImportable")}</div>
             {/each}
         </div>
         {#if previewPageCount > 1}
@@ -387,7 +389,7 @@ function openProgressDocument(id: string): void {
                 <button class="glean-btn glean-btn--ghost glean-import__page-btn" disabled={previewPage >= previewPageCount} onclick={() => (previewPage += 1)}>{t(i18n, "import.nextPage")}<svg class="glean-icon glean-icon--xs" aria-hidden="true"><use href="#iconGleanArrowRight" /></svg></button>
             </div>
         {/if}
-        <div class="glean-migrate__ops">
+        <div class="glean-migrate__ops glean-migrate__ops--footer">
             <button class="glean-btn glean-btn--ghost" onclick={resetToPick}>{t(i18n, "migrate.rescan")}</button>
             <button class="glean-btn glean-btn--pri" disabled={busy || unfinished || !progressLoaded || progressReadFailed || importable === 0 || !targetAvailable || !importConfirmed || notebookLoading || notebookError} onclick={() => void startImport()}>
                 {t(i18n, "import.start")}
@@ -398,7 +400,9 @@ function openProgressDocument(id: string): void {
             <div class="glean-progress"><div class="glean-progress__bar" style={`width:${progress}%`}></div></div>
             <div class="glean-prog-meta"><span>{t(i18n, "import.importing")}</span><span>{progress}%</span></div>
         </div>
-        <button class="glean-btn glean-btn--ghost" disabled={stopping} onclick={() => { stopping = true; controller?.abort(); }}>{t(i18n, stopping ? "import.progress.stopping" : "import.progress.pause")}</button>
+        <div class="glean-migrate__ops glean-migrate__ops--footer">
+            <button class="glean-btn glean-btn--ghost" disabled={stopping} onclick={() => { stopping = true; controller?.abort(); }}>{t(i18n, stopping ? "import.progress.stopping" : "import.progress.pause")}</button>
+        </div>
     {:else if phase === "done" && summary}
         <div class="glean-mstats">
             <div class="glean-mstat"><div class="glean-mstat__n">{summary.imported}</div><div class="glean-mstat__l">{t(i18n, "import.imported")}</div></div>
@@ -408,7 +412,7 @@ function openProgressDocument(id: string): void {
         {#if retryRows.length > 0}
             <p class="glean-set-row__desc" role="status">{t(i18n, "import.retryHint")}</p>
         {/if}
-        <div class="glean-migrate__ops">
+        <div class="glean-migrate__ops glean-migrate__ops--footer">
             {#if retryRows.length > 0}
                 <button class="glean-btn glean-btn--ghost" disabled={busy || !resumeConfirmed || progressReadFailed} onclick={() => void startImport(retryRows)}>{t(i18n, "import.retryFailed")}</button>
             {/if}

@@ -66,7 +66,7 @@
     onMount(() => { void refresh(); });
 </script>
 
-<div class="glean-flashcard-recovery" aria-busy={panelState === "loading" || panelState === "busy"}>
+<div class="glean-flashcard-recovery" role="region" aria-label={t(i18n, "flashcard.recovery.title")} aria-busy={panelState === "loading" || panelState === "busy"}>
     <div class="glean-set-row">
         <div class="glean-set-row__lb">
             {t(i18n, "flashcard.recovery.title")}

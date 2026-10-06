@@ -322,6 +322,7 @@ function reasonText(reason: SurfaceReason): string {
                         }}
                         role="button"
                         tabindex="0"
+                        title={pick.item.title || t(i18n, "panel.untitled")}
                     >
                         {pick.item.title || t(i18n, "panel.untitled")}
                     </div>

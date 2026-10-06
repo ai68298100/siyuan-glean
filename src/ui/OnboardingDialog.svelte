@@ -147,14 +147,14 @@ function continueLater(): void {
 }
 </script>
 
-<div class="glean-migrate glean-onboarding" class:glean-onboarding--scanning={scanning} aria-labelledby="glean-onboarding-title" aria-busy={scanning}>
+<div class="glean-migrate glean-onboarding" class:glean-onboarding--scanning={scanning} aria-labelledby="glean-onboarding-title" aria-describedby="glean-onboarding-desc" aria-busy={scanning}>
     <div class="glean-dlg-head">
         <div class="glean-brand__mark glean-dlg-head__mark">
             <svg aria-hidden="true"><use href="#iconGleanWheat" /></svg>
         </div>
         <div>
             <h2 id="glean-onboarding-title" class="glean-dlg-head__t">{t(i18n, "onboarding.title")}</h2>
-            <div class="glean-dlg-head__sub">{t(i18n, "tagline")}</div>
+            <div id="glean-onboarding-desc" class="glean-dlg-head__sub">{t(i18n, "tagline")}</div>
         </div>
     </div>
     <div class="glean-sr-only" aria-live="polite">{t(i18n, "onboarding.stepProgress", { n: step })}</div>
@@ -194,7 +194,7 @@ function continueLater(): void {
                     >{anchorNotebooks.includes(notebook.id) ? "✓ " : ""}{notebook.name}</button>
                 {/each}
                 {#if notebooks.length === 0}
-                    <span class="glean-onb-empty__mark">—</span>
+                    <span class="glean-onb-empty__mark" role="status">{t(i18n, "onboarding.anchorNone")}</span>
                 {/if}
             </div>
             <div class="glean-empty glean-onb-empty">

@@ -205,14 +205,14 @@ function rowStateLabel(row: MigrateRow): string {
 }
 </script>
 
-<div class="glean-migrate" aria-labelledby="glean-migrate-title" aria-busy={phase === "scanning" || phase === "running"}>
+<div class="glean-migrate" aria-labelledby="glean-migrate-title" aria-describedby="glean-migrate-desc" aria-busy={phase === "scanning" || phase === "running"}>
     <div class="glean-dlg-head">
         <div class="glean-brand__mark glean-dlg-head__mark">
             <svg aria-hidden="true"><use href="#iconGleanWheat" /></svg>
         </div>
         <div>
             <h2 id="glean-migrate-title" class="glean-dlg-head__t">{t(i18n, "migrate.title")}</h2>
-            <div class="glean-dlg-head__sub">{t(i18n, "migrate.intro")}</div>
+            <div id="glean-migrate-desc" class="glean-dlg-head__sub">{t(i18n, "migrate.intro")}</div>
         </div>
     </div>
 
@@ -252,7 +252,7 @@ function rowStateLabel(row: MigrateRow): string {
             </button>
         </div>
     {:else if phase === "scanning"}
-        <div class="glean-panel__loading">{t(i18n, "migrate.scanning")}</div>
+        <div class="glean-panel__loading" role="status" aria-live="polite">{t(i18n, "migrate.scanning")}</div>
     {:else if phase === "report"}
         <div class="glean-mstats">
             <div class="glean-mstat"><div class="glean-mstat__n">{counts.pending}</div><div class="glean-mstat__l">{t(i18n, "migrate.backfillableLabel")}</div></div>
@@ -296,9 +296,11 @@ function rowStateLabel(row: MigrateRow): string {
                             <button class="glean-btn glean-btn--ghost" onclick={() => (editingRowId = "")}>{t(i18n, "action.cancel")}</button>
                         </div>
                     {/if}
+            {:else}
+                <div class="glean-mtable__empty" role="status">{t(i18n, "panel.empty")}</div>
             {/each}
         </div>
-        <div class="glean-migrate__ops">
+        <div class="glean-migrate__ops glean-migrate__ops--footer">
             <select class="b3-select glean-migrate__filter" aria-label={t(i18n, "migrate.filterAll")} bind:value={filter}>
                 <option value="all">{t(i18n, "migrate.filterAll")}</option>
                 <option value="pending">{t(i18n, "migrate.filterPending")}</option>
@@ -367,9 +369,11 @@ function rowStateLabel(row: MigrateRow): string {
                             <button class="glean-btn glean-btn--ghost" onclick={() => (editingRowId = "")}>{t(i18n, "action.cancel")}</button>
                         </div>
                     {/if}
+            {:else}
+                <div class="glean-mtable__empty" role="status">{t(i18n, "panel.empty")}</div>
             {/each}
         </div>
-        <div class="glean-migrate__ops">
+        <div class="glean-migrate__ops glean-migrate__ops--footer">
             {#if phase === "running"}
                 <button class="glean-btn" onclick={() => (aborted = true)}>{t(i18n, "migrate.pause")}</button>
             {:else}
@@ -411,7 +415,7 @@ function rowStateLabel(row: MigrateRow): string {
                 {/each}
             </div>
         {/if}
-        <div class="glean-migrate__ops">
+        <div class="glean-migrate__ops glean-migrate__ops--footer">
             {#if retryableErrors}
                 <button class="glean-btn glean-btn--ghost" onclick={() => void startRun(false)}>{t(i18n, "action.retry")}</button>
             {/if}

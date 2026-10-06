@@ -27,7 +27,7 @@
     --glean-accent-a: #ffc15e;
     --glean-accent-b: #f97316;
     --glean-grad: linear-gradient(135deg, var(--glean-accent-a) 0%, var(--glean-accent-b) 100%);
-    --glean-grad-soft: linear-gradient(135deg, rgba(255, 193, 94, 0.14), rgba(249, 115, 22, 0.08));
+    --glean-grad-soft: linear-gradient(135deg, color-mix(in srgb, var(--glean-accent-a) 14%, transparent), color-mix(in srgb, var(--glean-accent-b) 8%, transparent));
     --glean-st-inbox: #f59e0b;
     --glean-st-later: #3b82f6;
     --glean-st-reading: #8b5cf6;
@@ -44,7 +44,7 @@
     --glean-radius: 16px;
     --glean-shadow-card: 0 1px 2px rgba(16, 24, 40, 0.04), 0 8px 24px -12px rgba(16, 24, 40, 0.14);
     --glean-shadow-float: 0 12px 32px -8px rgba(16, 24, 40, 0.22), 0 2px 6px rgba(16, 24, 40, 0.08);
-    --glean-shadow-accent: 0 4px 14px -4px rgba(249, 115, 22, 0.5);
+    --glean-shadow-accent: 0 4px 14px -4px color-mix(in srgb, var(--glean-accent-b) 50%, transparent);
     /* v2 视觉令牌：所有新增间距按 4px 栅格，避免组件各自漂移。 */
     --glean-space-1: 4px;
     --glean-space-2: 8px;
@@ -124,7 +124,7 @@ body.b3-theme-dark {
     display: flex;
     flex-direction: column;
     gap: 10px;
-    background: linear-gradient(to bottom, rgba(255, 193, 94, 0.07), transparent);
+    background: linear-gradient(to bottom, color-mix(in srgb, var(--glean-accent-a) 7%, transparent), transparent);
 }
 
 .glean-brand {
@@ -140,9 +140,9 @@ body.b3-theme-dark {
     background: var(--glean-grad);
     display: grid;
     place-items: center;
-    color: #fff;
+    color: var(--b3-theme-on-primary);
     flex-shrink: 0;
-    box-shadow: var(--glean-shadow-accent), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+    box-shadow: var(--glean-shadow-accent), inset 0 1px 0 color-mix(in srgb, var(--b3-theme-on-primary) 35%, transparent);
 
     svg {
         width: 16px;
@@ -179,7 +179,7 @@ body.b3-theme-dark {
     transition: background 0.2s, transform 0.2s var(--glean-ease-spring);
 
     &:hover {
-        background: rgba(128, 128, 128, 0.1);
+        background: color-mix(in srgb, var(--b3-theme-on-surface) 10%, transparent);
     }
 
     &:active {
@@ -303,7 +303,7 @@ body.b3-theme-dark {
     place-items: center;
     border-radius: 9px;
     background: var(--glean-grad);
-    color: #fff;
+    color: var(--b3-theme-on-primary);
     box-shadow: var(--glean-shadow-accent);
 }
 
@@ -487,7 +487,7 @@ body.b3-theme-dark {
     padding: 5px 12px;
     border-radius: 999px;
     cursor: pointer;
-    transition: all 0.25s var(--glean-ease-out);
+    transition: all 220ms var(--glean-ease-out);
 
     &.glean-views__btn--on {
         background: var(--b3-theme-surface);
@@ -629,11 +629,11 @@ body.b3-theme-dark {
     border: 1px solid var(--glean-glass-border);
     backdrop-filter: blur(16px) saturate(1.4);
     -webkit-backdrop-filter: blur(16px) saturate(1.4);
-    transition: box-shadow 0.25s, border-color 0.25s;
+    transition: box-shadow 220ms, border-color 220ms;
 
     &:focus-within {
-        border-color: rgba(249, 115, 22, 0.4);
-        box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.12);
+        border-color: color-mix(in srgb, var(--glean-accent-b) 40%, transparent);
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--glean-accent-b) 12%, transparent);
     }
 
     .glean-search__icon {
@@ -704,7 +704,7 @@ body.b3-theme-dark {
     color: var(--b3-theme-on-surface);
     font-size: 12px;
     cursor: pointer;
-    transition: all 0.25s var(--glean-ease-out);
+    transition: all 220ms var(--glean-ease-out);
 
     &.glean-q--on {
         color: var(--glean-accent-b);
@@ -728,7 +728,7 @@ body.b3-theme-dark {
     border-radius: 999px;
     display: grid;
     place-items: center;
-    background: rgba(128, 128, 128, 0.14);
+    background: color-mix(in srgb, var(--b3-theme-on-surface) 14%, transparent);
     font-weight: 600;
 }
 
@@ -746,8 +746,8 @@ body.b3-theme-dark {
     display: flex;
     align-items: center;
     gap: 8px;
-    border: 1px dashed rgba(245, 158, 11, 0.45);
-    background: rgba(245, 158, 11, 0.06);
+    border: 1px dashed color-mix(in srgb, var(--glean-st-inbox) 45%, transparent);
+    background: color-mix(in srgb, var(--glean-st-inbox) 6%, transparent);
     font-size: 11.5px;
     color: var(--b3-theme-on-surface);
     flex-shrink: 0;
@@ -781,7 +781,7 @@ body.b3-theme-dark {
     border: none;
     font-size: 11px;
     font-weight: 600;
-    color: #fff;
+    color: var(--b3-theme-on-primary);
     padding: 5px 12px;
     border-radius: 999px;
     background: var(--glean-grad);
@@ -896,7 +896,7 @@ body.b3-theme-dark {
     border-radius: 999px;
     font-size: 9.5px;
     line-height: 1.45;
-    background: rgba(128, 128, 128, 0.12);
+    background: color-mix(in srgb, var(--b3-theme-on-surface) 12%, transparent);
     color: var(--b3-theme-on-surface);
     white-space: nowrap;
 
@@ -1667,7 +1667,7 @@ body.b3-theme-dark {
     transition: all 0.18s;
 
     &:hover {
-        color: #fff;
+        color: var(--b3-theme-on-primary);
         background: var(--glean-grad);
         border-color: transparent;
     }
@@ -1712,7 +1712,7 @@ body.b3-theme-dark {
     &--primary {
         border-color: transparent;
         background: var(--glean-grad);
-        color: #fff;
+        color: var(--b3-theme-on-primary);
     }
 
     &--restore {
@@ -1772,7 +1772,7 @@ body.b3-theme-dark {
     margin-top: 8px;
     height: 3px;
     border-radius: 2px;
-    background: rgba(128, 128, 128, 0.14);
+    background: color-mix(in srgb, var(--b3-theme-on-surface) 14%, transparent);
     overflow: hidden;
 
     i {
@@ -1793,13 +1793,13 @@ body.b3-theme-dark {
     color: var(--glean-accent-b);
     padding: 4px 10px;
     border-radius: 999px;
-    background: rgba(249, 115, 22, 0.1);
+    background: color-mix(in srgb, var(--glean-accent-b) 10%, transparent);
     cursor: pointer;
     transition: all 0.2s;
 
     &:hover {
         background: var(--glean-grad);
-        color: #fff;
+        color: var(--b3-theme-on-primary);
     }
 }
 
@@ -1854,7 +1854,7 @@ body.b3-theme-dark {
     border-radius: 24px;
     display: grid;
     place-items: center;
-    background: linear-gradient(160deg, rgba(255, 193, 94, 0.18), rgba(249, 115, 22, 0.08));
+    background: linear-gradient(160deg, color-mix(in srgb, var(--glean-accent-a) 18%, transparent), color-mix(in srgb, var(--glean-accent-b) 8%, transparent));
 
     svg {
         width: 30px;
@@ -1932,7 +1932,7 @@ body.b3-theme-dark {
     box-shadow: var(--glean-shadow-float);
     font-size: 11.5px;
     z-index: 5;
-    animation: glean-rise 0.25s var(--glean-ease-spring);
+    animation: glean-rise 240ms var(--glean-ease-spring);
 }
 
 .glean-list-more {
@@ -1962,7 +1962,7 @@ body.b3-theme-dark {
     padding: 5px 10px;
     border-radius: 9px;
     cursor: pointer;
-    background: rgba(128, 128, 128, 0.12);
+    background: color-mix(in srgb, var(--b3-theme-on-surface) 12%, transparent);
     color: var(--b3-theme-on-background);
     transition: all 0.2s;
 
@@ -1972,7 +1972,7 @@ body.b3-theme-dark {
 
     &.glean-bb--pri {
         background: var(--glean-grad);
-        color: #fff;
+        color: var(--b3-theme-on-primary);
         font-weight: 600;
     }
 }
@@ -2069,12 +2069,12 @@ body.b3-theme-dark {
         i {
             flex: 1;
             border-radius: 2px 2px 0 0;
-            background: rgba(128, 128, 128, 0.14);
+            background: color-mix(in srgb, var(--b3-theme-on-surface) 14%, transparent);
 
             &.glean-tile__spark--hot {
                 background: var(--glean-grad);
                 opacity: 0.9;
-                box-shadow: 0 0 6px rgba(249, 115, 22, 0.35);
+                box-shadow: 0 0 6px color-mix(in srgb, var(--glean-accent-b) 35%, transparent);
             }
         }
     }
@@ -2116,7 +2116,7 @@ body.b3-theme-dark {
         flex: 1;
         height: 6px;
         border-radius: 3px;
-        background: rgba(128, 128, 128, 0.14);
+        background: color-mix(in srgb, var(--b3-theme-on-surface) 14%, transparent);
         overflow: hidden;
 
         i {
@@ -2124,7 +2124,7 @@ body.b3-theme-dark {
             height: 100%;
             border-radius: 3px;
             background: var(--glean-grad);
-            transition: width 0.4s var(--glean-ease-out);
+            transition: width 220ms var(--glean-ease-out);
         }
     }
 
@@ -2160,7 +2160,7 @@ body.b3-theme-dark {
     border: none;
     font-size: 12.5px;
     font-weight: 600;
-    color: #fff;
+    color: var(--b3-theme-on-primary);
     padding: 10px;
     border-radius: 14px;
     background: var(--glean-grad);
@@ -2279,7 +2279,7 @@ body.b3-theme-dark {
         &.glean-step--on {
             .glean-step__ball {
                 background: var(--glean-grad);
-                color: #fff;
+                color: var(--b3-theme-on-primary);
                 box-shadow: var(--glean-shadow-accent);
             }
 
@@ -2291,7 +2291,7 @@ body.b3-theme-dark {
 
         &.glean-step--done {
             .glean-step__ball {
-                background: rgba(16, 185, 129, 0.18);
+                background: color-mix(in srgb, var(--glean-st-done) 18%, transparent);
                 color: var(--glean-st-done);
             }
         }
@@ -2736,10 +2736,10 @@ body.b3-theme-dark {
             font-weight: 600;
             flex-shrink: 0;
 
-            &.glean-mrow__st--ok { background: rgba(16, 185, 129, 0.14); color: var(--glean-st-done); }
-            &.glean-mrow__st--manual { background: rgba(245, 158, 11, 0.14); color: var(--glean-st-inbox); }
-            &.glean-mrow__st--skip { background: rgba(128, 128, 128, 0.12); color: var(--b3-theme-on-surface); }
-            &.glean-mrow__st--err { background: rgba(239, 68, 68, 0.14); color: #ef4444; }
+            &.glean-mrow__st--ok { background: color-mix(in srgb, var(--glean-st-done) 14%, transparent); color: var(--glean-st-done); }
+            &.glean-mrow__st--manual { background: color-mix(in srgb, var(--glean-st-inbox) 14%, transparent); color: var(--glean-st-inbox); }
+            &.glean-mrow__st--skip { background: color-mix(in srgb, var(--b3-theme-on-surface) 12%, transparent); color: var(--b3-theme-on-surface); }
+            &.glean-mrow__st--err { background: color-mix(in srgb, var(--b3-theme-error) 14%, transparent); color: var(--b3-theme-error); }
         }
     }
 }
@@ -2747,15 +2747,15 @@ body.b3-theme-dark {
 .glean-progress {
     height: 6px;
     border-radius: 3px;
-    background: rgba(128, 128, 128, 0.14);
+    background: color-mix(in srgb, var(--b3-theme-on-surface) 14%, transparent);
     overflow: hidden;
 
     .glean-progress__bar {
         height: 100%;
         border-radius: 3px;
         background: var(--glean-grad);
-        box-shadow: 0 0 8px rgba(249, 115, 22, 0.5);
-        transition: width 0.25s ease;
+        box-shadow: 0 0 8px color-mix(in srgb, var(--glean-accent-b) 50%, transparent);
+        transition: width 220ms var(--glean-ease-out);
     }
 }
 
@@ -2814,7 +2814,7 @@ body.b3-theme-dark {
 
     &.glean-btn--pri {
         background: var(--glean-grad);
-        color: #fff;
+        color: var(--b3-theme-on-primary);
         box-shadow: var(--glean-shadow-accent);
     }
 
@@ -2915,7 +2915,7 @@ body.b3-theme-dark {
     }
 
     &:hover {
-        background: rgba(128, 128, 128, 0.06);
+        background: color-mix(in srgb, var(--b3-theme-on-surface) 6%, transparent);
     }
 }
 
@@ -2940,7 +2940,7 @@ body.b3-theme-dark {
     background: transparent;
     position: relative;
     cursor: pointer;
-    transition: background 0.25s;
+    transition: background 220ms;
     flex-shrink: 0;
     border: none;
     padding: 0;
@@ -2953,8 +2953,8 @@ body.b3-theme-dark {
         width: 36px;
         height: 21px;
         border-radius: 999px;
-        background: rgba(128, 128, 128, 0.25);
-        transition: background 0.25s;
+        background: color-mix(in srgb, var(--b3-theme-on-surface) 25%, transparent);
+        transition: background 220ms;
     }
 
     &::after {
@@ -2965,9 +2965,9 @@ body.b3-theme-dark {
         width: 17px;
         height: 17px;
         border-radius: 50%;
-        background: #fff;
+        background: var(--b3-theme-surface);
         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
-        transition: transform 0.25s var(--glean-ease-spring);
+        transition: transform 220ms var(--glean-ease-spring);
     }
 
     &.glean-sw--on {
@@ -2998,7 +2998,7 @@ body.b3-theme-dark {
     flex-shrink: 0;
 
     &.glean-nb--on {
-        background: rgba(249, 115, 22, 0.1);
+        background: color-mix(in srgb, var(--glean-accent-b) 10%, transparent);
         border-color: var(--glean-accent-b);
         color: var(--glean-accent-b);
         font-weight: 600;
@@ -3024,7 +3024,7 @@ body.b3-theme-dark {
     text-align: center;
 
     &:focus {
-        border-color: rgba(249, 115, 22, 0.4);
+        border-color: color-mix(in srgb, var(--glean-accent-b) 40%, transparent);
     }
 }
 
@@ -3054,14 +3054,14 @@ body.b3-theme-dark {
     }
 
     ::-webkit-scrollbar-thumb {
-        background: rgba(128, 128, 128, 0.18);
+        background: color-mix(in srgb, var(--b3-theme-on-surface) 18%, transparent);
         border-radius: 4px;
         border: 2px solid transparent;
         background-clip: padding-box;
     }
 
     ::-webkit-scrollbar-thumb:hover {
-        background: rgba(128, 128, 128, 0.3);
+        background: color-mix(in srgb, var(--b3-theme-on-surface) 30%, transparent);
         background-clip: padding-box;
     }
 
@@ -3939,7 +3939,7 @@ body.b3-theme-dark {
     &.glean-st-badge--later { background: color-mix(in srgb, var(--glean-st-later) 13%, var(--b3-theme-surface)); color: var(--glean-st-later-text); &::before { content: "◷"; } }
     &.glean-st-badge--reading { background: color-mix(in srgb, var(--glean-st-reading) 13%, var(--b3-theme-surface)); color: var(--glean-st-reading-text); &::before { content: "◉"; } }
     &.glean-st-badge--done { background: color-mix(in srgb, var(--glean-st-done) 13%, var(--b3-theme-surface)); color: var(--glean-st-done-text); &::before { content: "✓"; } }
-    &.glean-st-badge--archived { background: rgba(128, 128, 128, 0.12); color: var(--b3-theme-on-surface); &::before { content: "▱"; } }
+    &.glean-st-badge--archived { background: color-mix(in srgb, var(--b3-theme-on-surface) 12%, transparent); color: var(--b3-theme-on-surface); &::before { content: "▱"; } }
 }
 
 /* 相关旧文（T-1301，AI 元素带 ✨ 前缀，UI-STANDARD §5.6） */
@@ -4201,7 +4201,7 @@ body.b3-theme-dark {
 
     &.glean-surf-act--pri {
         background: var(--glean-grad);
-        color: #fff;
+        color: var(--b3-theme-on-primary);
         box-shadow: var(--glean-shadow-accent);
     }
 
@@ -4283,7 +4283,7 @@ body.b3-theme-dark {
     font-size: 11.5px;
     color: var(--b3-theme-on-surface);
     border: 1px dashed var(--glean-accent-b);
-    background: rgba(249, 115, 22, 0.05);
+    background: color-mix(in srgb, var(--glean-accent-b) 5%, transparent);
 
     b {
         color: var(--glean-accent-b);
@@ -4301,7 +4301,7 @@ body.b3-theme-dark {
     font-weight: 600;
     padding: 3px 10px;
     border-radius: 999px;
-    background: rgba(249, 115, 22, 0.1);
+    background: color-mix(in srgb, var(--glean-accent-b) 10%, transparent);
     color: var(--glean-accent-b);
 }
 
@@ -4335,7 +4335,7 @@ body.b3-theme-dark {
     border-radius: 6px;
     transition: background 0.2s;
 
-    &:hover { background: rgba(249, 115, 22, 0.1); }
+    &:hover { background: color-mix(in srgb, var(--glean-accent-b) 10%, transparent); }
     &:disabled { opacity: 0.5; cursor: wait; }
 }
 
@@ -5229,7 +5229,8 @@ body.b3-theme-dark {
 
 @media (forced-colors: active) {
     .glean-panel,
-    .glean-tab-root {
+    .glean-tab-root,
+    .glean-dialog-root {
         --glean-st-inbox: ButtonText;
         --glean-st-later: ButtonText;
         --glean-st-reading: ButtonText;
@@ -5246,15 +5247,173 @@ body.b3-theme-dark {
     .glean-panel .glean-st-badge,
     .glean-panel .glean-status-actions__btn,
     .glean-panel .glean-load-error,
-    .glean-panel .glean-offline-notice {
+    .glean-panel .glean-offline-notice,
+    .glean-dialog-root .glean-st-badge,
+    .glean-dialog-root .glean-status-actions__btn,
+    .glean-dialog-root .glean-load-error,
+    .glean-dialog-root .glean-offline-notice {
         background: Canvas;
         border: 1px solid ButtonText;
         color: ButtonText;
     }
 
     .glean-panel :where(button, a, input, select, textarea, [tabindex]):focus-visible,
-    .glean-tab-root :where(button, a, input, select, textarea, [tabindex]):focus-visible {
+    .glean-tab-root :where(button, a, input, select, textarea, [tabindex]):focus-visible,
+    .glean-dialog-root :where(button, a, input, select, textarea, [tabindex]):focus-visible {
         outline-color: Highlight;
+    }
+}
+
+/* 第十三轮：弹窗滚动边界与状态面。让长内容保持可读，操作区始终与内容边界对齐。 */
+.glean-migrate,
+.glean-settings,
+.glean-backup,
+.glean-formatting,
+.glean-flashcard {
+    scrollbar-gutter: stable;
+    overscroll-behavior: contain;
+}
+
+.glean-migrate .glean-migrate__ops--footer,
+.glean-onboarding > .glean-migrate__ops,
+.glean-formatting__toolbar--footer,
+.glean-flashcard__actions--footer,
+.glean-backup__actions--footer {
+    position: sticky;
+    bottom: 0;
+    z-index: 3;
+    margin-inline: calc(var(--glean-space-4) * -1);
+    padding: var(--glean-space-2) var(--glean-space-4);
+    border-top: 1px solid var(--glean-border-soft);
+    background: color-mix(in srgb, var(--b3-theme-background) 92%, transparent);
+    box-shadow: 0 -8px 18px color-mix(in srgb, var(--b3-theme-background) 32%, transparent);
+    backdrop-filter: blur(10px);
+}
+
+.glean-onboarding > .glean-migrate__ops {
+    margin-inline: -18px;
+    padding-inline: 18px;
+}
+
+.glean-migrate .glean-migrate__ops--footer > .glean-btn,
+.glean-migrate .glean-migrate__ops--footer > .glean-linkish {
+    min-height: 36px;
+}
+
+.glean-migrate .glean-migrate__ops--footer {
+    margin-inline: -18px;
+    padding-inline: 18px;
+}
+
+.glean-mtable__empty {
+    display: grid;
+    place-items: center;
+    min-height: 104px;
+    padding: var(--glean-space-4);
+    color: var(--b3-theme-on-surface);
+    font-size: var(--glean-text-sm);
+    text-align: center;
+}
+
+.glean-migrate :where(button, input, select, textarea, [tabindex]):focus-visible,
+.glean-onboarding :where(button, input, select, textarea, [tabindex]):focus-visible,
+.glean-import :where(button, input, select, textarea, [tabindex]):focus-visible,
+.glean-backup :where(button, input, select, textarea, summary):focus-visible {
+    outline: 2px solid var(--b3-theme-primary);
+    outline-offset: 2px;
+}
+
+.glean-import-progress__actions {
+    align-items: center;
+    min-height: 36px;
+}
+
+.glean-import-progress__rows {
+    scrollbar-gutter: stable;
+    overscroll-behavior: contain;
+}
+
+.glean-formatting,
+.glean-flashcard {
+    min-height: 0;
+}
+
+.glean-formatting__status:empty,
+.glean-flashcard__status:empty {
+    display: none;
+}
+
+.glean-formatting__status--busy::before,
+.glean-flashcard__status--busy::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    flex: 0 0 7px;
+    margin-right: var(--glean-space-2);
+    border-radius: 50%;
+    background: currentColor;
+    box-shadow: 0 0 0 4px color-mix(in srgb, currentColor 12%, transparent);
+    animation: glean-dialog-status-pulse 1.4s ease-in-out infinite;
+}
+
+.glean-backup__actions--footer,
+.glean-formatting__toolbar--footer {
+    margin-inline: calc(var(--glean-space-4) * -1);
+    padding-inline: var(--glean-space-4);
+}
+
+.glean-flashcard__actions--footer {
+    margin-inline: calc(var(--glean-space-5) * -1);
+    padding-inline: var(--glean-space-5);
+}
+
+.glean-backup__actions--footer {
+    justify-content: flex-end;
+}
+
+.glean-backup__status {
+    overflow-wrap: anywhere;
+}
+
+.glean-backup__table,
+.glean-backup__preferences,
+.glean-formatting__candidates,
+.glean-flashcard__quote {
+    scrollbar-gutter: stable;
+    overscroll-behavior: contain;
+}
+
+@keyframes glean-dialog-status-pulse {
+    50% { opacity: .45; transform: scale(.82); }
+}
+
+@media (max-width: 600px) {
+    .glean-migrate .glean-migrate__ops--footer,
+    .glean-formatting__toolbar--footer,
+    .glean-flashcard__actions--footer,
+    .glean-backup__actions--footer {
+        margin-inline: calc(var(--glean-space-3) * -1);
+        padding-inline: var(--glean-space-3);
+        padding-bottom: calc(var(--glean-space-2) + env(safe-area-inset-bottom, 0px));
+    }
+
+    .glean-onboarding > .glean-migrate__ops {
+        margin-inline: -18px;
+        padding-inline: 18px;
+    }
+
+    .glean-formatting__toolbar--footer,
+    .glean-flashcard__actions--footer,
+    .glean-backup__actions--footer {
+        justify-content: stretch;
+    }
+
+    .glean-formatting__toolbar--footer > .glean-btn,
+    .glean-flashcard__actions--footer > .glean-btn,
+    .glean-backup__actions--footer > .glean-btn {
+        flex: 1 1 0;
+        min-width: 0;
+        min-height: 44px;
     }
 }
 
@@ -5263,29 +5422,39 @@ body.b3-theme-dark {
  */
 
 .glean-panel,
-.glean-tab-root {
+.glean-tab-root,
+.glean-dialog-root {
     font-size: var(--glean-text-md);
     scrollbar-color: color-mix(in srgb, var(--b3-theme-on-surface) 28%, transparent) transparent;
     scrollbar-width: thin;
 }
 
 .glean-panel ::-webkit-scrollbar,
-.glean-tab-root ::-webkit-scrollbar {
+.glean-tab-root ::-webkit-scrollbar,
+.glean-dialog-root ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
 }
 
 .glean-panel ::-webkit-scrollbar-track,
-.glean-tab-root ::-webkit-scrollbar-track {
+.glean-tab-root ::-webkit-scrollbar-track,
+.glean-dialog-root ::-webkit-scrollbar-track {
     background: transparent;
 }
 
 .glean-panel ::-webkit-scrollbar-thumb,
-.glean-tab-root ::-webkit-scrollbar-thumb {
+.glean-tab-root ::-webkit-scrollbar-thumb,
+.glean-dialog-root ::-webkit-scrollbar-thumb {
     border: 2px solid transparent;
     border-radius: 999px;
     background-clip: padding-box;
     background-color: color-mix(in srgb, var(--b3-theme-on-surface) 28%, transparent);
+}
+
+.glean-panel ::-webkit-scrollbar-thumb:hover,
+.glean-tab-root ::-webkit-scrollbar-thumb:hover,
+.glean-dialog-root ::-webkit-scrollbar-thumb:hover {
+    background-color: color-mix(in srgb, var(--b3-theme-on-surface) 42%, transparent);
 }
 
 .glean-panel__head {
@@ -5390,7 +5559,8 @@ body.b3-theme-dark {
 .glean-surf-act:focus-visible,
 .glean-views__btn:focus-visible,
 .glean-q:focus-visible,
-.glean-card:focus-visible {
+.glean-card:focus-visible,
+.glean-dialog-root :where(button, a, input, select, textarea, [tabindex]):focus-visible {
     outline: 2px solid var(--b3-theme-primary);
     outline-offset: 2px;
 }
@@ -6587,5 +6757,143 @@ body.b3-theme-dark {
     .glean-highlights__preview,
     .glean-highlights button {
         border-width: 2px;
+    }
+}
+
+/* D-0135：第十三轮组件细节收口；长标题、滚动边界、图标光学对齐与键盘焦点。 */
+.glean-icon-btn,
+.glean-op-btn,
+.glean-filter-dir,
+.glean-reader__back,
+.glean-reader__related-item,
+.glean-surf__title {
+    &:focus-visible {
+        outline: 2px solid var(--b3-theme-primary);
+        outline-offset: 2px;
+    }
+}
+
+.glean-icon-btn {
+    svg,
+    .glean-icon {
+        display: block;
+        flex: 0 0 auto;
+    }
+
+    &:disabled {
+        opacity: 0.5;
+        cursor: wait;
+        transform: none;
+    }
+}
+
+.glean-rail,
+.glean-lib__main,
+.glean-reader__host,
+.glean-reader__side,
+.glean-surf,
+.glean-highlights__preview pre {
+    scrollbar-color: color-mix(in srgb, var(--b3-theme-on-surface) 28%, transparent) transparent;
+    scrollbar-width: thin;
+    overscroll-behavior: contain;
+}
+
+.glean-rail__item,
+.glean-rail__toggle,
+.glean-rail__more {
+    min-height: 30px;
+}
+
+.glean-rail__item .glean-dot,
+.glean-rail__item > svg {
+    flex: 0 0 auto;
+}
+
+.glean-drow__ti {
+    min-width: 0;
+}
+
+.glean-card__title {
+    padding-right: 24px;
+    text-wrap: pretty;
+}
+
+.glean-surf__title {
+    display: -webkit-box;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+}
+
+.glean-surf__summary {
+    display: -webkit-box;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 4;
+}
+
+.glean-surf__why {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 8px;
+    min-width: 0;
+}
+
+.glean-surf__why-label {
+    flex: 0 0 auto;
+    color: var(--b3-theme-on-surface);
+    font-size: var(--glean-text-xs);
+    font-weight: 650;
+}
+
+.glean-highlights__item-head {
+    min-height: 22px;
+}
+
+.glean-highlights__item-index {
+    font-variant-numeric: tabular-nums;
+}
+
+.glean-reader__ops {
+    row-gap: 8px;
+}
+
+.glean-reader__section-title {
+    display: flex;
+    align-items: center;
+    min-height: 20px;
+}
+
+@media (max-width: 560px) {
+    .glean-panel--mobile .glean-surf__acts {
+        flex-wrap: wrap;
+    }
+
+    .glean-panel--mobile .glean-surf-act {
+        flex: 1 1 calc(50% - 3px);
+        min-width: 0;
+    }
+
+    .glean-panel--mobile .glean-surf-act--pri {
+        flex-basis: 100%;
+    }
+
+    .glean-panel--mobile .glean-reader__ops > .glean-btn {
+        flex: 1 1 132px;
+        min-width: 0;
+        white-space: normal;
+        line-height: 1.35;
+    }
+
+    .glean-panel--mobile .glean-reader__mode {
+        width: 100%;
+    }
+
+    .glean-panel--mobile .glean-reader__mode .glean-seg__btn {
+        flex: 1 1 0;
     }
 }

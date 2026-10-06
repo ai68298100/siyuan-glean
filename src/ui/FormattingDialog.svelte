@@ -120,11 +120,11 @@
     }
 </script>
 
-<div class="glean-formatting" aria-busy={busy}>
+<div class="glean-formatting" aria-labelledby="glean-formatting-title" aria-describedby="glean-formatting-desc" aria-busy={busy}>
     <header class="glean-formatting__head">
         <div>
-            <h3>{t(i18n, "formatting.open")}</h3>
-            <p class="glean-formatting__hint">{t(i18n, "formatting.hint")}</p>
+            <h3 id="glean-formatting-title">{t(i18n, "formatting.open")}</h3>
+            <p id="glean-formatting-desc" class="glean-formatting__hint">{t(i18n, "formatting.hint")}</p>
         </div>
         <span class="glean-formatting__mode">{aiOn ? "AI" : "BASIC"}</span>
     </header>
@@ -172,7 +172,7 @@
         </div>
         <p class="glean-formatting__selected">{t(i18n, "formatting.selected", { n: selected.length })}</p>
     {/if}
-    <div class="glean-formatting__toolbar">
+    <div class="glean-formatting__toolbar glean-formatting__toolbar--footer">
         {#if session && saveState !== "saved" && saveState !== "unknown"}
             <button class="glean-btn glean-btn--pri" disabled={busy || !preview.trim()} onclick={() => void save()}>{t(i18n, saveState === "created" ? "formatting.retryMark" : "formatting.save")}</button>
         {/if}

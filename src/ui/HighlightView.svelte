@@ -282,7 +282,7 @@ function openDoc(id: string) {
                     <span class="glean-highlights__item-index">{visible.items.indexOf(item) + 1}</span>
                 </div>
                 <label class="glean-highlights__quote"><input type="checkbox" checked={selected.includes(item.id)} disabled={exportBusy} onchange={() => toggle(item.id)} aria-label={item.text} /><span>{item.text}</span></label>
-                <p class="glean-highlights__meta">{item.title || t(i18n, "panel.untitled")} {item.site ? ` · ${item.site}` : ""}</p>
+                <p class="glean-highlights__meta" title={item.title || t(i18n, "panel.untitled")}>{item.title || t(i18n, "panel.untitled")} {item.site ? ` · ${item.site}` : ""}</p>
                 {#if item.tags.length}<p class="glean-highlights__meta glean-highlights__tags"><span>{t(i18n, "library.filterTag")}</span>{#each item.tags as value}<span class="glean-highlights__tag">{value}</span>{/each}</p>{/if}
                 {#if item.aiTags.length}<p class="glean-highlights__meta glean-highlights__tags glean-highlights__tags--ai"><span>{t(i18n, "library.filterAiTag")}</span>{#each item.aiTags as value}<span class="glean-highlights__tag">{value}</span>{/each}</p>{/if}
                 <div class="glean-highlights__tools glean-highlights__tools--card">

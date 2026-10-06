@@ -89,11 +89,11 @@
     }
 </script>
 
-<div class="glean-flashcard" aria-busy={busy}>
+<div class="glean-flashcard" aria-labelledby="glean-flashcard-title" aria-describedby="glean-flashcard-desc" aria-busy={busy}>
     <header class="glean-flashcard__head">
         <div>
-            <h3>{t(i18n, "flashcard.confirm")}</h3>
-            <p class="glean-flashcard__hint">{t(i18n, "flashcard.previewHint")}</p>
+            <h3 id="glean-flashcard-title">{t(i18n, "flashcard.confirm")}</h3>
+            <p id="glean-flashcard-desc" class="glean-flashcard__hint">{t(i18n, "flashcard.previewHint")}</p>
         </div>
         <span class="glean-flashcard__mode">CARD</span>
     </header>
@@ -124,7 +124,7 @@
         {aiOn ? t(i18n, "flashcard.aiPrivacy", { n: FLASHCARD_AI_QUOTE_LIMIT, channel }) : t(i18n, "flashcard.aiOff")}
     </p>
     <div class="glean-flashcard__status {confirming || busy ? "glean-flashcard__status--busy" : message ? "glean-flashcard__status--message" : ""}" role="status" aria-live="polite">{confirming ? t(i18n, "flashcard.saving") : busy ? t(i18n, "panel.loading") : message}</div>
-    <div class="glean-flashcard__actions">
+    <div class="glean-flashcard__actions glean-flashcard__actions--footer">
         {#if aiOn}
             <button class="glean-btn glean-btn--ghost" disabled={busy || locked} onclick={() => void questionDraft()}>{t(i18n, "flashcard.aiDraft")}</button>
         {:else if !locked}

@@ -1766,7 +1766,7 @@ function metaLine(entry: Row): string {
                                         tabindex="0"
                                     >
                                         <span class={statusDotClass(entry.status)}></span>
-                                        <span class="glean-drow__ti">{entry.title || t(i18n, "panel.untitled")}</span>
+                                        <span class="glean-drow__ti" title={entry.title || t(i18n, "panel.untitled")}>{entry.title || t(i18n, "panel.untitled")}</span>
                                         <span class="glean-drow__site">{entry.site || t(i18n, "panel.unknownSite")}{#if entry.author}<button class="glean-source-author" onclick={(event) => { event.stopPropagation(); selectAuthor(entry.author!); }}>· {entry.author}</button>{/if}</span>
                                          <span class={carrierClass(entry)} title={entry.contentType === "link" && !hasSourceAction(entry.contentType, entry.url) ? t(i18n, "clip.sourceMissing") : carrierLabel(entry)}>{carrierLabel(entry)}</span>
                                         {#if entry.contentType === "link" && !hasSourceAction(entry.contentType, entry.url)}
@@ -1821,7 +1821,7 @@ function metaLine(entry: Row): string {
                                         tabindex="0"
                                     >
                                         <span class="glean-dot glean-dot--inbox"></span>
-                                        <span class="glean-drow__ti">{entry.title || t(i18n, "panel.untitled")}</span>
+                                        <span class="glean-drow__ti" title={entry.title || t(i18n, "panel.untitled")}>{entry.title || t(i18n, "panel.untitled")}</span>
                                         <span class="glean-drow__site" title={entry.url || entry.hpath}>{entry.site || candidateEvidence(entry)}</span>
                                         <span class="glean-drow__len">{candidateMissing(entry) || t(i18n, "candidate.pending")}</span>
                                         <span class="glean-drow__st">
@@ -1897,7 +1897,7 @@ function metaLine(entry: Row): string {
                                 role="button"
                                 tabindex="0"
                             >
-                                <div class="glean-card__title">{entry.title || t(i18n, "panel.untitled")}</div>
+                                <div class="glean-card__title" title={entry.title || t(i18n, "panel.untitled")}>{entry.title || t(i18n, "panel.untitled")}</div>
                                 <div class="glean-card__meta">
                                     {#if entry.kind === "clip"}
                                         <span class={statusDotClass(entry.status)}></span>

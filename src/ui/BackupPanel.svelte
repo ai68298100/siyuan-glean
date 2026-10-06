@@ -134,10 +134,10 @@
     }
 </script>
 
-<section class="glean-backup" aria-label={t(i18n, "backup.title")} aria-busy={Boolean(busy)}>
+<section class="glean-backup" aria-labelledby="glean-backup-title" aria-busy={Boolean(busy)}>
     <header class="glean-backup__head">
         <div>
-            <h3>{t(i18n, "backup.title")}</h3>
+            <h3 id="glean-backup-title">{t(i18n, "backup.title")}</h3>
             <p>{t(i18n, "backup.desc")}</p>
         </div>
         <span class="glean-backup__mode">JSON</span>
@@ -193,7 +193,7 @@
             <summary>{t(i18n, "backup.preferences")}</summary>
             <div class="glean-backup__diff"><div>{t(i18n, "backup.before")}<pre>{JSON.stringify({ settings: session.preferences.beforeSettings, uiPrefs: session.preferences.beforeUiPrefs }, null, 2)}</pre></div><div>{t(i18n, "backup.after")}<pre>{JSON.stringify({ settings: session.preferences.afterSettings, uiPrefs: session.preferences.afterUiPrefs }, null, 2)}</pre></div></div>
         </details>
-        <div class="glean-backup__actions">
+        <div class="glean-backup__actions glean-backup__actions--footer">
             <button class="glean-btn glean-btn--pri" disabled={Boolean(busy) || session.used || (!selectedFields && !restoreSettings && !restoreUiPrefs) || (restoreSettings && !configAllowed)} onclick={() => void apply()}>{t(i18n, "backup.apply")}</button>
             {#if busy === "restore" || busy === "preview"}<button class="glean-btn glean-btn--ghost" onclick={() => controller?.abort()}>{t(i18n, "backup.stop")}</button>{/if}
         </div>
