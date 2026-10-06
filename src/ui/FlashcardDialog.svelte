@@ -90,14 +90,20 @@
 </script>
 
 <div class="glean-flashcard" aria-busy={busy}>
-    <p class="glean-flashcard__hint">{t(i18n, "flashcard.previewHint")}</p>
-    <div class="glean-flashcard__source">
+    <header class="glean-flashcard__head">
+        <div>
+            <h3>{t(i18n, "flashcard.confirm")}</h3>
+            <p class="glean-flashcard__hint">{t(i18n, "flashcard.previewHint")}</p>
+        </div>
+        <span class="glean-flashcard__mode">CARD</span>
+    </header>
+    <div class="glean-flashcard__source glean-flashcard__surface">
         <span>{t(i18n, "flashcard.source")}: {source.title || source.docId || t(i18n, "flashcard.sourceUnknown")}</span>
         {#if source.docId}
             <button class="glean-btn glean-btn--ghost" onclick={() => facade.openReadingDocument(source.docId!)}>{t(i18n, "flashcard.source")}</button>
         {/if}
     </div>
-    <details class="glean-flashcard__quote">
+    <details class="glean-flashcard__quote glean-flashcard__surface">
         <summary>{t(i18n, "flashcard.quote")}</summary>
         <pre>{source.quote}</pre>
     </details>
@@ -117,7 +123,7 @@
     <p class="glean-flashcard__hint">
         {aiOn ? t(i18n, "flashcard.aiPrivacy", { n: FLASHCARD_AI_QUOTE_LIMIT, channel }) : t(i18n, "flashcard.aiOff")}
     </p>
-    <div class="glean-flashcard__status" role="status" aria-live="polite">{confirming ? t(i18n, "flashcard.saving") : busy ? t(i18n, "panel.loading") : message}</div>
+    <div class="glean-flashcard__status {confirming || busy ? "glean-flashcard__status--busy" : message ? "glean-flashcard__status--message" : ""}" role="status" aria-live="polite">{confirming ? t(i18n, "flashcard.saving") : busy ? t(i18n, "panel.loading") : message}</div>
     <div class="glean-flashcard__actions">
         {#if aiOn}
             <button class="glean-btn glean-btn--ghost" disabled={busy || locked} onclick={() => void questionDraft()}>{t(i18n, "flashcard.aiDraft")}</button>
@@ -135,21 +141,51 @@
 </div>
 
 <style>
-    .glean-flashcard { width: 100%; min-width: 0; padding: 16px; box-sizing: border-box; overflow: auto; color: var(--b3-theme-on-background); }
-    .glean-flashcard__hint { color: var(--b3-theme-on-surface); font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
-    .glean-flashcard__source, .glean-flashcard__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; overflow-wrap: anywhere; }
-    .glean-flashcard__quote { margin: 12px 0; }
-    .glean-flashcard__quote summary { min-height: 32px; cursor: pointer; }
-    .glean-flashcard__quote pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 160px; overflow: auto; font: inherit; }
-    .glean-flashcard__sides { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
-    .glean-flashcard__sides label { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-    .glean-flashcard__sides textarea { width: 100%; min-height: 180px; box-sizing: border-box; resize: vertical; }
-    .glean-flashcard__error { border: 1px solid var(--b3-theme-error); color: var(--b3-theme-error); border-radius: 6px; padding: 8px; overflow-wrap: anywhere; }
-    .glean-flashcard__status { min-height: 32px; overflow-wrap: anywhere; }
+    .glean-flashcard {
+        display: flex;
+        flex-direction: column;
+        gap: var(--glean-space-3);
+        width: 100%;
+        min-width: 0;
+        padding: var(--glean-space-5);
+        box-sizing: border-box;
+        overflow: auto;
+        color: var(--b3-theme-on-background);
+    }
+    .glean-flashcard__head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--glean-space-3); padding: var(--glean-space-3) var(--glean-space-4); border: 1px solid var(--glean-border-soft); border-radius: var(--glean-radius-md); background: var(--glean-grad-soft); box-shadow: var(--glean-shadow-card); }
+    .glean-flashcard__head h3 { margin: 0; font-size: var(--glean-text-xl); line-height: 1.35; }
+    .glean-flashcard__head .glean-flashcard__hint { margin-top: var(--glean-space-1); }
+    .glean-flashcard__mode { flex: 0 0 auto; padding: 4px 8px; border: 1px solid color-mix(in srgb, var(--glean-accent-b) 24%, var(--glean-border-soft)); border-radius: 999px; color: var(--glean-accent-b); background: var(--glean-primary-soft); font: 600 var(--glean-text-xs)/1.2 var(--b3-font-family); letter-spacing: .05em; }
+    .glean-flashcard__hint { margin: 0; color: var(--b3-theme-on-surface); font-size: var(--glean-text-sm); line-height: 1.6; overflow-wrap: anywhere; }
+    .glean-flashcard__source, .glean-flashcard__actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--glean-space-2); overflow-wrap: anywhere; }
+    .glean-flashcard__source {
+        justify-content: space-between;
+        min-height: 36px;
+        padding: var(--glean-space-2) var(--glean-space-3);
+        border: 1px solid var(--glean-border-soft);
+        border-radius: var(--glean-radius-md);
+        background: var(--glean-section-surface);
+        font-size: var(--glean-text-sm);
+    }
+    .glean-flashcard__source > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .glean-flashcard__quote { margin: 0; padding: var(--glean-space-2) var(--glean-space-3); border: 1px solid var(--glean-border-soft); border-radius: var(--glean-radius-md); background: var(--glean-inset-surface); }
+    .glean-flashcard__quote summary { min-height: 32px; display: flex; align-items: center; cursor: pointer; color: var(--b3-theme-on-surface); font-size: var(--glean-text-sm); font-weight: 650; }
+    .glean-flashcard__quote pre { margin: var(--glean-space-2) 0 0; padding-top: var(--glean-space-2); border-top: 1px solid var(--glean-border-soft); white-space: pre-wrap; overflow-wrap: anywhere; max-height: 160px; overflow: auto; font: inherit; font-size: var(--glean-text-sm); line-height: 1.65; }
+    .glean-flashcard__sides { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--glean-space-3); }
+    .glean-flashcard__sides label { display: flex; flex-direction: column; gap: var(--glean-space-2); min-width: 0; color: var(--b3-theme-on-surface); font-size: var(--glean-text-sm); font-weight: 650; }
+    .glean-flashcard__sides textarea { width: 100%; min-height: 180px; box-sizing: border-box; resize: vertical; border-color: var(--glean-border-soft); background: var(--glean-inset-surface); line-height: 1.65; }
+    .glean-flashcard__sides textarea:focus { border-color: color-mix(in srgb, var(--b3-theme-primary) 55%, var(--glean-border-soft)); box-shadow: 0 0 0 3px var(--glean-primary-soft); }
+    .glean-flashcard__error { margin: 0; border: 1px solid color-mix(in srgb, var(--b3-theme-error) 35%, var(--glean-border-soft)); color: var(--b3-theme-error); border-radius: var(--glean-radius-sm); background: var(--glean-error-surface); padding: var(--glean-space-2) var(--glean-space-3); overflow-wrap: anywhere; font-size: var(--glean-text-sm); }
+    .glean-flashcard__status { min-height: 28px; display: flex; align-items: center; padding: 4px var(--glean-space-2); border-radius: var(--glean-radius-sm); color: var(--b3-theme-on-surface); background: var(--glean-status-surface); overflow-wrap: anywhere; font-size: var(--glean-text-xs); }
+    .glean-flashcard__status--busy { color: var(--b3-theme-primary); background: var(--glean-primary-soft); }
+    .glean-flashcard__status--message { border: 1px solid var(--glean-border-soft); }
+    .glean-flashcard__actions { padding-top: var(--glean-space-2); border-top: 1px solid var(--glean-border-soft); }
     .glean-flashcard button:focus-visible, .glean-flashcard textarea:focus-visible, .glean-flashcard summary:focus-visible { outline: 2px solid var(--b3-theme-primary); outline-offset: 2px; }
     @media (max-width: 600px) {
         .glean-flashcard__sides { grid-template-columns: minmax(0, 1fr); }
         .glean-flashcard__actions :global(button), .glean-flashcard__quote summary { min-height: 44px; }
-        .glean-flashcard { padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
+        .glean-flashcard { padding: var(--glean-space-4) var(--glean-space-3) calc(var(--glean-space-5) + env(safe-area-inset-bottom, 0px)); }
+        .glean-flashcard__source { align-items: flex-start; flex-direction: column; }
+        .glean-flashcard__source > span { white-space: normal; }
     }
 </style>

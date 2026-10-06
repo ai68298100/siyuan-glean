@@ -170,7 +170,7 @@
 </script>
 
 {#if !loading && context}
-    <aside class="glean-reading-context" aria-label={t(i18n, "reading.contextLabel")}>
+    <aside class="glean-reading-context" aria-label={t(i18n, "reading.contextLabel")} aria-busy={busy || measuring}>
         <div class="glean-reading-context__main">
             <div class="glean-reading-context__title" title={context.title}>{context.title || t(i18n, "panel.untitled")}</div>
             <div class="glean-reading-context__meta">
@@ -185,7 +185,7 @@
         </div>
         <div class="glean-reading-context__actions">
             {#if hasSourceAction(context.contentType, context.url)}
-                <button class="glean-reading-context__source-btn" title={t(i18n, "reading.sourceHint")} onclick={openSource}>
+                <button class="glean-reading-context__source-btn glean-reading-context__source-btn--primary" title={t(i18n, "reading.sourceHint")} onclick={openSource}>
                     <svg class="glean-icon" aria-hidden="true"><use href="#iconGleanExternal" /></svg>{t(i18n, "clip.openSource")}
                 </button>
             {:else if resolveCarrier(context.contentType) === "link"}

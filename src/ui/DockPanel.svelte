@@ -1630,6 +1630,7 @@ function metaLine(entry: Row): string {
                 {#each visibleKanbanCols as col (col.status)}
                     <div
                         class="glean-kcol"
+                        class:glean-kcol--empty={col.items.length === 0}
                         class:glean-kcol--over={dragOverCol === col.status}
                         role="region"
                         aria-label={col.label}
@@ -1646,6 +1647,12 @@ function metaLine(entry: Row): string {
                             {col.label}
                             <span class="glean-kcol__n">{col.items.length}</span>
                         </div>
+                        {#if col.items.length === 0}
+                            <div class="glean-kcol__empty" role="status">
+                                <svg class="glean-icon glean-icon--sm" aria-hidden="true"><use href="#iconGleanWheat" /></svg>
+                                <span>{t(i18n, "panel.empty")}</span>
+                            </div>
+                        {/if}
                         {#each col.items as entry (entry.id)}
                             <div
                                 class="glean-kcard"

@@ -185,18 +185,18 @@
             <label>{t(i18n, "author.label")}
                 <input class="b3-text-field" bind:this={input} bind:value={draft} disabled={busy} autocomplete="off" />
             </label>
-            <p>{t(i18n, "author.hint")}</p>
-            {#if snapshot}<p>{t(i18n, "author.current")}: {snapshot.raw || t(i18n, "author.unknown")}</p>{/if}
+            <p class="glean-author-editor__hint">{t(i18n, "author.hint")}</p>
+            {#if snapshot}<p class="glean-author-editor__current"><span>{t(i18n, "author.current")}</span><strong>{snapshot.raw || t(i18n, "author.unknown")}</strong></p>{/if}
             {#if snapshot && aiOn}
                 <button type="button" class="glean-btn glean-btn--ghost" disabled={busy || suggesting || needsReload} onclick={() => void suggest()}>{t(i18n, "author.suggestion.request")}</button>
             {/if}
-            {#if suggesting}<p role="status">{t(i18n, "author.suggestion.loading")}</p>{/if}
-            {#if suggestionMessage}<p role="status">{t(i18n, suggestionMessage)}</p>{/if}
+            {#if suggesting}<p class="glean-author-editor__status glean-author-editor__status--busy" role="status"><span class="glean-author-editor__status-dot" aria-hidden="true"></span>{t(i18n, "author.suggestion.loading")}</p>{/if}
+            {#if suggestionMessage}<p class="glean-author-editor__status" role="status">{t(i18n, suggestionMessage)}</p>{/if}
             {#if suggestion && aiOn}
                 <section class="glean-author-editor__suggestion" aria-label={t(i18n, "author.suggestion.source")}>
-                    <p>{t(i18n, "author.suggestion.source")}</p>
-                    <p>{t(i18n, "author.label")}: <strong>{suggestion.author}</strong></p>
-                    <p>{t(i18n, "author.suggestion.evidence")}</p>
+                    <p class="glean-author-editor__suggestion-head"><span>{t(i18n, "author.suggestion.source")}</span><span class="glean-author-editor__badge">AI</span></p>
+                    <p class="glean-author-editor__suggested-author"><span>{t(i18n, "author.label")}</span><strong>{suggestion.author}</strong></p>
+                    <p class="glean-author-editor__evidence-label">{t(i18n, "author.suggestion.evidence")}</p>
                     <blockquote>{suggestion.evidence}</blockquote>
                     <div class="glean-author-editor__actions">
                         <button type="button" class="glean-btn" disabled={busy || suggesting || needsReload} onclick={adoptSuggestion}>{t(i18n, "author.suggestion.adopt")}</button>
@@ -204,8 +204,8 @@
                     </div>
                 </section>
             {/if}
-            {#if suggestionAdopted}<p role="status">{t(i18n, "author.suggestion.draftHint")}</p>{/if}
-            {#if errorKey}<p role="alert">{t(i18n, errorKey)}</p>{/if}
+            {#if suggestionAdopted}<p class="glean-author-editor__status glean-author-editor__status--success" role="status">{t(i18n, "author.suggestion.draftHint")}</p>{/if}
+            {#if errorKey}<p class="glean-author-editor__status glean-author-editor__status--error" role="alert">{t(i18n, errorKey)}</p>{/if}
             <div class="glean-author-editor__actions">
                 <button type="submit" class="glean-btn" disabled={busy || !snapshot || needsReload}>{t(i18n, "author.save")}</button>
                 <button type="button" class="glean-btn glean-btn--ghost" disabled={busy} onclick={() => void load(true)}>{t(i18n, "author.reload")}</button>
@@ -217,11 +217,32 @@
 
 <style>
     .glean-author-editor { min-width: 0; }
-    .glean-author-editor__form { display: grid; gap: 8px; padding: 8px; color: var(--b3-theme-on-surface); }
-    .glean-author-editor__form label { display: grid; gap: 6px; }
-    .glean-author-editor__form input { width: 100%; min-width: 0; box-sizing: border-box; }
-    .glean-author-editor__form p { margin: 0; font-size: 12px; overflow-wrap: anywhere; }
-    .glean-author-editor__actions { display: flex; flex-wrap: wrap; gap: 6px; }
-    .glean-author-editor__suggestion { display: grid; gap: 6px; min-width: 0; padding: 8px; border: 1px solid var(--b3-border-color); border-radius: 6px; }
-    .glean-author-editor__suggestion blockquote { margin: 0; padding-left: 8px; border-left: 2px solid var(--b3-theme-primary); white-space: pre-wrap; overflow-wrap: anywhere; }
+    .glean-author-editor__form { display: grid; gap: var(--glean-space-3); padding: var(--glean-space-3); border: 1px solid var(--glean-border-soft); border-radius: var(--glean-radius-md); background: var(--glean-status-surface); color: var(--b3-theme-on-surface); box-shadow: var(--glean-shadow-card); }
+    .glean-author-editor__form label { display: grid; gap: var(--glean-space-1); color: var(--b3-theme-on-background); font-size: var(--glean-text-sm); font-weight: 600; }
+    .glean-author-editor__form input { width: 100%; min-width: 0; min-height: 36px; box-sizing: border-box; border-color: var(--glean-border-soft); background: var(--glean-inset-surface); transition: border-color 160ms var(--glean-ease-out), box-shadow 160ms var(--glean-ease-out); }
+    .glean-author-editor__form input:focus { border-color: color-mix(in srgb, var(--b3-theme-primary) 60%, var(--glean-border-soft)); box-shadow: 0 0 0 3px var(--glean-primary-soft); }
+    .glean-author-editor__form p { margin: 0; font-size: var(--glean-text-sm); line-height: 1.55; overflow-wrap: anywhere; }
+    .glean-author-editor__hint { color: var(--b3-theme-on-surface); }
+    .glean-author-editor__current { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--glean-space-1); color: var(--b3-theme-on-surface); }
+    .glean-author-editor__current span { font-size: var(--glean-text-xs); }
+    .glean-author-editor__current strong { color: var(--b3-theme-on-background); font-weight: 600; }
+    .glean-author-editor__actions { display: flex; flex-wrap: wrap; gap: var(--glean-space-2); }
+    .glean-author-editor__suggestion { display: grid; gap: var(--glean-space-2); min-width: 0; padding: var(--glean-space-3); border: 1px solid color-mix(in srgb, var(--glean-accent-b) 26%, var(--glean-border-soft)); border-radius: var(--glean-radius-md); background: var(--glean-grad-soft); box-shadow: var(--glean-shadow-card); }
+    .glean-author-editor__suggestion-head { display: flex; align-items: center; justify-content: space-between; gap: var(--glean-space-2); color: var(--b3-theme-on-background); font-weight: 600; }
+    .glean-author-editor__badge { padding: 3px 7px; border: 1px solid color-mix(in srgb, var(--glean-accent-b) 32%, var(--glean-border-soft)); border-radius: 999px; color: var(--glean-accent-b); background: var(--glean-primary-soft); font-size: var(--glean-text-xs); letter-spacing: .04em; }
+    .glean-author-editor__suggested-author { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--glean-space-2); }
+    .glean-author-editor__suggested-author span, .glean-author-editor__evidence-label { color: var(--b3-theme-on-surface); font-size: var(--glean-text-xs); }
+    .glean-author-editor__suggested-author strong { color: var(--b3-theme-on-background); font-size: var(--glean-text-lg); }
+    .glean-author-editor__suggestion blockquote { margin: 0; padding: var(--glean-space-2) var(--glean-space-3); border-left: 3px solid var(--glean-accent-b); border-radius: 0 var(--glean-radius-sm) var(--glean-radius-sm) 0; background: color-mix(in srgb, var(--b3-theme-surface) 65%, transparent); white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.6; }
+    .glean-author-editor__status { display: flex; align-items: center; gap: var(--glean-space-2); padding: var(--glean-space-2) var(--glean-space-3); border: 1px solid var(--glean-border-soft); border-radius: var(--glean-radius-sm); background: var(--glean-status-surface); }
+    .glean-author-editor__status--busy { color: var(--b3-theme-primary); }
+    .glean-author-editor__status--success { color: var(--glean-st-done-text); border-color: color-mix(in srgb, var(--glean-st-done) 28%, var(--glean-border-soft)); background: color-mix(in srgb, var(--glean-st-done) 8%, transparent); }
+    .glean-author-editor__status--error { color: var(--b3-theme-error); border-color: color-mix(in srgb, var(--b3-theme-error) 28%, var(--glean-border-soft)); background: var(--glean-error-surface); }
+    .glean-author-editor__status-dot { width: 7px; height: 7px; flex: 0 0 7px; border-radius: 50%; background: currentColor; box-shadow: 0 0 0 4px color-mix(in srgb, currentColor 12%, transparent); animation: glean-author-pulse 1.4s ease-in-out infinite; }
+    .glean-author-editor :global(button):focus-visible, .glean-author-editor input:focus-visible { outline: 2px solid var(--b3-theme-primary); outline-offset: 2px; }
+    @keyframes glean-author-pulse { 50% { opacity: .45; transform: scale(.82); } }
+    @media (max-width: 560px) {
+        .glean-author-editor__form { padding: var(--glean-space-3); }
+        .glean-author-editor__actions :global(button) { min-height: 44px; }
+    }
 </style>

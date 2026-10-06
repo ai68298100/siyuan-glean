@@ -843,6 +843,7 @@
 
 <div
     class="glean-reader"
+    aria-busy={Boolean(aiBusy || sidebarBusy || statusBusy || appearanceBusy || measuring || snapping)}
     bind:this={readerRoot}
     role="region"
     tabindex="-1"
@@ -977,7 +978,7 @@
                     onSetStatus={(status) => void writeStatus(status)}
                 />
                 <button
-                    class="glean-btn glean-btn--ghost"
+                    class="glean-btn glean-btn--pri"
                     disabled={statusBusy}
                     title={t(i18n, "reader.doneNextHint")}
                     onclick={() => void doneAndNext()}
@@ -994,7 +995,7 @@
                             {/if}
                             <div class="glean-reader__ops">
                                 <button
-                                    class="glean-btn glean-btn--ghost"
+                                    class="glean-btn glean-btn--pri"
                                     disabled={!excerpt.blockId || excerptBusy}
                                     title={excerpt.blockId ? "" : t(i18n, "reader.excerptNoBlock")}
                                     onclick={() => void quoteExcerpt()}
@@ -1055,7 +1056,7 @@
                             <div class="glean-reader__hint">{t(i18n, "reader.aiOff")}</div>
                         {:else}
                             <div class="glean-reader__ops">
-                                <button class="glean-btn glean-btn--ghost" disabled={Boolean(aiBusy)} onclick={() => void runSummarize()}>
+                                <button class="glean-btn glean-btn--pri" disabled={Boolean(aiBusy)} onclick={() => void runSummarize()}>
                                     <svg class="glean-icon" aria-hidden="true"><use href="#iconGleanSpark" /></svg>{t(i18n, "reader.aiSummarize")}
                                 </button>
                                 <button
@@ -1075,11 +1076,17 @@
                                         <div class="glean-reader__ops">
                                             <button class="glean-btn glean-btn--ghost" class:glean-seg__btn--on={questionMode === "full"} onclick={() => { questionMode = "full"; }}>{t(i18n, "reader.articleQuestion.full")}</button>
                                             <button class="glean-btn glean-btn--ghost" disabled={!excerpt?.blockId} class:glean-seg__btn--on={questionMode === "selection"} onclick={() => { questionMode = "selection"; }}>{t(i18n, "reader.articleQuestion.selection")}</button>
-                                            <button class="glean-btn" disabled={Boolean(aiBusy) || !question.trim()} onclick={() => void runArticleQuestion()}>{t(i18n, "reader.articleQuestion.ask")}</button>
+                                            <button class="glean-btn glean-btn--pri" disabled={Boolean(aiBusy) || !question.trim()} onclick={() => void runArticleQuestion()}>{t(i18n, "reader.articleQuestion.ask")}</button>
                                         </div>
                                     </div>
                                 {/if}
                             </div>
+                            {#if aiBusy}
+                                <div class="glean-reader__ai-status" role="status" aria-live="polite">
+                                    <span class="glean-reader__ai-status-dot" aria-hidden="true"></span>
+                                    {t(i18n, "panel.loading")}
+                                </div>
+                            {/if}
                             {#if aiResult}
                                 <div class="glean-reader__ai-card" role="status" aria-live="polite">
                                     <div class="glean-reader__ai-src">

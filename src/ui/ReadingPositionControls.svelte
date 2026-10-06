@@ -163,11 +163,11 @@
 </section>
 
 <style>
-    .glean-reading-position { border-top: 1px solid var(--b3-border-color); padding-top: 12px; margin-top: 12px; color: var(--b3-theme-on-background); }
-    .glean-reading-position__title { font-weight: 600; }
-    .glean-reading-position__hint { color: var(--b3-theme-on-surface); font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
-    .glean-reading-position__actions { display: flex; flex-wrap: wrap; gap: 6px; }
-    .glean-reading-position__status { min-height: 24px; margin-top: 8px; overflow-wrap: anywhere; font-size: 12px; }
+    .glean-reading-position { margin-top: var(--glean-space-3); padding: var(--glean-space-3); border: 1px solid var(--glean-border-soft); border-radius: var(--glean-radius-md); color: var(--b3-theme-on-background); background: var(--glean-inset-surface); }
+    .glean-reading-position__title { font-size: var(--glean-text-sm); font-weight: 700; }
+    .glean-reading-position__hint { margin: var(--glean-space-1) 0 var(--glean-space-2); color: var(--b3-theme-on-surface); font-size: var(--glean-text-xs); line-height: 1.6; overflow-wrap: anywhere; }
+    .glean-reading-position__actions { display: flex; flex-wrap: wrap; gap: var(--glean-space-2); }
+    .glean-reading-position__status { min-height: 24px; margin-top: var(--glean-space-2); padding: 4px var(--glean-space-2); border-radius: var(--glean-radius-sm); background: var(--glean-status-surface); color: var(--b3-theme-on-surface); overflow-wrap: anywhere; font-size: var(--glean-text-xs); }
     .glean-reading-position button:focus-visible { outline: 2px solid var(--b3-theme-primary); outline-offset: 2px; }
-    @media (max-width: 600px) { .glean-reading-position__actions :global(button) { min-height: 44px; } }
+    @media (max-width: 600px) { .glean-reading-position__actions :global(button) { min-height: 44px; flex: 1 1 auto; } }
 </style>
