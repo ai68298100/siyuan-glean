@@ -1279,18 +1279,21 @@ function metaLine(entry: Row): string {
                                 <svg class="glean-mobile-more__icon" aria-hidden="true"><use href="#iconGleanPopup" /></svg>
                                 {t(i18n, "panel.popup")}
                             </button>
-                            <button type="button" class="glean-mobile-more__item" role="menuitem" onclick={() => { mobileMoreOpen = false; facade.openMigrate(); }}>
-                                <svg class="glean-mobile-more__icon" aria-hidden="true"><use href="#iconGleanRefresh" /></svg>
-                                {t(i18n, "panel.migrate")}
-                            </button>
-                            <button type="button" class="glean-mobile-more__item" role="menuitem" onclick={() => { mobileMoreOpen = false; facade.openImport(); }}>
-                                <svg class="glean-mobile-more__icon" aria-hidden="true"><use href="#iconGleanInbox" /></svg>
-                                {t(i18n, "import.title")}
-                            </button>
-                            <button type="button" class="glean-mobile-more__item" role="menuitem" onclick={() => { mobileMoreOpen = false; facade.openSettings(); }}>
-                                <svg class="glean-mobile-more__icon" aria-hidden="true"><use href="#iconGleanGear" /></svg>
-                                {t(i18n, "panel.settings")}
-                            </button>
+                            <div class="glean-mobile-more__group" role="group" aria-label={t(i18n, "settings.dangerGroup")}>
+                                <div class="glean-mobile-more__group-label">{t(i18n, "settings.dangerGroup")}</div>
+                                <button type="button" class="glean-mobile-more__item" role="menuitem" onclick={() => { mobileMoreOpen = false; facade.openMigrate(); }}>
+                                    <svg class="glean-mobile-more__icon" aria-hidden="true"><use href="#iconGleanRefresh" /></svg>
+                                    {t(i18n, "panel.migrate")}
+                                </button>
+                                <button type="button" class="glean-mobile-more__item" role="menuitem" onclick={() => { mobileMoreOpen = false; facade.openImport(); }}>
+                                    <svg class="glean-mobile-more__icon" aria-hidden="true"><use href="#iconGleanInbox" /></svg>
+                                    {t(i18n, "import.title")}
+                                </button>
+                                <button type="button" class="glean-mobile-more__item" role="menuitem" onclick={() => { mobileMoreOpen = false; facade.openSettings(); }}>
+                                    <svg class="glean-mobile-more__icon" aria-hidden="true"><use href="#iconGleanGear" /></svg>
+                                    {t(i18n, "panel.settings")}
+                                </button>
+                            </div>
                         </div>
                     {/if}
                 </div>
@@ -2039,7 +2042,7 @@ function metaLine(entry: Row): string {
                         <button class="glean-bb" disabled={batchBusy} onclick={() => void batchApply("reading")}>{t(i18n, "status.reading")}</button>
                         <button class="glean-bb" disabled={batchBusy} onclick={() => void batchApply("done")}>{t(i18n, "status.done")}</button>
                         <button class="glean-bb glean-bb--pri" disabled={batchBusy} onclick={() => void batchApply("archived")}>{t(i18n, "action.batchArchive")}</button>
-                        <button class="glean-bb" disabled={batchBusy} onclick={() => { aiBatchIds = [...selection]; aiBatchOpen = true; }}>{t(i18n, "aiBatch.title")}</button>
+                        <button class="glean-bb glean-bb--ai" disabled={batchBusy} onclick={() => { aiBatchIds = [...selection]; aiBatchOpen = true; }}>{t(i18n, "aiBatch.title")}</button>
                         <button class="glean-bb" aria-label={t(i18n, "action.cancel")} onclick={() => (selection = new Set())}><svg class="glean-icon glean-icon--xs" aria-hidden="true"><use href="#iconGleanClose" /></svg></button>
                     </div>
                 </footer>

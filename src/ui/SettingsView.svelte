@@ -310,7 +310,7 @@ async function doMountBoard() {
         </div>
     {/if}
 
-    <div class="glean-settings__section">
+    <div class="glean-settings__section glean-settings__section--core">
         <div class="glean-set-title" role="heading" aria-level="2">{t(i18n, "settings.anchorNotebooks")}</div>
         <div class="glean-set-group">
             <div class="glean-nb-wrap">
@@ -344,7 +344,7 @@ async function doMountBoard() {
         </div>
     </div>
 
-    <div class="glean-settings__section">
+    <div class="glean-settings__section glean-settings__section--core">
         <div class="glean-set-title" role="heading" aria-level="2">{t(i18n, "settings.aiGroup")}</div>
         <div class="glean-set-group">
             <div class="glean-set-row">
@@ -435,7 +435,7 @@ async function doMountBoard() {
         </div>
     </div>
 
-    <div class="glean-settings__section">
+    <div class="glean-settings__section glean-settings__section--advanced">
         <div class="glean-set-title" role="heading" aria-level="2">{t(i18n, "settings.aiChannelGroup")}</div>
         <div class="glean-set-group">
             <div class="glean-set-row">
@@ -491,7 +491,7 @@ async function doMountBoard() {
         </div>
     </div>
 
-    <div class="glean-settings__section">
+    <div class="glean-settings__section glean-settings__section--core">
         <div class="glean-set-title" role="heading" aria-level="2">{t(i18n, "settings.resurfaceGroup")}</div>
         <div class="glean-set-group">
             <div class="glean-set-row">
@@ -513,7 +513,7 @@ async function doMountBoard() {
         </div>
     </div>
 
-    <div class="glean-settings__section">
+    <div class="glean-settings__section glean-settings__section--maintenance">
         <div class="glean-set-title" role="heading" aria-level="2">{t(i18n, "board.groupTitle")}</div>
         <div class="glean-set-group">
             <div class="glean-set-row">
@@ -549,12 +549,37 @@ async function doMountBoard() {
                     <button class="glean-btn glean-btn--ghost" disabled={Boolean(exportBusy)} onclick={() => lastExport && void exportData(lastExport)}>{t(i18n, "action.retry")}</button>
                 </div>
             {/if}
-            <BackupPanel {facade} settingsDirty={draftDirty} settingsBusy={saveBusy} onPreferencesRestored={() => { originalSettings = cloneSettings(facade.settings); loadDraft(originalSettings); }} />
-            <FlashcardRecoveryPanel {facade} />
         </div>
     </div>
 
-    <div class="glean-settings__section">
+    <div class="glean-settings__section glean-settings__section--maintenance glean-settings__section--data">
+        <div class="glean-set-title" role="heading" aria-level="2">{t(i18n, "backup.title")}</div>
+        <div class="glean-set-group">
+            <div class="glean-settings__extension-card">
+                <BackupPanel {facade} settingsDirty={draftDirty} settingsBusy={saveBusy} onPreferencesRestored={() => { originalSettings = cloneSettings(facade.settings); loadDraft(originalSettings); }} />
+            </div>
+            <div class="glean-settings__extension-card glean-settings__extension-card--recovery">
+                <FlashcardRecoveryPanel {facade} />
+            </div>
+        </div>
+    </div>
+
+    <div class="glean-settings__section glean-settings__section--maintenance glean-settings__section--data">
+        <div class="glean-set-title" role="heading" aria-level="2">{t(i18n, "import.title")}</div>
+        <div class="glean-set-group">
+            <div class="glean-set-row glean-settings__import-row">
+                <div class="glean-set-row__lb">
+                    {t(i18n, "import.title")}
+                    <div class="glean-set-row__desc">{t(i18n, "import.entryDesc")}</div>
+                </div>
+                <button class="glean-btn glean-action-btn" onclick={() => facade.openImport()}>
+                    {t(i18n, "import.entryAction")}
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="glean-settings__section glean-settings__section--integration">
         <div class="glean-set-title" role="heading" aria-level="2">{t(i18n, "settings.checkinGroup")}</div>
         <div class="glean-set-group">
             <div class="glean-set-row">
@@ -590,7 +615,7 @@ async function doMountBoard() {
         </div>
     </div>
 
-    <div class="glean-settings__section">
+    <div class="glean-settings__section glean-settings__section--experimental">
         <div class="glean-set-title" role="heading" aria-level="2">{t(i18n, "settings.readerGroup")}</div>
         <div class="glean-set-group">
             <div class="glean-set-row">
@@ -630,7 +655,7 @@ async function doMountBoard() {
         </div>
     </div>
 
-    <div class="glean-settings__section">
+    <div class="glean-settings__section glean-settings__section--maintenance glean-settings__section--danger">
         <div class="glean-set-title" role="heading" aria-level="2">{t(i18n, "settings.dangerGroup")}</div>
         <div class="glean-set-group">
             <div class="glean-set-row">
@@ -640,15 +665,6 @@ async function doMountBoard() {
                 </div>
                 <button class="glean-btn glean-action-btn" onclick={() => void doRebuildIndex()}>
                     {t(i18n, "settings.rebuildIndex")}
-                </button>
-            </div>
-            <div class="glean-set-row">
-                <div class="glean-set-row__lb">
-                    {t(i18n, "import.title")}
-                    <div class="glean-set-row__desc">{t(i18n, "import.entryDesc")}</div>
-                </div>
-                <button class="glean-btn glean-action-btn" onclick={() => facade.openImport()}>
-                    {t(i18n, "import.entryAction")}
                 </button>
             </div>
             <div class="glean-set-row">

@@ -460,6 +460,22 @@ body.b3-theme-dark {
     }
 }
 
+/* 移动端更多菜单中的维护入口与主操作分层，避免迁移/导入/设置抢占日常动作层级。 */
+.glean-mobile-more__group {
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px solid var(--glean-border-soft);
+}
+
+.glean-mobile-more__group-label {
+    padding: 3px 12px 5px;
+    color: var(--b3-theme-on-surface);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+}
+
 .glean-mobile-more__icon {
     width: 16px;
     height: 16px;
@@ -1974,6 +1990,12 @@ body.b3-theme-dark {
         background: var(--glean-grad);
         color: var(--b3-theme-on-primary);
         font-weight: 600;
+    }
+
+    &.glean-bb--ai {
+        background: var(--glean-primary-soft);
+        color: var(--b3-theme-primary);
+        border: 1px solid color-mix(in srgb, var(--b3-theme-primary) 24%, var(--glean-border-soft));
     }
 }
 
@@ -5065,6 +5087,35 @@ body.b3-theme-dark {
     border-color: var(--glean-border-soft);
     background: color-mix(in srgb, var(--b3-theme-surface) 94%, transparent);
     box-shadow: var(--glean-shadow-card);
+}
+
+/* 原型只展示核心配置；可选能力仍保留，但用更轻的标题和表面层级降为次级设置。 */
+.glean-settings__section--advanced > .glean-set-title,
+.glean-settings__section--maintenance > .glean-set-title,
+.glean-settings__section--integration > .glean-set-title,
+.glean-settings__section--experimental > .glean-set-title {
+    color: color-mix(in srgb, var(--b3-theme-on-surface) 84%, transparent);
+    font-size: calc(var(--glean-text-xs) - 1px);
+}
+
+.glean-settings__section--advanced > .glean-set-group,
+.glean-settings__section--maintenance > .glean-set-group,
+.glean-settings__section--integration > .glean-set-group,
+.glean-settings__section--experimental > .glean-set-group {
+    background: color-mix(in srgb, var(--glean-inset-surface) 72%, var(--b3-theme-surface));
+    box-shadow: var(--glean-shadow-soft);
+}
+
+.glean-settings__extension-card {
+    margin: var(--glean-space-3) var(--glean-space-3) 0;
+    padding: var(--glean-space-2);
+    border: 1px solid var(--glean-border-soft);
+    border-radius: var(--glean-radius-md);
+    background: color-mix(in srgb, var(--glean-inset-surface) 66%, transparent);
+}
+
+.glean-settings__extension-card--recovery {
+    margin-top: var(--glean-space-2);
 }
 
 .glean-settings .glean-set-row {
