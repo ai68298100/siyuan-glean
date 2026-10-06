@@ -876,7 +876,7 @@
                 <button class="glean-seg__btn" class:glean-seg__btn--on={mode === "read"} aria-pressed={mode === "read"} title={t(i18n, "reader.readHint")} onclick={() => setMode("read")}>{t(i18n, "reader.modeRead")}</button>
                 <button class="glean-seg__btn" class:glean-seg__btn--on={mode === "edit"} aria-pressed={mode === "edit"} title={t(i18n, "reader.editHint")} onclick={() => setMode("edit")}>{t(i18n, "reader.modeEdit")}</button>
             </div>
-            <button class="glean-btn glean-btn--ghost" aria-busy={sidebarBusy} disabled={sidebarBusy} aria-expanded={!sidebarCollapsed} onclick={() => void toggleSidebar()}>{t(i18n, sidebarCollapsed ? "reader.sidebarShow" : "reader.sidebarHide")}</button>
+            <button class="glean-btn glean-btn--ghost glean-reader__toolbar-sidebar" aria-busy={sidebarBusy} disabled={sidebarBusy} aria-expanded={!sidebarCollapsed} aria-controls="glean-reader-sidebar" title={t(i18n, sidebarCollapsed ? "reader.sidebarShow" : "reader.sidebarHide")} onclick={() => void toggleSidebar()}>{t(i18n, sidebarCollapsed ? "reader.sidebarShow" : "reader.sidebarHide")}</button>
             {#if context}
                 <button
                     class="glean-btn glean-btn--pri glean-reader__toolbar-primary"
@@ -886,11 +886,11 @@
                     onclick={() => void doneAndNext()}
                 >✓→ {t(i18n, "reader.doneNext")}</button>
             {/if}
-            <button class="glean-btn glean-btn--ghost glean-reader__toolbar-utility" disabled={mode !== "read"} onclick={() => readerRoot?.focus({ preventScroll: true })}>{t(i18n, "reader.keyboardFocus")}</button>
-            <button class="glean-btn glean-btn--ghost glean-reader__toolbar-utility" aria-expanded={shortcutHelp} onclick={() => shortcutHelp = !shortcutHelp}>{t(i18n, "reader.shortcuts")}</button>
+            <button class="glean-btn glean-btn--ghost glean-reader__toolbar-utility glean-reader__toolbar-focus" disabled={mode !== "read"} title={t(i18n, "reader.keyboardFocus")} onclick={() => readerRoot?.focus({ preventScroll: true })}>{t(i18n, "reader.keyboardFocus")}</button>
+            <button class="glean-btn glean-btn--ghost glean-reader__toolbar-utility glean-reader__toolbar-shortcut" aria-expanded={shortcutHelp} aria-controls="glean-reader-shortcuts" onclick={() => shortcutHelp = !shortcutHelp}>{t(i18n, "reader.shortcuts")}</button>
         </div>
         {#if shortcutHelp}
-            <div class="glean-reader__shortcuts">
+            <div id="glean-reader-shortcuts" class="glean-reader__shortcuts" role="region" aria-label={t(i18n, "reader.shortcuts")}>
                 <p>{t(i18n, "reader.shortcutsHint")}</p>
                 <dl>
                     <div><dt><kbd>j</kbd></dt><dd>{t(i18n, "reader.shortcutScrollDown")}</dd></div>
@@ -916,7 +916,7 @@
         {/if}
     </div>
     {#if docId}
-        <aside class="glean-reader__side" hidden={sidebarCollapsed} aria-label={t(i18n, "reader.title")}>
+        <aside id="glean-reader-sidebar" class="glean-reader__side" hidden={sidebarCollapsed} aria-label={t(i18n, "reader.title")}>
             <div class="glean-reader__title" title={context?.title}>{context?.title || t(i18n, "panel.untitled")}</div>
             <div class="glean-reader__meta">
                 <span class={`glean-carrier-badge glean-carrier-badge--${resolveCarrier(context?.contentType)}`}>
@@ -1005,14 +1005,16 @@
                 {/if}
             </div>
             {#if context}
-                <ClipStatusActions
-                    {i18n}
-                    status={context.status}
-                    disabled={statusBusy}
-                    showDone={false}
-                    onStartReading={() => void startReading()}
-                    onSetStatus={(status) => void writeStatus(status)}
-                />
+                <div class="glean-reader__status-actions">
+                    <ClipStatusActions
+                        {i18n}
+                        status={context.status}
+                        disabled={statusBusy}
+                        showDone={false}
+                        onStartReading={() => void startReading()}
+                        onSetStatus={(status) => void writeStatus(status)}
+                    />
+                </div>
                 {#if docId}
                     <div class="glean-reader__section glean-reader__section--enhanced">
                         <div class="glean-reader__section-title">{t(i18n, "reader.excerptTitle")}</div>

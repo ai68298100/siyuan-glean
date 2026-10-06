@@ -1261,6 +1261,28 @@ body.b3-theme-dark {
     box-shadow: var(--glean-shadow-accent);
 }
 
+.glean-reader__toolbar :where(.glean-btn, .glean-seg__btn) {
+    transition: color 160ms var(--glean-ease-out), background 160ms var(--glean-ease-out), border-color 160ms var(--glean-ease-out), box-shadow 160ms var(--glean-ease-out), transform 120ms var(--glean-ease-out);
+}
+
+.glean-reader__toolbar :where(.glean-btn, .glean-seg__btn):focus-visible {
+    outline: 2px solid var(--b3-theme-primary);
+    outline-offset: 2px;
+}
+
+.glean-reader__toolbar :where(.glean-btn, .glean-seg__btn):active:not(:disabled) {
+    transform: translateY(1px);
+}
+
+.glean-reader__toolbar-primary:disabled {
+    box-shadow: none;
+    cursor: wait;
+}
+
+.glean-reader__toolbar-utility:disabled {
+    opacity: .52;
+}
+
 .glean-reader__section--utility {
     border-top-style: dashed;
     border-top-color: color-mix(in srgb, var(--glean-border-soft) 82%, transparent);
@@ -1276,6 +1298,25 @@ body.b3-theme-dark {
 .glean-reader__section--enhanced .glean-reader__section-title {
     color: var(--b3-theme-on-background);
     opacity: .82;
+}
+
+.glean-reader__status-actions {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    padding-block: 2px;
+}
+
+.glean-reader__status-actions .glean-status-actions {
+    width: 100%;
+    gap: 5px;
+}
+
+.glean-reader__status-actions .glean-status-actions__btn {
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 32px;
+    font-size: var(--glean-text-xs);
 }
 
 /* 阅读时间是状态提示，保持轻量胶囊，不与正文完成动作争夺强调色。 */
@@ -1585,6 +1626,41 @@ body.b3-theme-dark {
     .glean-reader__outline-item {
         min-height: 36px;
     }
+
+    /* 阅读工具栏在窄屏保持“模式 → 收起 → 完成 → 辅助”的动作顺序。 */
+    .glean-reader__toolbar {
+        align-items: stretch;
+    }
+
+    .glean-reader__mode {
+        order: 1;
+        flex: 1 1 128px;
+        min-width: 0;
+    }
+
+    .glean-reader__mode .glean-seg__btn {
+        flex: 1 1 0;
+        min-width: 0;
+    }
+
+    .glean-reader__toolbar-sidebar {
+        order: 2;
+        flex: 1 1 112px;
+        min-width: 0;
+    }
+
+    .glean-reader__toolbar-primary {
+        order: 3;
+        flex: 1 1 100%;
+        min-width: 0;
+    }
+
+    .glean-reader__toolbar-focus,
+    .glean-reader__toolbar-shortcut {
+        order: 4;
+        flex: 1 1 120px;
+        min-width: 0;
+    }
 }
 
 @container glean-workbench (max-width: 720px) {
@@ -1622,6 +1698,44 @@ body.b3-theme-dark {
 
     .glean-reader__outline-item {
         min-height: 36px;
+    }
+    /* 阅读工具栏在窄容器保持“模式 → 收起 → 完成 → 辅助”的动作顺序。 */
+    .glean-reader__toolbar {
+        align-items: stretch;
+    }
+
+    .glean-reader__toolbar-title {
+        flex-basis: 100%;
+    }
+
+    .glean-reader__mode {
+        order: 1;
+        flex: 1 1 128px;
+        min-width: 0;
+    }
+
+    .glean-reader__mode .glean-seg__btn {
+        flex: 1 1 0;
+        min-width: 0;
+    }
+
+    .glean-reader__toolbar-sidebar {
+        order: 2;
+        flex: 1 1 112px;
+        min-width: 0;
+    }
+
+    .glean-reader__toolbar-primary {
+        order: 3;
+        flex: 1 1 100%;
+        min-width: 0;
+    }
+
+    .glean-reader__toolbar-focus,
+    .glean-reader__toolbar-shortcut {
+        order: 4;
+        flex: 1 1 120px;
+        min-width: 0;
     }
 }
 
@@ -7566,4 +7680,100 @@ body.b3-theme-dark .glean-panel--mobile,
     .glean-saved-views { align-items: stretch; }
     .glean-saved-views :where(.b3-select, .b3-text-field) { flex: 1 1 140px; width: auto; }
     .glean-saved-views .glean-btn { flex: 1 1 auto; }
+}
+
+/* 第二十轮：浮层要把相对定位的顶偏移算进可视高度，横屏短视口内只滚动菜单本身。 */
+.glean-panel--mobile .glean-mobile-more {
+    max-height: min(520px, calc(var(--glean-visual-viewport-height, 100vh) - var(--glean-safe-top, 0px) - var(--glean-safe-bottom, 0px) - 76px));
+}
+
+/* 320px 左右的顶栏只保留状态点，固定胶囊尺寸可避免与返回/更多按钮产生光学漂移。 */
+@media (max-width: 420px) {
+    .glean-panel--mobile .glean-mobile-task {
+        width: 24px;
+        height: 24px;
+        min-width: 24px;
+        max-width: 24px;
+        box-sizing: border-box;
+        justify-content: center;
+        padding: 0;
+    }
+}
+
+/* 第二十轮：设置页的主次层级与安全区收口。低频工具保持可见，但不与数据入口争夺主动作。 */
+.glean-settings__section--workspace > .glean-set-title,
+.glean-settings__section--data > .glean-set-title {
+    color: var(--b3-theme-on-background);
+    font-size: var(--glean-text-sm);
+    letter-spacing: 0.02em;
+}
+
+.glean-settings__section--workspace > .glean-set-title::before,
+.glean-settings__section--data > .glean-set-title::before {
+    content: "";
+    width: 5px;
+    height: 5px;
+    flex: 0 0 5px;
+    border-radius: 50%;
+    background: var(--glean-accent-b);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--glean-accent-b) 12%, transparent);
+}
+
+.glean-settings__section--data > .glean-set-title::before {
+    background: var(--b3-theme-primary);
+    box-shadow: 0 0 0 3px var(--glean-primary-soft);
+}
+
+.glean-settings__section--danger > .glean-set-title::before {
+    content: "";
+    width: 4px;
+    height: 4px;
+    flex: 0 0 4px;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--b3-theme-on-surface) 42%, transparent);
+}
+
+/* BackupPanel 自带标题卡；外层只负责与同组恢复/导入内容分隔，避免双重卡片边框。 */
+.glean-settings__extension-card {
+    border-color: color-mix(in srgb, var(--glean-border-soft) 72%, transparent);
+    background: color-mix(in srgb, var(--glean-inset-surface) 36%, transparent);
+}
+
+.glean-settings__extension-card + .glean-settings__extension-card {
+    margin-top: var(--glean-space-2);
+}
+
+.glean-settings__import-row {
+    box-shadow: 0 1px 0 color-mix(in srgb, var(--glean-border-soft) 66%, transparent);
+}
+
+/* 原生 checkbox 开关与按钮开关共用同一条轨道尺寸，避免设置页的控制重量不一致。 */
+.glean-settings__ai-toggle input[type="checkbox"] {
+    width: 44px;
+    height: 26px;
+}
+
+.glean-settings__ai-toggle input[type="checkbox"]::after {
+    width: 18px;
+    height: 18px;
+}
+
+.glean-settings__ai-toggle input[type="checkbox"]:checked::after {
+    transform: translateX(18px);
+}
+
+@media (max-width: 560px) {
+    .glean-settings .glean-btn,
+    .glean-settings .glean-seg__btn {
+        min-height: 44px;
+    }
+
+    .glean-settings__footer {
+        bottom: calc(-16px + env(safe-area-inset-bottom, 0px));
+        padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+    }
+
+    .glean-settings__extension-card {
+        background: transparent;
+    }
 }

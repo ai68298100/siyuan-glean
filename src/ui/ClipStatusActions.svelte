@@ -43,7 +43,7 @@
     }
 </script>
 
-<div class="glean-status-actions" aria-label={t(i18n, "action.statusActions")}>
+<div class="glean-status-actions" role="group" aria-label={t(i18n, "action.statusActions")} aria-busy={pending}>
     {#if status === "archived"}
         <button
             class="glean-status-actions__btn glean-status-actions__btn--restore"
