@@ -1435,11 +1435,13 @@ function metaLine(entry: Row): string {
                     <button
                         class="glean-seg__btn"
                         class:glean-seg__btn--on={layoutMode === "list"}
+                        aria-pressed={layoutMode === "list"}
                         onclick={() => { markPrefsInteraction(); layoutMode = "list"; }}
                     >☰ {t(i18n, "view.modeList")}</button>
                     <button
                         class="glean-seg__btn"
                         class:glean-seg__btn--on={layoutMode === "kanban"}
+                        aria-pressed={layoutMode === "kanban"}
                         onclick={() => { markPrefsInteraction(); layoutMode = "kanban"; }}
                     >⇆ {t(i18n, "view.modeKanban")}</button>
                 </div>

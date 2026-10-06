@@ -310,8 +310,8 @@ async function doMountBoard() {
         </div>
     {/if}
 
-    <div class="glean-settings__section glean-settings__section--core">
-        <div class="glean-set-title" role="heading" aria-level="2">{t(i18n, "settings.anchorNotebooks")}</div>
+    <div class="glean-settings__section glean-settings__section--core glean-settings__section--workspace">
+        <div class="glean-set-title" role="heading" aria-level="2">{t(i18n, "settings.workspaceGroup")}</div>
         <div class="glean-set-group">
             <div class="glean-nb-wrap">
                 {#each notebooks as notebook (notebook.id)}
@@ -553,7 +553,7 @@ async function doMountBoard() {
     </div>
 
     <div class="glean-settings__section glean-settings__section--maintenance glean-settings__section--data">
-        <div class="glean-set-title" role="heading" aria-level="2">{t(i18n, "backup.title")}</div>
+        <div class="glean-set-title" role="heading" aria-level="2">{t(i18n, "settings.dataGroup")}</div>
         <div class="glean-set-group">
             <div class="glean-settings__extension-card">
                 <BackupPanel {facade} settingsDirty={draftDirty} settingsBusy={saveBusy} onPreferencesRestored={() => { originalSettings = cloneSettings(facade.settings); loadDraft(originalSettings); }} />
@@ -561,12 +561,6 @@ async function doMountBoard() {
             <div class="glean-settings__extension-card glean-settings__extension-card--recovery">
                 <FlashcardRecoveryPanel {facade} />
             </div>
-        </div>
-    </div>
-
-    <div class="glean-settings__section glean-settings__section--maintenance glean-settings__section--data">
-        <div class="glean-set-title" role="heading" aria-level="2">{t(i18n, "import.title")}</div>
-        <div class="glean-set-group">
             <div class="glean-set-row glean-settings__import-row">
                 <div class="glean-set-row__lb">
                     {t(i18n, "import.title")}
@@ -656,7 +650,7 @@ async function doMountBoard() {
     </div>
 
     <div class="glean-settings__section glean-settings__section--maintenance glean-settings__section--danger">
-        <div class="glean-set-title" role="heading" aria-level="2">{t(i18n, "settings.dangerGroup")}</div>
+        <div class="glean-set-title" role="heading" aria-level="2">{t(i18n, "settings.maintenanceToolsGroup")}</div>
         <div class="glean-set-group">
             <div class="glean-set-row">
                 <div class="glean-set-row__lb">

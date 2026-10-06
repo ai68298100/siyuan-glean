@@ -419,6 +419,11 @@ body.b3-theme-dark {
     right: 0;
     z-index: 8;
     min-width: 190px;
+    max-width: min(280px, calc(100vw - 24px));
+    max-height: min(520px, calc(100dvh - 76px));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
     padding: 6px;
     border: 1px solid var(--b3-border-color);
     border-radius: 12px;
@@ -1239,6 +1244,31 @@ body.b3-theme-dark {
 .glean-reader__mode {
     display: flex;
     gap: 4px;
+}
+
+/* 阅读增强是伴生能力，降低工具按钮权重，把注意力留给正文与完成阅读。 */
+.glean-reader__toolbar-utility {
+    padding-inline: 10px;
+    color: var(--b3-theme-on-surface);
+    font-size: var(--glean-text-xs);
+    font-weight: 550;
+}
+
+.glean-reader__section--utility {
+    border-top-style: dashed;
+    border-top-color: color-mix(in srgb, var(--glean-border-soft) 82%, transparent);
+}
+
+.glean-reader__section--enhanced {
+    border-top-color: color-mix(in srgb, var(--b3-theme-primary) 22%, var(--glean-border-soft));
+    background: color-mix(in srgb, var(--glean-section-surface) 72%, transparent);
+    border-radius: var(--glean-radius-md);
+    padding: var(--glean-space-3);
+}
+
+.glean-reader__section--enhanced .glean-reader__section-title {
+    color: var(--b3-theme-on-background);
+    opacity: .82;
 }
 
 .glean-reader__ops {
@@ -5118,6 +5148,12 @@ body.b3-theme-dark {
     margin-top: var(--glean-space-2);
 }
 
+/* 合并后的数据入口与扩展卡保持清晰分隔，避免恢复组件和导入操作视觉粘连。 */
+.glean-settings__import-row {
+    margin-top: var(--glean-space-2);
+    border-top: 1px solid var(--glean-border-soft);
+}
+
 .glean-settings .glean-set-row {
     min-height: 48px;
     border-color: var(--glean-border-soft);
@@ -7313,4 +7349,106 @@ body.b3-theme-dark .glean-panel--mobile,
     border-color: var(--glean-border-soft);
     background: color-mix(in srgb, var(--b3-theme-surface) 70%, var(--glean-inset-surface));
     cursor: not-allowed;
+}
+
+/* 第十六轮：高级工作区降噪。保存视图、预览和批量 AI 都保持可发现，但不与主阅读动作争夺视觉焦点。 */
+.glean-libbar {
+    background: color-mix(in srgb, var(--b3-theme-surface) 42%, transparent);
+}
+
+.glean-libbar > .glean-btn[aria-pressed] {
+    min-height: 30px;
+    border-color: var(--glean-border-soft);
+    color: var(--b3-theme-on-surface);
+    background: color-mix(in srgb, var(--b3-theme-surface) 64%, transparent);
+    font-size: var(--glean-text-xs);
+}
+
+.glean-libbar > .glean-btn[aria-pressed="true"] {
+    border-color: color-mix(in srgb, var(--b3-theme-primary) 38%, var(--glean-border-soft));
+    color: var(--b3-theme-primary);
+    background: var(--glean-primary-soft);
+}
+
+.glean-saved-views {
+    gap: var(--glean-space-1);
+    padding: 6px 12px;
+    border-bottom-color: var(--glean-border-soft);
+    background: color-mix(in srgb, var(--glean-inset-surface) 82%, transparent);
+}
+
+.glean-saved-views :where(.b3-select, .b3-text-field, .glean-btn) {
+    min-height: 30px;
+    border-radius: var(--glean-radius-sm);
+    font-size: var(--glean-text-xs);
+}
+
+.glean-saved-views :where(.b3-select, .b3-text-field) {
+    border-color: var(--glean-border-soft);
+    background: var(--b3-theme-surface);
+}
+
+.glean-saved-views .glean-btn:not(:disabled) {
+    border-color: var(--glean-border-soft);
+    color: var(--b3-theme-on-surface);
+    background: color-mix(in srgb, var(--b3-theme-surface) 70%, transparent);
+}
+
+.glean-saved-views .glean-btn:first-of-type:not(:disabled) {
+    border-color: color-mix(in srgb, var(--b3-theme-primary) 34%, var(--glean-border-soft));
+    color: var(--b3-theme-primary);
+    background: var(--glean-primary-soft);
+}
+
+.glean-batchbar {
+    padding-block: 7px;
+    border-radius: var(--glean-radius-lg);
+    background: color-mix(in srgb, var(--b3-theme-surface) 88%, transparent);
+    border-color: var(--glean-border-soft);
+}
+
+.glean-batchbar__ops { gap: var(--glean-space-1); }
+
+.glean-bb {
+    min-height: 30px;
+    border: 1px solid transparent;
+    font-size: var(--glean-text-xs);
+    transition: background-color 160ms var(--glean-ease-out), border-color 160ms var(--glean-ease-out), color 160ms var(--glean-ease-out), transform 160ms var(--glean-ease-out);
+}
+
+.glean-bb:hover:not(:disabled) { transform: translateY(-1px); }
+.glean-bb:active:not(:disabled) { transform: translateY(1px) scale(.985); }
+
+.glean-bb.glean-bb--ai {
+    border-color: var(--glean-border-soft);
+    color: var(--b3-theme-on-surface);
+    background: color-mix(in srgb, var(--b3-theme-surface) 72%, transparent);
+}
+
+.glean-preview-pane {
+    background: color-mix(in srgb, var(--glean-inset-surface) 92%, var(--b3-theme-background));
+}
+
+.glean-preview__header {
+    background: color-mix(in srgb, var(--b3-theme-surface) 84%, transparent);
+    border-bottom-color: var(--glean-border-soft);
+}
+
+.glean-preview__header .glean-btn:last-child {
+    border-color: transparent;
+    background: transparent;
+    color: var(--b3-theme-on-surface);
+}
+
+.glean-preview__actions {
+    background: color-mix(in srgb, var(--glean-inset-surface) 90%, transparent);
+}
+
+@container glean-workbench (max-width: 720px) {
+    .glean-libbar { align-items: stretch; flex-wrap: wrap; }
+    .glean-libbar__spacer { display: none; }
+    .glean-libbar > .glean-btn[aria-pressed] { margin-left: auto; }
+    .glean-saved-views { align-items: stretch; }
+    .glean-saved-views :where(.b3-select, .b3-text-field) { flex: 1 1 140px; width: auto; }
+    .glean-saved-views .glean-btn { flex: 1 1 auto; }
 }
