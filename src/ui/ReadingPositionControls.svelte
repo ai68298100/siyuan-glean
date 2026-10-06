@@ -145,8 +145,8 @@
     }
 </script>
 
-<section class="glean-reading-position" aria-label={t(i18n, "reading.position.title")} aria-busy={busy}>
-    <div class="glean-reading-position__title">{t(i18n, "reading.position.title")}</div>
+<section class="glean-reading-position" aria-labelledby="glean-reading-position-title" aria-busy={busy}>
+    <div id="glean-reading-position-title" class="glean-reading-position__title" role="heading" aria-level="3">{t(i18n, "reading.position.title")}</div>
     <p class="glean-reading-position__hint">{t(i18n, "reading.position.hint")}</p>
     <div class="glean-reading-position__actions">
         <button class="glean-btn glean-btn--ghost" disabled={busy || !snapshot} onclick={() => void remember()}>{t(i18n, "reading.position.remember")}</button>
@@ -159,7 +159,7 @@
             <button class="glean-btn glean-btn--ghost" disabled={busy} onclick={() => facade.openReadingDocument(docId)}>{t(i18n, "reading.position.openDocument")}</button>
         {/if}
     </div>
-    <div class="glean-reading-position__status" role="status" aria-live="polite">{busy ? t(i18n, "panel.loading") : messageKey ? t(i18n, messageKey) : ""}</div>
+    <div class="glean-reading-position__status" class:glean-reading-position__status--visible={busy || Boolean(messageKey)} role="status" aria-live="polite">{busy ? t(i18n, "panel.loading") : messageKey ? t(i18n, messageKey) : ""}</div>
 </section>
 
 <style>
@@ -167,7 +167,8 @@
     .glean-reading-position__title { font-size: var(--glean-text-sm); font-weight: 700; }
     .glean-reading-position__hint { margin: var(--glean-space-1) 0 var(--glean-space-2); color: var(--b3-theme-on-surface); font-size: var(--glean-text-xs); line-height: 1.6; overflow-wrap: anywhere; }
     .glean-reading-position__actions { display: flex; flex-wrap: wrap; gap: var(--glean-space-2); }
-    .glean-reading-position__status { min-height: 24px; margin-top: var(--glean-space-2); padding: 4px var(--glean-space-2); border-radius: var(--glean-radius-sm); background: var(--glean-status-surface); color: var(--b3-theme-on-surface); overflow-wrap: anywhere; font-size: var(--glean-text-xs); }
+    .glean-reading-position__status { display: none; min-height: 24px; margin-top: var(--glean-space-2); padding: 4px var(--glean-space-2); border-radius: var(--glean-radius-sm); background: var(--glean-status-surface); color: var(--b3-theme-on-surface); overflow-wrap: anywhere; font-size: var(--glean-text-xs); }
+    .glean-reading-position__status--visible { display: block; }
     .glean-reading-position button:focus-visible { outline: 2px solid var(--b3-theme-primary); outline-offset: 2px; }
     @media (max-width: 600px) { .glean-reading-position__actions :global(button) { min-height: 44px; flex: 1 1 auto; } }
 </style>

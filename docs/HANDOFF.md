@@ -1,5 +1,14 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-07 T-3260/D-0150）
+
+第二十七轮继续收口设置异步、移动更多菜单和暗色空态：设置分组补标题关联，重建索引按钮防重入并显示忙碌反馈；移动更多菜单补首项聚焦、键盘导航、Tab 收起和长文案截断；暗色空态/加载/错误表面补独立层级与内高光；阅读位置无消息时隐藏空状态条，评分控件补 group 语义。未改变业务逻辑、数据、文章属性、端点或设置语义。
+
+- 当前改动文件：`src/index.scss`、`src/ui/DockPanel.svelte`、`src/ui/SettingsView.svelte`、`src/ui/ReadingPositionControls.svelte`、`src/ui/ClipRankControls.svelte`。
+- 已生成静态回归截图：`output/playwright/round27-desktop.png`、`output/playwright/round27-mobile.png`；截图为当前 dark prototype fixture 回归，非真实思源内核运行或 Android 真机验收。
+- `pnpm run check` 0 错误/0 警告；定向回归 62/62；全量测试、构建、任务账本和最终差异检查在提交前执行。
+- 版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 package.zip。
+
 ## 当前有效交接（2026-10-07 T-3260/D-0149）
 
 第二十六轮收口 AI 批处理、候选迁移和 Protyle/阅读伴生区：AI 面板按说明、任务状态、预览和确认层级重排，并补忙碌/错误/窄屏分页反馈；候选治理提示、候选行、迁移/导入结果按来源、状态与操作分层；Protyle 加载/失败状态和阅读伴生区补标题关联及失败操作触控高度。只调整 UI、CSS 和可访问表达，未改变业务逻辑、数据、文章属性、端点或设置语义。

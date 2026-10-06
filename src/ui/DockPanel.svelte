@@ -140,6 +140,7 @@ let focusRequested = false;
 let popupOpen = $state(false);
 let mobileMoreOpen = $state(false);
 let mobileMoreTrigger = $state<HTMLButtonElement | null>(null);
+let mobileMoreMenu = $state<HTMLDivElement | null>(null);
 let savedViews = $state<SavedView[]>([]);
 let defaultSavedViewId = $state("");
 let savedViewId = $state("");
@@ -162,6 +163,27 @@ function closeMobileMore(returnFocus = false) {
     mobileMoreOpen = false;
     if (returnFocus) {
         void tick().then(() => mobileMoreTrigger?.focus());
+    }
+}
+
+function openMobileMore() {
+    mobileMoreOpen = true;
+    void tick().then(() => mobileMoreMenu?.querySelector<HTMLElement>('[role="menuitem"]')?.focus());
+}
+
+/** 轻量菜单也遵循菜单键盘模型，避免窄屏用户只能靠触摸逐项寻找入口。 */
+function mobileMoreKeydown(event: KeyboardEvent) {
+    if (event.defaultPrevented || event.isComposing || event.ctrlKey || event.altKey || event.metaKey) return;
+    const items = mobileMoreMenu ? Array.from(mobileMoreMenu.querySelectorAll<HTMLElement>('[role="menuitem"]')) : [];
+    const current = document.activeElement instanceof HTMLElement ? items.indexOf(document.activeElement) : -1;
+    if (event.key === "ArrowDown" || event.key === "ArrowUp" || event.key === "Home" || event.key === "End") {
+        if (items.length === 0) return;
+        event.preventDefault();
+        event.stopPropagation();
+        const next = event.key === "Home" ? 0 : event.key === "End" ? items.length - 1 : (current + (event.key === "ArrowDown" ? 1 : -1) + items.length) % items.length;
+        items[next]?.focus();
+    } else if (event.key === "Tab") {
+        closeMobileMore();
     }
 }
 let snappingId = $state("");
@@ -1275,12 +1297,12 @@ function metaLine(entry: Row): string {
                         aria-haspopup="menu"
                         aria-controls="glean-mobile-more-menu"
                         aria-expanded={mobileMoreOpen}
-                        onclick={() => mobileMoreOpen ? closeMobileMore() : (mobileMoreOpen = true)}
+                        onclick={() => mobileMoreOpen ? closeMobileMore() : openMobileMore()}
                     >
                         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 10.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Zm7 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Zm7 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Z" /></svg>
                     </button>
                     {#if mobileMoreOpen}
-                        <div id="glean-mobile-more-menu" class="glean-mobile-more" role="menu" aria-orientation="vertical" aria-label={t(i18n, "mobile.moreLabel")}>
+                        <div id="glean-mobile-more-menu" class="glean-mobile-more" bind:this={mobileMoreMenu} role="menu" tabindex="-1" aria-orientation="vertical" aria-label={t(i18n, "mobile.moreLabel")} onkeydown={mobileMoreKeydown}>
                             <button type="button" class="glean-mobile-more__item" role="menuitem" onclick={() => { closeMobileMore(); void reload(); }}>
                                 <svg class="glean-mobile-more__icon" aria-hidden="true"><use href="#iconGleanRefresh" /></svg>
                                 {t(i18n, "action.refresh")}
