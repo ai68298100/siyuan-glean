@@ -25,6 +25,7 @@ import { nextPreviewId, normalizePreviewRatio, previewRatioFromPointer } from ".
 import InboxSection from "./InboxSection.svelte";
 import ResurfaceView from "./ResurfaceView.svelte";
 import { archiveStaleCandidates, setSurfacePinned } from "../services/resurface-service";
+import { computeDailyFromIndex } from "../services/resurface-service";
 import { loadUiPrefs, saveUiPrefs } from "../services/prefs";
 import { ageDays, todayStamp } from "../domain/resurface.ts";
 import { recordReadingDone } from "../services/checkin-bridge";
@@ -288,6 +289,7 @@ $effect(() => {
 
 const candidateCount = $derived(Object.keys(index.candidates).length);
 const totalClips = $derived(Object.keys(index.clips).length);
+const resurfaceCount = $derived(computeDailyFromIndex(index, facade.settings).picks.length);
 
 /**
  * 治理提示和状态 rail 共用同一份索引扫描结果。
@@ -1205,7 +1207,7 @@ function metaLine(entry: Row): string {
                 </button>
                 <div class="glean-mobile-topbar__copy">
                     <h1 class="glean-mobile-topbar__title">{t(i18n, mobileTitleKey)}</h1>
-                    <span class="glean-mobile-topbar__sub">{t(i18n, "panel.libraryCount", { n: totalClips })}</span>
+                    <span class="glean-mobile-topbar__sub">{view === "resurface" ? t(i18n, "resurface.subtitle", { n: resurfaceCount }) : t(i18n, "panel.libraryCount", { n: totalClips })}</span>
                 </div>
                 <span
                     class={`glean-mobile-task glean-mobile-task--${mobileTaskState}`}
@@ -1310,7 +1312,7 @@ function metaLine(entry: Row): string {
                             title={t(i18n, "panel.searchClear")}
                             aria-label={t(i18n, "panel.searchClear")}
                             onclick={() => { keyword = ""; searchInput?.focus(); }}
-                        >×</button>
+                        ><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanClose" /></svg></button>
                     {/if}
                 </div>
             {:else}
@@ -1438,7 +1440,7 @@ function metaLine(entry: Row): string {
                             <h2 id="glean-mobile-filter-title">{t(i18n, "library.filters")}</h2>
                             <span>{t(i18n, "library.resultCount", { n: rows.length })}</span>
                         </div>
-                        <button type="button" class="glean-mobile-filter-sheet__close" aria-label={t(i18n, "library.filterClose")} onclick={closeMobileFilters}>×</button>
+                        <button type="button" class="glean-mobile-filter-sheet__close" aria-label={t(i18n, "library.filterClose")} onclick={closeMobileFilters}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanClose" /></svg></button>
                     </header>
                     <div class="glean-mobile-filter-sheet__body">
                         <label class="glean-mobile-filter-field">
@@ -1990,7 +1992,7 @@ function metaLine(entry: Row): string {
             {/if}
         {/if}
     {:else if view === "resurface"}
-        <ResurfaceView {facade} {index} onMutated={() => void reload()} />
+        <ResurfaceView {facade} {index} embedded onMutated={() => void reload()} />
     {:else if view === "stats"}
         <StatsView {facade} {index} onCaptured={() => void reload()} />
     {:else}

@@ -126,7 +126,7 @@
         <button class="glean-btn glean-btn--ghost" disabled={busy || locked || !session} onclick={basic}>{t(i18n, "formatting.basic")}</button>
         <button class="glean-btn glean-btn--ghost" disabled={busy || locked} onclick={() => void reload()}>{t(i18n, "formatting.reload")}</button>
         {#if aiOn}
-            <button class="glean-btn glean-btn--pri" disabled={busy || locked || !session} onclick={() => void formatAi()}>✨ {t(i18n, "formatting.ai")}</button>
+            <button class="glean-btn glean-btn--pri" disabled={busy || locked || !session} onclick={() => void formatAi()}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanSpark" /></svg>{t(i18n, "formatting.ai")}</button>
         {:else}
             <button class="glean-btn glean-btn--ghost" disabled={busy} onclick={() => facade.openSettings()}>{t(i18n, "formatting.enable")}</button>
         {/if}

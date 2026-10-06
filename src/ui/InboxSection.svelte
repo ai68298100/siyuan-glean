@@ -108,7 +108,7 @@ async function dismiss(item: Shorthand) {
                             <button class="glean-cap-btn" disabled={Boolean(busyId)} onclick={() => pendingRemoval[item.oId] ? void dismiss(item) : void migrate(item)}>
                                 {t(i18n, pendingRemoval[item.oId] ? "inbox.retryCloudRemoval" : "inbox.migrate")}
                             </button>
-                            <button class="glean-inbox__dismiss" disabled={Boolean(busyId)} title={t(i18n, "inbox.dismiss")} aria-label={t(i18n, "inbox.dismiss")} onclick={() => void dismiss(item)}>✕</button>
+                            <button class="glean-inbox__dismiss" disabled={Boolean(busyId)} title={t(i18n, "inbox.dismiss")} aria-label={t(i18n, "inbox.dismiss")} onclick={() => void dismiss(item)}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanClose" /></svg></button>
                         </div>
                     </div>
                     {#if pendingRemoval[item.oId]}

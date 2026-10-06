@@ -227,8 +227,8 @@ function openDoc(id: string) {
     {#if loadError}
         <div class="glean-highlights__error" role="alert"><p>{loadError}</p><button disabled={loading} onclick={refresh}>{t(i18n, "action.retry")}</button></div>
     {/if}
-    <div class="glean-highlights__tools">
-        <span>{t(i18n, "action.selected")} {selected.length}</span>
+    <div class="glean-highlights__tools glean-highlights__tools--selection">
+        <span class="glean-highlights__selection-count">{t(i18n, "action.selected")} {selected.length}</span>
         <button disabled={loading || exportBusy || !visible.items.length} onclick={selectPage}>{t(i18n, "highlight.selectPage")}</button>
         <button disabled={exportBusy || !selected.length} onclick={() => selected = []}>{t(i18n, "highlight.clearSelection")}</button>
         <button disabled={loading || exportBusy || !selected.length} onclick={() => void runExport("copy")}>{t(i18n, "highlight.copy")}</button>
@@ -256,9 +256,9 @@ function openDoc(id: string) {
         </section>
     {/if}
     {#if !loading && !loadError && scope === "current" && !currentDocId}
-        <div class="glean-empty glean-highlights__empty"><div class="glean-empty__title">{t(i18n, "highlight.noDoc")}</div><div class="glean-empty__hint">{t(i18n, "highlight.noDocHint")}</div></div>
+        <div class="glean-empty glean-highlights__empty"><div class="glean-empty__art"><svg aria-hidden="true"><use href="#iconGleanWheat" /></svg></div><div class="glean-empty__title">{t(i18n, "highlight.noDoc")}</div><div class="glean-empty__hint">{t(i18n, "highlight.noDocHint")}</div></div>
     {:else if !loading && !loadError && !visible.items.length}
-        <div class="glean-empty glean-highlights__empty"><div class="glean-empty__title">{t(i18n, "highlight.empty")}</div><div class="glean-empty__hint">{t(i18n, "highlight.emptyHint")}</div></div>
+        <div class="glean-empty glean-highlights__empty"><div class="glean-empty__art"><svg aria-hidden="true"><use href="#iconGleanWheat" /></svg></div><div class="glean-empty__title">{t(i18n, "highlight.empty")}</div><div class="glean-empty__hint">{t(i18n, "highlight.emptyHint")}</div></div>
     {/if}
     <div class="glean-highlights__items">
         {#each visible.items as item (item.id)}

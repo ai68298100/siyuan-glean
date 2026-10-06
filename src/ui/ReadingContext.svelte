@@ -186,7 +186,7 @@
         <div class="glean-reading-context__actions">
             {#if hasSourceAction(context.contentType, context.url)}
                 <button class="glean-reading-context__source-btn" title={t(i18n, "reading.sourceHint")} onclick={openSource}>
-                    ↗ {t(i18n, "clip.openSource")}
+                    <svg class="glean-icon" aria-hidden="true"><use href="#iconGleanExternal" /></svg>{t(i18n, "clip.openSource")}
                 </button>
             {:else if resolveCarrier(context.contentType) === "link"}
                 <span class="glean-reading-context__missing">{t(i18n, "clip.sourceMissing")}</span>
@@ -198,7 +198,7 @@
                     title={t(i18n, "clip.bodyCheckHint")}
                     aria-label={t(i18n, "clip.bodyCheckHint")}
                     onclick={checkBody}
-                >⌕</button>
+                ><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanSearch" /></svg></button>
             {:else if bodyState === "missing"}
                 <span class="glean-reading-context__missing" title={t(i18n, "clip.bodyMissingHint")}>
                     {t(i18n, "clip.bodyMissing")}
@@ -209,7 +209,7 @@
                         title={t(i18n, "clip.bodyMissingHint")}
                         aria-label={t(i18n, "clip.bodyMissingHint")}
                         onclick={recapture}
-                    >↻</button>
+                    ><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanRefresh" /></svg></button>
                 {/if}
             {/if}
             <button class="glean-reading-context__back" onclick={backToLibrary}>

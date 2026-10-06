@@ -1056,7 +1056,7 @@
                         {:else}
                             <div class="glean-reader__ops">
                                 <button class="glean-btn glean-btn--ghost" disabled={Boolean(aiBusy)} onclick={() => void runSummarize()}>
-                                    ✨ {t(i18n, "reader.aiSummarize")}
+                                    <svg class="glean-icon" aria-hidden="true"><use href="#iconGleanSpark" /></svg>{t(i18n, "reader.aiSummarize")}
                                 </button>
                                 <button
                                     class="glean-btn glean-btn--ghost"
@@ -1138,7 +1138,7 @@
                 <div class="glean-reader__ops">
                     <button class="glean-btn glean-btn--ghost" onclick={() => openFormattingDialog(facade, context!.id)}>{t(i18n, "formatting.open")}</button>
                     {#if hasSourceAction(context.contentType, context.url)}
-                        <button class="glean-btn glean-btn--ghost" onclick={openSource}>↗ {t(i18n, "clip.openSource")}</button>
+                        <button class="glean-btn glean-btn--ghost" onclick={openSource}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanExternal" /></svg>{t(i18n, "clip.openSource")}</button>
                     {:else if resolveCarrier(context.contentType) === "link"}
                         <span class="glean-source-missing">{t(i18n, "clip.sourceMissing")}</span>
                     {/if}
@@ -1154,13 +1154,13 @@
                 </div>
                 {#if bodyState === "unmeasured"}
                     <button class="glean-btn glean-btn--ghost" disabled={measuring} title={t(i18n, "clip.bodyCheckHint")} onclick={() => void checkBody()}>
-                        ⌕ {t(i18n, "clip.bodyCheck")}
+                        <svg class="glean-icon" aria-hidden="true"><use href="#iconGleanSearch" /></svg>{t(i18n, "clip.bodyCheck")}
                     </button>
                 {:else if bodyState === "missing"}
                     <div class="glean-reader__issue">
                         <span title={t(i18n, "clip.bodyMissingHint")}>{t(i18n, "clip.bodyMissing")}</span>
                         {#if hasSourceAction(context.contentType, context.url)}
-                            <button class="glean-btn glean-btn--ghost" onclick={recapture}>↻ {t(i18n, "clip.reclip")}</button>
+                            <button class="glean-btn glean-btn--ghost" onclick={recapture}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanRefresh" /></svg>{t(i18n, "clip.reclip")}</button>
                         {/if}
                     </div>
                 {/if}

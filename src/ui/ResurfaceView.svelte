@@ -16,9 +16,10 @@ interface Props {
     /** 面板对账后的派生索引；每次属性变化由父级传入新引用触发重算。 */
     index: GleanIndex;
     onMutated: () => void;
+    embedded?: boolean;
 }
 
-let { facade, index, onMutated }: Props = $props();
+let { facade, index, onMutated, embedded = false }: Props = $props();
 
 const i18n = $derived(facade.i18n);
 
@@ -228,8 +229,8 @@ function reasonText(reason: SurfaceReason): string {
 }
 </script>
 
-<div class="glean-panel">
-    <header class="glean-panel__head" style="padding-bottom: 4px">
+<div class="glean-panel glean-resurface" class:glean-resurface--embedded={embedded}>
+    {#if !embedded}<header class="glean-panel__head" style="padding-bottom: 4px">
         <div class="glean-brand">
             <div class="glean-brand__mark"><svg><use href="#iconGleanWheat" /></svg></div>
             <div>
@@ -245,7 +246,7 @@ function reasonText(reason: SurfaceReason): string {
                 </button>
             </div>
         </div>
-    </header>
+    </header>{/if}
 
     {#if facade.isMobile && picks.length > 0}
         <div class="glean-surf-swipe-hint" role="note">{t(i18n, "resurface.swipeHint")}</div>
@@ -257,13 +258,13 @@ function reasonText(reason: SurfaceReason): string {
             <button class="glean-surf-undo__button" disabled={undoingId === undoNotice.id} onclick={() => void undoLastAction()}>
                 {undoingId === undoNotice.id ? t(i18n, "resurface.undoing") : t(i18n, "resurface.undo")}
             </button>
-            <button class="glean-surf-undo__dismiss" aria-label={t(i18n, "resurface.dismissUndo")} onclick={dismissUndo}>×</button>
+            <button class="glean-surf-undo__dismiss" aria-label={t(i18n, "resurface.dismissUndo")} onclick={dismissUndo}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanClose" /></svg></button>
         </div>
     {/if}
 
     {#if picks.length === 0 && facade.settings.anchorNotebooks.length === 0}
         <div class="glean-empty">
-            <div class="glean-empty__art">🌾</div>
+            <div class="glean-empty__art"><svg aria-hidden="true"><use href="#iconGleanWheat" /></svg></div>
             <div class="glean-empty__title">{t(i18n, "resurface.noAnchor")}</div>
             <div class="glean-empty__hint">{t(i18n, "panel.noAnchorHint")}</div>
             <button class="glean-btn" style="margin-top:10px" onclick={() => facade.openSettings()}>
@@ -272,7 +273,7 @@ function reasonText(reason: SurfaceReason): string {
         </div>
     {:else if picks.length === 0 && startedToday.length === 0}
         <div class="glean-empty">
-            <div class="glean-empty__art">🌱</div>
+            <div class="glean-empty__art"><svg aria-hidden="true"><use href="#iconGleanSpark" /></svg></div>
             <div class="glean-empty__title">{t(i18n, "resurface.allDone")}</div>
             <div class="glean-empty__hint">{t(i18n, "resurface.allDoneHint")}</div>
         </div>
@@ -346,7 +347,7 @@ function reasonText(reason: SurfaceReason): string {
                         </button>
                         {#if hasSourceAction(pick.item.contentType, pick.item.url)}
                             <button class="glean-surf-act" disabled={actingId === pick.item.id} onclick={() => openSource(pick)}>
-                                ↗ {t(i18n, "clip.openSource")}
+                                <svg class="glean-icon" aria-hidden="true"><use href="#iconGleanExternal" /></svg>{t(i18n, "clip.openSource")}
                             </button>
                         {:else if pick.item.contentType === "link"}
                             <span class="glean-surf-source-missing">{t(i18n, "clip.sourceMissing")}</span>

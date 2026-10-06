@@ -161,7 +161,7 @@ function continueLater(): void {
 
     {#if step === 1}
         <div class="glean-onb-hero">
-            <div class="glean-empty__art">🌾</div>
+            <div class="glean-empty__art"><svg aria-hidden="true"><use href="#iconGleanWheat" /></svg></div>
             <div class="glean-empty__title">{t(i18n, "onboarding.welcomeTitle")}</div>
             <div class="glean-empty__hint">{t(i18n, "onboarding.welcomeBody")}</div>
         </div>
@@ -276,9 +276,9 @@ function continueLater(): void {
         {/if}
     {:else}
         <div class="glean-mstats">
-            <div class="glean-mstat"><div class="glean-mstat__n">📥</div><div class="glean-mstat__l">{t(i18n, "onboarding.cap1")}</div></div>
-            <div class="glean-mstat"><div class="glean-mstat__n">🔄</div><div class="glean-mstat__l">{t(i18n, "onboarding.cap2")}</div></div>
-            <div class="glean-mstat"><div class="glean-mstat__n">✨</div><div class="glean-mstat__l">{t(i18n, "onboarding.cap3")}</div></div>
+            <div class="glean-mstat"><div class="glean-mstat__n"><svg class="glean-icon glean-icon--sm" aria-hidden="true"><use href="#iconGleanInbox" /></svg></div><div class="glean-mstat__l">{t(i18n, "onboarding.cap1")}</div></div>
+            <div class="glean-mstat"><div class="glean-mstat__n"><svg class="glean-icon glean-icon--sm" aria-hidden="true"><use href="#iconGleanRefresh" /></svg></div><div class="glean-mstat__l">{t(i18n, "onboarding.cap2")}</div></div>
+            <div class="glean-mstat"><div class="glean-mstat__n"><svg class="glean-icon glean-icon--sm" aria-hidden="true"><use href="#iconGleanSpark" /></svg></div><div class="glean-mstat__l">{t(i18n, "onboarding.cap3")}</div></div>
         </div>
         <div class="glean-empty" style="padding: 8px 12px 0">
             <div class="glean-empty__hint">{t(i18n, "onboarding.aiLater")}</div>

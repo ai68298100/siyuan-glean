@@ -88,7 +88,8 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
 <symbol id="iconGleanClose" viewBox="0 0 32 32"><path d="m8 6 8 8 8-8 2 2-8 8 8 8-2 2-8-8-8 8-2-2 8-8-8-8 2-2z"/></symbol>
 <symbol id="iconGleanExternal" viewBox="0 0 32 32"><path d="M18 5h9v9h-2.5V9.3L13.4 20.4l-1.8-1.8L22.7 7.5H18V5zM7 7h8v2.5H9.5v13h13V18H25v7H7V7z"/></symbol>
 <symbol id="iconGleanPlus" viewBox="0 0 32 32"><path d="M14.5 5h3v9.5H27v3h-9.5V27h-3v-9.5H5v-3h9.5V5z"/></symbol>
-<symbol id="iconGleanCard" viewBox="0 0 32 32"><path d="M6 5h20a2 2 0 0 1 2 2v18a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2zm1 3v16h18V8H7zm3 3h12v2H10zm0 4h8v2h-8z"/></symbol>`);
+<symbol id="iconGleanCard" viewBox="0 0 32 32"><path d="M6 5h20a2 2 0 0 1 2 2v18a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2zm1 3v16h18V8H7zm3 3h12v2H10zm0 4h8v2h-8z"/></symbol>
+<symbol id="iconGleanSearch" viewBox="0 0 32 32"><path d="M14 5a9 9 0 1 0 5.7 16l5.6 5.6 1.7-1.7-5.6-5.6A9 9 0 0 0 14 5zm0 2.5a6.5 6.5 0 1 1 0 13 6.5 6.5 0 0 1 0-13z"/></symbol>`);
 
         // 设置只在此处加载一次；面板/弹窗都读这个缓存
         this.settings = await loadSettings(this);

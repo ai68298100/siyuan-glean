@@ -90,6 +90,12 @@ body.b3-theme-dark {
     position: relative;
 }
 
+.glean-resurface--embedded {
+    height: auto;
+    min-height: 0;
+    flex: 1 1 auto;
+}
+
 .glean-panel,
 .glean-tab-root {
     container-name: glean-workbench;
@@ -942,6 +948,8 @@ body.b3-theme-dark {
 .glean-cap-btn:disabled {
     opacity: 0.45;
     cursor: not-allowed;
+    box-shadow: none;
+    transform: none;
 }
 
 /* D-0029/T-1730：内嵌阅读页签（左正文右伴生栏，UI-STANDARD §5.10） */
@@ -2034,11 +2042,18 @@ body.b3-theme-dark {
         border-radius: 14px;
         padding: 10px 12px;
         background: var(--b3-theme-background-light);
+        border: 1px solid var(--glean-border-soft);
+        box-shadow: var(--glean-shadow-card);
 
         .glean-mstat__n {
             font-size: 19px;
             font-weight: 800;
             font-variant-numeric: tabular-nums;
+            display: flex;
+            align-items: center;
+            gap: var(--glean-space-2);
+
+            .glean-icon { color: currentColor; }
         }
 
         .glean-mstat__l {
@@ -4356,6 +4371,22 @@ body.b3-theme-dark {
     gap: var(--glean-space-2);
 }
 
+.glean-highlights__tools--selection {
+    padding: var(--glean-space-2);
+    border: 1px solid var(--glean-border-soft);
+    border-radius: var(--glean-radius-md);
+    background: color-mix(in srgb, var(--b3-theme-surface) 84%, transparent);
+}
+
+.glean-highlights__selection-count {
+    padding: 5px 8px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--b3-theme-primary) 11%, transparent);
+    color: var(--b3-theme-primary);
+    font-size: var(--glean-text-sm);
+    font-weight: 650;
+}
+
 .glean-highlights__filters label {
     display: flex;
     flex: 1 1 110px;
@@ -4579,7 +4610,16 @@ body.b3-theme-dark {
 
 .glean-stats__candidates {
     padding: 10px;
-    border: 1px dashed var(--b3-border-color);
+    border: 1px solid var(--glean-border-soft);
+    border-radius: var(--glean-radius-md);
+    background: color-mix(in srgb, var(--b3-theme-surface) 84%, transparent);
+}
+
+.glean-highlights__empty .glean-empty__art svg {
+    width: 48px;
+    height: 48px;
+    fill: currentColor;
+    color: var(--glean-accent-b);
 }
 
 .glean-stats__heatmap-scroll {
@@ -4704,6 +4744,15 @@ body.b3-theme-dark {
 .glean-op-btn:focus-visible { outline: 2px solid var(--b3-theme-primary); outline-offset: 2px; }
 .glean-op-btn:disabled { opacity: 0.48; cursor: default; transform: none; }
 
+.glean-btn:has(.glean-icon),
+.glean-surf-act:has(.glean-icon),
+.glean-reading-context__source-btn:has(.glean-icon) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--glean-space-2);
+}
+
 .glean-mrow__ops,
 .glean-drow__ops {
     display: inline-flex;
@@ -4810,6 +4859,19 @@ body.b3-theme-dark {
 }
 
 @media (max-width: 560px) {
+    .glean-cap-btn,
+    .glean-inbox__toggle,
+    .glean-inbox__dismiss,
+    .glean-mobile-filter-field .b3-select,
+    .glean-mobile-filter-direction {
+        min-height: 44px;
+    }
+
+    .glean-inbox__dismiss {
+        width: 44px;
+        height: 44px;
+    }
+
     .glean-highlights button,
     .glean-highlights select,
     .glean-highlights input[type="search"] {
