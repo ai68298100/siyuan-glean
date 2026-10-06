@@ -148,7 +148,7 @@
 <section class="glean-reading-position" aria-labelledby="glean-reading-position-title" aria-busy={busy}>
     <div id="glean-reading-position-title" class="glean-reading-position__title" role="heading" aria-level="3">{t(i18n, "reading.position.title")}</div>
     <p class="glean-reading-position__hint">{t(i18n, "reading.position.hint")}</p>
-    <div class="glean-reading-position__actions">
+    <div class="glean-reading-position__actions" role="group" aria-label={t(i18n, "reading.position.title")}>
         <button class="glean-btn glean-btn--ghost" disabled={busy || !snapshot} onclick={() => void remember()}>{t(i18n, "reading.position.remember")}</button>
         <button class="glean-btn glean-btn--ghost" disabled={busy || !snapshot?.position} onclick={() => void restore()}>{t(i18n, "reading.position.restore")}</button>
         <button class="glean-btn glean-btn--ghost" disabled={busy} onclick={() => void reload()}>{t(i18n, "reading.position.reload")}</button>
@@ -159,7 +159,7 @@
             <button class="glean-btn glean-btn--ghost" disabled={busy} onclick={() => facade.openReadingDocument(docId)}>{t(i18n, "reading.position.openDocument")}</button>
         {/if}
     </div>
-    <div class="glean-reading-position__status" class:glean-reading-position__status--visible={busy || Boolean(messageKey)} role="status" aria-live="polite">{busy ? t(i18n, "panel.loading") : messageKey ? t(i18n, messageKey) : ""}</div>
+    <div class="glean-reading-position__status" class:glean-reading-position__status--visible={busy || Boolean(messageKey)} class:glean-reading-position__status--error={messageKey.endsWith("Failed") || messageKey.endsWith("Missing") || messageKey.endsWith("changed")} class:glean-reading-position__status--success={messageKey === "reading.position.saved" || messageKey === "reading.position.restored"} role="status" aria-live="polite">{busy ? t(i18n, "panel.loading") : messageKey ? t(i18n, messageKey) : ""}</div>
 </section>
 
 <style>
@@ -169,6 +169,8 @@
     .glean-reading-position__actions { display: flex; flex-wrap: wrap; gap: var(--glean-space-2); }
     .glean-reading-position__status { display: none; min-height: 24px; margin-top: var(--glean-space-2); padding: 4px var(--glean-space-2); border-radius: var(--glean-radius-sm); background: var(--glean-status-surface); color: var(--b3-theme-on-surface); overflow-wrap: anywhere; font-size: var(--glean-text-xs); }
     .glean-reading-position__status--visible { display: block; }
+    .glean-reading-position__status--success { color: var(--glean-st-done-text); background: color-mix(in srgb, var(--glean-st-done) 8%, var(--glean-status-surface)); }
+    .glean-reading-position__status--error { color: var(--b3-theme-error); background: var(--glean-error-surface); }
     .glean-reading-position button:focus-visible { outline: 2px solid var(--b3-theme-primary); outline-offset: 2px; }
     @media (max-width: 600px) { .glean-reading-position__actions :global(button) { min-height: 44px; flex: 1 1 auto; } }
 </style>

@@ -85,9 +85,9 @@ async function dismiss(item: Shorthand) {
 </script>
 
 {#if checked && available}
-    <div class="glean-inbox" aria-busy={Boolean(busyId)}>
-        <button class="glean-inbox__toggle" aria-expanded={expanded} aria-controls={expanded ? "glean-inbox-content" : undefined} onclick={() => (expanded = !expanded)}>
-            <span class="glean-meta-icon"><svg class="glean-icon glean-icon--sm" aria-hidden="true"><use href="#iconGleanInbox" /></svg>{t(i18n, "inbox.title")}</span>
+    <div class="glean-inbox" role="region" aria-labelledby="glean-inbox-title" aria-busy={Boolean(busyId)}>
+        <button class="glean-inbox__toggle" aria-expanded={expanded} aria-controls="glean-inbox-content" onclick={() => (expanded = !expanded)}>
+            <span id="glean-inbox-title" class="glean-meta-icon"><svg class="glean-icon glean-icon--sm" aria-hidden="true"><use href="#iconGleanInbox" /></svg>{t(i18n, "inbox.title")}</span>
             <span class="glean-inbox__count">{items.length}</span>
             <span class="glean-inbox__spacer"></span>
             <span class="glean-inbox__arrow">{expanded ? "▾" : "▸"}</span>
@@ -98,7 +98,7 @@ async function dismiss(item: Shorthand) {
                     <div class="glean-inbox__empty" role="status">{t(i18n, "inbox.empty")}</div>
                 {:else}
                     {#each items as item (item.oId)}
-                        <div class="glean-inbox__item">
+                        <div class="glean-inbox__item" aria-busy={busyId === item.oId}>
                             <div class="glean-inbox__body">
                                 <div class="glean-inbox__title">{item.shorthandTitle || item.shorthandURL || t(i18n, "panel.untitled")}</div>
                                 {#if item.shorthandURL}
@@ -106,10 +106,10 @@ async function dismiss(item: Shorthand) {
                                 {/if}
                             </div>
                             <div class="glean-inbox__ops">
-                                <button class="glean-cap-btn" disabled={Boolean(busyId)} onclick={() => pendingRemoval[item.oId] ? void dismiss(item) : void migrate(item)}>
+                                <button class="glean-cap-btn" aria-busy={busyId === item.oId} disabled={Boolean(busyId)} onclick={() => pendingRemoval[item.oId] ? void dismiss(item) : void migrate(item)}>
                                     {t(i18n, pendingRemoval[item.oId] ? "inbox.retryCloudRemoval" : "inbox.migrate")}
                                 </button>
-                                <button class="glean-inbox__dismiss" disabled={Boolean(busyId)} title={t(i18n, "inbox.dismiss")} aria-label={t(i18n, "inbox.dismiss")} onclick={() => void dismiss(item)}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanClose" /></svg></button>
+                                <button class="glean-inbox__dismiss" aria-busy={busyId === item.oId} disabled={Boolean(busyId)} title={t(i18n, "inbox.dismiss")} aria-label={t(i18n, "inbox.dismiss")} onclick={() => void dismiss(item)}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanClose" /></svg></button>
                             </div>
                         </div>
                         {#if pendingRemoval[item.oId]}

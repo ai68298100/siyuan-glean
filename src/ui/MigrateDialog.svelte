@@ -205,7 +205,7 @@ function rowStateLabel(row: MigrateRow): string {
 }
 </script>
 
-<div class="glean-migrate" aria-labelledby="glean-migrate-title" aria-describedby="glean-migrate-desc" aria-busy={phase === "scanning" || phase === "running"}>
+<div class="glean-migrate" data-phase={phase} aria-labelledby="glean-migrate-title" aria-describedby="glean-migrate-desc" aria-busy={phase === "scanning" || phase === "running"}>
     <div class="glean-dlg-head">
         <div class="glean-brand__mark glean-dlg-head__mark">
             <svg aria-hidden="true"><use href="#iconGleanWheat" /></svg>

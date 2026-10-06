@@ -24,12 +24,12 @@
 </script>
 
 <div class="glean-filters glean-filters--compact" aria-label={t(i18n, "library.filters")}>
-    <select class="b3-select glean-filter" aria-label={t(i18n, "library.filterSite")} bind:value={site}>
+    <select class="b3-select glean-filter" class:glean-filter--active={Boolean(site)} aria-label={t(i18n, "library.filterSite")} bind:value={site}>
         <option value="">{t(i18n, "library.filterSite")}</option>
         {#each facets.sites as facet (facet.value)}<option value={facet.value}>{facet.value} · {facet.count}</option>{/each}
         {#if site && !facets.sites.some((facet) => facet.value === site)}<option value={site}>{site}</option>{/if}
     </select>
-    <select class="b3-select glean-filter" aria-label={t(i18n, "library.filterTag")} bind:value={tag}>
+    <select class="b3-select glean-filter" class:glean-filter--active={Boolean(tag)} aria-label={t(i18n, "library.filterTag")} bind:value={tag}>
         <option value="">{t(i18n, "library.filterTag")}</option>
         {#each facets.tags as facet (facet.value)}<option value={facet.value}>#{facet.value} · {facet.count}</option>{/each}
         {#if tag && !facets.tags.some((facet) => facet.value === tag)}<option value={tag}>#{tag}</option>{/if}
@@ -42,7 +42,7 @@
         <option value="rating">{t(i18n, "library.sortRating")}</option>
         <option value="title">{t(i18n, "library.sortTitle")}</option>
     </select>
-    <button type="button" class="glean-filter-dir" aria-label={t(i18n, "library.toggleDirection")} aria-pressed={direction === "asc"} title={t(i18n, "library.toggleDirection")} onclick={() => direction = direction === "desc" ? "asc" : "desc"}><span class="glean-filter-dir__icon" aria-hidden="true"><svg class="glean-icon glean-icon--xs"><use href={direction === "desc" ? "#iconGleanArrowDown" : "#iconGleanArrowUp"} /></svg></span><span class="glean-filter-dir__label">{t(i18n, "library.toggleDirection")}</span></button>
+    <button type="button" class="glean-filter-dir" class:glean-filter-dir--active={direction === "asc"} aria-label={t(i18n, "library.toggleDirection")} aria-pressed={direction === "asc"} title={t(i18n, "library.toggleDirection")} onclick={() => direction = direction === "desc" ? "asc" : "desc"}><span class="glean-filter-dir__icon" aria-hidden="true"><svg class="glean-icon glean-icon--xs"><use href={direction === "desc" ? "#iconGleanArrowDown" : "#iconGleanArrowUp"} /></svg></span><span class="glean-filter-dir__label">{t(i18n, "library.toggleDirection")}</span></button>
     <ActionPopover label={t(i18n, "library.moreFilters")}>
         <label class="glean-action-popover__field">{t(i18n, "library.filterAuthor")}
             <select class="b3-select glean-filter" bind:value={author}>

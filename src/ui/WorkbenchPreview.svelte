@@ -149,11 +149,13 @@
     }
 </script>
 
-<section class="glean-preview" aria-label={t(i18n, "preview.title")}>
+<section class="glean-preview" aria-labelledby="glean-preview-title">
     <div class="glean-preview__header">
-        <strong title={entry.title}>{entry.title || t(i18n, "panel.untitled")}</strong>
-        <button class="glean-btn glean-btn--ghost" onclick={() => facade.openReadingDocument(entry.id)}>{t(i18n, "preview.openDocument")}</button>
-        <button class="glean-btn glean-btn--ghost" onclick={onClose}>{t(i18n, "preview.close")}</button>
+        <h2 id="glean-preview-title" title={entry.title}>{entry.title || t(i18n, "panel.untitled")}</h2>
+        <div class="glean-preview__header-actions" role="group" aria-label={t(i18n, "preview.title")}>
+            <button class="glean-btn glean-btn--ghost" onclick={() => facade.openReadingDocument(entry.id)}>{t(i18n, "preview.openDocument")}</button>
+            <button class="glean-btn glean-btn--ghost" onclick={onClose}>{t(i18n, "preview.close")}</button>
+        </div>
     </div>
     <div class="glean-preview__meta">
         <span>{t(i18n, "preview.readonly")}</span>
@@ -168,7 +170,7 @@
             </div>
         {/if}
     </div>
-    <div class="glean-preview__actions" aria-busy={busy}>
+    <div class="glean-preview__actions" role="group" aria-label={t(i18n, "preview.title")} aria-busy={busy}>
         {#if loadFailed}
             <span>{t(i18n, "preview.changed")}</span>
             <button class="glean-btn" onclick={() => void load()}>{t(i18n, "action.retry")}</button>

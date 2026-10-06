@@ -4318,7 +4318,7 @@ body.b3-theme-dark {
 }
 
 @container (max-width: 380px) {
-    .glean-preview__header strong {
+    .glean-preview__header :where(strong, h2) {
         flex-basis: 100%;
         order: -1;
     }
@@ -6145,6 +6145,138 @@ body.b3-theme-dark {
         flex: 1 1 0;
         min-width: 0;
         min-height: 44px;
+    }
+}
+
+/* 第二十八轮：导入、迁移、备份和制卡恢复的状态层级收口。长文案保持可读，忙碌态不再与可操作内容混在一起。 */
+.glean-inline-spinner {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    margin-inline-end: 6px;
+    border: 2px solid color-mix(in srgb, currentColor 24%, transparent);
+    border-top-color: currentColor;
+    border-radius: 50%;
+    vertical-align: -2px;
+    animation: glean-inline-spin 720ms linear infinite;
+}
+
+.glean-import-progress__row > span:nth-child(2) {
+    flex: 1 1 220px;
+    min-width: 0;
+    color: var(--b3-theme-on-surface);
+    font-size: var(--glean-text-xs);
+    line-height: 1.5;
+}
+
+.glean-import-progress__row > .glean-btn {
+    flex: 0 0 auto;
+    min-height: 32px;
+}
+
+.glean-migrate[data-phase="scanning"] .glean-dlg-head,
+.glean-migrate[data-phase="running"] .glean-dlg-head {
+    border-color: color-mix(in srgb, var(--b3-theme-primary) 34%, var(--glean-border-soft));
+}
+
+.glean-migrate[data-phase="scanning"] .glean-panel__loading,
+.glean-migrate[data-phase="running"] [role="status"] {
+    padding: var(--glean-space-2) var(--glean-space-3);
+    border: 1px solid var(--glean-border-soft);
+    border-radius: var(--glean-radius-md);
+    background: var(--glean-status-surface);
+}
+
+.glean-migrate[data-phase="scanning"] .glean-panel__loading::before {
+    content: "";
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    margin-inline-end: 7px;
+    border: 2px solid color-mix(in srgb, var(--b3-theme-primary) 24%, transparent);
+    border-top-color: var(--b3-theme-primary);
+    border-radius: 50%;
+    vertical-align: -2px;
+    animation: glean-inline-spin 720ms linear infinite;
+}
+
+.glean-flashcard-recovery__body {
+    align-items: flex-start;
+}
+
+.glean-flashcard-recovery__message--error {
+    flex-basis: 100%;
+    padding: 6px 8px;
+    border: 1px solid color-mix(in srgb, var(--b3-theme-error) 24%, var(--glean-border-soft));
+    border-radius: var(--glean-radius-sm);
+    background: var(--glean-error-surface);
+}
+
+@keyframes glean-inline-spin {
+    to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .glean-inline-spinner,
+    .glean-migrate[data-phase="scanning"] .glean-panel__loading::before {
+        animation: none;
+    }
+}
+
+@media (max-width: 560px) {
+    .glean-import-progress__row {
+        align-items: flex-start;
+        padding-block: var(--glean-space-2);
+    }
+
+    .glean-import-progress__row > span,
+    .glean-import-progress__row > .glean-btn {
+        flex-basis: 100%;
+    }
+
+    .glean-import-progress__row > .glean-btn {
+        min-height: 44px;
+    }
+
+    .glean-flashcard-recovery__id {
+        flex: 1 1 100%;
+        max-width: 100%;
+    }
+}
+
+/* D-0149/T-3260：阅读上下文和伴生状态的最后一层视觉收口。 */
+.glean-reading-context {
+    box-shadow: 0 1px 0 color-mix(in srgb, var(--b3-theme-on-background) 4%, transparent);
+}
+
+.glean-reading-context__title {
+    letter-spacing: -0.01em;
+}
+
+.glean-reading-context__source-btn,
+.glean-reading-context__back {
+    min-height: 30px;
+}
+
+.glean-reading-context__source-btn--primary {
+    box-shadow: var(--glean-shadow-control);
+}
+
+.glean-reading-context[aria-busy="true"] .glean-reading-context__actions {
+    opacity: .72;
+}
+
+.glean-reading-position__status {
+    border: 1px solid var(--glean-border-soft);
+}
+
+@media (max-width: 560px) {
+    .glean-reading-context__actions {
+        gap: var(--glean-space-2);
+    }
+
+    .glean-reading-context__source-btn--primary {
+        box-shadow: var(--glean-shadow-control), 0 0 0 1px color-mix(in srgb, var(--b3-theme-primary) 8%, transparent);
     }
 }
 
@@ -8771,6 +8903,120 @@ body.b3-theme-dark .glean-panel--mobile,
     .glean-rail__item,
     .glean-drow,
     .glean-kcard {
+        transition: none;
+    }
+}
+
+/* 第二十八轮：工作台阅读预览、筛选和空态的最后一层收口。
+   标题与动作分组保持明确边界，正在执行时给出稳定锚点；筛选结果和空态动作不再像无关控件堆在内容边缘。 */
+.glean-preview__header h2 {
+    flex: 1 1 160px;
+    min-width: 0;
+    margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 13px;
+    font-weight: 720;
+    line-height: 1.35;
+    letter-spacing: -.005em;
+}
+
+.glean-preview__header-actions {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: var(--glean-space-1);
+    flex: 0 1 auto;
+}
+
+.glean-preview__actions {
+    position: relative;
+}
+
+.glean-preview__actions[aria-busy="true"]::after {
+    content: "";
+    width: 12px;
+    height: 12px;
+    flex: 0 0 12px;
+    margin-left: auto;
+    border: 1.5px solid color-mix(in srgb, currentColor 24%, transparent);
+    border-top-color: currentColor;
+    border-radius: 50%;
+    animation: glean-preview-spin 720ms linear infinite;
+}
+
+@keyframes glean-preview-spin {
+    to { transform: rotate(360deg); }
+}
+
+.glean-filters--compact .glean-filter--active {
+    border-color: color-mix(in srgb, var(--glean-accent-b) 46%, var(--glean-border-soft));
+    background: color-mix(in srgb, var(--glean-accent-b) 10%, var(--b3-theme-surface));
+    color: var(--b3-theme-on-background);
+}
+
+.glean-filters--compact .glean-filter-dir--active {
+    border-color: color-mix(in srgb, var(--glean-accent-b) 42%, var(--glean-border-soft));
+    color: var(--glean-accent-b);
+    background: var(--glean-primary-soft);
+}
+
+.glean-inbox__item[aria-busy="true"] {
+    background: color-mix(in srgb, var(--glean-primary-soft) 55%, transparent);
+}
+
+.glean-inbox__ops .glean-cap-btn {
+    min-height: 30px;
+    padding-inline: 10px;
+    border: 1px solid color-mix(in srgb, var(--glean-accent-b) 26%, var(--glean-border-soft));
+    border-radius: var(--glean-radius-sm);
+    background: color-mix(in srgb, var(--glean-accent-b) 8%, var(--b3-theme-surface));
+    color: var(--glean-accent-b);
+    font-size: var(--glean-text-xs);
+    font-weight: 650;
+    transition: background-color 160ms var(--glean-ease-out), border-color 160ms var(--glean-ease-out), transform 160ms var(--glean-ease-out);
+}
+
+.glean-inbox__ops .glean-cap-btn:hover:not(:disabled) {
+    border-color: var(--glean-accent-b);
+    background: var(--glean-primary-soft);
+    transform: translateY(-1px);
+}
+
+.glean-inbox__ops .glean-cap-btn[aria-busy="true"] {
+    cursor: wait;
+    opacity: .7;
+}
+
+.glean-empty__action {
+    margin-top: var(--glean-space-3);
+}
+
+@media (max-width: 560px) {
+    .glean-preview__header-actions {
+        width: 100%;
+    }
+
+    .glean-preview__header-actions .glean-btn {
+        flex: 1 1 120px;
+        min-height: 44px;
+    }
+
+    .glean-preview__actions[aria-busy="true"]::after {
+        margin-right: var(--glean-space-1);
+    }
+
+    .glean-inbox__ops .glean-cap-btn {
+        min-height: 44px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .glean-preview__actions[aria-busy="true"]::after,
+    .glean-inbox__ops .glean-cap-btn {
+        animation: none;
         transition: none;
     }
 }

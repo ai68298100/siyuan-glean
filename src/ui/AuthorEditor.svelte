@@ -179,11 +179,11 @@
 </script>
 
 <div class="glean-author-editor">
-    <button type="button" class="glean-btn glean-btn--ghost" bind:this={trigger} aria-expanded={editing} disabled={busy} onclick={(event) => { event.stopPropagation(); if (editing) close(); else void load(); }}>{t(i18n, "author.edit")}</button>
+    <button type="button" class="glean-btn glean-btn--ghost" bind:this={trigger} aria-expanded={editing} aria-controls={`glean-author-editor-form-${docId}`} disabled={busy} onclick={(event) => { event.stopPropagation(); if (editing) close(); else void load(); }}>{t(i18n, "author.edit")}</button>
     {#if editing}
-        <form class="glean-author-editor__form" onsubmit={(event) => { event.preventDefault(); void save(); }}>
-            <label>{t(i18n, "author.label")}
-                <input class="b3-text-field" bind:this={input} bind:value={draft} disabled={busy} autocomplete="off" />
+        <form id={`glean-author-editor-form-${docId}`} class="glean-author-editor__form" aria-busy={busy} onsubmit={(event) => { event.preventDefault(); void save(); }}>
+            <label for={`glean-author-editor-input-${docId}`}>{t(i18n, "author.label")}
+                <input id={`glean-author-editor-input-${docId}`} class="b3-text-field" bind:this={input} bind:value={draft} disabled={busy} autocomplete="off" />
             </label>
             <p class="glean-author-editor__hint">{t(i18n, "author.hint")}</p>
             {#if snapshot}<p class="glean-author-editor__current"><span>{t(i18n, "author.current")}</span><strong>{snapshot.raw || t(i18n, "author.unknown")}</strong></p>{/if}
@@ -193,8 +193,8 @@
             {#if suggesting}<p class="glean-author-editor__status glean-author-editor__status--busy" role="status"><span class="glean-author-editor__status-dot" aria-hidden="true"></span>{t(i18n, "author.suggestion.loading")}</p>{/if}
             {#if suggestionMessage}<p class="glean-author-editor__status" role="status">{t(i18n, suggestionMessage)}</p>{/if}
             {#if suggestion && aiOn}
-                <section class="glean-author-editor__suggestion" aria-label={t(i18n, "author.suggestion.source")}>
-                    <p class="glean-author-editor__suggestion-head"><span>{t(i18n, "author.suggestion.source")}</span><span class="glean-author-editor__badge">AI</span></p>
+                <section class="glean-author-editor__suggestion" aria-labelledby={`glean-author-editor-suggestion-title-${docId}`}>
+                    <p id={`glean-author-editor-suggestion-title-${docId}`} class="glean-author-editor__suggestion-head" role="heading" aria-level="4"><span>{t(i18n, "author.suggestion.source")}</span><span class="glean-author-editor__badge">AI</span></p>
                     <p class="glean-author-editor__suggested-author"><span>{t(i18n, "author.label")}</span><strong>{suggestion.author}</strong></p>
                     <p class="glean-author-editor__evidence-label">{t(i18n, "author.suggestion.evidence")}</p>
                     <blockquote>{suggestion.evidence}</blockquote>

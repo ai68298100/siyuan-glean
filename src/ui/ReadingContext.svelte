@@ -170,9 +170,9 @@
 </script>
 
 {#if !loading && context}
-    <aside class="glean-reading-context" aria-label={t(i18n, "reading.contextLabel")} aria-busy={busy || measuring}>
+    <aside class="glean-reading-context" aria-labelledby="glean-reading-context-title" aria-busy={busy || measuring}>
         <div class="glean-reading-context__main">
-            <div class="glean-reading-context__title" title={context.title}>{context.title || t(i18n, "panel.untitled")}</div>
+            <div id="glean-reading-context-title" class="glean-reading-context__title" role="heading" aria-level="2" title={context.title}>{context.title || t(i18n, "panel.untitled")}</div>
             <div class="glean-reading-context__meta">
                 <span class={`glean-carrier-badge glean-carrier-badge--${resolveCarrier(context.contentType)}`}>
                     {carrierLabel(context.contentType)}
@@ -185,7 +185,7 @@
         </div>
         <div class="glean-reading-context__actions">
             {#if hasSourceAction(context.contentType, context.url)}
-                <button class="glean-reading-context__source-btn glean-reading-context__source-btn--primary" title={t(i18n, "reading.sourceHint")} onclick={openSource}>
+                <button type="button" class="glean-reading-context__source-btn glean-reading-context__source-btn--primary" title={t(i18n, "reading.sourceHint")} onclick={openSource}>
                     <svg class="glean-icon" aria-hidden="true"><use href="#iconGleanExternal" /></svg>{t(i18n, "clip.openSource")}
                 </button>
             {:else if resolveCarrier(context.contentType) === "link"}
@@ -193,6 +193,7 @@
             {/if}
             {#if bodyState === "unmeasured"}
                 <button
+                    type="button"
                     class="glean-reading-context__source-btn"
                     disabled={measuring}
                     title={t(i18n, "clip.bodyCheckHint")}
@@ -205,6 +206,7 @@
                 </span>
                 {#if hasSourceAction(context.contentType, context.url)}
                     <button
+                        type="button"
                         class="glean-reading-context__source-btn glean-reading-context__reclip"
                         title={t(i18n, "clip.bodyMissingHint")}
                         aria-label={t(i18n, "clip.bodyMissingHint")}
@@ -212,10 +214,10 @@
                     ><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanRefresh" /></svg></button>
                 {/if}
             {/if}
-            <button class="glean-reading-context__back" onclick={backToLibrary}>
+            <button type="button" class="glean-reading-context__back" onclick={backToLibrary}>
                 {t(i18n, "reading.backToLibrary")}
             </button>
-            <button class="glean-reading-context__source-btn" onclick={() => openFormattingDialog(facade, context!.id)}>{t(i18n, "formatting.open")}</button>
+            <button type="button" class="glean-reading-context__source-btn" onclick={() => openFormattingDialog(facade, context!.id)}>{t(i18n, "formatting.open")}</button>
             <ClipStatusActions
                 i18n={i18n}
                 status={context.status}

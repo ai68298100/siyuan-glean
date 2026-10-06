@@ -66,14 +66,14 @@
     onMount(() => { void refresh(); });
 </script>
 
-<div class="glean-flashcard-recovery" role="region" aria-label={t(i18n, "flashcard.recovery.title")} aria-busy={panelState === "loading" || panelState === "busy"}>
+<div class="glean-flashcard-recovery" role="region" aria-labelledby="glean-flashcard-recovery-title" aria-busy={panelState === "loading" || panelState === "busy"}>
     <div class="glean-set-row">
-        <div class="glean-set-row__lb">
+        <div id="glean-flashcard-recovery-title" class="glean-set-row__lb">
             {t(i18n, "flashcard.recovery.title")}
             <div class="glean-set-row__desc">{t(i18n, "flashcard.recovery.hint")}</div>
         </div>
         {#if panelState === "loading" || panelState === "busy"}
-            <span class="glean-flashcard-recovery__message glean-flashcard-recovery__message--busy" role="status" aria-live="polite"><span class="glean-flashcard-recovery__dot" aria-hidden="true"></span>{t(i18n, "panel.loading")}</span>
+            <span class="glean-flashcard-recovery__message glean-flashcard-recovery__message--busy" role="status" aria-live="polite" aria-atomic="true"><span class="glean-flashcard-recovery__dot" aria-hidden="true"></span>{t(i18n, "panel.loading")}</span>
         {:else if panelState === "empty"}
             <span class="glean-flashcard-recovery__message">{message || t(i18n, "flashcard.recovery.empty")}</span>
         {:else if recovery}
@@ -97,7 +97,7 @@
                         <button class="glean-btn glean-btn--ghost" onclick={() => void clearMissing()}>{t(i18n, "flashcard.recovery.clear")}</button>
                     {/if}
                 </div>
-                {#if message}<span class="glean-flashcard-recovery__message glean-flashcard-recovery__message--error" role="alert">{message}</span>{/if}
+                {#if message}<span class="glean-flashcard-recovery__message glean-flashcard-recovery__message--error" role="alert" aria-live="assertive">{message}</span>{/if}
             </div>
         {:else}
             <span class="glean-flashcard-recovery__message glean-flashcard-recovery__message--error" role="alert">{message}</span>

@@ -143,9 +143,15 @@
         <span class="glean-backup__mode">JSON</span>
     </header>
     <div class="glean-backup__actions glean-backup__actions--primary">
-        <button class="glean-btn" disabled={Boolean(busy)} onclick={() => void download()}>{t(i18n, "backup.export")}</button>
+        <button class="glean-btn" disabled={Boolean(busy)} onclick={() => void download()}>
+            {#if busy === "export"}<span class="glean-inline-spinner" aria-hidden="true"></span>{/if}
+            {busy === "export" ? t(i18n, "panel.loading") : t(i18n, "backup.export")}
+        </button>
         <label class="glean-backup__file">{t(i18n, "backup.import")}<input type="file" accept=".json,application/json" disabled={Boolean(busy)} onchange={(event) => void chooseFile(event)} /></label>
-        <button class="glean-btn glean-btn--ghost" disabled={Boolean(busy) || !content} onclick={() => void preview()}>{t(i18n, session ? "backup.repreview" : "backup.preview")}</button>
+        <button class="glean-btn glean-btn--ghost" disabled={Boolean(busy) || !content} onclick={() => void preview()}>
+            {#if busy === "preview"}<span class="glean-inline-spinner" aria-hidden="true"></span>{/if}
+            {busy === "preview" ? t(i18n, "panel.loading") : t(i18n, session ? "backup.repreview" : "backup.preview")}
+        </button>
     </div>
     {#if filename}<p class="glean-backup__filename">{filename}</p>{/if}
     {#if session}

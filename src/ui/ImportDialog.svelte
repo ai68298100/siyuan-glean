@@ -258,10 +258,10 @@ function openProgressDocument(id: string): void {
         </div>
     {/if}
     {#if progressRecord && progressCounts}
-        <section class="glean-import-progress" aria-label={t(i18n, "import.progress.title")}>
-            <h3>{t(i18n, "import.progress.title")} · {t(i18n, `import.progress.state.${progressRecord.state}`)}</h3>
+        <section class="glean-import-progress" aria-labelledby="glean-import-progress-title">
+            <h3 id="glean-import-progress-title">{t(i18n, "import.progress.title")} · {t(i18n, `import.progress.state.${progressRecord.state}`)}</h3>
             <p>{t(i18n, "import.progress.target", { notebook: notebooks.find((notebook) => notebook.id === progressRecord?.notebookId)?.name ?? progressRecord.notebookId, folder: progressRecord.folder })}</p>
-            <p role="status">{t(i18n, "import.progress.counts", { ...progressCounts, total: progressRecord.rows.length })}</p>
+            <p role="status" aria-live="polite" aria-atomic="true">{t(i18n, "import.progress.counts", { ...progressCounts, total: progressRecord.rows.length })}</p>
             {#if unfinished}<p>{t(i18n, "import.progress.hint")}</p>{/if}
             {#if progressCounts.unknown > 0}<p>{t(i18n, "import.progress.unknownHint")}</p>{/if}
             <details>

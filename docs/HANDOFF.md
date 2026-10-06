@@ -1,5 +1,14 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-07 T-3260/D-0151）
+
+第二十八轮收口阅读伴生、维护流程和工作台状态：阅读上下文/作者编辑/阅读位置补标题与控件关联、操作分组和状态层级；导入/迁移/备份/制卡恢复补进度播报、阶段表面、长文案边界和忙碌反馈；预览/筛选/收件箱/空结果补当前筛选高亮、条目忙碌态和清除筛选动作。未改变业务逻辑、数据、文章属性、端点或设置语义。
+
+- 当前改动文件：`src/index.scss`、`src/ui/AuthorEditor.svelte`、`src/ui/BackupPanel.svelte`、`src/ui/DockPanel.svelte`、`src/ui/FlashcardRecoveryPanel.svelte`、`src/ui/ImportDialog.svelte`、`src/ui/InboxSection.svelte`、`src/ui/LibraryFilters.svelte`、`src/ui/MigrateDialog.svelte`、`src/ui/ReadingContext.svelte`、`src/ui/ReadingPositionControls.svelte`、`src/ui/WorkbenchPreview.svelte`。
+- 已生成静态回归截图：`output/playwright/round28-desktop.png`、`output/playwright/round28-mobile.png`；截图为当前暗色 prototype fixture 回归，非真实思源内核运行或 Android 真机验收。
+- `pnpm run check` 0 错误/0 警告；定向回归 102/102；`pnpm test` 1146/1146、`pnpm build`、`pnpm task:ledger -- --check`、`git diff --check` 已通过。
+- 版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 package.zip。
+
 ## 当前有效交接（2026-10-07 T-3260/D-0150）
 
 第二十七轮继续收口设置异步、移动更多菜单和暗色空态：设置分组补标题关联，重建索引按钮防重入并显示忙碌反馈；移动更多菜单补首项聚焦、键盘导航、Tab 收起和长文案截断；暗色空态/加载/错误表面补独立层级与内高光；阅读位置无消息时隐藏空状态条，评分控件补 group 语义。未改变业务逻辑、数据、文章属性、端点或设置语义。

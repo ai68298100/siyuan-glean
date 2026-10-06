@@ -1929,8 +1929,12 @@ function metaLine(entry: Row): string {
                                 : t(i18n, "panel.emptyHint")}
                         </div>
                         {#if facade.settings.anchorNotebooks.length === 0}
-                            <button class="glean-btn" style="margin-top:10px" onclick={() => facade.openSettings()}>
+                            <button class="glean-btn glean-empty__action" onclick={() => facade.openSettings()}>
                                 {t(i18n, "panel.setupAnchor")}
+                            </button>
+                        {:else if hasFilters}
+                            <button class="glean-btn glean-btn--ghost glean-empty__action" onclick={clearFilters}>
+                                {t(i18n, "library.clearFilters")}
                             </button>
                         {/if}
                     </div>
