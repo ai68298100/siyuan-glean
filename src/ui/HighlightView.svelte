@@ -209,12 +209,18 @@ function openDoc(id: string) {
 </script>
 
 <div class="glean-panel glean-highlights" aria-busy={loading || exportBusy}>
-    <div class="glean-highlights__tools" role="group" aria-label={t(i18n, "highlight.title")}>
-        <button aria-pressed={scope === "current"} disabled={exportBusy} onclick={() => scope = "current"}>{t(i18n, "highlight.current")}</button>
-        <button aria-pressed={scope === "library"} disabled={exportBusy} onclick={() => scope = "library"}>{t(i18n, "highlight.allLibrary")}</button>
-        <button disabled={loading || exportBusy} onclick={refresh}>{t(i18n, "action.refresh")}</button>
+    <div class="glean-highlights__head">
+        <div>
+            <h2 class="glean-highlights__title">{t(i18n, "highlight.title")}</h2>
+            <p class="glean-highlights__subtitle">{scope === "current" ? t(i18n, "highlight.current") : t(i18n, "highlight.allLibrary")}</p>
+        </div>
+        <div class="glean-highlights__tools glean-highlights__tools--scope" role="group" aria-label={t(i18n, "highlight.title")}>
+            <button aria-pressed={scope === "current"} disabled={exportBusy} onclick={() => scope = "current"}>{t(i18n, "highlight.current")}</button>
+            <button aria-pressed={scope === "library"} disabled={exportBusy} onclick={() => scope = "library"}>{t(i18n, "highlight.allLibrary")}</button>
+            <button class="glean-highlights__refresh" disabled={loading || exportBusy} onclick={refresh}>{t(i18n, "action.refresh")}</button>
+        </div>
     </div>
-    <div class="glean-highlights__filters">
+    <div class="glean-highlights__filters" role="search" aria-label={t(i18n, "action.search")}>
         <input type="search" bind:value={search} oninput={() => page = 1} placeholder={t(i18n, "highlight.searchPlaceholder")} aria-label={t(i18n, "action.search")} />
         <label>{t(i18n, "library.filterSite")}<select bind:value={site} onchange={() => page = 1}><option value="">{t(i18n, "action.filterAll")}</option>{#each facets.sites as value}<option value={value}>{value}</option>{/each}</select></label>
         <label>{t(i18n, "library.filterTag")}<select bind:value={tag} onchange={() => page = 1}><option value="">{t(i18n, "action.filterAll")}</option>{#each facets.tags as value}<option value={value}>{value}</option>{/each}</select></label>
@@ -249,7 +255,7 @@ function openDoc(id: string) {
             {#if !(retryAction === "save" && session?.state === "unknown")}<button disabled={exportBusy || loading} onclick={retryExport}>{t(i18n, "action.retry")}</button>{/if}
         </div>
     {/if}
-    {#if exportStatus}<p role="status">{exportStatus}</p>{/if}
+    {#if exportStatus}<p class="glean-highlights__status" role="status">{exportStatus}</p>{/if}
     {#if session}
         <section class="glean-highlights__preview" aria-label={t(i18n, "highlight.preview")}>
             <h3>{t(i18n, "highlight.preview")}</h3>
@@ -271,12 +277,15 @@ function openDoc(id: string) {
     <div class="glean-highlights__items">
         {#each visible.items as item (item.id)}
             <article class="glean-highlights__item">
+                <div class="glean-highlights__item-head">
+                    <span class="glean-highlights__item-label">{t(i18n, "highlight.quoteTag")}</span>
+                    <span class="glean-highlights__item-index">{visible.items.indexOf(item) + 1}</span>
+                </div>
                 <label class="glean-highlights__quote"><input type="checkbox" checked={selected.includes(item.id)} disabled={exportBusy} onchange={() => toggle(item.id)} aria-label={item.text} /><span>{item.text}</span></label>
                 <p class="glean-highlights__meta">{item.title || t(i18n, "panel.untitled")} {item.site ? ` · ${item.site}` : ""}</p>
-                {#if item.tags.length}<p class="glean-highlights__meta">{t(i18n, "library.filterTag")}: {item.tags.join(", ")}</p>{/if}
-                {#if item.aiTags.length}<p class="glean-highlights__meta">{t(i18n, "library.filterAiTag")}: {item.aiTags.join(", ")}</p>{/if}
-                <div class="glean-highlights__tools">
-                    <span>{t(i18n, "highlight.quoteTag")}</span>
+                {#if item.tags.length}<p class="glean-highlights__meta glean-highlights__tags"><span>{t(i18n, "library.filterTag")}</span>{#each item.tags as value}<span class="glean-highlights__tag">{value}</span>{/each}</p>{/if}
+                {#if item.aiTags.length}<p class="glean-highlights__meta glean-highlights__tags glean-highlights__tags--ai"><span>{t(i18n, "library.filterAiTag")}</span>{#each item.aiTags as value}<span class="glean-highlights__tag">{value}</span>{/each}</p>{/if}
+                <div class="glean-highlights__tools glean-highlights__tools--card">
                     <button onclick={() => openDoc(item.id)}>{t(i18n, "highlight.original")}</button>
                     <button onclick={() => openDoc(item.rootId)}>{t(i18n, "action.openDoc")}</button>
                     {#if scope === "current"}<button disabled={!!cardingKey} onclick={() => void card(item)}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanCard" /></svg>{t(i18n, "flashcard.make")}</button>{/if}
@@ -284,7 +293,7 @@ function openDoc(id: string) {
             </article>
         {/each}
     </div>
-    <nav class="glean-highlights__tools" aria-label={t(i18n, "highlight.pageInfo", { page: visible.page, pages: visible.pages, n: visible.total })}>
+    <nav class="glean-highlights__tools glean-highlights__pagination" aria-label={t(i18n, "highlight.pageInfo", { page: visible.page, pages: visible.pages, n: visible.total })}>
         <button disabled={visible.page <= 1} onclick={() => page = visible.page - 1}>{t(i18n, "highlight.previousPage")}</button>
         <span>{t(i18n, "highlight.pageInfo", { page: visible.page, pages: visible.pages, n: visible.total })}</span>
         <button disabled={visible.page >= visible.pages} onclick={() => page = visible.page + 1}>{t(i18n, "highlight.nextPage")}</button>

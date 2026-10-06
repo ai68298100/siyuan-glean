@@ -149,8 +149,8 @@ function continueLater(): void {
 
 <div class="glean-migrate" aria-labelledby="glean-onboarding-title" aria-busy={scanning}>
     <div class="glean-dlg-head">
-        <div class="glean-brand__mark" style="width:28px;height:28px;border-radius:9px">
-            <svg style="width:14px;height:14px"><use href="#iconGleanWheat" /></svg>
+        <div class="glean-brand__mark glean-dlg-head__mark">
+            <svg aria-hidden="true"><use href="#iconGleanWheat" /></svg>
         </div>
         <div>
             <h2 id="glean-onboarding-title" class="glean-dlg-head__t">{t(i18n, "onboarding.title")}</h2>
@@ -185,10 +185,10 @@ function continueLater(): void {
                     >{anchorNotebooks.includes(notebook.id) ? "✓ " : ""}{notebook.name}</button>
                 {/each}
                 {#if notebooks.length === 0}
-                    <span style="font-size:11.5px; color:var(--b3-theme-on-surface)">—</span>
+                    <span class="glean-onb-empty__mark">—</span>
                 {/if}
             </div>
-            <div class="glean-empty" style="padding: 10px 4px 2px">
+            <div class="glean-empty glean-onb-empty">
                 <div class="glean-empty__hint">{t(i18n, "onboarding.anchorHint")}</div>
             </div>
             <div class="glean-onb-selection" role="status" aria-live="polite">
@@ -208,7 +208,7 @@ function continueLater(): void {
         {#if scanning}
             <div class="glean-panel__loading" role="status" aria-live="polite">{t(i18n, "panel.loading")}</div>
         {:else if scanFailed}
-            <div class="glean-empty" style="padding:12px" role="alert">
+            <div class="glean-empty glean-onb-empty glean-onb-empty--error" role="alert">
                 <div class="glean-empty__hint">{t(i18n, "onboarding.scanFailed")}</div>
             </div>
             <div class="glean-migrate__ops">
@@ -264,7 +264,7 @@ function continueLater(): void {
                     {/if}
                 </div>
             </div>
-            <div class="glean-empty" style="padding: 4px 12px 0">
+            <div class="glean-empty glean-onb-empty glean-onb-empty--note">
                 <div class="glean-empty__hint">{t(i18n, "onboarding.previewNote")}</div>
             </div>
             <div class="glean-migrate__ops">
@@ -280,13 +280,13 @@ function continueLater(): void {
             <div class="glean-mstat"><div class="glean-mstat__n"><svg class="glean-icon glean-icon--sm" aria-hidden="true"><use href="#iconGleanRefresh" /></svg></div><div class="glean-mstat__l">{t(i18n, "onboarding.cap2")}</div></div>
             <div class="glean-mstat"><div class="glean-mstat__n"><svg class="glean-icon glean-icon--sm" aria-hidden="true"><use href="#iconGleanSpark" /></svg></div><div class="glean-mstat__l">{t(i18n, "onboarding.cap3")}</div></div>
         </div>
-        <div class="glean-empty" style="padding: 8px 12px 0">
+        <div class="glean-empty glean-onb-empty glean-onb-empty--capability">
             <div class="glean-empty__hint">{t(i18n, "onboarding.aiLater")}</div>
         </div>
-        <div class="glean-empty" style="padding: 10px 12px">
+        <div class="glean-empty glean-onb-empty glean-onb-empty--capability">
             <div class="glean-empty__hint">{t(i18n, "onboarding.doneHint")}</div>
         </div>
-        <div class="glean-empty" style="padding: 0 12px">
+        <div class="glean-empty glean-onb-empty glean-onb-empty--import">
             <div class="glean-empty__hint">
                 {t(i18n, "onboarding.importLink")}
                 <button class="glean-linkish" onclick={() => void finish(true)}>{t(i18n, "import.title")} <svg class="glean-icon glean-icon--xs" aria-hidden="true"><use href="#iconGleanArrowRight" /></svg></button>

@@ -160,8 +160,12 @@
         {#if normalizeUrl(sourceUrl)}<a href={sourceUrl} target="_blank" rel="noopener noreferrer">{sourceUrl}</a>
         {:else if sourceUrl}<span>{sourceUrl}</span>{/if}
         {#if entry.kind === "candidate"}
-            <span>{t(i18n, "candidate.evidenceLabel")}: {entry.evidence.map((value) => t(i18n, `candidate.evidence.${value}`)).join(" · ")}</span>
-            <span>{entry.missing.filter((value) => value !== "status").map((value) => t(i18n, `candidate.missing.${value}`)).join(" · ")}</span>
+            <div class="glean-preview__evidence" aria-label={t(i18n, "candidate.evidenceLabel")}>
+                <span class="glean-preview__evidence-chip glean-preview__evidence-chip--signal">{t(i18n, "candidate.evidenceLabel")}: {entry.evidence.map((value) => t(i18n, `candidate.evidence.${value}`)).join(" · ")}</span>
+                {#if entry.missing.filter((value) => value !== "status").length > 0}
+                    <span class="glean-preview__evidence-chip glean-preview__evidence-chip--missing">{entry.missing.filter((value) => value !== "status").map((value) => t(i18n, `candidate.missing.${value}`)).join(" · ")}</span>
+                {/if}
+            </div>
         {/if}
     </div>
     <div class="glean-preview__actions" aria-busy={busy}>
