@@ -85,7 +85,10 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
 <symbol id="iconGleanPin" viewBox="0 0 32 32"><path d="m20 4 8 8-3 3-2-2-4 4v5l-3 3-3-7-6-3 3-3h5l4-4-2-2 3-3zM12 23l-5 5"/></symbol>
 <symbol id="iconGleanEdit" viewBox="0 0 32 32"><path d="m22 4 6 6-15 15-8 2 2-8L22 4zm-1 5-11 11-1 4 4-1 11-11-3-3z"/></symbol>
 <symbol id="iconGleanLocal" viewBox="0 0 32 32"><path d="M5 6h22v20H5V6zm3 3v14h16V9H8zm3 3h10v2H11zm0 4h7v2h-7z"/></symbol>
-<symbol id="iconGleanClose" viewBox="0 0 32 32"><path d="m8 6 8 8 8-8 2 2-8 8 8 8-2 2-8-8-8 8-2-2 8-8-8-8 2-2z"/></symbol>`);
+<symbol id="iconGleanClose" viewBox="0 0 32 32"><path d="m8 6 8 8 8-8 2 2-8 8 8 8-2 2-8-8-8 8-2-2 8-8-8-8 2-2z"/></symbol>
+<symbol id="iconGleanExternal" viewBox="0 0 32 32"><path d="M18 5h9v9h-2.5V9.3L13.4 20.4l-1.8-1.8L22.7 7.5H18V5zM7 7h8v2.5H9.5v13h13V18H25v7H7V7z"/></symbol>
+<symbol id="iconGleanPlus" viewBox="0 0 32 32"><path d="M14.5 5h3v9.5H27v3h-9.5V27h-3v-9.5H5v-3h9.5V5z"/></symbol>
+<symbol id="iconGleanCard" viewBox="0 0 32 32"><path d="M6 5h20a2 2 0 0 1 2 2v18a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2zm1 3v16h18V8H7zm3 3h12v2H10zm0 4h8v2h-8z"/></symbol>`);
 
         // 设置只在此处加载一次；面板/弹窗都读这个缓存
         this.settings = await loadSettings(this);

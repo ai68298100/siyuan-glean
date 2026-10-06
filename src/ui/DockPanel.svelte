@@ -1645,7 +1645,7 @@ function metaLine(entry: Row): string {
                                         <span class="glean-stale">{staleText(entry.time)}</span>
                                     {/if}
                                     {#if hasSourceAction(entry.contentType, entry.url)}
-                                        <button class="glean-op-btn" title={t(i18n, "clip.openSource")} aria-label={t(i18n, "clip.openSource")} onclick={(e) => { e.stopPropagation(); openSource(entry); }}>↗</button>
+                                        <button class="glean-op-btn" title={t(i18n, "clip.openSource")} aria-label={t(i18n, "clip.openSource")} onclick={(e) => { e.stopPropagation(); openSource(entry); }}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanExternal" /></svg></button>
                                     {:else if entry.contentType === "link"}
                                         <span class="glean-source-missing">{t(i18n, "clip.sourceMissing")}</span>
                                     {/if}
@@ -1783,9 +1783,9 @@ function metaLine(entry: Row): string {
                                             {#if entry.url}<button class="glean-card__capture" onclick={(e) => { e.stopPropagation(); void capture(entry); }}>{t(i18n, "action.addToInbox")}</button>{/if}
                                         </span>
                                         <div class="glean-drow__ops">
-                                            <button class="glean-op-btn" title={t(i18n, "candidate.fixUrl")} aria-label={t(i18n, "candidate.fixUrl")} onclick={(e) => { e.stopPropagation(); startCandidateUrlEdit(entry); }}>✎</button>
-                                            {#if !entry.url}<button class="glean-op-btn" title={t(i18n, "candidate.captureLocal")} aria-label={t(i18n, "candidate.captureLocal")} onclick={(e) => { e.stopPropagation(); void captureAsLocal(entry); }}>▤</button>{/if}
-                                            <button class="glean-op-btn" title={t(i18n, "candidate.exclude")} aria-label={t(i18n, "candidate.exclude")} onclick={(e) => { e.stopPropagation(); void excludeCandidate(entry); }}>×</button>
+                                            <button class="glean-op-btn" title={t(i18n, "candidate.fixUrl")} aria-label={t(i18n, "candidate.fixUrl")} onclick={(e) => { e.stopPropagation(); startCandidateUrlEdit(entry); }}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanEdit" /></svg></button>
+                                            {#if !entry.url}<button class="glean-op-btn" title={t(i18n, "candidate.captureLocal")} aria-label={t(i18n, "candidate.captureLocal")} onclick={(e) => { e.stopPropagation(); void captureAsLocal(entry); }}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanLocal" /></svg></button>{/if}
+                                            <button class="glean-op-btn" title={t(i18n, "candidate.exclude")} aria-label={t(i18n, "candidate.exclude")} onclick={(e) => { e.stopPropagation(); void excludeCandidate(entry); }}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanClose" /></svg></button>
                                         </div>
                                     </div>
                                     {#if editingCandidateId === entry.id}
@@ -1933,7 +1933,7 @@ function metaLine(entry: Row): string {
                                              title={t(i18n, "clip.openSource")}
                                              aria-label={t(i18n, "clip.openSource")}
                                              onclick={(e) => { e.stopPropagation(); openSource(entry); }}
-                                         >↗</button>
+                                         ><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanExternal" /></svg></button>
                                      {:else if entry.contentType === "link"}
                                          <span class="glean-source-missing">{t(i18n, "clip.sourceMissing")}</span>
                                      {/if}

@@ -271,7 +271,7 @@ function openDoc(id: string) {
                     <span>{t(i18n, "highlight.quoteTag")}</span>
                     <button onclick={() => openDoc(item.id)}>{t(i18n, "highlight.original")}</button>
                     <button onclick={() => openDoc(item.rootId)}>{t(i18n, "action.openDoc")}</button>
-                    {#if scope === "current"}<button disabled={!!cardingKey} onclick={() => void card(item)}>🎴 {t(i18n, "flashcard.make")}</button>{/if}
+                    {#if scope === "current"}<button disabled={!!cardingKey} onclick={() => void card(item)}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanCard" /></svg>{t(i18n, "flashcard.make")}</button>{/if}
                 </div>
             </article>
         {/each}

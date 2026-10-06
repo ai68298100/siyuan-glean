@@ -630,10 +630,11 @@ body.b3-theme-dark {
     transition: all 0.25s var(--glean-ease-out);
 
     &.glean-q--on {
-        color: #fff;
-        background: var(--glean-grad);
+        color: var(--glean-accent-b);
+        background: var(--glean-grad-soft);
         font-weight: 600;
-        box-shadow: var(--glean-shadow-accent);
+        border-color: color-mix(in srgb, var(--glean-accent-b) 18%, transparent);
+        box-shadow: none;
     }
 
     &:not(.glean-q--on):hover {
@@ -655,8 +656,8 @@ body.b3-theme-dark {
 }
 
 .glean-q--on .glean-q__n {
-    background: rgba(255, 255, 255, 0.28);
-    color: #fff;
+    background: color-mix(in srgb, var(--glean-accent-b) 14%, transparent);
+    color: var(--glean-accent-b);
 }
 
 /* ============ 待收录横幅 ============ */
@@ -761,11 +762,13 @@ body.b3-theme-dark {
 
     &.glean-card--selected {
         border-color: var(--glean-accent-b);
-        background: rgba(249, 115, 22, 0.05);
+        background: color-mix(in srgb, var(--glean-accent-b) 7%, var(--b3-theme-surface));
     }
 
     &.glean-card--candidate {
-        border-style: dashed;
+        border-style: solid;
+        border-left: 3px solid var(--glean-accent-a);
+        background: color-mix(in srgb, var(--glean-accent-a) 5%, var(--b3-theme-surface));
     }
 }
 
@@ -820,9 +823,9 @@ body.b3-theme-dark {
     color: var(--b3-theme-on-surface);
     white-space: nowrap;
 
-    &--fulltext { color: var(--glean-st-reading); background: rgba(139, 92, 246, 0.12); }
-    &--link { color: var(--glean-st-inbox); background: rgba(245, 158, 11, 0.12); }
-    &--local { color: var(--glean-st-done); background: rgba(16, 185, 129, 0.12); }
+    &--fulltext { color: var(--glean-st-reading-text); background: color-mix(in srgb, var(--glean-st-reading) 12%, var(--b3-theme-surface)); }
+    &--link { color: var(--glean-st-inbox-text); background: color-mix(in srgb, var(--glean-st-inbox) 12%, var(--b3-theme-surface)); }
+    &--local { color: var(--glean-st-done-text); background: color-mix(in srgb, var(--glean-st-done) 12%, var(--b3-theme-surface)); }
 }
 
 .glean-source-missing,
@@ -868,8 +871,8 @@ body.b3-theme-dark {
     font-size: 9.5px;
     padding: 1px 6px;
     border-radius: 6px;
-    background: rgba(245, 158, 11, 0.12);
-    color: var(--glean-st-inbox);
+    background: color-mix(in srgb, var(--glean-st-inbox) 12%, var(--b3-theme-surface));
+    color: var(--glean-st-inbox-text);
     font-weight: 600;
     flex-shrink: 0;
 }
@@ -4309,6 +4312,22 @@ body.b3-theme-dark {
     -webkit-text-fill-color: transparent;
 }
 
+.glean-stats__status:empty {
+    display: none;
+}
+
+.glean-stats__period {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--glean-space-2);
+    padding: 6px 10px;
+    border: 1px solid var(--glean-border-soft);
+    border-radius: var(--glean-radius-sm);
+    background: color-mix(in srgb, var(--b3-theme-surface) 84%, transparent);
+    color: var(--b3-theme-on-surface);
+    font-size: var(--glean-text-sm);
+}
+
 .glean-stats__field,
 .glean-highlights input[type="search"],
 .glean-highlights select,
@@ -4366,6 +4385,13 @@ body.b3-theme-dark {
     white-space: normal;
 }
 
+.glean-highlights button:has(.glean-icon) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--glean-space-2);
+}
+
 .glean-highlights button[aria-pressed="true"] {
     background: var(--b3-theme-primary);
     color: var(--b3-theme-on-primary);
@@ -4392,10 +4418,26 @@ body.b3-theme-dark {
 
 .glean-highlights__item,
 .glean-highlights__preview {
+    position: relative;
+    overflow: hidden;
     padding: var(--glean-space-4);
     border-radius: var(--glean-radius-lg);
     border-color: var(--glean-border-soft);
     box-shadow: 0 1px 2px color-mix(in srgb, var(--b3-border-color) 45%, transparent);
+}
+
+.glean-highlights__item::before,
+.glean-highlights__preview::before {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 3px;
+    background: var(--glean-grad);
+    content: "";
+}
+
+.glean-highlights__item:has(input:checked) {
+    border-color: var(--glean-accent-b);
+    background: color-mix(in srgb, var(--glean-accent-b) 6%, var(--b3-theme-surface));
 }
 
 .glean-highlights__quote {
@@ -4418,10 +4460,14 @@ body.b3-theme-dark {
     padding: var(--glean-space-2) 0;
     overflow-wrap: anywhere;
     white-space: pre-wrap;
-    line-height: 1.6;
+    color: var(--b3-theme-on-background);
+    font-size: var(--glean-text-lg);
+    font-weight: 550;
+    line-height: 1.7;
 }
 
 .glean-highlights__meta {
+    margin-left: 30px;
     font-size: var(--glean-text-xs);
     line-height: 1.5;
     margin: 6px 0;
@@ -4587,13 +4633,19 @@ body.b3-theme-dark {
 }
 
 .glean-stats__completed li {
+    display: flex;
+    align-items: baseline;
+    gap: var(--glean-space-2);
     margin: 6px 0;
     overflow-wrap: anywhere;
 }
 
 .glean-stats__completed span {
-    margin-left: 8px;
+    margin-left: auto;
     font-size: var(--glean-text-sm);
+    color: var(--b3-theme-on-surface);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
 }
 
 .glean-stats__link {
@@ -4651,6 +4703,35 @@ body.b3-theme-dark {
 .glean-op-btn svg { width: 14px; height: 14px; }
 .glean-op-btn:focus-visible { outline: 2px solid var(--b3-theme-primary); outline-offset: 2px; }
 .glean-op-btn:disabled { opacity: 0.48; cursor: default; transform: none; }
+
+.glean-mrow__ops,
+.glean-drow__ops {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.glean-mrow__ops .glean-op-btn,
+.glean-drow__ops .glean-op-btn {
+    width: 28px;
+    min-width: 28px;
+    height: 28px;
+    padding: 0;
+}
+
+.glean-stats__distribution {
+    padding: var(--glean-space-4);
+    border: 1px solid var(--glean-border-soft);
+    border-radius: var(--glean-radius-lg);
+    background: color-mix(in srgb, var(--b3-theme-surface) 92%, transparent);
+    box-shadow: var(--glean-shadow-card);
+}
+
+.glean-distribution__item {
+    border-color: var(--glean-border-soft) !important;
+    border-radius: var(--glean-radius-md) !important;
+    background: color-mix(in srgb, var(--b3-theme-background-light) 72%, transparent);
+}
 
 .glean-card:hover {
     border-color: var(--glean-border-soft);

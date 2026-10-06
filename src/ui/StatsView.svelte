@@ -140,7 +140,7 @@ function downloadCsv(): void {
         </label>
     </div>
     <p class="glean-stats__hint">{t(i18n, "review.scope")}</p>
-    <p>{t(i18n, "review.period")}: {stats.period.label}</p>
+    <p class="glean-stats__period">{t(i18n, "review.period")}: {stats.period.label}</p>
     {#if review.snapshotAt}<p class="glean-stats__hint">{t(i18n, "review.snapshot")}: {review.snapshotAt}</p>{/if}
     {#if !reference}<p class="glean-stats__warning">{t(i18n, "review.invalidDate")}</p>{/if}
     <dl class="glean-stats__metrics">
