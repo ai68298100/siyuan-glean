@@ -172,6 +172,17 @@ test("外部导入在建文档时带入 tags，首次收录写来源时间与状
     assert.equal(preview.rows[0].duplicate, true);
 });
 
+test("导入标题写入 Markdown 时保持单行且不留下活动角括号", async () => {
+    const h = harness();
+    await runImport(h.plugin, [{
+        title: "正常\n\n# 注入 <img src=x onerror=alert(1)>", url: "https://example.com/title", site: "example.com",
+        time: "", doneTime: "", tags: [], status: "inbox", duplicate: false,
+    }], importOptions);
+    const markdown = h.calls.find((call) => call.route === "/api/filetree/createDocWithMd").body.markdown;
+    assert.equal(markdown.split("\n")[0], "# 正常 # 注入 &lt;img src=x onerror=alert(1)&gt;");
+    assert.doesNotMatch(markdown, /<[^>]*>/);
+});
+
 test("导入查重读完 500 条后的下一页，避免创建重复 URL", async () => {
     const h = harness();
     for (let index = 0; index < 501; index += 1) {

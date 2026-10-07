@@ -278,7 +278,13 @@ function sanitizeTitle(title: string): string {
 
 function buildImportMarkdown(title: string, url: string, site: string, time: string, tags: string[], doneTime = ""): string {
     const lines: string[] = [];
-    lines.push(`# ${title}`);
+    const safeTitle = title
+        .replace(/[\r\n]+/g, " ")
+        .replace(/[\p{Cc}\p{Cf}]/gu, " ")
+        .replace(/[<>]/g, (char) => char === "<" ? "&lt;" : "&gt;")
+        .replace(/\s+/g, " ")
+        .trim() || "未命名";
+    lines.push(`# ${safeTitle}`);
     lines.push("");
     lines.push(`- [${url}](${url})`);
     lines.push(`- 来源：${site || siteFromUrl(url)}`);

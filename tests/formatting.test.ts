@@ -19,6 +19,13 @@ test("普通段落多余空行收束到一个空行，保留首尾空白与 CRLF
     assert.equal(renderFormatting(analyzeFormatting("前文\r\n\r\n\r\n后文\r\n")), "前文\r\n\r\n后文\r\n");
 });
 
+test("HTML 注释允许 --!> 闭合，后文不被吞入受保护块", () => {
+    const source = "<!--\n受保护内容\n--!>\n\n后文";
+    const analysis = analyzeFormatting(source);
+    assert.equal(analysis.blocks[0].raw.trimEnd(), "<!--\n受保护内容\n--!>");
+    assert.equal(analysis.blocks[1].raw, "后文");
+});
+
 const protectedSamples = [
     `\`\`\`md\n${longUrl}\n\n\n代码\n\`\`\``,
     `~~~~text\n${longUrl}\n\n代码\n~~~~~`,

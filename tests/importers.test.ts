@@ -82,6 +82,13 @@ test("parsePocketHtml：href/time/tags 属性顺序无关 + 标题去标签", ()
     assert.equal(result.items[2].url, "https://example.com/c");
 });
 
+test("parsePocketHtml：畸形标签和换行标题不会留下活动标记或 Markdown 块", () => {
+    const source = '<ul><li><a href="https://example.com/safe"><b>正常</b>\n\n# 注入 <scr<script>ipt>alert(1)</script> & <img src=x onerror=alert(1)></a></li></ul>';
+    const result = parsePocketHtml(source);
+    assert.equal(result.items[0].title, "正常 # 注入 ipt&gt;alert(1) &");
+    assert.doesNotMatch(result.items[0].title, /<|>/);
+});
+
 test("parsePocketCsv：引号包裹与状态映射", () => {
     const result = parsePocketCsv(POCKET_CSV);
     assert.equal(result.items.length, 3);

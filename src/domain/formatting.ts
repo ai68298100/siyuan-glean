@@ -61,7 +61,7 @@ export function analyzeFormatting(source: string): FormattingAnalysis {
                 : math ? /^\s*\$\$\s*$/.test(line)
                     : frontmatter ? /^(?:---|\.\.\.)\s*$/.test(line)
                         : superblock ? /^\s*\}\}\}\s*$/.test(line)
-                        : htmlTag === "!--" ? /-->/.test(line)
+                        : htmlTag === "!--" ? /--!?>/.test(line)
                             : new RegExp(`</${htmlTag}\\s*>`, "i").test(line);
             const voidHtml = htmlTag && (/\/\s*>\s*$/.test(opening) || /^(?:area|base|br|col|embed|hr|img|input|link|meta|param|source|track|wbr)$/i.test(htmlTag));
             let depth = 1;
