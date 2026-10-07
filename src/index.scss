@@ -5308,7 +5308,9 @@ body.b3-theme-dark {
 }
 
 .glean-reading-context__title {
-    font-weight: 650;
+    font-size: var(--glean-text-md);
+    font-weight: 700;
+    letter-spacing: -0.01em;
     line-height: 1.35;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -5322,6 +5324,7 @@ body.b3-theme-dark {
     margin-top: 3px;
     min-width: 0;
     color: var(--b3-theme-on-surface);
+    font-size: var(--glean-text-xs);
 }
 
 .glean-reading-context__status { flex-shrink: 0; }

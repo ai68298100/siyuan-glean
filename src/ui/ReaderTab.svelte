@@ -1021,6 +1021,45 @@
                     </div>
                     {#if context?.id === docId}<AuthorEditor {facade} {docId} onSaved={() => { if (docId) return loadContext(docId); }} />{/if}
                     <ReadingPositionControls {facade} {docId} host={protyleHost} instanceId={idFor("reading-position")} />
+                    {#if context && speechSupported}
+                        <div class="glean-reader__section glean-reader__section--utility glean-reader__speech" aria-labelledby={speechTitleId}>
+                            <div id={speechTitleId} class="glean-reader__section-title" role="heading" aria-level="3">{t(i18n, "reader.speechTitle")}</div>
+                            <div class="glean-reader__speech-rate">
+                                <label for={speechRateId}>{t(i18n, "reader.speechRate")}</label>
+                                <input
+                                    id={speechRateId}
+                                    type="range"
+                                    min="0.75"
+                                    max="1.5"
+                                    step="0.25"
+                                    value={speechRate}
+                                    aria-label={t(i18n, "reader.speechRate")}
+                                    oninput={(event) => setSpeechRate(Number((event.currentTarget as HTMLInputElement).value))}
+                                />
+                                <span>{speechRate}×</span>
+                            </div>
+                            <div class="glean-reader__ops">
+                                {#if excerpt?.text}
+                                    <button class="glean-btn glean-btn--ghost" disabled={speechState === "playing" || speechState === "paused"} onclick={() => startSpeech("selection")}>
+                                        🔊 {t(i18n, "reader.speechSelection")}
+                                    </button>
+                                {/if}
+                                <button class="glean-btn glean-btn--ghost" disabled={speechState === "playing" || speechState === "paused"} onclick={() => startSpeech("full")}>
+                                    🔊 {t(i18n, "reader.speechFull")}
+                                </button>
+                                {#if speechState === "playing" || speechState === "paused"}
+                                    <button class="glean-btn glean-btn--ghost" onclick={toggleSpeechPause}>
+                                        {speechState === "playing" ? t(i18n, "reader.speechPause") : t(i18n, "reader.speechResume")}
+                                    </button>
+                                    <button class="glean-btn glean-btn--ghost" onclick={stopSpeech}>{t(i18n, "reader.speechStop")}</button>
+                                {:else if speechChunks.length > 0 && speechChunkIndex < speechChunks.length}
+                                    <button class="glean-btn glean-btn--ghost" onclick={() => startSpeech(speechScope ?? "full", true)}>
+                                        {t(i18n, "reader.speechContinue")}
+                                    </button>
+                                {/if}
+                            </div>
+                        </div>
+                    {/if}
                     <details id={appearancePanelId} class="glean-reader__section glean-reader__section--utility glean-reader__appearance glean-reader__fold" aria-labelledby={appearanceTitleId} bind:open={appearanceOpen}>
                         <summary id={appearanceTitleId} class="glean-reader__section-title">{t(i18n, "reader.appearanceTitle")}</summary>
                         <label>{t(i18n, "reader.appearanceFontSize")}
@@ -1101,45 +1140,6 @@
                             <div class="glean-reader__hint">{t(i18n, "reader.excerptHint")}</div>
                         {/if}
                     </div>
-                    {#if speechSupported}
-                        <div class="glean-reader__section glean-reader__section--enhanced" aria-labelledby={speechTitleId}>
-                            <div id={speechTitleId} class="glean-reader__section-title" role="heading" aria-level="3">{t(i18n, "reader.speechTitle")}</div>
-                            <div class="glean-reader__speech-rate">
-                                <label for={speechRateId}>{t(i18n, "reader.speechRate")}</label>
-                                <input
-                                    id={speechRateId}
-                                    type="range"
-                                    min="0.75"
-                                    max="1.5"
-                                    step="0.25"
-                                    value={speechRate}
-                                    aria-label={t(i18n, "reader.speechRate")}
-                                    oninput={(event) => setSpeechRate(Number((event.currentTarget as HTMLInputElement).value))}
-                                />
-                                <span>{speechRate}×</span>
-                            </div>
-                            <div class="glean-reader__ops">
-                                {#if excerpt?.text}
-                                    <button class="glean-btn glean-btn--ghost" disabled={speechState === "playing" || speechState === "paused"} onclick={() => startSpeech("selection")}>
-                                        🔊 {t(i18n, "reader.speechSelection")}
-                                    </button>
-                                {/if}
-                                <button class="glean-btn glean-btn--ghost" disabled={speechState === "playing" || speechState === "paused"} onclick={() => startSpeech("full")}>
-                                    🔊 {t(i18n, "reader.speechFull")}
-                                </button>
-                                {#if speechState === "playing" || speechState === "paused"}
-                                    <button class="glean-btn glean-btn--ghost" onclick={toggleSpeechPause}>
-                                        {speechState === "playing" ? t(i18n, "reader.speechPause") : t(i18n, "reader.speechResume")}
-                                    </button>
-                                    <button class="glean-btn glean-btn--ghost" onclick={stopSpeech}>{t(i18n, "reader.speechStop")}</button>
-                                {:else if speechChunks.length > 0 && speechChunkIndex < speechChunks.length}
-                                    <button class="glean-btn glean-btn--ghost" onclick={() => startSpeech(speechScope ?? "full", true)}>
-                                        {t(i18n, "reader.speechContinue")}
-                                    </button>
-                                {/if}
-                            </div>
-                        </div>
-                    {/if}
                     <div class="glean-reader__section glean-reader__section--enhanced" aria-labelledby={aiTitleId}>
                         <div id={aiTitleId} class="glean-reader__section-title" role="heading" aria-level="3">{t(i18n, "reader.aiTitle")}</div>
                         {#if !aiOn}

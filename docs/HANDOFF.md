@@ -1,5 +1,21 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-07 T-3283/D-0166）
+
+本轮将低频朗读控件移入阅读页签既有“辅助工具”折叠区；摘录与 AI 仍在伴生栏主层，切文时继续由原有状态收起。未改变 speechSynthesis 会话、正文宿主或数据契约。
+
+- 当前改动文件：`src/ui/ReaderTab.svelte`、`src/index.scss`、`tests/reader-acceptance.test.ts`、`docs/DECISIONS.md`、`docs/PROGRESS.md`、`docs/HANDOFF.md`。
+- 已通过：定向阅读/i18n/无障碍 29/29；全量 `pnpm test` 1159/1159；`pnpm run check` 0 错误/0 警告；生产构建、任务台账、视觉矩阵和 `git diff --check` 通过。真实宿主、系统语音和 Android 仍归 B-0002，视觉矩阵仍有 24 个 `pending-host`。
+- 版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 `package.zip`。
+
+## 当前有效交接（2026-10-07 T-3283/D-0165）
+
+本轮继续按原型收口原生阅读上下文的标题层级：文章标题提升为 13px/700，来源、载体和状态继续保持较小元数据层级，长标题仍单行省略。未改变正文、文章属性、索引、端点或写入契约。
+
+- 当前改动文件：`src/index.scss`、`tests/reader-acceptance.test.ts`、`docs/DECISIONS.md`、`docs/PROGRESS.md`、`docs/HANDOFF.md`。
+- 本轮新增静态回归待验证；真实宿主与 Android 仍归 B-0002，视觉矩阵仍有 24 个 `pending-host`。
+- 版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 `package.zip`。
+
 ## 当前有效交接（2026-10-07 T-3283/D-0164）
 
 本轮继续收口阅读失败恢复：Protyle 失败时若正文宿主曾获焦，焦点转移到重试按钮；异步失败不会抢走原本在工具栏等处的焦点。原生阅读上下文在窄屏横向动作轨道中保持状态动作组完整宽度，避免按钮内部折行。未改变正文、文章属性、索引、端点或写入契约。

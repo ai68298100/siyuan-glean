@@ -81,6 +81,16 @@ test("窄屏阅读上下文保持状态动作组完整宽度", () => {
     assert.match(styles, /@media \(max-width: 560px\)[\s\S]*\.glean-reading-context__actions > \.glean-status-actions[\s\S]*width: max-content/);
 });
 
+test("阅读上下文标题与元数据保持清晰层级", () => {
+    assert.match(styles, /\.glean-reading-context__title[\s\S]*font-size: var\(--glean-text-md\)[\s\S]*font-weight: 700/);
+    assert.match(styles, /\.glean-reading-context__meta[\s\S]*font-size: var\(--glean-text-xs\)/);
+});
+
+test("朗读增强默认收进辅助工具", () => {
+    assert.match(reader, /glean-reader__more-tools-body[\s\S]*context && speechSupported[\s\S]*glean-reader__speech/);
+    assert.doesNotMatch(reader, /glean-reader__section--enhanced glean-reader__speech/);
+});
+
 test("阅读器验收文档明确真实宿主边界", () => {
     for (const term of ["正文缺失诊断", "原文降级", "选区摘录", "制卡", "回跳", "移动动作面", "B-0002"]) {
         assert.ok(guide.includes(term), `验收文档缺少 ${term}`);
