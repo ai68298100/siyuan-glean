@@ -97,6 +97,7 @@
   "action.openDoc": "打开文档",
   "reading.backToLibrary": "返回读库",
   "reading.contextLabel": "阅读上下文",
+  "reading.contextFailed": "阅读上下文加载失败",
   "reading.maintenance": "维护与增强",
   "reading.sourceHint": "打开原文不会标记已读",
   "reading.noRecent": "本次会话还没有打开过读库文章",

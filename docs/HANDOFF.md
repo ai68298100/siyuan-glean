@@ -1,5 +1,13 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-07 T-3283/D-0163）
+
+本轮补齐原生阅读上下文读取失败态：`readClipContext` 异常时显示主题错误表面、双语失败说明和可重试按钮；成功返回 `null` 仍表示非剪藏并保持静默。未改变正文、文章属性、索引、端点或写入契约。
+
+- 当前改动文件：`src/ui/ReadingContext.svelte`、`src/index.scss`、`public/i18n/zh_CN.json`、`public/i18n/en_US.json`、`tests/reader-acceptance.test.ts`、`docs/DECISIONS.md`、`docs/PROGRESS.md`、`docs/HANDOFF.md`。
+- 已通过：定向阅读/i18n/无障碍 25/25；全量 `pnpm test` 1155/1155；`pnpm run check` 0 错误/0 警告；生产构建、任务台账和视觉矩阵检查通过。真实宿主、多窗口、三画布与 Android 触控仍归 B-0002；视觉矩阵仍有 24 个 `pending-host`。
+- 版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 `package.zip`。
+
 ## 当前有效交接（2026-10-07 T-3283/D-0162）
 
 本轮补齐原生阅读上下文的切文隔离：切换 `docId` 时清空旧上下文、进入加载态并收起“维护与增强”；新文档如果正文缺失，状态 effect 仍会自动展开维护区。未改变正文、文章属性、索引、端点或写入契约。

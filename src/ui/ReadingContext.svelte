@@ -29,6 +29,7 @@
     const maintenanceTitleId = `glean-reading-context-maintenance-title-${instanceId}`;
     let context = $state<ReadingClipContext | null>(null);
     let loading = $state(true);
+    let loadError = $state(false);
     let busy = $state(false);
     let maintenanceOpen = $state(false);
     let reloadToken = 0;
@@ -40,10 +41,12 @@
         if (!docId) {
             if (token !== reloadToken || !mounted) return;
             context = null;
+            loadError = false;
             loading = false;
             return;
         }
         loading = true;
+        loadError = false;
         try {
             const next = await readClipContext(docId);
             if (token !== reloadToken || !mounted) return;
@@ -53,6 +56,7 @@
             console.debug("[glean] 阅读上下文读取失败:", error);
             if (token !== reloadToken || !mounted) return;
             context = null;
+            loadError = true;
         } finally {
             if (token === reloadToken && mounted) loading = false;
         }
@@ -62,6 +66,7 @@
         mounted = true;
         context = null;
         loading = true;
+        loadError = false;
         maintenanceOpen = false;
         void reload();
         const handler = () => void reload();
@@ -188,6 +193,14 @@
             <span class="glean-reading-context__skeleton glean-reading-context__skeleton--meta"></span>
         </div>
         <div class="glean-reading-context__loading-label" role="status" aria-live="polite">{t(i18n, "panel.loading")}</div>
+    </aside>
+{:else if loadError}
+    <aside class="glean-reading-context glean-reading-context--error" role="alert" aria-live="polite">
+        <div class="glean-reading-context__error-main">
+            <strong>{t(i18n, "reading.contextFailed")}</strong>
+            <span>{t(i18n, "reading.contextLabel")}</span>
+        </div>
+        <button type="button" class="glean-reading-context__source-btn" onclick={() => void reload()}>{t(i18n, "action.retry")}</button>
     </aside>
 {:else if context}
     <aside class="glean-reading-context" aria-labelledby={titleId} aria-busy={busy || measuring}>

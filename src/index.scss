@@ -5414,6 +5414,35 @@ body.b3-theme-dark {
     background: color-mix(in srgb, var(--glean-primary-soft) 58%, var(--b3-theme-background));
 }
 
+.glean-reading-context--error {
+    min-height: 48px;
+    justify-content: space-between;
+    border-color: color-mix(in srgb, var(--b3-theme-error) 24%, var(--b3-border-color));
+    background: var(--glean-error-surface);
+    color: var(--b3-theme-on-background);
+}
+
+.glean-reading-context__error-main {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    min-width: 0;
+}
+
+.glean-reading-context__error-main strong {
+    color: var(--b3-theme-error);
+    font-size: var(--glean-text-sm);
+}
+
+.glean-reading-context__error-main span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--b3-theme-on-surface);
+    font-size: var(--glean-text-xs);
+}
+
 .glean-reading-context__loading-main {
     display: grid;
     flex: 1 1 auto;
