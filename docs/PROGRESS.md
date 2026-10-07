@@ -1,5 +1,10 @@
 # 进度（PROGRESS）
 
+## T-3299/D-0177（2026-10-07：外部元数据 Markdown 边界）
+
+- [x] 收集箱标题压为单行并转义 Markdown 标点；描述按原换行逐行引用，避免脱离引用；来源链接只接受 HTTP(S) 并使用安全目标。Pocket/Omnivore/Wallabag 导入的标题、来源名和标签按纯文本写入，防止标题结构、图片/链接语法及换行注入。云收集箱完整正文 Markdown 原样保留；没有新增端点、属性或存储字段。
+- [x] 收集箱/导入定向回归 52/52，`pnpm check` 0 错误/0 警告，`pnpm test` 1166/1166，`pnpm build`、`pnpm check:release`、`pnpm task:ledger -- --check` 与 `git diff --check` 通过。`pnpm visual:check` 的 24 个案例仍标为 `pending-host`，未冒充真实宿主截图。
+
 ## T-3236/D-0167（2026-10-07：工作台批量选择与批量条收口）
 
 - [x] 工作台列表行和看板卡补常驻选择入口，共享批量状态、归档、AI 批处理和清空条；批量条限定在各自内容区，避免覆盖预览正文。新增原型增量与结构静态回归，不改变现有批量服务和数据契约。`pnpm check` 0 错误/0 警告，`pnpm test` 1160/1160，生产构建、任务台账、视觉矩阵和 `git diff --check` 通过；真实 Dock 宽度、看板密度和移动触控仍待 B-0002。

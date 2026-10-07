@@ -172,15 +172,27 @@ test("外部导入在建文档时带入 tags，首次收录写来源时间与状
     assert.equal(preview.rows[0].duplicate, true);
 });
 
-test("导入标题写入 Markdown 时保持单行且不留下活动角括号", async () => {
+test("导入元数据写入 Markdown 时保持纯文本结构并校验来源 URL", async () => {
     const h = harness();
     await runImport(h.plugin, [{
-        title: "正常\n\n# 注入 <img src=x onerror=alert(1)>", url: "https://example.com/title", site: "example.com",
-        time: "", doneTime: "", tags: [], status: "inbox", duplicate: false,
+        title: "正常\n\n# ![信标](https://attacker.example/pixel) <img src=x onerror=alert(1)>",
+        url: "https://example.com/title?q=a%29b", site: "example.com\n\n![来源](https://attacker.example/site)",
+        time: "", doneTime: "", tags: ["技术\n![标签](https://attacker.example/tag)"], status: "inbox", duplicate: false,
     }], importOptions);
     const markdown = h.calls.find((call) => call.route === "/api/filetree/createDocWithMd").body.markdown;
-    assert.equal(markdown.split("\n")[0], "# 正常 # 注入 &lt;img src=x onerror=alert(1)&gt;");
-    assert.doesNotMatch(markdown, /<[^>]*>/);
+    assert.equal(markdown.split("\n")[0], "# 正常 \\# \\!\\[信标\\]\\(https://attacker\\.example/pixel\\) &lt;img src=x onerror=alert\\(1\\)&gt;");
+    assert.ok(markdown.includes("- 来源：example\\.com \\!\\[来源\\]\\(https://attacker\\.example/site\\)"));
+    assert.ok(markdown.includes("- 标签：#技术 \\!\\[标签\\]\\(https://attacker\\.example/tag\\)"));
+    assert.ok(markdown.includes("- [https://example\\.com/title?q=a%29b](<https://example.com/title?q=a%29b>)"));
+    assert.doesNotMatch(markdown, /<(?:script|img|svg|iframe)\b/i);
+    assert.doesNotMatch(markdown, /^# 注入|^# !\[|^!\[来源\]|^!\[标签\]/m);
+
+    const invalid = harness();
+    await assert.rejects(runImport(invalid.plugin, [{
+        title: "不安全链接", url: "javascript:alert(1)", site: "example.com",
+        time: "", doneTime: "", tags: [], status: "inbox", duplicate: false,
+    }], importOptions), (error) => error.reason === "file");
+    assert.equal(invalid.calls.some((call) => call.route === "/api/filetree/createDocWithMd"), false);
 });
 
 test("导入查重读完 500 条后的下一页，避免创建重复 URL", async () => {

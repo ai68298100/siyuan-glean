@@ -195,6 +195,32 @@ test("本地属性收录失败时不调用云端删除", async () => {
     assert.equal(context.calls.some((call) => call.route === "/api/inbox/removeShorthands"), false);
 });
 
+test("收集箱标题和描述保持在安全的 Markdown 结构内", async () => {
+    const context = serviceHarness();
+    const untrusted = {
+        ...cloudItem,
+        shorthandTitle: "文章标题\r\n# ![信标](https://attacker.example/pixel) <script>alert(1)</script>",
+        shorthandDesc: "来源说明\n\n# 脱离引用的标题\n~~删除线~~ ![信标](https://attacker.example/pixel) <script>文本</script>",
+    };
+    await migrateShorthand(context.plugin, untrusted, { notebookId: "box" });
+    const created = context.calls.find((call) => call.route === "/api/filetree/createDocWithMd");
+    assert.ok(created);
+    const markdown = created.body.markdown;
+    assert.equal(markdown.split("\n")[0], "# 文章标题 \\# \\!\\[信标\\]\\(https://attacker\\.example/pixel\\) &lt;script&gt;alert\\(1\\)&lt;/script&gt;");
+    assert.ok(markdown.includes("> 来源说明\n> \n> \\# 脱离引用的标题\n> \\~\\~删除线\\~\\~ \\!\\[信标\\]\\(https://attacker\\.example/pixel\\) &lt;script&gt;文本&lt;/script&gt;"));
+    assert.doesNotMatch(markdown, /^# 脱离引用的标题$/m);
+    assert.doesNotMatch(markdown, /<script>/i);
+    assert.ok(markdown.endsWith("\n真实正文"), "收集箱自带正文 Markdown 原样保留");
+});
+
+test("收集箱来源链接仅接受 HTTP(S)，并将 URL 放入安全目标", async () => {
+    const context = serviceHarness();
+    const untrusted = { ...cloudItem, shorthandURL: "javascript:alert(1)" };
+    await migrateShorthand(context.plugin, untrusted, { notebookId: "box" });
+    const markdown = context.calls.find((call) => call.route === "/api/filetree/createDocWithMd").body.markdown;
+    assert.doesNotMatch(markdown, /\]\(javascript:/i);
+});
+
 test("收录未执行成功时不删除云条目或伪报迁入", async () => {
     const context = serviceHarness();
     context.responses.set("/api/attr/getBlockAttrs", { code: 0, data: { "custom-clip-status": "later" } });

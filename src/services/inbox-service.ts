@@ -49,13 +49,15 @@ export async function migrateShorthand(
 ): Promise<MigrateResult> {
     const folder = options.folder?.trim() || "收集箱";
     const title = shorthand.shorthandTitle || shorthand.shorthandURL || "未命名收集";
+    const markdownTitle = sanitizeMarkdownHeading(title);
     if (shorthand.shorthandURL && !options.allowDuplicate) {
         const existing = await findClipUrlConflict(shorthand.shorthandURL, undefined, plugin);
         if (existing) return { docId: existing.id, cloudRemoved: false, duplicate: true, existing };
     }
-    const markdownParts: string[] = [`# ${title}`];
-    if (shorthand.shorthandURL) markdownParts.push(`- [${shorthand.shorthandURL}](${shorthand.shorthandURL})`);
-    if (shorthand.shorthandDesc) markdownParts.push(`> ${shorthand.shorthandDesc}`);
+    const markdownParts: string[] = [`# ${markdownTitle}`];
+    const sourceUrl = safeMarkdownUrl(shorthand.shorthandURL);
+    if (sourceUrl) markdownParts.push(`- [${escapeMarkdownText(sourceUrl)}](<${sourceUrl}>)`);
+    if (shorthand.shorthandDesc) markdownParts.push(quoteMarkdownDescription(shorthand.shorthandDesc));
     markdownParts.push("");
     if (shorthand.shorthandMd) markdownParts.push(shorthand.shorthandMd);
 
@@ -92,6 +94,39 @@ export async function migrateShorthand(
 }
 
 function sanitizeTitle(title: string): string {
-    const cleaned = title.replace(/[/\\:<>|?*"~]/g, " ").replace(/\s+/g, " ").trim();
+    const cleaned = title.replace(/[/\\:<>|?*"~\p{Cc}\p{Cf}]/gu, " ").replace(/\s+/g, " ").trim();
     return (cleaned || "未命名").slice(0, 80);
+}
+
+function sanitizeMarkdownHeading(title: string): string {
+    const cleaned = title
+        .replace(/\r\n?|[\u2028\u2029]/g, " ")
+        .replace(/[\p{Cc}\p{Cf}]/gu, " ")
+        .replace(/[<>]/g, (char) => char === "<" ? "&lt;" : "&gt;")
+        .replace(/\s+/g, " ")
+        .trim();
+    return escapeMarkdownText(cleaned || "未命名收集");
+}
+
+function quoteMarkdownDescription(description: string): string {
+    return description
+        .replace(/\r\n?|[\u2028\u2029]/g, "\n")
+        .replace(/[\p{Cc}\p{Cf}]/gu, (char) => char === "\n" ? "\n" : " ")
+        .replace(/[<>]/g, (char) => char === "<" ? "&lt;" : "&gt;")
+        .split("\n")
+        .map((line) => `> ${escapeMarkdownText(line)}`)
+        .join("\n");
+}
+
+function escapeMarkdownText(value: string): string {
+    return value.replace(/([\\`*_{}\[\]()#+\-.!>|~])/g, "\\$1");
+}
+
+function safeMarkdownUrl(value: string): string {
+    try {
+        const parsed = new URL(value.trim());
+        return parsed.protocol === "http:" || parsed.protocol === "https:" ? parsed.toString() : "";
+    } catch {
+        return "";
+    }
 }

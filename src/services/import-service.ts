@@ -278,22 +278,44 @@ function sanitizeTitle(title: string): string {
 
 function buildImportMarkdown(title: string, url: string, site: string, time: string, tags: string[], doneTime = ""): string {
     const lines: string[] = [];
-    const safeTitle = title
-        .replace(/[\r\n]+/g, " ")
-        .replace(/[\p{Cc}\p{Cf}]/gu, " ")
-        .replace(/[<>]/g, (char) => char === "<" ? "&lt;" : "&gt;")
-        .replace(/\s+/g, " ")
-        .trim() || "未命名";
+    const safeTitle = sanitizeMarkdownText(title, "未命名");
     lines.push(`# ${safeTitle}`);
     lines.push("");
-    lines.push(`- [${url}](${url})`);
-    lines.push(`- 来源：${site || siteFromUrl(url)}`);
+    const sourceUrl = safeMarkdownUrl(url);
+    if (sourceUrl) lines.push(`- [${escapeMarkdownText(sourceUrl)}](<${sourceUrl}>)`);
+    lines.push(`- 来源：${sanitizeMarkdownText(site || siteFromUrl(url), siteFromUrl(url))}`);
     if (time) lines.push(`- 收藏于：${formatTime(time)}`);
     if (doneTime) lines.push(`- 已读于：${formatTime(doneTime)}`);
-    if (tags.length > 0) lines.push(`- 标签：${tags.map((tag) => `#${tag}`).join(" ")}`);
+    const safeTags = tags
+        .map((tag) => sanitizeMarkdownText(tag.replace(/^#+/, "")))
+        .filter(Boolean);
+    if (safeTags.length > 0) lines.push(`- 标签：${safeTags.map((tag) => `#${tag}`).join(" ")}`);
     lines.push("");
     lines.push(`> 由迁移导入器带入。原文内容请访问来源链接，或使用剪藏扩展重新剪藏全文。`);
     return lines.join("\n");
+}
+
+function sanitizeMarkdownText(value: string, fallback = ""): string {
+    const cleaned = value
+        .replace(/\r\n?|[\u2028\u2029]/g, " ")
+        .replace(/[\p{Cc}\p{Cf}]/gu, " ")
+        .replace(/[<>]/g, (char) => char === "<" ? "&lt;" : "&gt;")
+        .replace(/\s+/g, " ")
+        .trim();
+    return escapeMarkdownText(cleaned || fallback);
+}
+
+function escapeMarkdownText(value: string): string {
+    return value.replace(/([\\`*_{}\[\]()#+\-.!>|~])/g, "\\$1");
+}
+
+function safeMarkdownUrl(value: string): string {
+    try {
+        const parsed = new URL(value.trim());
+        return parsed.protocol === "http:" || parsed.protocol === "https:" ? parsed.toString() : "";
+    } catch {
+        return "";
+    }
 }
 
 function formatTime(time: string): string {
