@@ -18,6 +18,8 @@ export interface GleanFacade {
     openSettings(): void;
     /** 打开迁移导入弹窗 */
     openImport(): void;
+    /** 将当前活动文档手动收录到读库；复用既有命令收录链路。 */
+    addCurrentDocToLibrary(): Promise<void>;
     /** 工作台弹出为独立浮窗 */
     openWorkbenchPopup(initialPreviewId?: string): void;
     /** 面板数据变更后的回调（如迁移完成后刷新） */

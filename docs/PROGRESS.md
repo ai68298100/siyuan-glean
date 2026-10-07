@@ -1,5 +1,10 @@
 # 进度（PROGRESS）
 
+## T-3302/D-0181（2026-10-08：宽画布头部快速收录）
+
+- [x] 工作台/独立浮窗的首页与图书馆头部补齐原型主操作；首页显示“快速收录”，图书馆显示“收录”，通过 `GleanFacade.addCurrentDocToLibrary()` 复用既有命令收录链路，Dock/移动端不增加窄顶栏按钮。
+- [x] 新增门面类型、双语文案、主色按钮状态与原型/无障碍静态回归；定向 UI/i18n 回归、全量 `pnpm test` 1174/1174、`pnpm check`、`pnpm build`、`pnpm perf:check`、`pnpm task:ledger -- --check` 与 `pnpm check:release` 通过。`pnpm visual:check` 保留 24 个 pending-host。真实工作台、独立浮窗、多编辑器当前文档语义仍待 B-0002。
+
 ## T-3301/D-0180（2026-10-08：移动首页快捷动作）
 
 - [x] 今日拾遗移动首屏补齐原型中的导入、搜索、候选三项快捷动作；搜索和候选通过 `DockPanel` 父级回调切换现有 view/筛选状态，导入复用既有导入弹层，不复制业务逻辑。

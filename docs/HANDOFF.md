@@ -1,5 +1,12 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-08 T-3302/D-0181）
+
+宽画布工作台与独立浮窗的首页/图书馆头部已补齐原型主收录动作：首页显示“快速收录”，图书馆显示“收录”。按钮只调用 `GleanFacade.addCurrentDocToLibrary()`，复用现有 `captureDocument(src: "manual")`、冲突提示、自动富化和数据变更通知；Dock/移动端不增加窄顶栏按钮。
+
+- 本轮改动：`src/types.ts`、`src/ui/DockPanel.svelte`、`src/index.scss`、中英文 i18n、`tests/header-actions.test.ts` 及任务/决策/进度文档。
+- 已通过：定向 UI/i18n 回归、全量 `pnpm test` 1174/1174、`pnpm check`、`pnpm build`、`pnpm perf:check`、`pnpm task:ledger -- --check`、`pnpm check:release`；视觉矩阵仍有 24 个 pending-host。真实工作台宽度、独立浮窗、多编辑器当前文档语义仍待 B-0002。版本保持 `1.1.0`，不触碰 `main`，不打 tag、不创建 Release、不上传 `package.zip`。
+
 ## 当前有效交接（2026-10-08 T-3301/D-0180）
 
 移动端今日拾遗首屏已补齐原型的三个快捷动作：导入、搜索、候选。导入调用既有导入弹层；搜索由 Dock 父级清除旧筛选后进入全库搜索；候选由既有 `openCandidateQueue` 进入收件箱队列。按钮保持 44px 命中区，未新增数据字段或端点。

@@ -50,6 +50,7 @@ const i18n = $derived(facade.i18n);
 type PanelView = "resurface" | "library" | "stats" | "highlights";
 let view = $state<PanelView>("resurface");
 let loading = $state(true);
+let quickCaptureBusy = $state(false);
 let loadError = $state(false);
 let offline = $state(false);
 let index = $state<GleanIndex>({ version: 1, updatedAt: "", clips: {}, candidates: {} });
@@ -159,6 +160,16 @@ function openPopup() {
     facade.openWorkbenchPopup();
     // 弹窗关闭时机未知，保守复位
     window.setTimeout(() => (popupOpen = false), 1500);
+}
+
+async function quickCapture(): Promise<void> {
+    if (quickCaptureBusy) return;
+    quickCaptureBusy = true;
+    try {
+        await facade.addCurrentDocToLibrary();
+    } finally {
+        quickCaptureBusy = false;
+    }
 }
 
 function closeMobileMore(returnFocus = false) {
@@ -1355,6 +1366,20 @@ function metaLine(entry: Row): string {
                     <div class="glean-brand__sub">{headerSubtitle}</div>
                 </div>
                 <div class="glean-head-actions">
+                    {#if isTabCanvas && (view === "resurface" || view === "library")}
+                        <button
+                            type="button"
+                            class="glean-icon-btn glean-head-action glean-head-action--primary"
+                            title={t(i18n, view === "resurface" ? "action.quickCapture" : "action.addToInbox")}
+                            aria-label={t(i18n, view === "resurface" ? "action.quickCapture" : "action.addToInbox")}
+                            aria-busy={quickCaptureBusy}
+                            disabled={quickCaptureBusy}
+                            onclick={() => void quickCapture()}
+                        >
+                            <svg aria-hidden="true"><use href="#iconGleanPlus" /></svg>
+                            <span class="glean-head-action__label">{t(i18n, view === "resurface" ? "action.quickCapture" : "action.addToInbox")}</span>
+                        </button>
+                    {/if}
                     <button type="button" class="glean-icon-btn glean-head-action" title={t(i18n, "panel.popup")} aria-label={t(i18n, "panel.popup")} onclick={() => openPopup()}>
                         <svg aria-hidden="true"><use href="#iconGleanPopup" /></svg>
                         <span class="glean-head-action__label">{t(i18n, "panel.popupShort")}</span>

@@ -108,6 +108,7 @@
   "action.sortPriority": "按优先级",
   "action.filterAll": "全部",
   "action.retry": "重试",
+  "action.quickCapture": "快速收录",
   "action.batchStatus": "改状态",
   "action.batchArchive": "批量归档",
   "action.selected": "已选",

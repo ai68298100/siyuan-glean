@@ -6,14 +6,22 @@ import { resolve } from "node:path";
 const root = resolve(import.meta.dirname, "..");
 const read = (path: string) => readFileSync(resolve(root, path), "utf8");
 
-test("wide workbench header labels popup, organize and settings actions", () => {
+test("wide workbench header exposes prototype capture plus popup, organize and settings actions", () => {
     const source = read("src/ui/DockPanel.svelte");
     const actions = source.slice(source.indexOf('<div class="glean-head-actions">'), source.indexOf("</div>", source.indexOf('<div class="glean-head-actions">')));
+    assert.match(actions, /isTabCanvas && \(view === "resurface" \|\| view === "library"\)/);
+    assert.match(actions, /quickCapture\(\)/);
+    assert.match(source, /async function quickCapture\(\): Promise<void>/);
+    assert.match(source, /facade\.addCurrentDocToLibrary\(\)/);
+    assert.match(actions, /aria-busy=\{quickCaptureBusy\}/);
+    assert.match(actions, /disabled=\{quickCaptureBusy\}/);
+    assert.match(actions, /action\.quickCapture/);
+    assert.match(actions, /action\.addToInbox/);
     assert.match(actions, /panel\.popupShort/);
     assert.match(actions, /panel\.migrateShort/);
     assert.match(actions, /panel\.settings/);
-    assert.equal((actions.match(/glean-head-action__label/g) ?? []).length, 3);
-    assert.equal((actions.match(/aria-label=/g) ?? []).length, 3);
+    assert.equal((actions.match(/glean-head-action__label/g) ?? []).length, 4);
+    assert.equal((actions.match(/aria-label=/g) ?? []).length, 4);
 });
 
 test("labels are enabled only by the wide canvas container and keep theme colors", () => {
@@ -24,6 +32,7 @@ test("labels are enabled only by the wide canvas container and keep theme colors
     assert.match(styles, /\.glean-head-action__label\s*\{\s*display:\s*inline;/);
     assert.match(styles, /border:\s*1px solid var\(--b3-border-color\)/);
     assert.match(styles, /background:\s*var\(--b3-theme-surface\)/);
+    assert.match(styles, /\.glean-head-action--primary\s*\{[\s\S]*var\(--glean-grad\)/);
 });
 
 test("popup action uses the same wide-canvas wrapper as a workbench tab", () => {
@@ -38,6 +47,14 @@ test("prototype workbench frame shows the three readable header actions", () => 
     assert.match(home, /⧉ 浮窗/);
     assert.match(home, /🧹 整理/);
     assert.match(home, /⚙ 设置/);
+});
+
+test("prototype workbench frame keeps quick capture as the primary action", () => {
+    const prototype = read("design/prototype-v2.html");
+    const home = prototype.slice(prototype.indexOf('<article class="screen" id="home">'), prototype.indexOf("</article>", prototype.indexOf('<article class="screen" id="home">')));
+    const library = prototype.slice(prototype.indexOf('<article class="screen" id="library">'), prototype.indexOf("</article>", prototype.indexOf('<article class="screen" id="library">')));
+    assert.match(home, /＋ 快速收录/);
+    assert.match(library, /＋ 收录/);
 });
 
 test("wide canvas resurface cards use an adaptive grid while dock stays single column", () => {

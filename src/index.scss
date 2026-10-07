@@ -275,6 +275,21 @@ body.b3-theme-dark {
     flex: 0 0 auto;
 }
 
+.glean-head-action--primary {
+    background: var(--glean-grad);
+    color: var(--b3-theme-on-primary);
+
+    &:hover {
+        background: var(--glean-grad);
+        filter: brightness(1.04);
+    }
+
+    &:disabled {
+        opacity: 0.58;
+        cursor: wait;
+    }
+}
+
 .glean-head-action__label {
     display: none;
 }
@@ -296,6 +311,12 @@ body.b3-theme-dark {
         border: 1px solid var(--b3-border-color);
         background: var(--b3-theme-surface);
         white-space: nowrap;
+    }
+
+    .glean-head-action--primary {
+        border-color: transparent;
+        background: var(--glean-grad);
+        color: var(--b3-theme-on-primary);
     }
 
     .glean-head-action__label {

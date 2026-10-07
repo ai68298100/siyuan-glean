@@ -108,6 +108,7 @@
   "action.sortPriority": "By priority",
   "action.filterAll": "All",
   "action.retry": "Retry",
+  "action.quickCapture": "Quick capture",
   "action.batchStatus": "Set status",
   "action.batchArchive": "Archive selected",
   "action.selected": "Selected",
