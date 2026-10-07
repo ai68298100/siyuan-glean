@@ -2,7 +2,7 @@
 
 ## 当前有效交接（2026-10-07 T-3294/D-0172）
 
-CodeQL 发现 Pocket HTML 导入标题清理和 Markdown 注释闭合的生产告警，本轮已修复输入边界并补回归；另有固定测试 URL 断言告警，保留断言并独立核验后再分类。详细状态见 TODO 的 T-3294/T-3295。
+CodeQL 发现 Pocket HTML 导入标题清理和 Markdown 注释闭合的生产告警，本轮已修复输入边界并补回归；固定测试 URL 断言已独立核验无敏感 sink，保留断言并按 `used in tests` 分类关闭。详细状态见 TODO 的 T-3294/T-3295。
 
 - T-3294 已通过导入/格式化定向 61/61、全量 `pnpm test` 1163/1163、`pnpm check`、`pnpm build`、性能/视觉/发布门禁，CodeQL #1/#2 已标记 fixed。
 - T-3295 已确认 #3/#4 为隔离 Spike 固定导出断言、#5/#6 为测试结果断言，四条均无敏感 sink，保留原断言并按 `used in tests` 关闭；不得通过放宽或删除断言绕过 CodeQL。
