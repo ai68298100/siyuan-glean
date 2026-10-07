@@ -73,12 +73,15 @@ test("mobile resurface exposes prototype quick actions through parent navigation
     const resurface = read("src/ui/ResurfaceView.svelte");
     const dock = read("src/ui/DockPanel.svelte");
     const styles = read("src/index.scss");
+    assert.match(resurface, /onQuickCapture\?: \(\) => void/);
     assert.match(resurface, /onQuickSearch\?: \(\) => void/);
     assert.match(resurface, /onQuickCandidates\?: \(\) => void/);
-    assert.match(resurface, /resurface\.quickImport/);
+    assert.match(resurface, /resurface\.quickCapture/);
     assert.match(resurface, /resurface\.quickSearch/);
     assert.match(resurface, /resurface\.quickCandidates/);
-    assert.match(resurface, /facade\.openImport\(\)/);
+    assert.match(resurface, /onclick=\{onQuickCapture\}/);
+    assert.doesNotMatch(resurface, /quickCapture.*facade\.openImport/s);
+    assert.match(dock, /onQuickCapture=\{quickCapture\}/);
     assert.match(dock, /onQuickSearch={openLibrarySearchFromHome}/);
     assert.match(dock, /onQuickCandidates={openCandidateQueue}/);
     assert.match(styles, /\.glean-resurface__quick-action\s*\{[\s\S]*min-height: 44px/);

@@ -270,7 +270,7 @@
   "resurface.allDone": "Nothing to glean today",
   "resurface.allDoneHint": "See you tomorrow — no strings attached",
   "resurface.quickActions": "Quick actions",
-  "resurface.quickImport": "Import",
+  "resurface.quickCapture": "Capture",
   "resurface.quickSearch": "Search",
   "resurface.quickCandidates": "Candidates",
   "msg.added": "Added to library",

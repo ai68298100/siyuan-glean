@@ -1,5 +1,10 @@
 # 进度（PROGRESS）
 
+## T-3303/D-0182（2026-10-08：移动快捷动作语义修正）
+
+- [x] 将移动今日拾遗首项从外部导入改为当前文档收录，复用父级 `quickCapture` 回调和既有门面；外部文件导入继续保留在更多菜单，按钮保留 44px 命中区和忙碌态。
+- [x] 定向 UI/i18n 回归、全量 `pnpm test` 1174/1174、`pnpm check`、`pnpm build`、`pnpm perf:check`、`pnpm task:ledger -- --check` 与 `pnpm check:release` 均通过；`pnpm visual:check` 保留 24 个 pending-host。真实 Android 当前文档、触控和安全区仍待 B-0002。
+
 ## T-3302/D-0181（2026-10-08：宽画布头部快速收录）
 
 - [x] 工作台/独立浮窗的首页与图书馆头部补齐原型主操作；首页显示“快速收录”，图书馆显示“收录”，通过 `GleanFacade.addCurrentDocToLibrary()` 复用既有命令收录链路，Dock/移动端不增加窄顶栏按钮。

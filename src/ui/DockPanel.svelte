@@ -2169,8 +2169,10 @@ function metaLine(entry: Row): string {
             {index}
             embedded
             onMutated={() => void reload()}
+            onQuickCapture={quickCapture}
             onQuickSearch={openLibrarySearchFromHome}
             onQuickCandidates={openCandidateQueue}
+            {quickCaptureBusy}
         />
     {:else if view === "stats"}
         <StatsView {facade} {index} onCaptured={() => void reload()} />

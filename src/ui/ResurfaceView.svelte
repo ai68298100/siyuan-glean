@@ -16,11 +16,13 @@ interface Props {
     index: GleanIndex;
     onMutated: () => void;
     embedded?: boolean;
+    onQuickCapture?: () => void;
     onQuickSearch?: () => void;
     onQuickCandidates?: () => void;
+    quickCaptureBusy?: boolean;
 }
 
-let { facade, index, onMutated, embedded = false, onQuickSearch, onQuickCandidates }: Props = $props();
+let { facade, index, onMutated, embedded = false, onQuickCapture, onQuickSearch, onQuickCandidates, quickCaptureBusy = false }: Props = $props();
 const instanceId = $props.id();
 const panelTitleId = `glean-resurface-title-${instanceId}`;
 
@@ -259,11 +261,11 @@ function reasonText(reason: SurfaceReason): string {
         <div class="glean-surf-swipe-hint" role="note">{t(i18n, "resurface.swipeHint")}</div>
     {/if}
 
-    {#if facade.isMobile && onQuickSearch && onQuickCandidates}
+    {#if facade.isMobile && onQuickCapture && onQuickSearch && onQuickCandidates}
         <div class="glean-resurface__quick-actions" role="group" aria-label={t(i18n, "resurface.quickActions")}>
-            <button type="button" class="glean-resurface__quick-action glean-resurface__quick-action--primary" onclick={() => facade.openImport()}>
+            <button type="button" class="glean-resurface__quick-action glean-resurface__quick-action--primary" aria-busy={quickCaptureBusy} disabled={quickCaptureBusy} onclick={onQuickCapture}>
                 <svg class="glean-icon" aria-hidden="true"><use href="#iconGleanPlus" /></svg>
-                <span>{t(i18n, "resurface.quickImport")}</span>
+                <span>{t(i18n, "resurface.quickCapture")}</span>
             </button>
             <button type="button" class="glean-resurface__quick-action" onclick={onQuickSearch}>
                 <svg class="glean-icon" aria-hidden="true"><use href="#iconGleanSearch" /></svg>

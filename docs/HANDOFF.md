@@ -1,5 +1,12 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-08 T-3303/D-0182）
+
+移动今日拾遗快捷动作首项已修正为“收录”：按钮通过父级 `quickCapture` 回调调用 `GleanFacade.addCurrentDocToLibrary()`，复用当前文档手动收录链路；Pocket/Omnivore/wallabag 外部导入仍位于更多菜单。按钮保持 44px 命中区，并复用父级忙碌态防重复点击。
+
+- 本轮改动：`src/ui/ResurfaceView.svelte`、`src/ui/DockPanel.svelte`、中英文 i18n、`tests/header-actions.test.ts` 及任务/决策/进度文档。
+- 已通过定向 UI/i18n 回归、全量 `pnpm test` 1174/1174、`pnpm check`、`pnpm build`、`pnpm perf:check`、`pnpm task:ledger -- --check` 与 `pnpm check:release`；`pnpm visual:check` 保留 24 个 pending-host。版本保持 `1.1.0`，不触碰 `main`，不打 tag、不创建 Release、不上传 `package.zip`。
+
 ## 当前有效交接（2026-10-08 T-3302/D-0181）
 
 宽画布工作台与独立浮窗的首页/图书馆头部已补齐原型主收录动作：首页显示“快速收录”，图书馆显示“收录”。按钮只调用 `GleanFacade.addCurrentDocToLibrary()`，复用现有 `captureDocument(src: "manual")`、冲突提示、自动富化和数据变更通知；Dock/移动端不增加窄顶栏按钮。
