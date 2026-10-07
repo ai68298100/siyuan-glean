@@ -75,8 +75,13 @@ test("stats prioritize three primary metrics and keep the supplemental snapshot 
     assert.match(source, /review\.scopeShort/);
     assert.match(source, /<details class="glean-stats__scope">/);
     assert.match(source, /review\.moreMetrics/);
+    assert.match(source, /review\.recentTrend/);
+    assert.match(source, /review\.detailedActivity/);
+    assert.match(source, /review\.detailedAnalysis/);
     assert.match(source, /role=\{day\.count > 0 \? "img"/);
     assert.match(source, /i18n, "review\.heatmapDay"/);
+    assert.match(source, /\.glean-stats__intro \{\s*align-items: flex-start;/);
+    assert.match(source, /grid-template-columns: repeat\(2, minmax\(136px, 1fr\)\)/);
     assert.match(styles, /\.glean-stats__metrics\s*\{\s*grid-template-columns:\s*repeat\(4, minmax\(0, 1fr\)\)/);
     assert.match(source, /\.glean-stats__distributions\s*\{\s*display:\s*grid;\s*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
     assert.match(source, /\.glean-stats__distribution\s*\{\s*min-width:\s*0/);

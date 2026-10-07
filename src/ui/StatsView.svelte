@@ -1,7 +1,7 @@
 <script lang="ts">
 // 宽屏布局契约集中在 src/index.scss：@container glean-workbench (min-width: 760px)
-// 下 .glean-stats__metrics 有四列基础网格；本页首屏覆盖为三张主卡，
-// 其余指标收进可展开的补充区，避免统计页一打开就被次要数字淹没。
+// 下 .glean-stats__metrics 有四列基础网格；本页首屏覆盖为三张主卡和 30 天趋势，
+// 其余指标、全年热力图与分布收进可展开区，避免统计页一打开就被次要数字淹没。
 // .glean-stats__distributions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }，
 // .glean-stats__distribution { min-width: 0; }。
 import { onDestroy } from "svelte";
@@ -39,6 +39,8 @@ const review = $derived(session?.review ?? liveReview);
 const stats = $derived(review.stats);
 const maxHeat = $derived(Math.max(1, ...stats.heatmap.map((day) => day.count)));
 const heatmapPadding = $derived((new Date(`${stats.heatmap[0].date}T12:00:00`).getDay() + 6) % 7);
+const recentDays = $derived(stats.heatmap.filter((day) => day.date <= referenceDate).slice(-30));
+const maxRecent = $derived(Math.max(1, ...recentDays.map((day) => day.count)));
 const distributions = $derived([
     { key: "review.bySite", counts: stats.periodBySite },
     { key: "review.byAuthor", counts: stats.periodByAuthor },
@@ -46,9 +48,9 @@ const distributions = $derived([
     { key: "review.byAiTag", counts: stats.periodByAiTag },
 ]);
 const primaryMetrics = $derived([
-    { key: "review.completed", count: stats.periodCompleted },
-    { key: "stats.total", count: stats.total },
-    { key: "review.candidateMetric", count: review.candidateCount },
+    { key: "review.completed", count: stats.periodCompleted, hint: "review.completedHint" },
+    { key: "stats.total", count: stats.total, hint: "stats.totalHint" },
+    { key: "review.candidateMetric", count: review.candidateCount, hint: "review.candidateHint" },
 ]);
 const supplementaryMetrics = $derived([
     { key: "review.doneState", count: stats.done },
@@ -171,7 +173,7 @@ function downloadCsv(): void {
         {#if !reference}<p class="glean-stats__warning">{t(i18n, "review.invalidDate")}</p>{/if}
         <dl class="glean-stats__metrics">
             {#each primaryMetrics as metric (metric.key)}
-                <div class="glean-stats__metric"><dt>{t(i18n, metric.key)}</dt><dd>{metric.count}</dd></div>
+                <div class="glean-stats__metric"><dt>{t(i18n, metric.key)}</dt><dd>{metric.count}</dd><span>{t(i18n, metric.hint)}</span></div>
             {/each}
         </dl>
         <details class="glean-stats__supplement">
@@ -184,37 +186,47 @@ function downloadCsv(): void {
         </details>
     </section>
     <section class="glean-stats__activity" aria-labelledby={idFor("activity-title")}>
-        <h3 id={idFor("activity-title")}>{t(i18n, "review.heatmap", { year: reference?.getFullYear() ?? new Date().getFullYear() })}</h3>
-        <div class="glean-stats__heatmap-scroll" role="group" aria-label={t(i18n, "review.heatmap", { year: reference?.getFullYear() ?? new Date().getFullYear() })}>
-            <div class="glean-stats__heatmap">
-                {#each Array.from({ length: heatmapPadding }, (_, index) => index) as padding (padding)}<span></span>{/each}
-                {#each stats.heatmap as day (day.date)}
-                    <span class="glean-stats__day" role={day.count > 0 ? "img" : undefined} aria-label={day.count > 0 ? t(i18n, "review.heatmapDay", { date: day.date, n: day.count }) : undefined} title={`${day.date}: ${day.count}`} style={`background:${day.count ? "var(--b3-theme-primary)" : "var(--b3-theme-surface)"};opacity:${day.count ? 0.25 + 0.75 * day.count / maxHeat : 1}`}></span>
-                {/each}
-            </div>
-            <div class="glean-stats__heatmap-legend" aria-hidden="true">
-                <span class="glean-stats__heatmap-legend-label">0</span>
-                <i class="glean-stats__legend-swatch glean-stats__legend-swatch--0"></i>
-                <i class="glean-stats__legend-swatch glean-stats__legend-swatch--1"></i>
-                <i class="glean-stats__legend-swatch glean-stats__legend-swatch--2"></i>
-                <i class="glean-stats__legend-swatch glean-stats__legend-swatch--3"></i>
-                <span class="glean-stats__heatmap-legend-label">{maxHeat}</span>
-            </div>
+        <h3 id={idFor("activity-title")}>{t(i18n, "review.recentTrend")}</h3>
+        <div class="glean-stats__trend" role="group" aria-label={t(i18n, "review.recentTrend")}>
+            {#each recentDays as day (day.date)}
+                <span class="glean-stats__trend-bar" role="img" aria-label={t(i18n, "review.heatmapDay", { date: day.date, n: day.count })} title={`${day.date}: ${day.count}`} style={`--glean-trend-height:${day.count ? Math.max(12, Math.round(112 * day.count / maxRecent)) : 8}px`}></span>
+            {/each}
         </div>
-        <details class="glean-stats__days">
-            <summary>{t(i18n, "review.dailyList")}</summary>
-            <div class="glean-stats__table-scroll">
-                <table>
-                    <caption>{t(i18n, "review.heatmap", { year: reference?.getFullYear() ?? new Date().getFullYear() })}</caption>
-                    <thead><tr><th scope="col">{t(i18n, "review.date")}</th><th scope="col">{t(i18n, "review.completed")}</th></tr></thead>
-                    <tbody>{#each stats.heatmap as day (day.date)}<tr><th scope="row">{day.date}</th><td>{day.count}</td></tr>{/each}</tbody>
-                </table>
+        <details class="glean-stats__detail">
+            <summary>{t(i18n, "review.detailedActivity")}</summary>
+            <div class="glean-stats__heatmap-scroll" role="group" aria-label={t(i18n, "review.heatmap", { year: reference?.getFullYear() ?? new Date().getFullYear() })}>
+                <div class="glean-stats__heatmap">
+                    {#each Array.from({ length: heatmapPadding }, (_, index) => index) as padding (padding)}<span></span>{/each}
+                    {#each stats.heatmap as day (day.date)}
+                        <span class="glean-stats__day" role={day.count > 0 ? "img" : undefined} aria-label={day.count > 0 ? t(i18n, "review.heatmapDay", { date: day.date, n: day.count }) : undefined} title={`${day.date}: ${day.count}`} style={`background:${day.count ? "var(--b3-theme-primary)" : "var(--b3-theme-surface)"};opacity:${day.count ? 0.25 + 0.75 * day.count / maxHeat : 1}`}></span>
+                    {/each}
+                </div>
+                <div class="glean-stats__heatmap-legend" aria-hidden="true">
+                    <span class="glean-stats__heatmap-legend-label">0</span>
+                    <i class="glean-stats__legend-swatch glean-stats__legend-swatch--0"></i>
+                    <i class="glean-stats__legend-swatch glean-stats__legend-swatch--1"></i>
+                    <i class="glean-stats__legend-swatch glean-stats__legend-swatch--2"></i>
+                    <i class="glean-stats__legend-swatch glean-stats__legend-swatch--3"></i>
+                    <span class="glean-stats__heatmap-legend-label">{maxHeat}</span>
+                </div>
             </div>
+            <details class="glean-stats__days">
+                <summary>{t(i18n, "review.dailyList")}</summary>
+                <div class="glean-stats__table-scroll">
+                    <table>
+                        <caption>{t(i18n, "review.heatmap", { year: reference?.getFullYear() ?? new Date().getFullYear() })}</caption>
+                        <thead><tr><th scope="col">{t(i18n, "review.date")}</th><th scope="col">{t(i18n, "review.completed")}</th></tr></thead>
+                        <tbody>{#each stats.heatmap as day (day.date)}<tr><th scope="row">{day.date}</th><td>{day.count}</td></tr>{/each}</tbody>
+                    </table>
+                </div>
+            </details>
         </details>
     </section>
-    <section class="glean-stats__breakdown" aria-labelledby={idFor("breakdown-title")}>
-      <h3 id={idFor("breakdown-title")} class="glean-sr-only">{t(i18n, "review.bySite")}</h3>
-      <div class="glean-stats__distributions">
+    <details class="glean-stats__analysis">
+      <summary>{t(i18n, "review.detailedAnalysis")}</summary>
+      <section class="glean-stats__breakdown" aria-labelledby={idFor("breakdown-title")}>
+        <h3 id={idFor("breakdown-title")} class="glean-sr-only">{t(i18n, "review.bySite")}</h3>
+        <div class="glean-stats__distributions">
         {#each distributions as distribution, distributionIndex (distribution.key)}
             <section class="glean-stats__distribution" aria-labelledby={idFor(`distribution-${distributionIndex}`)}>
             <h3 id={idFor(`distribution-${distributionIndex}`)}>{t(i18n, distribution.key)}</h3>
@@ -233,9 +245,10 @@ function downloadCsv(): void {
             {#if distribution.key === "review.byAuthor"}<p>{t(i18n, "review.authorUnknown", { n: stats.periodAuthorUnknown })}</p>{/if}
             </section>
         {/each}
-      </div>
-      <p class="glean-stats__hint">{t(i18n, "review.authorHint")}</p>
-    </section>
+        </div>
+        <p class="glean-stats__hint">{t(i18n, "review.authorHint")}</p>
+      </section>
+    </details>
     <section class="glean-stats__completed-section" aria-labelledby={idFor("completed-title")}>
         <h3 id={idFor("completed-title")}>{t(i18n, "review.completedList")}</h3>
         <ul class="glean-stats__completed">
@@ -273,6 +286,10 @@ function downloadCsv(): void {
 </div>
 
 <style>
+    .glean-stats__intro {
+        align-items: flex-start;
+    }
+
     .glean-stats__overview .glean-stats__toolbar--filters label {
         flex: 0 1 160px;
         color: var(--b3-theme-on-surface);
@@ -283,6 +300,22 @@ function downloadCsv(): void {
     }
 
     .glean-stats__overview .glean-stats__toolbar--filters { gap: var(--glean-space-2); }
+
+    @media (min-width: 641px) {
+        .glean-stats__overview .glean-stats__toolbar--filters {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(136px, 1fr));
+            align-items: start;
+        }
+    }
+
+    @container glean-workbench (min-width: 640px) {
+        .glean-stats__overview .glean-stats__toolbar--filters {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(136px, 1fr));
+            align-items: start;
+        }
+    }
 
     .glean-stats__overview .glean-stats__field {
         min-width: 136px;

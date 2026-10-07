@@ -1,6 +1,15 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
-## 当前有效交接（2026-10-07 T-3260/D-0155）
+## 当前有效交接（2026-10-07 T-3260/D-0156）
+
+第三十三轮按原型重排统计主路径并补实例语义：统计首屏三张指标卡增加辅助说明，主活动区改为过去 30 天趋势，全年热力图、逐日表和四组分布收进可展开分析；摘录标题、排序方向和清除筛选状态补齐；阅读页侧栏、快捷键、章节和语速控件 ID 按组件实例隔离。只调整 UI、CSS、i18n、测试和可访问表达，未改变业务逻辑、数据、文章属性、索引、端点或设置语义。
+
+- 当前改动文件：`src/index.scss`、`src/ui/HighlightView.svelte`、`src/ui/ReaderTab.svelte`、`src/ui/StatsView.svelte`、`public/i18n/zh_CN.json`、`public/i18n/en_US.json`、`tests/accessibility.test.ts`、`tests/header-actions.test.ts`、`docs/DECISIONS.md`、`docs/PROGRESS.md`、`docs/HANDOFF.md`。
+- 已生成截图：`output/playwright/round34-stats-desktop.png`、`output/playwright/round34-stats-mobile.png`；为本地组件预览，非真实思源内核运行或 Android 真机验收。
+- `pnpm run check` 0 错误/0 警告；`pnpm test` 1149/1149；`pnpm build`、`pnpm task:ledger -- --check`、`git diff --check` 通过。
+- 版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 package.zip。
+
+## 既往交接（2026-10-07 T-3260/D-0155）
 
 第三十二轮收口统计筛选、热力图和摘录操作层级：统计口径折叠、补充指标命名、窄屏筛选纵向全宽排列，热力图图例放到日期网格下方；摘录选择与导出采用独立命名分组并移除重复嵌套，跨页序号连续；阅读区窄屏高度规则去重。只调整 UI、CSS、i18n、测试和可访问表达，未改变业务逻辑、数据、文章属性、索引、端点或设置语义。
 

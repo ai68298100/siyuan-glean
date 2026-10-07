@@ -19,6 +19,7 @@ import type { GleanSettings } from "../services/settings";
 interface Props { facade: GleanFacade }
 let { facade }: Props = $props();
 const instanceId = $props.id();
+const titleId = `glean-highlights-title-${instanceId}`;
 const previewTitleId = `glean-highlights-preview-title-${instanceId}`;
 const i18n = $derived(facade.i18n);
 const currentDocId = $derived(facade.currentDocId());
@@ -126,6 +127,8 @@ function clearFilters() {
     site = "";
     tag = "";
     aiTag = "";
+    sort = "id";
+    direction = "asc";
     page = 1;
 }
 
@@ -211,10 +214,10 @@ function openDoc(id: string) {
 }
 </script>
 
-<div class="glean-panel glean-highlights" aria-busy={loading || exportBusy} aria-labelledby="glean-highlights-title">
+<div class="glean-panel glean-highlights" aria-busy={loading || exportBusy} aria-labelledby={titleId}>
     <div class="glean-highlights__head">
         <div>
-            <h2 id="glean-highlights-title" class="glean-highlights__title">{t(i18n, "highlight.title")}</h2>
+            <h2 id={titleId} class="glean-highlights__title">{t(i18n, "highlight.title")}</h2>
             <p class="glean-highlights__subtitle">{scope === "current" ? t(i18n, "highlight.current") : t(i18n, "highlight.allLibrary")}</p>
         </div>
         <div class="glean-highlights__tools glean-highlights__tools--scope" role="group" aria-label={t(i18n, "highlight.title")}>
@@ -229,7 +232,7 @@ function openDoc(id: string) {
         <label>{t(i18n, "library.filterTag")}<select bind:value={tag} onchange={() => page = 1}><option value="">{t(i18n, "action.filterAll")}</option>{#each facets.tags as value}<option value={value}>{value}</option>{/each}</select></label>
         <label>{t(i18n, "library.filterAiTag")}<select bind:value={aiTag} onchange={() => page = 1}><option value="">{t(i18n, "action.filterAll")}</option>{#each facets.aiTags as value}<option value={value}>{value}</option>{/each}</select></label>
         <label>{t(i18n, "library.sort")}<select bind:value={sort} onchange={() => page = 1}><option value="id">{t(i18n, "action.sortTime")}</option><option value="title">{t(i18n, "library.sortTitle")}</option><option value="site">{t(i18n, "library.filterSite")}</option></select></label>
-        <button class="glean-filter-dir" aria-label={t(i18n, "library.toggleDirection")} title={t(i18n, "library.toggleDirection")} onclick={() => { direction = direction === "asc" ? "desc" : "asc"; page = 1; }}><span class="glean-filter-dir__icon" aria-hidden="true"><svg class="glean-icon glean-icon--xs"><use href={direction === "asc" ? "#iconGleanArrowUp" : "#iconGleanArrowDown"} /></svg></span><span class="glean-filter-dir__label">{t(i18n, "library.toggleDirection")}</span></button>
+        <button class="glean-filter-dir" aria-pressed={direction === "asc"} aria-label={`${t(i18n, "library.toggleDirection")}: ${t(i18n, direction === "asc" ? "library.directionAscending" : "library.directionDescending")}`} title={`${t(i18n, "library.toggleDirection")}: ${t(i18n, direction === "asc" ? "library.directionAscending" : "library.directionDescending")}`} onclick={() => { direction = direction === "asc" ? "desc" : "asc"; page = 1; }}><span class="glean-filter-dir__icon" aria-hidden="true"><svg class="glean-icon glean-icon--xs"><use href={direction === "asc" ? "#iconGleanArrowUp" : "#iconGleanArrowDown"} /></svg></span><span class="glean-filter-dir__label">{t(i18n, "library.toggleDirection")}</span></button>
         <button onclick={clearFilters}>{t(i18n, "library.clearFilters")}</button>
     </div>
     {#if loading}
@@ -288,7 +291,7 @@ function openDoc(id: string) {
                     <span class="glean-highlights__item-label">{t(i18n, "highlight.quoteTag")}</span>
                     <span class="glean-highlights__item-index">{(visible.page - 1) * highlightPageSize + visible.items.indexOf(item) + 1}</span>
                 </div>
-                <label class="glean-highlights__quote"><input type="checkbox" checked={selected.includes(item.id)} disabled={exportBusy} onchange={() => toggle(item.id)} aria-label={item.text} /><span>{item.text}</span></label>
+                <label class="glean-highlights__quote"><input type="checkbox" checked={selected.includes(item.id)} disabled={exportBusy} onchange={() => toggle(item.id)} aria-label={`${t(i18n, "highlight.quoteTag")} ${visible.items.indexOf(item) + 1}`} /><span>{item.text}</span></label>
                 <p class="glean-highlights__meta" title={item.title || t(i18n, "panel.untitled")}>{item.title || t(i18n, "panel.untitled")} {item.site ? ` · ${item.site}` : ""}</p>
                 {#if item.tags.length}<p class="glean-highlights__meta glean-highlights__tags"><span>{t(i18n, "library.filterTag")}</span>{#each item.tags as value}<span class="glean-highlights__tag">{value}</span>{/each}</p>{/if}
                 {#if item.aiTags.length}<p class="glean-highlights__meta glean-highlights__tags glean-highlights__tags--ai"><span>{t(i18n, "library.filterAiTag")}</span>{#each item.aiTags as value}<span class="glean-highlights__tag">{value}</span>{/each}</p>{/if}
