@@ -1,5 +1,13 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-07 T-3290/D-0170）
+
+中英文 README 顶部新增 CodeQL 工作流徽章，与现有 Quality gates 和 Latest Release 徽章并列，方便查看 CI、安全扫描及稳定发布状态。徽章不代表真实宿主、移动端或外部集成已验收；T-3290 仍等待作者审阅真实截图和合并前发布口径。
+
+- 本轮改动：`README.md`、`README.en-US.md`、`TODO.md`、`docs/TASK-LEDGER.md`、`docs/DECISIONS.md`、`docs/HANDOFF.md`。
+- 本地验证：README 中英文入口与 CodeQL workflow 文件路径一致，任务账本和差异格式检查通过。
+- 版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 `package.zip`。
+
 ## 当前有效交接（2026-10-07 T-3284/D-0169）
 
 本轮把既有合成性能基线接入 GitHub Quality gates，在 1k/5k/10k 数据规模上检查扫描、索引重建、筛选、导入解析和今日拾遗的中位耗时，并继续检查分页、属性批次与结果规模约束。它只负责发现生产纯函数的明显退化，不把 Node 合成耗时当作真实思源宿主、移动设备或外部文件的性能承诺。
