@@ -7644,6 +7644,30 @@ body.b3-theme-dark {
     opacity: .68;
 }
 
+@media (max-width: 640px) {
+    .glean-stats__trend {
+        grid-auto-columns: minmax(3px, 1fr);
+        gap: 3px;
+        padding-inline: var(--glean-space-2);
+        overflow-x: auto;
+        scrollbar-gutter: stable;
+    }
+
+    .glean-stats__trend-bar { min-width: 3px; }
+}
+
+@container glean-workbench (max-width: 640px) {
+    .glean-stats__trend {
+        grid-auto-columns: minmax(3px, 1fr);
+        gap: 3px;
+        padding-inline: var(--glean-space-2);
+        overflow-x: auto;
+        scrollbar-gutter: stable;
+    }
+
+    .glean-stats__trend-bar { min-width: 3px; }
+}
+
 .glean-stats__completed-detail {
     border: 1px solid var(--glean-border-soft);
     border-radius: var(--glean-radius-md);

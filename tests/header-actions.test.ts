@@ -87,6 +87,8 @@ test("stats prioritize three primary metrics and keep the supplemental snapshot 
     assert.match(styles, /\.glean-stats__metrics\s*\{\s*grid-template-columns:\s*repeat\(4, minmax\(0, 1fr\)\)/);
     assert.match(source, /\.glean-stats__distributions\s*\{\s*display:\s*grid;\s*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
     assert.match(source, /\.glean-stats__distribution\s*\{\s*min-width:\s*0/);
+    assert.match(styles, /@media \(max-width: 640px\)[\s\S]*\.glean-stats__trend[\s\S]*grid-auto-columns: minmax\(3px, 1fr\)[\s\S]*overflow-x: auto/);
+    assert.match(styles, /@container glean-workbench \(max-width: 640px\)[\s\S]*\.glean-stats__trend-bar \{ min-width: 3px; \}/);
 });
 
 test("all three canvas roots use the same workbench container contract", () => {

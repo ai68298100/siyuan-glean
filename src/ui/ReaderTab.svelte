@@ -464,6 +464,8 @@
         readingTimerExpectedRaw = null;
         readingTimerExpectedLocation = null;
         readingTimer = createReadingTimer();
+        moreToolsOpen = false;
+        appearanceOpen = false;
         outline = [];
         aiResult = null;
         questionResult = null;
