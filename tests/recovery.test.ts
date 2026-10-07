@@ -124,12 +124,13 @@ test("刷新失败传播给等待者，后续重试能重新执行", async () =>
 
 test("后台对账保留列表和收集箱 DOM，部分成功只移除成功选择", () => {
     const dock = read("src/ui/DockPanel.svelte");
+    const batchBar = read("src/ui/LibraryBatchBar.svelte");
     assert.match(dock, /createRefreshQueue/);
     assert.match(dock, /\{#if loading && !index\.updatedAt\}/);
     assert.doesNotMatch(dock, /\{#if view === "library" && !loading\}/);
     assert.match(dock, /selection = new Set\(\[\.\.\.selection\]\.filter\(\(id\) => !succeeded\.has\(id\)\)\)/);
     assert.match(dock, /if \(batchBusy \|\| selection\.size === 0\) return/);
-    assert.match(dock, /disabled=\{batchBusy\}/);
+    assert.match(batchBar, /disabled=\{busy\}/);
 });
 
 test("云端删除失败保留条目，迁入与删除不能并发", () => {

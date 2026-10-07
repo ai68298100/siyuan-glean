@@ -9739,6 +9739,87 @@ body.b3-theme-dark .glean-panel--mobile,
     }
 }
 
+/* 工作台批量选择：列表与看板保持同一可发现的选择入口，并为浮动批量条预留内容空间。 */
+.glean-lib__main,
+.glean-kanban {
+    position: relative;
+}
+
+.glean-lib__main--batch {
+    padding-bottom: 88px;
+}
+
+.glean-kanban--batch {
+    padding-bottom: 76px;
+}
+
+.glean-drow__select,
+.glean-kcard__select {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 28px;
+    width: 28px;
+    height: 28px;
+    border-radius: var(--glean-radius-sm);
+    cursor: pointer;
+    transition: background-color 160ms var(--glean-ease-out), outline-color 160ms var(--glean-ease-out);
+}
+
+.glean-drow__select:hover,
+.glean-kcard__select:hover {
+    background: var(--glean-primary-soft);
+}
+
+.glean-drow__select:focus-within,
+.glean-kcard__select:focus-within {
+    outline: 2px solid var(--b3-theme-primary);
+    outline-offset: 1px;
+}
+
+.glean-drow__select input,
+.glean-kcard__select input {
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    accent-color: var(--b3-theme-primary);
+}
+
+.glean-kcard {
+    position: relative;
+    padding-right: 44px;
+}
+
+.glean-kcard__select {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+}
+
+.glean-kcard.glean-kcard--selected {
+    border-color: color-mix(in srgb, var(--glean-accent-b) 58%, var(--glean-border-soft));
+    background: var(--glean-selection-surface);
+    box-shadow: inset 3px 0 0 var(--glean-accent-b), var(--glean-shadow-card);
+}
+
+@media (max-width: 560px) {
+    .glean-drow__select,
+    .glean-kcard__select {
+        flex-basis: 44px;
+        width: 44px;
+        height: 44px;
+    }
+
+    .glean-kcard {
+        padding-right: 54px;
+    }
+
+    .glean-kcard__select {
+        top: 4px;
+        right: 4px;
+    }
+}
+
 @media (prefers-reduced-motion: reduce) {
     .glean-preview__state--loading::before {
         animation: none;

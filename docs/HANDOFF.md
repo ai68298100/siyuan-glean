@@ -1,5 +1,13 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-07 T-3236/D-0167）
+
+本轮补齐工作台批量操作的原型归属：列表行和看板卡直接提供选择入口，各自内容区显示共享批量条；预览侧栏不被根级浮动条覆盖。批量状态、归档、AI 批处理和清空动作继续复用既有 Dock 逻辑，未改变数据契约。
+
+- 当前改动文件：`src/ui/LibraryBatchBar.svelte`、`src/ui/DockPanel.svelte`、`src/index.scss`、`tests/header-actions.test.ts`、`tests/recovery.test.ts`、`docs/DECISIONS.md`、`docs/PROGRESS.md`、`docs/HANDOFF.md`。
+- 本轮静态回归、类型检查（0 错误/0 警告）、全量测试（1160/1160）、生产构建、任务台账、视觉矩阵和 `git diff --check` 均通过；真实 Dock 宽度、看板密度和移动触控仍归 B-0002，视觉矩阵仍有 24 个 `pending-host`。
+- 版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 `package.zip`。
+
 ## 当前有效交接（2026-10-07 T-3283/D-0166）
 
 本轮将低频朗读控件移入阅读页签既有“辅助工具”折叠区；摘录与 AI 仍在伴生栏主层，切文时继续由原有状态收起。未改变 speechSynthesis 会话、正文宿主或数据契约。

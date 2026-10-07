@@ -150,6 +150,18 @@ test("library cards and rows expose today pin through the shared resurface servi
     assert.match(source, /resurface\.unpinToday/);
 });
 
+test("workbench list and kanban expose the shared batch selection surface", () => {
+    const source = read("src/ui/DockPanel.svelte");
+    const additions = read("design/prototype-v2-additions.html");
+    assert.match(source, /import LibraryBatchBar from "\.\/LibraryBatchBar\.svelte"/);
+    assert.equal((source.match(/<LibraryBatchBar/g) ?? []).length, 3);
+    assert.match(source, /class="glean-kcard__select"/);
+    assert.match(source, /class="glean-drow__select"/);
+    assert.match(source, /class:glean-kanban--batch={selection\.size > 0}/);
+    assert.match(source, /class:glean-lib__main--batch={selection\.size > 0}/);
+    assert.match(additions, /列表 \/ 看板、预览侧栏和批量操作仍在同一上下文内/);
+});
+
 test("large library keeps full filtering but bounds list, table and kanban DOM windows", () => {
     const source = read("src/ui/DockPanel.svelte");
     const styles = read("src/index.scss");

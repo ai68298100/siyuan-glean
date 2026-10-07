@@ -16,6 +16,7 @@ import StatsView from "./StatsView.svelte";
 import HighlightView from "./HighlightView.svelte";
 import LibraryRailGroup from "./LibraryRailGroup.svelte";
 import WorkbenchPreview from "./WorkbenchPreview.svelte";
+import LibraryBatchBar from "./LibraryBatchBar.svelte";
 import LibraryFilters from "./LibraryFilters.svelte";
 import ActionPopover from "./ActionPopover.svelte";
 import AuthorEditor from "./AuthorEditor.svelte";
@@ -1689,7 +1690,7 @@ function metaLine(entry: Row): string {
                 <span>{t(i18n, "panel.loading")}</span>
             </div>
         {:else if isTabCanvas && layoutMode === "kanban"}
-            <div class="glean-kanban">
+            <div class="glean-kanban" class:glean-kanban--batch={selection.size > 0}>
                 {#each visibleKanbanCols as col (col.status)}
                     <div
                         class="glean-kcol"
@@ -1719,6 +1720,7 @@ function metaLine(entry: Row): string {
                         {#each col.items as entry (entry.id)}
                             <div
                                 class="glean-kcard"
+                                class:glean-kcard--selected={selection.has(entry.id)}
                                 data-glean-clip-id={entry.id}
                                 draggable="true"
                                 ondragstart={(e) => { dragId = entry.id; e.dataTransfer?.setData("text/plain", entry.id); }}
@@ -1733,6 +1735,9 @@ function metaLine(entry: Row): string {
                                 role="button"
                                 tabindex="0"
                             >
+                                <label class="glean-kcard__select" title={t(i18n, "library.selectArticle")}>
+                                    <input type="checkbox" checked={selection.has(entry.id)} aria-label={t(i18n, "library.selectArticle")} onclick={(event) => event.stopPropagation()} onchange={(event) => toggleSelect(entry.id, event)} />
+                                </label>
                                 <div class="glean-kcard__t">{entry.title || t(i18n, "panel.untitled")}</div>
                                 <div class="glean-kcard__m">
                                     <span class={carrierClass(entry)}>{carrierLabel(entry)}</span>
@@ -1762,6 +1767,14 @@ function metaLine(entry: Row): string {
                         {/each}
                     </div>
                 {/each}
+                <LibraryBatchBar
+                    {i18n}
+                    selectedCount={selection.size}
+                    busy={batchBusy}
+                    onApply={(status) => void batchApply(status)}
+                    onOpenAi={() => { aiBatchIds = [...selection]; aiBatchOpen = true; }}
+                    onClear={() => (selection = new Set())}
+                />
             </div>
             {#if hasMoreKanban}
                 <div class="glean-list-more" role="status">
@@ -1786,7 +1799,7 @@ function metaLine(entry: Row): string {
                         <LibraryRailGroup plugin={facade.pluginInstance} {i18n} group="aiTags" label={`✨ ${t(i18n, "rail.aiTags")}`} hint={t(i18n, "library.filterAiTagHint")} prefix="✨" items={railStats.aiTags} selected={selectedAiTag} onSelect={(value) => selectedAiTag = selectedAiTag.toLocaleLowerCase() === value.toLocaleLowerCase() ? "" : value} />
                     {/if}
                 </aside>
-                <div class="glean-lib__main">
+                <div class="glean-lib__main" class:glean-lib__main--batch={selection.size > 0}>
                     {#if rows.length === 0}
                         <div class="glean-empty" role="status">
                             <div class="glean-empty__art"><svg aria-hidden="true"><use href="#iconGleanWheat" /></svg></div>
@@ -1821,6 +1834,9 @@ function metaLine(entry: Row): string {
                                         role="button"
                                         tabindex="0"
                                     >
+                                        <label class="glean-drow__select" title={t(i18n, "library.selectArticle")}>
+                                            <input type="checkbox" checked={selection.has(entry.id)} aria-label={t(i18n, "library.selectArticle")} onclick={(event) => event.stopPropagation()} onchange={(event) => toggleSelect(entry.id, event)} />
+                                        </label>
                                         <span class={statusDotClass(entry.status)}></span>
                                         <span class="glean-drow__ti" title={entry.title || t(i18n, "panel.untitled")}>{entry.title || t(i18n, "panel.untitled")}</span>
                                         <span class="glean-drow__site">{entry.site || t(i18n, "panel.unknownSite")}{#if entry.author}<button class="glean-source-author" onclick={(event) => { event.stopPropagation(); selectAuthor(entry.author!); }}>· {entry.author}</button>{/if}</span>
@@ -1854,10 +1870,6 @@ function metaLine(entry: Row): string {
                                                 {#if hasSourceAction(entry.contentType, entry.url)}
                                                     <button class="glean-btn glean-btn--ghost" onclick={() => openSource(entry)}>{t(i18n, "clip.openSource")}</button>
                                                 {/if}
-                                                <label class="glean-row-select">
-                                                    <input type="checkbox" checked={selection.has(entry.id)} onchange={(event) => toggleSelect(entry.id, event)} />
-                                                    {t(i18n, "library.selectArticle")}
-                                                </label>
                                             </ActionPopover>
                                         </div>
                                     </div>
@@ -1907,6 +1919,14 @@ function metaLine(entry: Row): string {
                             </div>
                         {/if}
                     {/if}
+                    <LibraryBatchBar
+                        {i18n}
+                        selectedCount={selection.size}
+                        busy={batchBusy}
+                        onApply={(status) => void batchApply(status)}
+                        onOpenAi={() => { aiBatchIds = [...selection]; aiBatchOpen = true; }}
+                        onClear={() => (selection = new Set())}
+                    />
                 </div>
                 {#if previewEntry && !facade.isMobile}
                     <input type="range" class="glean-preview-separator" min="25" max="65" step="1" value={Math.round(previewRatio * 100)} aria-label={t(i18n, "preview.resize")} oninput={(event) => { previewRatio = normalizePreviewRatio(Number(event.currentTarget.value) / 100); void savePreviewPrefs({ workbenchPreviewRatio: previewRatio }); }} onpointerdown={startPreviewResize} onpointermove={resizePreview} onpointerup={(event) => finishPreviewResize(event)} onpointercancel={(event) => finishPreviewResize(event, true)} onlostpointercapture={(event) => finishPreviewResize(event)} onkeydown={previewResizeKey} />
@@ -2082,18 +2102,14 @@ function metaLine(entry: Row): string {
                 </div>
             {/if}
 
-            {#if selection.size > 0}
-                <footer class="glean-batchbar" aria-busy={batchBusy}>
-                    <b aria-live="polite">{t(i18n, "action.selected")} {selection.size}</b>
-                    <div class="glean-batchbar__ops">
-                        <button class="glean-bb" disabled={batchBusy} onclick={() => void batchApply("reading")}>{t(i18n, "status.reading")}</button>
-                        <button class="glean-bb" disabled={batchBusy} onclick={() => void batchApply("done")}>{t(i18n, "status.done")}</button>
-                        <button class="glean-bb glean-bb--pri" disabled={batchBusy} onclick={() => void batchApply("archived")}>{t(i18n, "action.batchArchive")}</button>
-                        <button class="glean-bb glean-bb--ai" disabled={batchBusy} onclick={() => { aiBatchIds = [...selection]; aiBatchOpen = true; }}>{t(i18n, "aiBatch.title")}</button>
-                        <button class="glean-bb" aria-label={t(i18n, "action.cancel")} onclick={() => (selection = new Set())}><svg class="glean-icon glean-icon--xs" aria-hidden="true"><use href="#iconGleanClose" /></svg></button>
-                    </div>
-                </footer>
-            {/if}
+            <LibraryBatchBar
+                {i18n}
+                selectedCount={selection.size}
+                busy={batchBusy}
+                onApply={(status) => void batchApply(status)}
+                onOpenAi={() => { aiBatchIds = [...selection]; aiBatchOpen = true; }}
+                onClear={() => (selection = new Set())}
+            />
         {/if}
     {:else if view === "resurface"}
         <ResurfaceView {facade} {index} embedded onMutated={() => void reload()} />
