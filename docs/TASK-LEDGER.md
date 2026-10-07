@@ -11,7 +11,7 @@
 | T-3296 | x | 完成 | workflow YAML 解析、任务账本和差异检查通过，GitHub Quality gates 与 CodeQL 均通过 | 不适用（GitHub 自动化配置） | 无 |
 | T-3297 | x | 完成 | 阅读帮助结构回归、README 本地链接检查、任务账本和格式检查通过 | 不适用（安全/文档边界） | 无 |
 | T-3298 | x | 完成 | GitHub 项目元数据核验、README 本地链接和任务账本检查通过 | 不适用（文档事实） | 无 |
-| T-3299 | x | 完成 | 收集箱/导入定向回归 52/52、`pnpm check`（0 错误/0 警告）、`pnpm test`（1166/1166）、`pnpm build`、`pnpm visual:check`（24 个真实宿主案例仍待验收）、`pnpm check:release`、任务账本和 `git diff --check` 通过 | 不适用（序列化安全边界，真实外部集成仍归 T-3286/B-0005–B-0008） | 无 |
+| T-3299 | x | 完成 | 收集箱/导入定向回归 52/52、`pnpm check`（0 错误/0 警告）、`pnpm test`（1166/1166）、`pnpm build`、`pnpm visual:check`（24 个真实宿主案例仍待验收）、`pnpm check:release`、任务账本和 `git diff --check` 通过，GitHub Quality gates `37634094181` 与 CodeQL `37634094243` 成功 | 不适用（序列化安全边界，真实外部集成仍归 T-3286/B-0005–B-0008） | 无 |
 | T-3274 | x | 完成 | 完成（全量 `pnpm test` 1138/1138、`pnpm check` 0 错误/0 警告、`pnpm build`、`pnpm check:release` 通过） | 不适用（测试/门禁治理） | 无 |
 | T-3275 |   | 已有入口 | 已有 S1–S4 证据 | 待 B-0002 | 需要作者独立测试工作区与真实宿主操作 |
 | T-3276 |   | 已有移动端实现 | 静态/逻辑回归已有 | 待 B-0002 | 桌面响应式和浏览器截图不能替代真实 Android SiYuan |

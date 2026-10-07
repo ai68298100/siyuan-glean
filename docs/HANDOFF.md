@@ -6,7 +6,7 @@
 
 - 改动涉及 `src/services/inbox-service.ts`、`src/services/import-service.ts`、相应服务回归、`TODO.md`、`docs/TASK-LEDGER.md`、`docs/DECISIONS.md`、`docs/PROGRESS.md` 与本页。
 - 收集箱/导入定向回归 52/52；`pnpm check` 0 错误/0 警告，`pnpm test` 1166/1166，`pnpm build`、发布门禁、任务账本和差异检查通过。视觉矩阵 24 项仍需真实宿主截图，不视为本地失败。
-- 当前开发分支为 `dev/thispc-1002`；远端 CI 回执待提交后核验。版本保持 `1.1.0`，不触碰 `main`，不打 tag、不创建 Release、不上传 `package.zip`。
+- 提交 `91b4ecb` 已推送到 `dev/thispc-1002`；GitHub Quality gates `37634094181` 和 CodeQL `37634094243` 均成功，当前开放 CodeQL 告警 0。版本保持 `1.1.0`，不触碰 `main`，不打 tag、不创建 Release、不上传 `package.zip`。
 
 ## 当前有效交接（2026-10-07 T-3298/D-0176）
 

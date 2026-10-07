@@ -3,7 +3,7 @@
 ## T-3299/D-0177（2026-10-07：外部元数据 Markdown 边界）
 
 - [x] 收集箱标题压为单行并转义 Markdown 标点；描述按原换行逐行引用，避免脱离引用；来源链接只接受 HTTP(S) 并使用安全目标。Pocket/Omnivore/Wallabag 导入的标题、来源名和标签按纯文本写入，防止标题结构、图片/链接语法及换行注入。云收集箱完整正文 Markdown 原样保留；没有新增端点、属性或存储字段。
-- [x] 收集箱/导入定向回归 52/52，`pnpm check` 0 错误/0 警告，`pnpm test` 1166/1166，`pnpm build`、`pnpm check:release`、`pnpm task:ledger -- --check` 与 `git diff --check` 通过。`pnpm visual:check` 的 24 个案例仍标为 `pending-host`，未冒充真实宿主截图。
+- [x] 收集箱/导入定向回归 52/52，`pnpm check` 0 错误/0 警告，`pnpm test` 1166/1166，`pnpm build`、`pnpm check:release`、`pnpm task:ledger -- --check` 与 `git diff --check` 通过；GitHub Quality gates `37634094181`、CodeQL `37634094243` 成功，开放 CodeQL 告警 0。`pnpm visual:check` 的 24 个案例仍标为 `pending-host`，未冒充真实宿主截图。
 
 ## T-3236/D-0167（2026-10-07：工作台批量选择与批量条收口）
 
