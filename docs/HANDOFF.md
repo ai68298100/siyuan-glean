@@ -1,6 +1,15 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
-## 当前有效交接（2026-10-07 T-3260/D-0157）
+## 当前有效交接（2026-10-07 T-3260/D-0158）
+
+第三十五轮恢复原型首屏动作并降低增量信息噪声：阅读桌面顶栏提供阅读外观与打开原文，外观按钮直接打开伴生栏折叠区；窄屏隐藏桌面动作，保持正文首屏高度。伴生栏标题改为“伴生栏”，统计快照移入统计口径详情、完成文章列表默认折叠，趋势零值柱降低存在感；摘录 scope active 恢复轻量胶囊，卡片 hover 限定在支持悬浮的设备。未新增功能，未改变业务、数据、文章属性、索引、端点或设置语义。
+
+- 当前改动文件：`src/index.scss`、`src/ui/ReaderTab.svelte`、`src/ui/StatsView.svelte`、`public/i18n/zh_CN.json`、`public/i18n/en_US.json`、`tests/accessibility.test.ts`、`tests/header-actions.test.ts`、`tests/reader-acceptance.test.ts`、`docs/DECISIONS.md`、`docs/PROGRESS.md`、`docs/HANDOFF.md`。
+- 截图基线仍为 `output/playwright/round34-stats-desktop.png`、`output/playwright/round34-stats-mobile.png`；本轮未新增宿主截图，非真实思源内核运行或 Android 真机验收。
+- 已通过：`pnpm run check` 0 错误/0 警告；定向 UI/i18n/阅读回归 35/35；`pnpm test` 1151/1151；`pnpm build`、`pnpm task:ledger -- --check`、`pnpm visual:check`、`git diff --check` 通过。视觉矩阵仍为 24 个 pending-host，未冒充真实宿主截图。
+- 版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 package.zip。
+
+## 既往交接（2026-10-07 T-3260/D-0157）
 
 第三十四轮继续按原型收口动作发现与阅读伴生区密度：统计总览首屏承载已有报告动作，趋势增加起止日期，指标提示改为合法描述列表项；阅读外观与大纲默认折叠，摘录读屏标签带跨页连续序号和摘要；阅读伴生栏标题按组件实例生成唯一 ID。此轮只调整 UI、CSS、测试和可访问表达，没有新增功能或改变业务、数据、文章属性、索引、端点、设置语义。
 

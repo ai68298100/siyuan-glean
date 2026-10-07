@@ -617,6 +617,7 @@
   "reader.outlineRetry": "Retry outline",
   "reader.sidebarHide": "Focus reading",
   "reader.sidebarShow": "Show companion panel",
+  "reader.companionTitle": "Companion panel",
   "reader.shortcuts": "Keyboard shortcuts",
   "reader.keyboardFocus": "Keyboard reading",
   "reader.shortcutsHint": "Focus the body with Keyboard reading (or Tab to the button and press Enter). Shortcuts do not take over inputs, editing, menus, or dialogs.",

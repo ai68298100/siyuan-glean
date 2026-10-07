@@ -64,6 +64,9 @@ test("reader controls and sections use per-instance ids", () => {
     assert.match(source, /const instanceId = \$props\.id\(\);/);
     assert.match(source, /const idFor = \(part: string\) => `glean-reader-\$\{instanceId\}-\$\{part\}`;/);
     assert.match(source, /aria-controls=\{sidebarId\}/);
+    assert.match(source, /aria-controls=\{appearancePanelId\}/);
+    assert.match(source, /bind:open=\{appearanceOpen\}/);
+    assert.match(source, /reader\.companionTitle/);
     assert.match(source, /aria-controls=\{shortcutsId\}/);
     assert.match(source, /id=\{speechRateId\}/);
     assert.match(source, /<label for=\{speechRateId\}/);

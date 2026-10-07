@@ -57,6 +57,7 @@
     const shortcutsId = idFor("shortcuts");
     const sidebarTitleId = idFor("sidebar-title");
     const recentTitleId = idFor("recent-title");
+    const appearancePanelId = idFor("appearance-panel");
     const appearanceTitleId = idFor("appearance-title");
     const outlineTitleId = idFor("outline-title");
     const excerptTitleId = idFor("excerpt-title");
@@ -72,6 +73,7 @@
     let sidebarCollapsed = $state(false);
     let sidebarBusy = $state(false);
     let shortcutHelp = $state(false);
+    let appearanceOpen = $state(false);
     let excerptBusy = $state(false);
     let appearanceTouched = false;
     let sidebarTouched = false;
@@ -397,6 +399,11 @@
         } finally {
             sidebarBusy = false;
         }
+    }
+
+    function openAppearance(): void {
+        appearanceOpen = true;
+        if (sidebarCollapsed) void toggleSidebar();
     }
 
     function currentSession(id: string, generation: number): boolean {
@@ -897,6 +904,10 @@
                 <button class="glean-seg__btn" class:glean-seg__btn--on={mode === "edit"} aria-pressed={mode === "edit"} title={t(i18n, "reader.editHint")} onclick={() => setMode("edit")}>{t(i18n, "reader.modeEdit")}</button>
             </div>
             <button class="glean-btn glean-btn--ghost glean-reader__toolbar-sidebar" aria-busy={sidebarBusy} disabled={sidebarBusy} aria-expanded={!sidebarCollapsed} aria-controls={sidebarId} title={t(i18n, sidebarCollapsed ? "reader.sidebarShow" : "reader.sidebarHide")} onclick={() => void toggleSidebar()}>{t(i18n, sidebarCollapsed ? "reader.sidebarShow" : "reader.sidebarHide")}</button>
+            <button class="glean-btn glean-btn--ghost glean-reader__toolbar-appearance" aria-expanded={appearanceOpen} aria-controls={appearancePanelId} title={t(i18n, "reader.appearanceTitle")} onclick={openAppearance}>{t(i18n, "reader.appearanceTitle")}</button>
+            {#if context && hasSourceAction(context.contentType, context.url)}
+                <button class="glean-btn glean-btn--ghost glean-reader__toolbar-source" title={t(i18n, "clip.openSource")} onclick={openSource}>{t(i18n, "clip.openSource")}</button>
+            {/if}
             {#if context}
                 <button
                     class="glean-btn glean-btn--pri glean-reader__toolbar-primary"
@@ -939,7 +950,7 @@
     </div>
     {#if docId}
         <aside id={sidebarId} class="glean-reader__side" hidden={sidebarCollapsed} aria-labelledby={sidebarTitleId}>
-            <div id={sidebarTitleId} class="glean-reader__title" title={context?.title}>{context?.title || t(i18n, "panel.untitled")}</div>
+            <div id={sidebarTitleId} class="glean-reader__title">{t(i18n, "reader.companionTitle")}</div>
             <div class="glean-reader__meta">
                 <span class={`glean-carrier-badge glean-carrier-badge--${resolveCarrier(context?.contentType)}`}>
                     {carrierLabel(context?.contentType)}
@@ -978,7 +989,7 @@
             </div>
             {#if context?.id === docId}<AuthorEditor {facade} {docId} onSaved={() => { if (docId) return loadContext(docId); }} />{/if}
             <ReadingPositionControls {facade} {docId} host={protyleHost} />
-            <details class="glean-reader__section glean-reader__section--utility glean-reader__appearance glean-reader__fold" aria-labelledby={appearanceTitleId}>
+            <details id={appearancePanelId} class="glean-reader__section glean-reader__section--utility glean-reader__appearance glean-reader__fold" aria-labelledby={appearanceTitleId} bind:open={appearanceOpen}>
                 <summary id={appearanceTitleId} class="glean-reader__section-title">{t(i18n, "reader.appearanceTitle")}</summary>
                 <label>{t(i18n, "reader.appearanceFontSize")}
                     <select class="b3-select" disabled={appearanceBusy} value={readerAppearance.fontSize} onchange={(event) => void updateAppearance("fontSize", (event.currentTarget as HTMLSelectElement).value)}>

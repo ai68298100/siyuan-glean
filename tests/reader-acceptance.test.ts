@@ -37,6 +37,13 @@ test("阅读页签快照图标和移动阅读动作可发现且可操作", () =>
     assert.match(styles, /@media \(max-width: 560px\)[\s\S]*?\.glean-reading-context__source-btn[\s\S]*?min-height: 44px/);
 });
 
+test("阅读页签桌面首屏保留原型的外观与原文入口，窄屏不增加工具栏高度", () => {
+    assert.match(reader, /class="glean-btn glean-btn--ghost glean-reader__toolbar-appearance"/);
+    assert.match(reader, /class="glean-btn glean-btn--ghost glean-reader__toolbar-source"/);
+    assert.match(reader, /bind:open=\{appearanceOpen\}/);
+    assert.match(styles, /@media \(max-width: 720px\)[\s\S]*\.glean-reader__toolbar-appearance,[\s\S]*display: none/);
+});
+
 test("阅读器验收文档明确真实宿主边界", () => {
     for (const term of ["正文缺失诊断", "原文降级", "选区摘录", "制卡", "回跳", "移动动作面", "B-0002"]) {
         assert.ok(guide.includes(term), `验收文档缺少 ${term}`);

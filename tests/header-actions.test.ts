@@ -78,6 +78,8 @@ test("stats prioritize three primary metrics and keep the supplemental snapshot 
     assert.match(source, /review\.recentTrend/);
     assert.match(source, /review\.detailedActivity/);
     assert.match(source, /review\.detailedAnalysis/);
+    assert.match(source, /class="glean-stats__completed-detail"/);
+    assert.match(source, /glean-stats__trend-bar--empty/);
     assert.match(source, /role=\{day\.count > 0 \? "img"/);
     assert.match(source, /i18n, "review\.heatmapDay"/);
     assert.match(source, /\.glean-stats__intro \{\s*align-items: flex-start;/);

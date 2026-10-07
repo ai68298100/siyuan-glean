@@ -183,9 +183,9 @@ function downloadCsv(): void {
         <details class="glean-stats__scope">
             <summary>{t(i18n, "review.scopeDetails")}</summary>
             <p>{t(i18n, "review.scope")}</p>
+            {#if review.snapshotAt}<p>{t(i18n, "review.snapshot")}: {review.snapshotAt}</p>{/if}
         </details>
         <p class="glean-stats__period">{t(i18n, "review.period")}: {stats.period.label}</p>
-        {#if review.snapshotAt}<p class="glean-stats__hint">{t(i18n, "review.snapshot")}: {review.snapshotAt}</p>{/if}
         {#if !reference}<p class="glean-stats__warning">{t(i18n, "review.invalidDate")}</p>{/if}
         <dl class="glean-stats__metrics">
             {#each primaryMetrics as metric (metric.key)}
@@ -205,7 +205,7 @@ function downloadCsv(): void {
         <h3 id={idFor("activity-title")}>{t(i18n, "review.recentTrend")}</h3>
         <div class="glean-stats__trend" role="group" aria-label={t(i18n, "review.recentTrend")}>
             {#each recentDays as day (day.date)}
-                <span class="glean-stats__trend-bar" role="img" aria-label={t(i18n, "review.heatmapDay", { date: day.date, n: day.count })} title={`${day.date}: ${day.count}`} style={`--glean-trend-height:${day.count ? Math.max(12, Math.round(112 * day.count / maxRecent)) : 8}px`}></span>
+                <span class="glean-stats__trend-bar" class:glean-stats__trend-bar--empty={day.count === 0} role="img" aria-label={t(i18n, "review.heatmapDay", { date: day.date, n: day.count })} title={`${day.date}: ${day.count}`} style={`--glean-trend-height:${day.count ? Math.max(12, Math.round(112 * day.count / maxRecent)) : 3}px`}></span>
             {/each}
         </div>
         <div class="glean-stats__trend-meta" aria-hidden="true">
@@ -269,17 +269,20 @@ function downloadCsv(): void {
         <p class="glean-stats__hint">{t(i18n, "review.authorHint")}</p>
       </section>
     </details>
-    <section class="glean-stats__completed-section" aria-labelledby={idFor("completed-title")}>
-        <h3 id={idFor("completed-title")}>{t(i18n, "review.completedList")}</h3>
-        <ul class="glean-stats__completed">
-            {#each review.completedItems as item (item.id)}
-                <li>
-                    <button class="glean-stats__link" title={item.title || t(i18n, "review.untitled")} onclick={() => facade.openReadingDocument(item.id)}>{item.title || t(i18n, "review.untitled")}</button>
-                    <span>{item.doneTime.slice(0, 4)}-{item.doneTime.slice(4, 6)}-{item.doneTime.slice(6, 8)}</span>
-                </li>
-            {:else}<li class="glean-stats__completed-empty">{t(i18n, "review.noCompleted")}</li>{/each}
-        </ul>
-    </section>
+    <details class="glean-stats__completed-detail">
+        <summary>{t(i18n, "review.completedList")}</summary>
+        <section class="glean-stats__completed-section" aria-labelledby={idFor("completed-title")}>
+            <h3 id={idFor("completed-title")} class="glean-sr-only">{t(i18n, "review.completedList")}</h3>
+            <ul class="glean-stats__completed">
+                {#each review.completedItems as item (item.id)}
+                    <li>
+                        <button class="glean-stats__link" title={item.title || t(i18n, "review.untitled")} onclick={() => facade.openReadingDocument(item.id)}>{item.title || t(i18n, "review.untitled")}</button>
+                        <span>{item.doneTime.slice(0, 4)}-{item.doneTime.slice(4, 6)}-{item.doneTime.slice(6, 8)}</span>
+                    </li>
+                {:else}<li class="glean-stats__completed-empty">{t(i18n, "review.noCompleted")}</li>{/each}
+            </ul>
+        </section>
+    </details>
     <p class="glean-stats__status" role="status" aria-live="polite" aria-busy={busy}>{busy ? t(i18n, "panel.loading") : message}</p>
     {#if session}
         <label class="glean-stats__preview">

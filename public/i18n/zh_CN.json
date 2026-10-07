@@ -617,6 +617,7 @@
   "reader.outlineRetry": "重试大纲",
   "reader.sidebarHide": "专注阅读",
   "reader.sidebarShow": "展开伴生栏",
+  "reader.companionTitle": "伴生栏",
   "reader.shortcuts": "快捷键",
   "reader.keyboardFocus": "键盘阅读",
   "reader.shortcutsHint": "点击“键盘阅读”（也可用 Tab 选中后按 Enter）聚焦正文；输入、编辑、菜单和弹窗内不接管快捷键。",

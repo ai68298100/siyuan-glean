@@ -1376,6 +1376,11 @@ body.b3-theme-dark {
     box-shadow: var(--glean-shadow-accent);
 }
 
+.glean-reader__toolbar-appearance,
+.glean-reader__toolbar-source {
+    color: var(--b3-theme-on-surface);
+}
+
 .glean-reader__toolbar-secondary {
     display: inline-flex;
     align-items: center;
@@ -1941,6 +1946,20 @@ body.b3-theme-dark {
     .glean-reader__toolbar-secondary > .glean-btn {
         flex: 1 1 0;
         min-width: 0;
+    }
+}
+
+@media (max-width: 720px) {
+    .glean-reader__toolbar-appearance,
+    .glean-reader__toolbar-source {
+        display: none;
+    }
+}
+
+@container glean-workbench (max-width: 720px) {
+    .glean-reader__toolbar-appearance,
+    .glean-reader__toolbar-source {
+        display: none;
     }
 }
 
@@ -7572,6 +7591,10 @@ body.b3-theme-dark {
     transform: scaleY(1.04);
 }
 
+.glean-stats__trend-bar--empty {
+    opacity: .34;
+}
+
 .glean-stats__trend-meta {
     display: flex;
     justify-content: space-between;
@@ -7580,6 +7603,40 @@ body.b3-theme-dark {
     font-size: var(--glean-text-xs);
     font-variant-numeric: tabular-nums;
     opacity: .68;
+}
+
+.glean-stats__completed-detail {
+    border: 1px solid var(--glean-border-soft);
+    border-radius: var(--glean-radius-md);
+    background: color-mix(in srgb, var(--glean-inset-surface) 72%, transparent);
+}
+
+.glean-stats__completed-detail > summary {
+    display: flex;
+    align-items: center;
+    min-height: 40px;
+    padding: 0 var(--glean-space-3);
+    color: var(--b3-theme-on-surface);
+    cursor: pointer;
+    font-size: var(--glean-text-xs);
+    font-weight: 650;
+}
+
+.glean-stats__completed-detail > summary::before {
+    content: "›";
+    margin-right: var(--glean-space-2);
+    font-size: 17px;
+    transition: transform 160ms var(--glean-ease-out);
+}
+
+.glean-stats__completed-detail[open] > summary::before { transform: rotate(90deg); }
+
+.glean-stats__completed-detail > summary:hover,
+.glean-stats__completed-detail[open] > summary { color: var(--b3-theme-primary); }
+
+.glean-stats__completed-detail .glean-stats__completed-section {
+    margin: var(--glean-space-3);
+    box-shadow: none;
 }
 
 .glean-stats__detail,
@@ -8257,6 +8314,12 @@ body.b3-theme-dark {
     row-gap: var(--glean-space-2);
 }
 
+.glean-highlights__tools--scope button[aria-pressed="true"] {
+    background: var(--b3-theme-surface);
+    color: var(--b3-theme-primary);
+    box-shadow: 0 1px 3px color-mix(in srgb, var(--b3-theme-on-background) 10%, transparent);
+}
+
 .glean-highlights__tools--selection button {
     transition: background-color 160ms var(--glean-ease-out), border-color 160ms var(--glean-ease-out), color 160ms var(--glean-ease-out), transform 160ms var(--glean-ease-out);
 }
@@ -8265,7 +8328,7 @@ body.b3-theme-dark {
     transform: translateY(1px);
 }
 
-.glean-stats > .glean-stats__toolbar {
+.glean-stats__overview > .glean-stats__toolbar--actions {
     display: flex;
     align-items: center;
     flex-wrap: wrap;
@@ -8275,8 +8338,23 @@ body.b3-theme-dark {
     border-top: 1px solid var(--glean-border-soft);
 }
 
-.glean-stats > .glean-stats__toolbar .glean-btn {
+.glean-stats__overview > .glean-stats__toolbar--actions .glean-btn {
     min-height: 36px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+    .glean-highlights__item:hover {
+        border-color: color-mix(in srgb, var(--glean-accent-b) 38%, var(--glean-border-soft));
+        box-shadow: var(--glean-shadow-float);
+        transform: translateY(-1px);
+    }
+}
+
+@media (hover: none) {
+    .glean-highlights__item:hover {
+        transform: none;
+        box-shadow: var(--glean-shadow-card);
+    }
 }
 
 .glean-stats__preview {
@@ -8329,6 +8407,21 @@ body.b3-theme-dark {
     .glean-surf-started__item .glean-surf-act {
         flex: 1 1 100%;
         min-height: 40px;
+    }
+
+    .glean-stats__overview > .glean-stats__toolbar--actions {
+        margin-top: 0;
+        padding-top: var(--glean-space-2);
+        border-top: 1px solid var(--glean-border-soft);
+    }
+
+    .glean-stats__overview > .glean-stats__toolbar--actions .glean-btn--pri {
+        flex: 1 1 100%;
+    }
+
+    .glean-stats__overview > .glean-stats__toolbar--actions .glean-btn--ghost {
+        flex: 1 1 120px;
+        min-width: 0;
     }
 }
 
