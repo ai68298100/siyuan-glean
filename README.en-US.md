@@ -88,9 +88,9 @@ New items can also be confirmed from the candidate cards or added from the docum
 
 Code entry points do not mean every platform path has passed acceptance. Full isolated E2E, author desktop review, mobile/browser smoke checks, and the release gate are tracked by T-1713; the README does not claim those checks are complete.
 
-## The Lv plugin family
+## Related Lv projects
 
-Four Lv (小驴) SiYuan plugins are currently developed:
+Selected related projects from the Lv SiYuan ecosystem (not a complete directory):
 
 - [小驴雷切 / Lv Speed Switch](https://github.com/ai68298100/siyuan-speed-switch): unified switching and work context
 - [小驴打卡 / Lv Checkin](https://github.com/ai68298100/siyuan-checkin): reading and habit check-ins
