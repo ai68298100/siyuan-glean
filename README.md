@@ -1,5 +1,7 @@
 # 小驴拾遗 (Lv Glean)
 
+[![Quality gates](https://github.com/ai68298100/siyuan-glean/actions/workflows/ci.yml/badge.svg)](https://github.com/ai68298100/siyuan-glean/actions/workflows/ci.yml) [![Latest release](https://img.shields.io/github/v/release/ai68298100/siyuan-glean?label=latest%20release)](https://github.com/ai68298100/siyuan-glean/releases/latest)
+
 > **把吃灰的收藏捡回来喂给自己。**
 > *Glean your clippings before they gather dust.*
 
@@ -18,6 +20,8 @@
 - 核心读库代码和隔离回归已具备；桌面宿主、Android/移动端、浏览器前端、真实模型和外部服务仍按能力矩阵分别验收，不把浏览器预览或单元测试当作真机通过。
 - AI 富化默认仅手动、不自动消耗 token；具体 AI 动作需配置模型或通道，自动运行须单独显式开启。收集箱、外部导入、快照和跨插件桥接也需要额外前提。
 - 快速入口：[`最新 Release`](https://github.com/ai68298100/siyuan-glean/releases/latest) · [`提交问题或建议`](https://github.com/ai68298100/siyuan-glean/issues/new/choose) · [`查看全部 Issue`](https://github.com/ai68298100/siyuan-glean/issues) · [能力矩阵](docs/CAPABILITY-MATRIX.md)
+
+如果你只是想开始使用，请下载 Latest Release 中的 `package.zip`；如果你要反馈问题，请先确认它能在真实思源宿主复现，并在 Issue 中写明思源版本、插件版本和前端类型。`dev/**` 分支用于持续开发，不能替代稳定 Release。
 
 ## 它解决什么问题
 
@@ -68,6 +72,12 @@
 5. 回到读库，把文章分到稍后读、开始阅读或归档。读完后明确点击 **标记已读**。
 
 之后的新文章也可以从候选卡逐篇确认，或在文档右键菜单中选择“加入读库”。外部导入通常只有来源链接，界面会将它与全文剪藏区分开。
+
+## 常见问题
+
+- **应该安装哪个版本？** 优先安装 [Latest Release](https://github.com/ai68298100/siyuan-glean/releases/latest) 的 `package.zip`。开发分支可能包含未完成的宿主验收，不作为稳定安装包。
+- **为什么功能写着“待验收”？** 代码和隔离测试通过，不代表已经在作者的桌面、Android、真实模型或外部服务中走通；当前边界以[能力矩阵](docs/CAPABILITY-MATRIX.md)和 [BLOCKERS](docs/BLOCKERS.md) 为准。
+- **卸载插件会丢文章状态吗？** 文章状态写在文档属性中，插件 `saveData` 只保存索引和设置；卸载不会主动删除这些文档属性。涉及数据迁移时请先阅读[数据契约](docs/DATA-CONTRACT.md)。
 
 ## 数据、隐私与边界
 

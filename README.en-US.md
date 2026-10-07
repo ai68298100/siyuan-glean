@@ -1,5 +1,7 @@
 # Lv Glean (小驴拾遗)
 
+[![Quality gates](https://github.com/ai68298100/siyuan-glean/actions/workflows/ci.yml/badge.svg)](https://github.com/ai68298100/siyuan-glean/actions/workflows/ci.yml) [![Latest release](https://img.shields.io/github/v/release/ai68298100/siyuan-glean?label=latest%20release)](https://github.com/ai68298100/siyuan-glean/releases/latest)
+
 > **Glean your clippings before they gather dust.**
 
 Lv Glean manages articles already saved in SiYuan. It turns clippings into a reading library where each item can be confirmed, triaged, read, and reviewed. It is not an RSS reader and does not crawl pages for you. Ordinary notes do not enter the library just because they sit in a selected notebook, and opening a document is not treated as finishing it.
@@ -17,6 +19,8 @@ The [capability matrix](docs/CAPABILITY-MATRIX.md) records implementation, isola
 - Core library code and isolated regressions are in place. Desktop host, Android/mobile, browser frontend, real-model, and external-service paths are tracked and accepted separately in the capability matrix; browser previews and unit tests are not treated as real-device acceptance.
 - AI enrichment is manual by default and does not run automatically or spend tokens in the background. Individual AI actions require a configured model or channel; automatic enrichment must be enabled separately. The inbox bridge, external imports, snapshots, and cross-plugin bridges also have additional prerequisites.
 - Quick links: [`latest Release`](https://github.com/ai68298100/siyuan-glean/releases/latest) · [`report a problem or suggestion`](https://github.com/ai68298100/siyuan-glean/issues/new/choose) · [`all Issues`](https://github.com/ai68298100/siyuan-glean/issues) · [capability matrix](docs/CAPABILITY-MATRIX.md)
+
+If you only want to use the plugin, download `package.zip` from the Latest Release. If you are reporting a problem, first check that it reproduces in a real SiYuan host and include the SiYuan version, plugin version, and frontend type. `dev/**` branches are for ongoing development and are not stable releases.
 
 ## What problem it solves
 
@@ -66,6 +70,12 @@ Desktop workbench lists can preview articles and candidates in place without cha
 5. Triage items into Read later, Start reading, or Archive. After finishing, explicitly choose **Mark as done**.
 
 New items can also be confirmed from the candidate cards or added from the document context menu. External imports usually contain only a source URL, and the UI distinguishes them from full-text clippings.
+
+## FAQ
+
+- **Which version should I install?** Prefer `package.zip` from the [Latest Release](https://github.com/ai68298100/siyuan-glean/releases/latest). Development branches can include paths that still await host acceptance.
+- **Why does a capability say “pending acceptance”?** Code and isolated tests do not prove that a flow works in the author's desktop, Android, real-model, or external-service environment. See the [capability matrix](docs/CAPABILITY-MATRIX.md) and [known blockers](docs/BLOCKERS.md).
+- **Will uninstalling remove article state?** Article state is stored on document attributes; plugin `saveData` only stores indexes and settings. Uninstalling does not actively remove those document attributes. Read the [data contract](docs/DATA-CONTRACT.md) before migrations.
 
 ## Data, privacy, and boundaries
 

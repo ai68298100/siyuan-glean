@@ -50,6 +50,9 @@ jobs:
       - name: Production build
         run: pnpm build
 
+      - name: Repository hygiene
+        run: git diff --check
+
       - name: Visual baseline contract
         run: pnpm visual:check
 

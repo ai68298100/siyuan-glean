@@ -38,6 +38,8 @@ body:
         - 设置页
         - 导入、导出或外部桥接
         - 其他
+    validations:
+      required: true
   - type: checkboxes
     id: checklist
     attributes:
