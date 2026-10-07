@@ -60,6 +60,9 @@
 
     $effect(() => {
         mounted = true;
+        context = null;
+        loading = true;
+        maintenanceOpen = false;
         void reload();
         const handler = () => void reload();
         const refreshHandler = (event: Event) => {

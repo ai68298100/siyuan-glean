@@ -50,6 +50,7 @@ test("阅读页签切文时收起上篇文章的低频工具状态", () => {
 
 test("原生阅读上下文把维护动作降级到按需展开，正文缺失时自动展开", () => {
     assert.match(context, /const maintenanceId = `glean-reading-context-maintenance-\$\{instanceId\}`;/);
+    assert.match(context, /context = null;\s*loading = true;\s*maintenanceOpen = false;\s*void reload\(\);/);
     assert.match(context, /bind:open=\{maintenanceOpen\}/);
     assert.match(context, /if \(bodyState === "missing"\) maintenanceOpen = true/);
     assert.match(context, /<details id=\{maintenanceId\}/);
