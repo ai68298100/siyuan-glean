@@ -6,6 +6,7 @@
 
 - 新增 `src/domain/inbox-recovery.ts`、`src/services/inbox-recovery.ts` 和 `tests/inbox-recovery.test.ts`；`tests/external-api.test.mjs` 增加恢复重试与未知创建回归，`package.json` 已纳入测试命令。
 - 收集箱/检查点定向回归 42/42，`pnpm check`（0 错误/0 警告）、`pnpm test`（1172/1172）、`pnpm build`、`pnpm check:release`、`pnpm task:ledger -- --check` 与 `git diff --check` 已通过；`pnpm visual:check` 的 24 个案例仍等待真实宿主截图。真实收集箱、插件重载、双窗口和云端删除仍待 B-0002/B-0007。
+- `docs/INTEGRATION-ACCEPTANCE.md` 与 `docs/BLOCKERS.md` 已补充 T-3300 的真实验收记录：重载后阶段/确切 docId、unknown 禁止重建、云删除失败重试和双窗口 busy 结果；下一台机器可直接按 INT-02/INT-F05 执行。
 - 当前开发分支为 `dev/thispc-1002`，不触碰 `main`，不升版、不打 tag、不创建 Release、不上传 `package.zip`。
 
 ## 当前有效交接（2026-10-07 T-3299/D-0177）

@@ -76,7 +76,7 @@ T-3235 增补 B-0002：真实页签核对连续同时间创建的多个标题、
   自定义通道还需真实 OpenAI 兼容 API、思源密钥库与桌面端连接测试。内部自动队列缺陷先按 T-1704 修复。
 - **B-0005** 按 [`docs/INTEGRATION-ACCEPTANCE.md`](INTEGRATION-ACCEPTANCE.md) 用作者实际 Pocket/Omnivore/wallabag 导出文件验证解析、URL 去重、时间/状态映射和“仅链接条目”的阅读体验。
 - **B-0006** 按 [`docs/INTEGRATION-ACCEPTANCE.md`](INTEGRATION-ACCEPTANCE.md) 真机验证全页快照的拍摄、打开、失败重试和资源可用性，确认它是“思源文档快照”而非原网页抓取。
-- **B-0007** 按 [`docs/INTEGRATION-ACCEPTANCE.md`](INTEGRATION-ACCEPTANCE.md) 在可用登录/订阅环境验证迁入全文、云端删除失败后重试及去重。
+- **B-0007** 按 [`docs/INTEGRATION-ACCEPTANCE.md`](INTEGRATION-ACCEPTANCE.md) 在可用登录/订阅环境验证迁入全文、云端删除失败后重试及去重；T-3300 追加关闭/重载后的 `inbox-recovery.json` 阶段与确切 docId 记录、创建结果未知不重建、双窗口只有一个事务继续的证据。
 - **B-0005/B-0006/B-0007 追加 T-3216–T-3218**：真实导入属性/索引失败后，仅在当前完成页重试失败行并核对原文档复用；关闭弹窗后核对目标笔记本半成品。快照写入失败保留旧快照；收集箱迁入成功但云删除失败时条目仍在、可专门重试删除并打开本地文章，不再次建文档。
 - **B-0008** 按 [`docs/INTEGRATION-ACCEPTANCE.md`](INTEGRATION-ACCEPTANCE.md) 做小驴打卡双插件真机联调：项目选择、读完记录、同日去重与失败恢复；雷切接入仍待公开 API。
 - **R-0001** `ial LIKE` 大库性能——spike T-1005 实测定方案，上限兜底=saveData 索引。
