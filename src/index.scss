@@ -5505,6 +5505,11 @@ body.b3-theme-dark {
         min-height: 44px;
         padding: 8px 10px;
     }
+
+    .glean-reading-context__actions > .glean-status-actions {
+        flex: 0 0 auto;
+        width: max-content;
+    }
 }
 
 @media (max-width: 560px) {

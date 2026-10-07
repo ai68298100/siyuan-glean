@@ -5,6 +5,7 @@ import { resolve } from "node:path";
 
 const root = resolve(import.meta.dirname, "..");
 const reader = readFileSync(resolve(root, "src/ui/ReaderTab.svelte"), "utf8");
+const protyle = readFileSync(resolve(root, "src/ui/ProtyleHost.svelte"), "utf8");
 const preview = readFileSync(resolve(root, "src/ui/WorkbenchPreview.svelte"), "utf8");
 const context = readFileSync(resolve(root, "src/ui/ReadingContext.svelte"), "utf8");
 const styles = readFileSync(resolve(root, "src/index.scss"), "utf8");
@@ -48,6 +49,14 @@ test("阅读页签切文时收起上篇文章的低频工具状态", () => {
     assert.match(reader, /const id = docId;[\s\S]*?moreToolsOpen = false;\s*appearanceOpen = false;/);
 });
 
+test("Protyle 失败态在正文曾获焦时把焦点交给重试动作", () => {
+    assert.match(protyle, /let retryButton = \$state<HTMLButtonElement \| null>\(null\);/);
+    assert.match(protyle, /element\.addEventListener\("focusin", onFocusIn\)/);
+    assert.match(protyle, /stage === "failed" && hostHadFocus/);
+    assert.match(protyle, /bind:this=\{retryButton\}/);
+    assert.match(protyle, /aria-live=\{stage === "failed" \? "assertive" : "polite"\}/);
+});
+
 test("原生阅读上下文把维护动作降级到按需展开，正文缺失时自动展开", () => {
     assert.match(context, /const maintenanceId = `glean-reading-context-maintenance-\$\{instanceId\}`;/);
     assert.match(context, /context = null;\s*loading = true;\s*loadError = false;\s*maintenanceOpen = false;\s*void reload\(\);/);
@@ -66,6 +75,10 @@ test("原生阅读上下文读取失败保留可重试错误态", () => {
     assert.match(context, /reading\.contextFailed/);
     assert.match(context, /onclick=\{\(\) => void reload\(\)\}/);
     assert.match(styles, /\.glean-reading-context--error[\s\S]*var\(--glean-error-surface\)/);
+});
+
+test("窄屏阅读上下文保持状态动作组完整宽度", () => {
+    assert.match(styles, /@media \(max-width: 560px\)[\s\S]*\.glean-reading-context__actions > \.glean-status-actions[\s\S]*width: max-content/);
 });
 
 test("阅读器验收文档明确真实宿主边界", () => {

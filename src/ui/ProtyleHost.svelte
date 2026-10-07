@@ -5,7 +5,7 @@
 <script lang="ts">
     import { Protyle } from "siyuan";
     import type { App } from "siyuan";
-    import { untrack } from "svelte";
+    import { tick, untrack } from "svelte";
     import { t } from "../libs/i18n";
     import { createProtyleController, type ProtyleController, type ProtyleMode } from "../libs/protyle-controller";
 
@@ -23,7 +23,25 @@
     let { app, docId, mode, i18n, host = $bindable(null), controller = $bindable(null), className = "", onOpenDocument }: Props = $props();
     let attempt = $state(0);
     let stage = $state<"loading" | "ready" | "failed">("loading");
+    let retryButton = $state<HTMLButtonElement | null>(null);
+    let hostHadFocus = false;
     const statusLabelId = `glean-protyle-status-label-${++protyleStatusCounter}`;
+
+    $effect(() => {
+        const element = host;
+        if (!element) return;
+        hostHadFocus = false;
+        const onFocusIn = () => { hostHadFocus = true; };
+        element.addEventListener("focusin", onFocusIn);
+        return () => element.removeEventListener("focusin", onFocusIn);
+    });
+
+    $effect(() => {
+        if (stage !== "failed" || !retryButton || !hostHadFocus) return;
+        void tick().then(() => {
+            if (stage === "failed" && hostHadFocus) retryButton?.focus();
+        });
+    });
 
     $effect(() => {
         const element = host;
@@ -67,11 +85,11 @@
 
 <div class="glean-protyle-shell glean-protyle-shell--{stage} {className}" aria-busy={stage === "loading"}>
     {#if stage !== "ready"}
-        <div class="glean-protyle-status glean-protyle-status--{stage}" role="status" aria-live="polite" aria-labelledby={statusLabelId}>
+        <div class="glean-protyle-status glean-protyle-status--{stage}" role="status" aria-live={stage === "failed" ? "assertive" : "polite"} aria-labelledby={statusLabelId}>
             {#if stage === "loading"}<span class="glean-protyle-status__dot" aria-hidden="true"></span>{/if}
             <span id={statusLabelId} class="glean-protyle-status__label">{t(i18n, stage === "loading" ? "panel.loading" : "preview.failed")}</span>
             {#if stage === "failed"}
-                <button class="glean-btn" onclick={() => attempt += 1}>{t(i18n, "action.retry")}</button>
+                <button class="glean-btn" bind:this={retryButton} onclick={() => attempt += 1}>{t(i18n, "action.retry")}</button>
                 <button class="glean-btn glean-btn--ghost" onclick={onOpenDocument}>{t(i18n, "preview.openDocument")}</button>
             {/if}
         </div>

@@ -1,5 +1,13 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-07 T-3283/D-0164）
+
+本轮继续收口阅读失败恢复：Protyle 失败时若正文宿主曾获焦，焦点转移到重试按钮；异步失败不会抢走原本在工具栏等处的焦点。原生阅读上下文在窄屏横向动作轨道中保持状态动作组完整宽度，避免按钮内部折行。未改变正文、文章属性、索引、端点或写入契约。
+
+- 当前改动文件：`src/ui/ProtyleHost.svelte`、`src/ui/ReadingContext.svelte`、`src/index.scss`、`tests/reader-acceptance.test.ts`、`docs/DECISIONS.md`、`docs/PROGRESS.md`、`docs/HANDOFF.md`。
+- 已通过：定向阅读/i18n/无障碍/焦点 27/27；全量 `pnpm test` 1157/1157；`pnpm run check` 0 错误/0 警告；生产构建、任务台账和视觉矩阵检查通过。真实宿主与 Android 仍归 B-0002；视觉矩阵仍有 24 个 `pending-host`。
+- 版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 `package.zip`。
+
 ## 当前有效交接（2026-10-07 T-3283/D-0163）
 
 本轮补齐原生阅读上下文读取失败态：`readClipContext` 异常时显示主题错误表面、双语失败说明和可重试按钮；成功返回 `null` 仍表示非剪藏并保持静默。未改变正文、文章属性、索引、端点或写入契约。
