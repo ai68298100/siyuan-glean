@@ -266,6 +266,23 @@ test("年度热力图含每个零值日期，闰年 366 天；完成仅保留最
     assert.equal(aggregateReadingReview([], now).heatmap.length, 365);
 });
 
+test("最近完成趋势按参考日回溯 30 个本地日历日，跨年补零且不纳入参考日之后的完成", () => {
+    const now = new Date(2026, 8, 20, 12, 0, 0);
+    const reference = new Date(2026, 0, 5, 12, 0, 0);
+    const stats = aggregateReadingReview([
+        item({ id: "dec", status: "done", doneTime: "20251231080000" }),
+        item({ id: "jan", status: "done", doneTime: "20260105080000" }),
+        item({ id: "future", status: "done", doneTime: "20260106080000" }),
+    ], now, "week", reference);
+    assert.equal(stats.recentCompletionTrend.length, 30);
+    assert.equal(stats.recentCompletionTrend[0].date, "2025-12-07");
+    assert.equal(stats.recentCompletionTrend.at(-1)?.date, "2026-01-05");
+    assert.equal(stats.recentCompletionTrend.find((day) => day.date === "2025-12-31")?.count, 1);
+    assert.equal(stats.recentCompletionTrend.find((day) => day.date === "2026-01-05")?.count, 1);
+    assert.equal(stats.recentCompletionTrend.find((day) => day.date === "2026-01-06")?.count, undefined);
+    assert.equal(stats.heatmap.find((day) => day.date === "2026-01-06")?.count, 0);
+});
+
 test("跨夏令时按日历分桶，拒绝春季不存在的时间，秋季重复时间按一条事实统计", () => {
     const sourceUrl = new URL("../src/domain/stats.ts", import.meta.url).href;
     const script = `

@@ -211,6 +211,8 @@ export interface ReviewStats extends ReadingStats {
     periodByUserTag: NameCount[];
     periodByAiTag: NameCount[];
     heatmap: CompletionDay[];
+    /** 最近 30 个本地日历日，包含没有完成记录的日期，供趋势卡直接展示。 */
+    recentCompletionTrend: CompletionDay[];
 }
 
 export interface ReadingReview {
@@ -407,9 +409,11 @@ export function aggregateReadingReview(items: StatsInput[], now: Date = new Date
     const periodItems = completedReviewItems(confirmed, period, now);
     const authors = reviewAuthorCounts(periodItems);
     const completions = confirmed.filter((item) => trustedTimestamp(item.doneTime, now));
+    const referenceKey = calendarKey(calendarDate(reference.getFullYear(), reference.getMonth(), reference.getDate()));
     const completionCounts = new Map<string, number>();
     for (const item of completions) {
         const key = item.doneTime.slice(0, 8);
+        if (key > referenceKey) continue;
         completionCounts.set(key, (completionCounts.get(key) ?? 0) + 1);
     }
     const heatmap: CompletionDay[] = [];
@@ -418,6 +422,15 @@ export function aggregateReadingReview(items: StatsInput[], now: Date = new Date
         const key = calendarKey(heatmapDate);
         heatmap.push({ date: displayReviewDate(key), count: completionCounts.get(key) ?? 0 });
         heatmapDate.setUTCDate(heatmapDate.getUTCDate() + 1);
+    }
+    const recentCompletionTrend: CompletionDay[] = [];
+    const recentDate = calendarDate(reference.getFullYear(), reference.getMonth(), reference.getDate());
+    recentDate.setUTCDate(recentDate.getUTCDate() - 29);
+    if (recentDate.getUTCFullYear() < 1) recentDate.setUTCFullYear(1, 0, 1);
+    while (recentDate <= calendarDate(reference.getFullYear(), reference.getMonth(), reference.getDate()) && recentCompletionTrend.length < 30) {
+        const key = calendarKey(recentDate);
+        recentCompletionTrend.push({ date: displayReviewDate(key), count: completionCounts.get(key) ?? 0 });
+        recentDate.setUTCDate(recentDate.getUTCDate() + 1);
     }
     return {
         ...aggregateStats(confirmed, now),
@@ -437,6 +450,7 @@ export function aggregateReadingReview(items: StatsInput[], now: Date = new Date
         periodByUserTag: reviewNameCounts(periodItems, (item) => item.tags ?? []),
         periodByAiTag: reviewNameCounts(periodItems, (item) => item.aiTags ?? []),
         heatmap,
+        recentCompletionTrend,
     };
 }
 

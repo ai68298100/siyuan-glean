@@ -8,9 +8,10 @@
         ClipRestoreError, readReadingPosition, saveReadingPosition, verifyReadingBlock, type ReadingPositionSnapshot,
     } from "../services/clip-store";
 
-    interface Props { facade: GleanFacade; docId: string; host: HTMLElement | null }
-    let { facade, docId, host }: Props = $props();
+    interface Props { facade: GleanFacade; docId: string; host: HTMLElement | null; instanceId?: string }
+    let { facade, docId, host, instanceId = "glean-reading-position" }: Props = $props();
     const i18n = $derived(facade.i18n);
+    const titleId = $derived(`glean-reading-position-${instanceId}-title`);
     const requests = createLatestRequestGate();
     let snapshot = $state.raw<ReadingPositionSnapshot | null>(null);
     let busy = $state(false);
@@ -145,8 +146,8 @@
     }
 </script>
 
-<section class="glean-reading-position" aria-labelledby="glean-reading-position-title" aria-busy={busy}>
-    <div id="glean-reading-position-title" class="glean-reading-position__title" role="heading" aria-level="3">{t(i18n, "reading.position.title")}</div>
+<section class="glean-reading-position" aria-labelledby={titleId} aria-busy={busy}>
+    <div id={titleId} class="glean-reading-position__title" role="heading" aria-level="3">{t(i18n, "reading.position.title")}</div>
     <p class="glean-reading-position__hint">{t(i18n, "reading.position.hint")}</p>
     <div class="glean-reading-position__actions" role="group" aria-label={t(i18n, "reading.position.title")}>
         <button class="glean-btn glean-btn--ghost" disabled={busy || !snapshot} onclick={() => void remember()}>{t(i18n, "reading.position.remember")}</button>

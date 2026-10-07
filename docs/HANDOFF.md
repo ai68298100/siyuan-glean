@@ -1,5 +1,14 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-07 T-3260/D-0159）
+
+第三十六轮修正回顾趋势的真实时间范围，并按原型收紧阅读伴生栏首屏：`aggregateReadingReview` 新增 `recentCompletionTrend`，以参考日为终点生成最多 30 个本地日历日，跨月/跨年补零，完成计数不超过参考日；`StatsView` 只消费该序列，年度热力图继续用于全年分析。`ReaderTab` 将状态动作和优先级评分提前，最近阅读、作者编辑、阅读位置、外观和大纲包入默认关闭的“辅助工具”；桌面外观入口会先展开辅助工具再打开外观。`ReadingPositionControls` 改为接收实例 ID 并生成稳定标题关联，避免多实例重复 ID。
+
+- 当前改动文件：`src/domain/stats.ts`、`src/ui/StatsView.svelte`、`src/ui/ReaderTab.svelte`、`src/ui/ReadingPositionControls.svelte`、`src/index.scss`、`public/i18n/zh_CN.json`、`public/i18n/en_US.json`、`tests/stats.test.ts`、`docs/DECISIONS.md`、`docs/PROGRESS.md`、`docs/HANDOFF.md`。
+- 已通过：`pnpm test` 1152/1152；`pnpm run check` 0 错误/0 警告；`pnpm build`、`pnpm task:ledger -- --check`、`pnpm visual:check`、`git diff --check` 通过。
+- 当前视觉矩阵仍为 24 个 `pending-host`，本轮未新增真实思源宿主或 Android 真机截图；不要把本地组件截图当作宿主验收证据。
+- 版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 `package.zip`。
+
 ## 当前有效交接（2026-10-07 T-3260/D-0158）
 
 第三十五轮恢复原型首屏动作并降低增量信息噪声：阅读桌面顶栏提供阅读外观与打开原文，外观按钮直接打开伴生栏折叠区；窄屏隐藏桌面动作，保持正文首屏高度。伴生栏标题改为“伴生栏”，统计快照移入统计口径详情、完成文章列表默认折叠，趋势零值柱降低存在感；摘录 scope active 恢复轻量胶囊，卡片 hover 限定在支持悬浮的设备。未新增功能，未改变业务、数据、文章属性、索引、端点或设置语义。

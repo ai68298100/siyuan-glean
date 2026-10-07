@@ -56,6 +56,8 @@
     const sidebarId = idFor("sidebar");
     const shortcutsId = idFor("shortcuts");
     const sidebarTitleId = idFor("sidebar-title");
+    const moreToolsId = idFor("more-tools");
+    const moreToolsTitleId = idFor("more-tools-title");
     const recentTitleId = idFor("recent-title");
     const appearancePanelId = idFor("appearance-panel");
     const appearanceTitleId = idFor("appearance-title");
@@ -73,6 +75,7 @@
     let sidebarCollapsed = $state(false);
     let sidebarBusy = $state(false);
     let shortcutHelp = $state(false);
+    let moreToolsOpen = $state(false);
     let appearanceOpen = $state(false);
     let excerptBusy = $state(false);
     let appearanceTouched = false;
@@ -402,6 +405,7 @@
     }
 
     function openAppearance(): void {
+        moreToolsOpen = true;
         appearanceOpen = true;
         if (sidebarCollapsed) void toggleSidebar();
     }
@@ -971,72 +975,6 @@
             {#if displayedReadMinutes > 0}
                 <div class="glean-reader__hint glean-reader__reading-time" aria-live="polite">{t(i18n, "reader.readMinutes", { n: displayedReadMinutes })}</div>
             {/if}
-            <div class="glean-reader__section glean-reader__section--utility glean-reader__recent" aria-labelledby={recentTitleId}>
-                <div id={recentTitleId} class="glean-reader__section-title" role="heading" aria-level="3">{t(i18n, "reader.recentTitle")}</div>
-                <div class="glean-reader__recent-list">
-                    {#each recentReadings as item (item.id)}
-                        <button
-                            class="glean-reader__recent-item"
-                            class:glean-reader__recent-item--current={item.id === docId}
-                            aria-current={item.id === docId ? "page" : undefined}
-                            title={item.title || item.id}
-                            onclick={() => openRecentReading(item)}
-                        >{item.title || item.id}</button>
-                    {:else}
-                        <div class="glean-reader__hint">{t(i18n, "reader.recentEmpty")}</div>
-                    {/each}
-                </div>
-            </div>
-            {#if context?.id === docId}<AuthorEditor {facade} {docId} onSaved={() => { if (docId) return loadContext(docId); }} />{/if}
-            <ReadingPositionControls {facade} {docId} host={protyleHost} />
-            <details id={appearancePanelId} class="glean-reader__section glean-reader__section--utility glean-reader__appearance glean-reader__fold" aria-labelledby={appearanceTitleId} bind:open={appearanceOpen}>
-                <summary id={appearanceTitleId} class="glean-reader__section-title">{t(i18n, "reader.appearanceTitle")}</summary>
-                <label>{t(i18n, "reader.appearanceFontSize")}
-                    <select class="b3-select" disabled={appearanceBusy} value={readerAppearance.fontSize} onchange={(event) => void updateAppearance("fontSize", (event.currentTarget as HTMLSelectElement).value)}>
-                        <option value="small">{t(i18n, "reader.appearanceSmall")}</option>
-                        <option value="normal">{t(i18n, "reader.appearanceNormal")}</option>
-                        <option value="large">{t(i18n, "reader.appearanceLarge")}</option>
-                    </select>
-                </label>
-                <label>{t(i18n, "reader.appearanceLineHeight")}
-                    <select class="b3-select" disabled={appearanceBusy} value={readerAppearance.lineHeight} onchange={(event) => void updateAppearance("lineHeight", (event.currentTarget as HTMLSelectElement).value)}>
-                        <option value="compact">{t(i18n, "reader.appearanceCompact")}</option>
-                        <option value="normal">{t(i18n, "reader.appearanceNormal")}</option>
-                        <option value="relaxed">{t(i18n, "reader.appearanceRelaxed")}</option>
-                    </select>
-                </label>
-                <label>{t(i18n, "reader.appearanceWidth")}
-                    <select class="b3-select" disabled={appearanceBusy} value={readerAppearance.width} onchange={(event) => void updateAppearance("width", (event.currentTarget as HTMLSelectElement).value)}>
-                        <option value="narrow">{t(i18n, "reader.appearanceNarrow")}</option>
-                        <option value="normal">{t(i18n, "reader.appearanceNormal")}</option>
-                        <option value="wide">{t(i18n, "reader.appearanceWide")}</option>
-                    </select>
-                </label>
-                <label>{t(i18n, "reader.appearanceTheme")}
-                    <select class="b3-select" disabled={appearanceBusy} value={readerAppearance.theme} onchange={(event) => void updateAppearance("theme", (event.currentTarget as HTMLSelectElement).value)}>
-                        <option value="follow">{t(i18n, "reader.appearanceFollow")}</option>
-                        <option value="paper">{t(i18n, "reader.appearancePaper")}</option>
-                        <option value="eye">{t(i18n, "reader.appearanceEye")}</option>
-                    </select>
-                </label>
-            </details>
-            <details class="glean-reader__section glean-reader__section--utility glean-reader__fold" aria-labelledby={outlineTitleId}>
-                <summary id={outlineTitleId} class="glean-reader__section-title">{t(i18n, "reader.outlineTitle")}</summary>
-                {#if outlineLoading}
-                    <div class="glean-reader__hint" role="status" aria-live="polite">{t(i18n, "reader.outlineLoading")}</div>
-                {:else if outlineError}
-                    <div class="glean-reader__issue" role="alert">{t(i18n, "reader.outlineFailed")}</div>
-                    <button class="glean-btn glean-btn--ghost" onclick={() => docId && void loadOutline(docId)}>{t(i18n, "reader.outlineRetry")}</button>
-                {:else if outline.length === 0}
-                    <div class="glean-reader__hint">{t(i18n, "reader.outlineEmpty")}</div>
-                {:else}
-                    <nav class="glean-reader__outline" aria-label={t(i18n, "reader.outlineTitle")}>
-                        {#each outline as item (item.id)}
-                            <button class="glean-reader__outline-item" style={`--glean-outline-level:${item.level}`} title={item.title} onclick={() => scrollToOutline(item)}>{item.title}</button>
-                        {/each}
-                    </nav>
-                {/if}
-            </details>
             {#if context}
                 <div class="glean-reader__status-actions">
                     <ClipStatusActions
@@ -1048,6 +986,90 @@
                         onSetStatus={(status) => void writeStatus(status)}
                     />
                 </div>
+                <div class="glean-reader__section glean-reader__section--utility" aria-labelledby={rankTitleId}>
+                    <div id={rankTitleId} class="glean-reader__section-title" role="heading" aria-level="3">{t(i18n, "panel.rankTitle")}</div>
+                    <ClipRankControls
+                        {i18n}
+                        priority={context.priority}
+                        rating={context.rating}
+                        disabled={statusBusy}
+                        onPriority={(value) => void setPriority(value)}
+                        onRating={(value) => void setRating(value)}
+                    />
+                </div>
+            {/if}
+            <details id={moreToolsId} class="glean-reader__section glean-reader__section--utility glean-reader__more-tools glean-reader__fold" aria-labelledby={moreToolsTitleId} bind:open={moreToolsOpen}>
+                <summary id={moreToolsTitleId} class="glean-reader__section-title">{t(i18n, "reader.moreTools")}</summary>
+                <div class="glean-reader__more-tools-body">
+                    <div class="glean-reader__section glean-reader__section--utility glean-reader__recent" aria-labelledby={recentTitleId}>
+                        <div id={recentTitleId} class="glean-reader__section-title" role="heading" aria-level="3">{t(i18n, "reader.recentTitle")}</div>
+                        <div class="glean-reader__recent-list">
+                            {#each recentReadings as item (item.id)}
+                                <button
+                                    class="glean-reader__recent-item"
+                                    class:glean-reader__recent-item--current={item.id === docId}
+                                    aria-current={item.id === docId ? "page" : undefined}
+                                    title={item.title || item.id}
+                                    onclick={() => openRecentReading(item)}
+                                >{item.title || item.id}</button>
+                            {:else}
+                                <div class="glean-reader__hint">{t(i18n, "reader.recentEmpty")}</div>
+                            {/each}
+                        </div>
+                    </div>
+                    {#if context?.id === docId}<AuthorEditor {facade} {docId} onSaved={() => { if (docId) return loadContext(docId); }} />{/if}
+                    <ReadingPositionControls {facade} {docId} host={protyleHost} instanceId={idFor("reading-position")} />
+                    <details id={appearancePanelId} class="glean-reader__section glean-reader__section--utility glean-reader__appearance glean-reader__fold" aria-labelledby={appearanceTitleId} bind:open={appearanceOpen}>
+                        <summary id={appearanceTitleId} class="glean-reader__section-title">{t(i18n, "reader.appearanceTitle")}</summary>
+                        <label>{t(i18n, "reader.appearanceFontSize")}
+                            <select class="b3-select" disabled={appearanceBusy} value={readerAppearance.fontSize} onchange={(event) => void updateAppearance("fontSize", (event.currentTarget as HTMLSelectElement).value)}>
+                                <option value="small">{t(i18n, "reader.appearanceSmall")}</option>
+                                <option value="normal">{t(i18n, "reader.appearanceNormal")}</option>
+                                <option value="large">{t(i18n, "reader.appearanceLarge")}</option>
+                            </select>
+                        </label>
+                        <label>{t(i18n, "reader.appearanceLineHeight")}
+                            <select class="b3-select" disabled={appearanceBusy} value={readerAppearance.lineHeight} onchange={(event) => void updateAppearance("lineHeight", (event.currentTarget as HTMLSelectElement).value)}>
+                                <option value="compact">{t(i18n, "reader.appearanceCompact")}</option>
+                                <option value="normal">{t(i18n, "reader.appearanceNormal")}</option>
+                                <option value="relaxed">{t(i18n, "reader.appearanceRelaxed")}</option>
+                            </select>
+                        </label>
+                        <label>{t(i18n, "reader.appearanceWidth")}
+                            <select class="b3-select" disabled={appearanceBusy} value={readerAppearance.width} onchange={(event) => void updateAppearance("width", (event.currentTarget as HTMLSelectElement).value)}>
+                                <option value="narrow">{t(i18n, "reader.appearanceNarrow")}</option>
+                                <option value="normal">{t(i18n, "reader.appearanceNormal")}</option>
+                                <option value="wide">{t(i18n, "reader.appearanceWide")}</option>
+                            </select>
+                        </label>
+                        <label>{t(i18n, "reader.appearanceTheme")}
+                            <select class="b3-select" disabled={appearanceBusy} value={readerAppearance.theme} onchange={(event) => void updateAppearance("theme", (event.currentTarget as HTMLSelectElement).value)}>
+                                <option value="follow">{t(i18n, "reader.appearanceFollow")}</option>
+                                <option value="paper">{t(i18n, "reader.appearancePaper")}</option>
+                                <option value="eye">{t(i18n, "reader.appearanceEye")}</option>
+                            </select>
+                        </label>
+                    </details>
+                    <details class="glean-reader__section glean-reader__section--utility glean-reader__fold" aria-labelledby={outlineTitleId}>
+                        <summary id={outlineTitleId} class="glean-reader__section-title">{t(i18n, "reader.outlineTitle")}</summary>
+                        {#if outlineLoading}
+                            <div class="glean-reader__hint" role="status" aria-live="polite">{t(i18n, "reader.outlineLoading")}</div>
+                        {:else if outlineError}
+                            <div class="glean-reader__issue" role="alert">{t(i18n, "reader.outlineFailed")}</div>
+                            <button class="glean-btn glean-btn--ghost" onclick={() => docId && void loadOutline(docId)}>{t(i18n, "reader.outlineRetry")}</button>
+                        {:else if outline.length === 0}
+                            <div class="glean-reader__hint">{t(i18n, "reader.outlineEmpty")}</div>
+                        {:else}
+                            <nav class="glean-reader__outline" aria-label={t(i18n, "reader.outlineTitle")}>
+                                {#each outline as item (item.id)}
+                                    <button class="glean-reader__outline-item" style={`--glean-outline-level:${item.level}`} title={item.title} onclick={() => scrollToOutline(item)}>{item.title}</button>
+                                {/each}
+                            </nav>
+                        {/if}
+                    </details>
+                </div>
+            </details>
+            {#if context}
                 {#if docId}
                     <div class="glean-reader__section glean-reader__section--enhanced" aria-labelledby={excerptTitleId}>
                         <div id={excerptTitleId} class="glean-reader__section-title" role="heading" aria-level="3">{t(i18n, "reader.excerptTitle")}</div>
@@ -1194,19 +1216,6 @@
                                 </div>
                             {/if}
                         {/if}
-                    </div>
-                {/if}
-                {#if context}
-                    <div class="glean-reader__section glean-reader__section--utility" aria-labelledby={rankTitleId}>
-                        <div id={rankTitleId} class="glean-reader__section-title" role="heading" aria-level="3">{t(i18n, "panel.rankTitle")}</div>
-                        <ClipRankControls
-                            {i18n}
-                            priority={context.priority}
-                            rating={context.rating}
-                            disabled={statusBusy}
-                            onPriority={(value) => void setPriority(value)}
-                            onRating={(value) => void setRating(value)}
-                        />
                     </div>
                 {/if}
                 <div class="glean-reader__ops">

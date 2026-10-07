@@ -39,7 +39,7 @@ const review = $derived(session?.review ?? liveReview);
 const stats = $derived(review.stats);
 const maxHeat = $derived(Math.max(1, ...stats.heatmap.map((day) => day.count)));
 const heatmapPadding = $derived((new Date(`${stats.heatmap[0].date}T12:00:00`).getDay() + 6) % 7);
-const recentDays = $derived(stats.heatmap.filter((day) => day.date <= referenceDate).slice(-30));
+const recentDays = $derived(stats.recentCompletionTrend);
 const maxRecent = $derived(Math.max(1, ...recentDays.map((day) => day.count)));
 const distributions = $derived([
     { key: "review.bySite", counts: stats.periodBySite },
