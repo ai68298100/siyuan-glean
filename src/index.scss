@@ -1496,6 +1496,29 @@ body.b3-theme-dark {
     letter-spacing: .055em;
 }
 
+.glean-reader__fold > summary {
+    display: flex;
+    align-items: center;
+    min-height: 28px;
+    cursor: pointer;
+    list-style: none;
+}
+
+.glean-reader__fold > summary::-webkit-details-marker { display: none; }
+
+.glean-reader__fold > summary::before {
+    content: "›";
+    margin-right: var(--glean-space-2);
+    color: var(--b3-theme-on-surface);
+    font-size: 17px;
+    transition: transform 160ms var(--glean-ease-out);
+}
+
+.glean-reader__fold[open] > summary::before { transform: rotate(90deg); }
+
+.glean-reader__fold > summary:hover,
+.glean-reader__fold[open] > summary { color: var(--b3-theme-primary); }
+
 .glean-reader__section--enhanced .glean-reader__section-title::before {
     width: 5px;
     height: 5px;
@@ -6776,7 +6799,7 @@ body.b3-theme-dark {
     -webkit-text-fill-color: transparent;
 }
 
-.glean-stats__metric > span {
+.glean-stats__metric-hint {
     margin-top: var(--glean-space-1);
     color: var(--b3-theme-on-surface);
     font-size: var(--glean-text-xs);
@@ -7499,6 +7522,11 @@ body.b3-theme-dark {
     justify-content: flex-end;
 }
 
+.glean-stats__toolbar--actions {
+    justify-content: flex-start;
+    margin-top: calc(var(--glean-space-1) * -1);
+}
+
 .glean-stats__activity h3,
 .glean-stats__completed-section h3 {
     margin: 0;
@@ -7542,6 +7570,16 @@ body.b3-theme-dark {
 .glean-stats__trend-bar:hover {
     opacity: 1;
     transform: scaleY(1.04);
+}
+
+.glean-stats__trend-meta {
+    display: flex;
+    justify-content: space-between;
+    padding: 0 var(--glean-space-1);
+    color: var(--b3-theme-on-surface);
+    font-size: var(--glean-text-xs);
+    font-variant-numeric: tabular-nums;
+    opacity: .68;
 }
 
 .glean-stats__detail,

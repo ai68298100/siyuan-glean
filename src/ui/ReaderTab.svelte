@@ -978,8 +978,8 @@
             </div>
             {#if context?.id === docId}<AuthorEditor {facade} {docId} onSaved={() => { if (docId) return loadContext(docId); }} />{/if}
             <ReadingPositionControls {facade} {docId} host={protyleHost} />
-            <div class="glean-reader__section glean-reader__section--utility glean-reader__appearance" aria-labelledby={appearanceTitleId}>
-                <div id={appearanceTitleId} class="glean-reader__section-title" role="heading" aria-level="3">{t(i18n, "reader.appearanceTitle")}</div>
+            <details class="glean-reader__section glean-reader__section--utility glean-reader__appearance glean-reader__fold" aria-labelledby={appearanceTitleId}>
+                <summary id={appearanceTitleId} class="glean-reader__section-title">{t(i18n, "reader.appearanceTitle")}</summary>
                 <label>{t(i18n, "reader.appearanceFontSize")}
                     <select class="b3-select" disabled={appearanceBusy} value={readerAppearance.fontSize} onchange={(event) => void updateAppearance("fontSize", (event.currentTarget as HTMLSelectElement).value)}>
                         <option value="small">{t(i18n, "reader.appearanceSmall")}</option>
@@ -1008,9 +1008,9 @@
                         <option value="eye">{t(i18n, "reader.appearanceEye")}</option>
                     </select>
                 </label>
-            </div>
-            <div class="glean-reader__section glean-reader__section--utility" aria-labelledby={outlineTitleId}>
-                <div id={outlineTitleId} class="glean-reader__section-title" role="heading" aria-level="3">{t(i18n, "reader.outlineTitle")}</div>
+            </details>
+            <details class="glean-reader__section glean-reader__section--utility glean-reader__fold" aria-labelledby={outlineTitleId}>
+                <summary id={outlineTitleId} class="glean-reader__section-title">{t(i18n, "reader.outlineTitle")}</summary>
                 {#if outlineLoading}
                     <div class="glean-reader__hint" role="status" aria-live="polite">{t(i18n, "reader.outlineLoading")}</div>
                 {:else if outlineError}
@@ -1025,7 +1025,7 @@
                         {/each}
                     </nav>
                 {/if}
-            </div>
+            </details>
             {#if context}
                 <div class="glean-reader__status-actions">
                     <ClipStatusActions

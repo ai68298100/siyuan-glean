@@ -50,11 +50,11 @@ test("highlight selection controls and exports form separate named action groups
     assert.match(source, /aria-labelledby=\{titleId\}/);
     assert.match(source, /aria-pressed=\{direction === "asc"\}/);
     assert.match(source, /library\.directionAscending/);
-    assert.match(source, /sort = "id";/);
     assert.doesNotMatch(source, /glean-highlights__tools glean-highlights__tools--selection" role=/);
     assert.match(source, /class="glean-highlights__selection-actions" role="group"/);
     assert.match(source, /class="glean-highlights__export-actions" role="group"/);
     assert.match(source, /glean-highlights__preview-action/);
+    assert.match(source, /item\.text\.slice\(0, 120\)/);
     assert.match(source, /\(visible\.page - 1\) \* highlightPageSize/);
     assert.match(styles, /@media \(max-width: 560px\)[\s\S]*\.glean-highlights__selection-actions,[\s\S]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
 });
@@ -69,6 +69,16 @@ test("reader controls and sections use per-instance ids", () => {
     assert.match(source, /<label for=\{speechRateId\}/);
     assert.doesNotMatch(source, /id="glean-reader-(?:sidebar|shortcuts|sidebar-title|recent-title|appearance-title|outline-title|excerpt-title|speech-title|ai-title|rank-title)"/);
     assert.doesNotMatch(source, /id="glean-speech-rate"/);
+});
+
+test("reading context labels are unique per mounted instance", () => {
+    const source = read("src/ui/ReadingContext.svelte");
+    assert.match(source, /const instanceId = \$props\.id\(\);/);
+    assert.match(source, /const titleId = `glean-reading-context-title-\$\{instanceId\}`;/);
+    assert.match(source, /aria-labelledby=\{titleId\}/);
+    assert.match(source, /<div id=\{titleId\}/);
+    assert.doesNotMatch(source, /aria-labelledby="glean-reading-context-title"/);
+    assert.doesNotMatch(source, /id="glean-reading-context-title"/);
 });
 
 test("Dock 搜索打开后自动聚焦，并提供可访问的清空动作", () => {

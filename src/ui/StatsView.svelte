@@ -164,6 +164,22 @@ function downloadCsv(): void {
                 </label>
             </div>
         </div>
+        <div class="glean-stats__toolbar glean-stats__toolbar--actions">
+            {#if !session}
+                <button class="glean-btn glean-btn--pri" disabled={busy || !reference} onclick={() => void preview()}>{t(i18n, "review.preview")}</button>
+            {:else}
+                <button class="glean-btn glean-btn--ghost" disabled={busy} onclick={downloadCsv}>{t(i18n, "review.csv")}</button>
+                {#if saveState === "ready" || saveState === "created"}
+                    <button class="glean-btn glean-btn--pri" disabled={busy} onclick={() => void save()}>{t(i18n, saveState === "created" ? "review.retryMark" : "review.confirm")}</button>
+                {/if}
+                {#if session.createdDocId}
+                    <button class="glean-btn glean-btn--ghost" disabled={busy} onclick={() => facade.openReadingDocument(session!.createdDocId)}>{t(i18n, "review.openReport")}</button>
+                {/if}
+                {#if saveState === "ready" || saveState === "saved"}
+                    <button class="glean-btn glean-btn--ghost" disabled={busy} onclick={discard}>{t(i18n, "review.discard")}</button>
+                {/if}
+            {/if}
+        </div>
         <details class="glean-stats__scope">
             <summary>{t(i18n, "review.scopeDetails")}</summary>
             <p>{t(i18n, "review.scope")}</p>
@@ -173,7 +189,7 @@ function downloadCsv(): void {
         {#if !reference}<p class="glean-stats__warning">{t(i18n, "review.invalidDate")}</p>{/if}
         <dl class="glean-stats__metrics">
             {#each primaryMetrics as metric (metric.key)}
-                <div class="glean-stats__metric"><dt>{t(i18n, metric.key)}</dt><dd>{metric.count}</dd><span>{t(i18n, metric.hint)}</span></div>
+                <div class="glean-stats__metric"><dt>{t(i18n, metric.key)}</dt><dd>{metric.count}</dd><dd class="glean-stats__metric-hint">{t(i18n, metric.hint)}</dd></div>
             {/each}
         </dl>
         <details class="glean-stats__supplement">
@@ -191,6 +207,10 @@ function downloadCsv(): void {
             {#each recentDays as day (day.date)}
                 <span class="glean-stats__trend-bar" role="img" aria-label={t(i18n, "review.heatmapDay", { date: day.date, n: day.count })} title={`${day.date}: ${day.count}`} style={`--glean-trend-height:${day.count ? Math.max(12, Math.round(112 * day.count / maxRecent)) : 8}px`}></span>
             {/each}
+        </div>
+        <div class="glean-stats__trend-meta" aria-hidden="true">
+            <span>{recentDays[0]?.date ?? referenceDate}</span>
+            <span>{recentDays.at(-1)?.date ?? referenceDate}</span>
         </div>
         <details class="glean-stats__detail">
             <summary>{t(i18n, "review.detailedActivity")}</summary>
@@ -261,22 +281,6 @@ function downloadCsv(): void {
         </ul>
     </section>
     <p class="glean-stats__status" role="status" aria-live="polite" aria-busy={busy}>{busy ? t(i18n, "panel.loading") : message}</p>
-    <div class="glean-stats__toolbar">
-        {#if !session}
-            <button class="glean-btn glean-btn--pri" disabled={busy || !reference} onclick={() => void preview()}>{t(i18n, "review.preview")}</button>
-        {:else}
-            <button class="glean-btn glean-btn--ghost" disabled={busy} onclick={downloadCsv}>{t(i18n, "review.csv")}</button>
-            {#if saveState === "ready" || saveState === "created"}
-                <button class="glean-btn glean-btn--pri" disabled={busy} onclick={() => void save()}>{t(i18n, saveState === "created" ? "review.retryMark" : "review.confirm")}</button>
-            {/if}
-            {#if session.createdDocId}
-                <button class="glean-btn glean-btn--ghost" disabled={busy} onclick={() => facade.openReadingDocument(session!.createdDocId)}>{t(i18n, "review.openReport")}</button>
-            {/if}
-            {#if saveState === "ready" || saveState === "saved"}
-                <button class="glean-btn glean-btn--ghost" disabled={busy} onclick={discard}>{t(i18n, "review.discard")}</button>
-            {/if}
-        {/if}
-    </div>
     {#if session}
         <label class="glean-stats__preview">
             {t(i18n, "review.preview")}

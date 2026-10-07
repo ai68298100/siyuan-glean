@@ -23,6 +23,8 @@
 
     let { facade, docId }: Props = $props();
     const i18n = $derived(facade.i18n);
+    const instanceId = $props.id();
+    const titleId = `glean-reading-context-title-${instanceId}`;
     let context = $state<ReadingClipContext | null>(null);
     let loading = $state(true);
     let busy = $state(false);
@@ -178,9 +180,9 @@
         <div class="glean-reading-context__loading-label" role="status" aria-live="polite">{t(i18n, "panel.loading")}</div>
     </aside>
 {:else if context}
-    <aside class="glean-reading-context" aria-labelledby="glean-reading-context-title" aria-busy={busy || measuring}>
+    <aside class="glean-reading-context" aria-labelledby={titleId} aria-busy={busy || measuring}>
         <div class="glean-reading-context__main">
-            <div id="glean-reading-context-title" class="glean-reading-context__title" role="heading" aria-level="2" title={context.title}>{context.title || t(i18n, "panel.untitled")}</div>
+            <div id={titleId} class="glean-reading-context__title" role="heading" aria-level="2" title={context.title}>{context.title || t(i18n, "panel.untitled")}</div>
             <div class="glean-reading-context__meta">
                 <span class={`glean-carrier-badge glean-carrier-badge--${resolveCarrier(context.contentType)}`}>
                     {carrierLabel(context.contentType)}

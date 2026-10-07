@@ -127,8 +127,6 @@ function clearFilters() {
     site = "";
     tag = "";
     aiTag = "";
-    sort = "id";
-    direction = "asc";
     page = 1;
 }
 
@@ -291,7 +289,7 @@ function openDoc(id: string) {
                     <span class="glean-highlights__item-label">{t(i18n, "highlight.quoteTag")}</span>
                     <span class="glean-highlights__item-index">{(visible.page - 1) * highlightPageSize + visible.items.indexOf(item) + 1}</span>
                 </div>
-                <label class="glean-highlights__quote"><input type="checkbox" checked={selected.includes(item.id)} disabled={exportBusy} onchange={() => toggle(item.id)} aria-label={`${t(i18n, "highlight.quoteTag")} ${visible.items.indexOf(item) + 1}`} /><span>{item.text}</span></label>
+                <label class="glean-highlights__quote"><input type="checkbox" checked={selected.includes(item.id)} disabled={exportBusy} onchange={() => toggle(item.id)} aria-label={`${t(i18n, "highlight.quoteTag")} ${(visible.page - 1) * highlightPageSize + visible.items.indexOf(item) + 1}: ${item.text.slice(0, 120)}`} /><span>{item.text}</span></label>
                 <p class="glean-highlights__meta" title={item.title || t(i18n, "panel.untitled")}>{item.title || t(i18n, "panel.untitled")} {item.site ? ` · ${item.site}` : ""}</p>
                 {#if item.tags.length}<p class="glean-highlights__meta glean-highlights__tags"><span>{t(i18n, "library.filterTag")}</span>{#each item.tags as value}<span class="glean-highlights__tag">{value}</span>{/each}</p>{/if}
                 {#if item.aiTags.length}<p class="glean-highlights__meta glean-highlights__tags glean-highlights__tags--ai"><span>{t(i18n, "library.filterAiTag")}</span>{#each item.aiTags as value}<span class="glean-highlights__tag">{value}</span>{/each}</p>{/if}

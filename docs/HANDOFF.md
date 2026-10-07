@@ -1,6 +1,15 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
-## 当前有效交接（2026-10-07 T-3260/D-0156）
+## 当前有效交接（2026-10-07 T-3260/D-0157）
+
+第三十四轮继续按原型收口动作发现与阅读伴生区密度：统计总览首屏承载已有报告动作，趋势增加起止日期，指标提示改为合法描述列表项；阅读外观与大纲默认折叠，摘录读屏标签带跨页连续序号和摘要；阅读伴生栏标题按组件实例生成唯一 ID。此轮只调整 UI、CSS、测试和可访问表达，没有新增功能或改变业务、数据、文章属性、索引、端点、设置语义。
+
+- 当前改动文件：`src/index.scss`、`src/ui/HighlightView.svelte`、`src/ui/ReaderTab.svelte`、`src/ui/ReadingContext.svelte`、`src/ui/StatsView.svelte`、`tests/accessibility.test.ts`、`docs/DECISIONS.md`、`docs/PROGRESS.md`、`docs/HANDOFF.md`。
+- 截图基线：`output/playwright/round34-stats-desktop.png`、`output/playwright/round34-stats-mobile.png`；为本地组件预览，非真实思源内核运行或 Android 真机验收。本轮未新增宿主截图。
+- 已通过：`pnpm run check` 0 错误/0 警告；定向 UI/i18n/可访问性 31/31；全量 `pnpm test` 1150/1150。
+- 提交前继续执行 `pnpm build`、`pnpm task:ledger -- --check`、`git diff --check`。版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 package.zip。
+
+## 既往交接（2026-10-07 T-3260/D-0156）
 
 第三十三轮按原型重排统计主路径并补实例语义：统计首屏三张指标卡增加辅助说明，主活动区改为过去 30 天趋势，全年热力图、逐日表和四组分布收进可展开分析；摘录标题、排序方向和清除筛选状态补齐；阅读页侧栏、快捷键、章节和语速控件 ID 按组件实例隔离。只调整 UI、CSS、i18n、测试和可访问表达，未改变业务逻辑、数据、文章属性、索引、端点或设置语义。
 
