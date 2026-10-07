@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - 'dev/**'
+      - 'codex/**'
   pull_request:
   schedule:
     - cron: '23 3 * * 1'

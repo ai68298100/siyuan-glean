@@ -1,5 +1,12 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-07 T-3296/D-0174）
+
+CodeQL push 触发器已补齐 `codex/**`，与 Quality gates 的 `main`、`dev/**`、`codex/**` 范围一致；临时开发分支也会执行安全扫描。该配置不改变版本、主干、Release 或集市策略。
+
+- T-3296 已通过 workflow YAML 解析、任务账本和差异检查；远端 CodeQL 将在本提交上复跑。
+- 版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 `package.zip`。
+
 ## 当前有效交接（2026-10-07 T-3294/D-0172）
 
 CodeQL 发现 Pocket HTML 导入标题清理和 Markdown 注释闭合的生产告警，本轮已修复输入边界并补回归；固定测试 URL 断言已独立核验无敏感 sink，保留断言并按 `used in tests` 分类关闭。详细状态见 TODO 的 T-3294/T-3295。
