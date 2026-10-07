@@ -32,6 +32,28 @@ test("settings exposes names for groups, controls and save state", () => {
     assert.match(source, /customBaseUrlInsecure/);
 });
 
+test("stats uses per-instance section names and readable daily heatmap labels", () => {
+    const source = read("src/ui/StatsView.svelte");
+    assert.match(source, /const instanceId = \$props\.id\(\);/);
+    assert.match(source, /const idFor = \(part: string\) => `\$\{idPrefix\}-\$\{part\}`;/);
+    assert.match(source, /aria-labelledby=\{idFor\("activity-title"\)\}/);
+    assert.match(source, /role="group" aria-label=\{t\(i18n, "review\.heatmap"/);
+    assert.match(source, /role=\{day\.count > 0 \? "img"/);
+    assert.match(source, /i18n, "review\.heatmapDay"/);
+    assert.doesNotMatch(source, /id="glean-stats-(?:overview|activity|breakdown|completed)-title"/);
+});
+
+test("highlight selection controls and exports form separate named action groups", () => {
+    const source = read("src/ui/HighlightView.svelte");
+    const styles = read("src/index.scss");
+    assert.doesNotMatch(source, /glean-highlights__tools glean-highlights__tools--selection" role=/);
+    assert.match(source, /class="glean-highlights__selection-actions" role="group"/);
+    assert.match(source, /class="glean-highlights__export-actions" role="group"/);
+    assert.match(source, /glean-highlights__preview-action/);
+    assert.match(source, /\(visible\.page - 1\) \* highlightPageSize/);
+    assert.match(styles, /@media \(max-width: 560px\)[\s\S]*\.glean-highlights__selection-actions,[\s\S]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
+});
+
 test("Dock 搜索打开后自动聚焦，并提供可访问的清空动作", () => {
     const source = read("src/ui/DockPanel.svelte");
     assert.match(source, /bind:this=\{searchInput\}/);

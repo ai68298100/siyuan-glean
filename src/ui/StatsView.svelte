@@ -1,7 +1,7 @@
 <script lang="ts">
 // 宽屏布局契约集中在 src/index.scss：@container glean-workbench (min-width: 760px)
-// 下 .glean-stats__metrics 具备四列基础网格；本页首屏只展示三张主卡，
-// 其余指标收进“索引快照”，避免统计页一打开就被次要数字淹没。
+// 下 .glean-stats__metrics 有四列基础网格；本页首屏覆盖为三张主卡，
+// 其余指标收进可展开的补充区，避免统计页一打开就被次要数字淹没。
 // .glean-stats__distributions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }，
 // .glean-stats__distribution { min-width: 0; }。
 import { onDestroy } from "svelte";
@@ -22,6 +22,9 @@ interface Props {
 let { facade, index, onCaptured }: Props = $props();
 
 const i18n = $derived(facade.i18n);
+const instanceId = $props.id();
+const idPrefix = `glean-stats-${instanceId}`;
+const idFor = (part: string) => `${idPrefix}-${part}`;
 
 let period = $state<ReviewPeriodKind>("week");
 let referenceDate = $state(reviewDateInput());
@@ -138,11 +141,11 @@ function downloadCsv(): void {
 </script>
 
 <div class="glean-stats" aria-busy={busy}>
-    <section class="glean-stats__overview" aria-labelledby="glean-stats-overview-title">
+    <section class="glean-stats__overview" aria-labelledby={idFor("overview-title")}>
         <div class="glean-stats__intro">
             <div>
-                <h2 id="glean-stats-overview-title">{t(i18n, "review.title")}</h2>
-                <p class="glean-stats__hint">{t(i18n, "review.scope")}</p>
+                <h2 id={idFor("overview-title")}>{t(i18n, "review.title")}</h2>
+                <p class="glean-stats__hint">{t(i18n, "review.scopeShort")}</p>
             </div>
             <div class="glean-stats__toolbar glean-stats__toolbar--filters">
                 <label>
@@ -159,6 +162,10 @@ function downloadCsv(): void {
                 </label>
             </div>
         </div>
+        <details class="glean-stats__scope">
+            <summary>{t(i18n, "review.scopeDetails")}</summary>
+            <p>{t(i18n, "review.scope")}</p>
+        </details>
         <p class="glean-stats__period">{t(i18n, "review.period")}: {stats.period.label}</p>
         {#if review.snapshotAt}<p class="glean-stats__hint">{t(i18n, "review.snapshot")}: {review.snapshotAt}</p>{/if}
         {#if !reference}<p class="glean-stats__warning">{t(i18n, "review.invalidDate")}</p>{/if}
@@ -168,7 +175,7 @@ function downloadCsv(): void {
             {/each}
         </dl>
         <details class="glean-stats__supplement">
-            <summary>{t(i18n, "review.snapshot")}</summary>
+            <summary>{t(i18n, "review.moreMetrics")}</summary>
             <dl class="glean-stats__metrics glean-stats__metrics--supplemental">
                 {#each supplementaryMetrics as metric (metric.key)}
                     <div class="glean-stats__metric"><dt>{t(i18n, metric.key)}</dt><dd>{metric.count}</dd></div>
@@ -176,13 +183,13 @@ function downloadCsv(): void {
             </dl>
         </details>
     </section>
-    <section class="glean-stats__activity" aria-labelledby="glean-stats-activity-title">
-        <h3 id="glean-stats-activity-title">{t(i18n, "review.heatmap", { year: reference?.getFullYear() ?? new Date().getFullYear() })}</h3>
-        <div class="glean-stats__heatmap-scroll" role="img" aria-label={t(i18n, "review.heatmap", { year: reference?.getFullYear() ?? new Date().getFullYear() })}>
+    <section class="glean-stats__activity" aria-labelledby={idFor("activity-title")}>
+        <h3 id={idFor("activity-title")}>{t(i18n, "review.heatmap", { year: reference?.getFullYear() ?? new Date().getFullYear() })}</h3>
+        <div class="glean-stats__heatmap-scroll" role="group" aria-label={t(i18n, "review.heatmap", { year: reference?.getFullYear() ?? new Date().getFullYear() })}>
             <div class="glean-stats__heatmap">
                 {#each Array.from({ length: heatmapPadding }, (_, index) => index) as padding (padding)}<span></span>{/each}
                 {#each stats.heatmap as day (day.date)}
-                    <span class="glean-stats__day" title={`${day.date}: ${day.count}`} style={`background:${day.count ? "var(--b3-theme-primary)" : "var(--b3-theme-surface)"};opacity:${day.count ? 0.25 + 0.75 * day.count / maxHeat : 1}`}></span>
+                    <span class="glean-stats__day" role={day.count > 0 ? "img" : undefined} aria-label={day.count > 0 ? t(i18n, "review.heatmapDay", { date: day.date, n: day.count }) : undefined} title={`${day.date}: ${day.count}`} style={`background:${day.count ? "var(--b3-theme-primary)" : "var(--b3-theme-surface)"};opacity:${day.count ? 0.25 + 0.75 * day.count / maxHeat : 1}`}></span>
                 {/each}
             </div>
             <div class="glean-stats__heatmap-legend" aria-hidden="true">
@@ -205,12 +212,12 @@ function downloadCsv(): void {
             </div>
         </details>
     </section>
-    <section class="glean-stats__breakdown" aria-labelledby="glean-stats-breakdown-title">
-      <h3 id="glean-stats-breakdown-title" class="glean-sr-only">{t(i18n, "review.bySite")}</h3>
+    <section class="glean-stats__breakdown" aria-labelledby={idFor("breakdown-title")}>
+      <h3 id={idFor("breakdown-title")} class="glean-sr-only">{t(i18n, "review.bySite")}</h3>
       <div class="glean-stats__distributions">
         {#each distributions as distribution, distributionIndex (distribution.key)}
-            <section class="glean-stats__distribution" aria-labelledby={`glean-stats-distribution-${distributionIndex}`}>
-            <h3 id={`glean-stats-distribution-${distributionIndex}`}>{t(i18n, distribution.key)}</h3>
+            <section class="glean-stats__distribution" aria-labelledby={idFor(`distribution-${distributionIndex}`)}>
+            <h3 id={idFor(`distribution-${distributionIndex}`)}>{t(i18n, distribution.key)}</h3>
             <DistributionList {i18n} counts={distribution.counts}>
                 {#snippet detailsFor(group)}
                     {#if distribution.key === "review.bySite"}
@@ -229,8 +236,8 @@ function downloadCsv(): void {
       </div>
       <p class="glean-stats__hint">{t(i18n, "review.authorHint")}</p>
     </section>
-    <section class="glean-stats__completed-section" aria-labelledby="glean-stats-completed-title">
-        <h3 id="glean-stats-completed-title">{t(i18n, "review.completedList")}</h3>
+    <section class="glean-stats__completed-section" aria-labelledby={idFor("completed-title")}>
+        <h3 id={idFor("completed-title")}>{t(i18n, "review.completedList")}</h3>
         <ul class="glean-stats__completed">
             {#each review.completedItems as item (item.id)}
                 <li>
@@ -267,11 +274,15 @@ function downloadCsv(): void {
 
 <style>
     .glean-stats__overview .glean-stats__toolbar--filters label {
+        flex: 0 1 160px;
         color: var(--b3-theme-on-surface);
         font-size: var(--glean-text-xs);
         font-weight: 650;
         line-height: 1.35;
+        white-space: nowrap;
     }
+
+    .glean-stats__overview .glean-stats__toolbar--filters { gap: var(--glean-space-2); }
 
     .glean-stats__overview .glean-stats__field {
         min-width: 136px;
@@ -282,8 +293,38 @@ function downloadCsv(): void {
         min-width: 0;
     }
 
+    .glean-stats__scope {
+        margin: calc(var(--glean-space-1) * -1) 0 0;
+        color: var(--b3-theme-on-surface);
+        font-size: var(--glean-text-xs);
+    }
+
+    .glean-stats__scope > summary {
+        display: inline-flex;
+        align-items: center;
+        min-height: 28px;
+        color: var(--b3-theme-on-surface);
+        cursor: pointer;
+    }
+
+    .glean-stats__scope > summary:hover,
+    .glean-stats__scope[open] > summary {
+        color: var(--b3-theme-primary);
+    }
+
+    .glean-stats__scope > p {
+        max-width: 88ch;
+        margin: var(--glean-space-1) 0 0;
+        line-height: 1.55;
+    }
+
     .glean-stats__overview > .glean-stats__metrics {
         grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .glean-stats__overview > .glean-stats__metrics > .glean-stats__metric {
+        background: var(--glean-section-surface);
+        border-color: var(--glean-border-soft);
     }
 
     .glean-stats__supplement > summary {
@@ -302,6 +343,22 @@ function downloadCsv(): void {
     .glean-stats__supplement > summary:hover {
         border-color: color-mix(in srgb, var(--b3-theme-primary) 28%, var(--glean-border-soft));
         color: var(--b3-theme-primary);
+    }
+
+    .glean-stats__supplement > summary::before,
+    .glean-stats__scope > summary::before {
+        content: "›";
+        display: inline-block;
+        margin-right: var(--glean-space-2);
+        font-size: 17px;
+        line-height: 1;
+        transform: rotate(0deg);
+        transition: transform 160ms var(--glean-ease-out);
+    }
+
+    .glean-stats__supplement[open] > summary::before,
+    .glean-stats__scope[open] > summary::before {
+        transform: rotate(90deg);
     }
 
     .glean-stats__metrics--supplemental {
@@ -396,6 +453,11 @@ function downloadCsv(): void {
     }
 
     @media (max-width: 560px) {
+        .glean-stats__overview .glean-stats__toolbar--filters {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr);
+        }
+
         .glean-stats__overview .glean-stats__field {
             width: 100%;
             min-width: 0;
@@ -404,6 +466,11 @@ function downloadCsv(): void {
 
         .glean-stats__overview > .glean-stats__metrics {
             grid-template-columns: 1fr;
+        }
+
+        .glean-stats__overview .glean-stats__toolbar--filters label {
+            flex: 1 1 0;
+            white-space: normal;
         }
 
         .glean-stats__metrics--supplemental {
@@ -423,6 +490,27 @@ function downloadCsv(): void {
 
         .glean-stats__metric dd {
             font-size: 20px;
+        }
+    }
+
+    @media (max-width: 640px) {
+        .glean-stats__overview .glean-stats__toolbar--filters label {
+            flex: 1 1 0;
+            white-space: normal;
+        }
+    }
+
+    @container glean-workbench (max-width: 639px) {
+        .glean-stats__overview .glean-stats__toolbar--filters label {
+            flex: 1 1 0;
+            white-space: normal;
+        }
+    }
+
+    @container glean-workbench (max-width: 560px) {
+        .glean-stats__overview .glean-stats__toolbar--filters {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr);
         }
     }
 </style>

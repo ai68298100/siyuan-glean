@@ -1,8 +1,17 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
-## 当前有效交接（2026-10-07 T-3260/D-0154）
+## 当前有效交接（2026-10-07 T-3260/D-0155）
 
-第三十一轮继续收口统计主路径、维护弹窗和阅读侧栏：统计首屏按原型保留三张主指标卡，候选指标使用短文案，索引快照折叠收纳其余数字，390px 改为单列；分布区恢复命名 section。摘录预览和今日拾遗标题 ID 按组件实例隔离，导入/迁移进度恢复读屏播报，阅读侧栏辅助文字统一主题字号。只调整 UI、CSS、i18n、测试与可访问表达，未改变业务逻辑、数据、文章属性、索引、端点或设置语义。
+第三十二轮收口统计筛选、热力图和摘录操作层级：统计口径折叠、补充指标命名、窄屏筛选纵向全宽排列，热力图图例放到日期网格下方；摘录选择与导出采用独立命名分组并移除重复嵌套，跨页序号连续；阅读区窄屏高度规则去重。只调整 UI、CSS、i18n、测试和可访问表达，未改变业务逻辑、数据、文章属性、索引、端点或设置语义。
+
+- 当前改动文件：`src/index.scss`、`src/ui/HighlightView.svelte`、`src/ui/StatsView.svelte`、`public/i18n/zh_CN.json`、`public/i18n/en_US.json`、`tests/accessibility.test.ts`、`tests/header-actions.test.ts`、`docs/DECISIONS.md`、`docs/PROGRESS.md`、`docs/HANDOFF.md`。
+- 已生成截图：`output/playwright/round33-dark-desktop.png`、`output/playwright/round33-dark-mobile.png`；为本地组件预览，非真实思源内核运行或 Android 真机验收。
+- `pnpm run check` 0 错误/0 警告；`pnpm test` 1148/1148；`pnpm build`、`pnpm task:ledger -- --check`、`git diff --check` 通过。
+- 版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 package.zip。
+
+## 既往交接（2026-10-07 T-3260/D-0154）
+
+第三十一轮收口统计主路径、维护弹窗和阅读侧栏：统计首屏按原型保留三张主指标卡，候选指标使用短文案，索引快照折叠收纳其余数字，390px 改为单列；分布区恢复命名 section。摘录预览和今日拾遗标题 ID 按组件实例隔离，导入/迁移进度恢复读屏播报，阅读侧栏辅助文字统一主题字号。只调整 UI、CSS、i18n、测试与可访问表达，未改变业务逻辑、数据、文章属性、索引、端点或设置语义。
 
 - 当前改动文件：`src/index.scss`、`src/ui/BackupPanel.svelte`、`src/ui/HighlightView.svelte`、`src/ui/ImportDialog.svelte`、`src/ui/MigrateDialog.svelte`、`src/ui/OnboardingDialog.svelte`、`src/ui/ResurfaceView.svelte`、`src/ui/SettingsView.svelte`、`src/ui/StatsView.svelte`、`public/i18n/zh_CN.json`、`public/i18n/en_US.json`、`tests/accessibility.test.ts`、`tests/header-actions.test.ts`。
 - 已生成统计页预览截图：`output/playwright/round31-stats-current-desktop.png`、`output/playwright/round31-stats-current-mobile.png`；截图为本地组件预览，非真实思源内核运行或 Android 真机验收。

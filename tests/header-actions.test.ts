@@ -70,8 +70,13 @@ test("stats prioritize three primary metrics and keep the supplemental snapshot 
     assert.match(source, /@container\s+glean-workbench\s*\(min-width:\s*760px\)/);
     assert.match(source, /\.glean-stats__overview\s*>\s*\.glean-stats__metrics\s*\{\s*grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\)/);
     assert.match(source, /\.glean-stats__metrics--supplemental\s*\{\s*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
-    assert.match(source, /aria-labelledby="glean-stats-breakdown-title"/);
+    assert.match(source, /aria-labelledby=\{idFor\("breakdown-title"\)\}/);
     assert.match(source, /class="glean-sr-only">\{t\(i18n, "review\.bySite"\)\}/);
+    assert.match(source, /review\.scopeShort/);
+    assert.match(source, /<details class="glean-stats__scope">/);
+    assert.match(source, /review\.moreMetrics/);
+    assert.match(source, /role=\{day\.count > 0 \? "img"/);
+    assert.match(source, /i18n, "review\.heatmapDay"/);
     assert.match(styles, /\.glean-stats__metrics\s*\{\s*grid-template-columns:\s*repeat\(4, minmax\(0, 1fr\)\)/);
     assert.match(source, /\.glean-stats__distributions\s*\{\s*display:\s*grid;\s*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
     assert.match(source, /\.glean-stats__distribution\s*\{\s*min-width:\s*0/);
