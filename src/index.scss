@@ -4820,6 +4820,14 @@ body.b3-theme-dark {
     margin: 10px 12px 0;
 }
 
+.glean-resurface__quick-title {
+    margin: 10px 12px 0;
+    color: var(--b3-theme-on-surface);
+    font-size: var(--glean-text-xs);
+    font-weight: 700;
+    letter-spacing: 0.04em;
+}
+
 .glean-resurface__quick-action {
     min-width: 0;
     min-height: 44px;

@@ -77,14 +77,20 @@ test("mobile resurface exposes prototype quick actions through parent navigation
     assert.match(resurface, /onQuickSearch\?: \(\) => void/);
     assert.match(resurface, /onQuickCandidates\?: \(\) => void/);
     assert.match(resurface, /resurface\.quickCapture/);
+    assert.match(resurface, /class="glean-resurface__quick-title"/);
     assert.match(resurface, /resurface\.quickSearch/);
     assert.match(resurface, /resurface\.quickCandidates/);
     assert.match(resurface, /onclick=\{onQuickCapture\}/);
     assert.doesNotMatch(resurface, /quickCapture.*facade\.openImport/s);
+    assert.match(resurface, /const quickActionsTitleId =/);
+    assert.match(resurface, /<section class="glean-resurface__quick" aria-labelledby=\{quickActionsTitleId\}>/);
+    assert.match(resurface, /<h2 id=\{quickActionsTitleId\} class="glean-resurface__quick-title">/);
+    assert.ok(resurface.indexOf('<section class="glean-resurface__quick"') > resurface.indexOf('<div class="glean-surf">'));
     assert.match(dock, /onQuickCapture=\{quickCapture\}/);
     assert.match(dock, /onQuickSearch={openLibrarySearchFromHome}/);
     assert.match(dock, /onQuickCandidates={openCandidateQueue}/);
     assert.match(styles, /\.glean-resurface__quick-action\s*\{[\s\S]*min-height: 44px/);
+    assert.match(styles, /\.glean-resurface__quick-title\s*\{[\s\S]*font-weight:\s*700/);
 });
 
 test("wide canvas highlights use a two-column card area and center empty states", () => {

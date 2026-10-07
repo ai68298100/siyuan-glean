@@ -25,6 +25,7 @@ interface Props {
 let { facade, index, onMutated, embedded = false, onQuickCapture, onQuickSearch, onQuickCandidates, quickCaptureBusy = false }: Props = $props();
 const instanceId = $props.id();
 const panelTitleId = `glean-resurface-title-${instanceId}`;
+const quickActionsTitleId = `glean-resurface-quick-actions-title-${instanceId}`;
 
 const i18n = $derived(facade.i18n);
 
@@ -261,23 +262,6 @@ function reasonText(reason: SurfaceReason): string {
         <div class="glean-surf-swipe-hint" role="note">{t(i18n, "resurface.swipeHint")}</div>
     {/if}
 
-    {#if facade.isMobile && onQuickCapture && onQuickSearch && onQuickCandidates}
-        <div class="glean-resurface__quick-actions" role="group" aria-label={t(i18n, "resurface.quickActions")}>
-            <button type="button" class="glean-resurface__quick-action glean-resurface__quick-action--primary" aria-busy={quickCaptureBusy} disabled={quickCaptureBusy} onclick={onQuickCapture}>
-                <svg class="glean-icon" aria-hidden="true"><use href="#iconGleanPlus" /></svg>
-                <span>{t(i18n, "resurface.quickCapture")}</span>
-            </button>
-            <button type="button" class="glean-resurface__quick-action" onclick={onQuickSearch}>
-                <svg class="glean-icon" aria-hidden="true"><use href="#iconGleanSearch" /></svg>
-                <span>{t(i18n, "resurface.quickSearch")}</span>
-            </button>
-            <button type="button" class="glean-resurface__quick-action" onclick={onQuickCandidates}>
-                <svg class="glean-icon" aria-hidden="true"><use href="#iconGleanInbox" /></svg>
-                <span>{t(i18n, "resurface.quickCandidates")}</span>
-            </button>
-        </div>
-    {/if}
-
     {#if undoNotice}
         <div class="glean-surf-undo" role="status" aria-live="polite">
             <span class="glean-surf-undo__text">{t(i18n, "resurface.actionApplied", { action: actionLabel(undoNotice.action) })} · {undoNotice.title}</span>
@@ -392,6 +376,26 @@ function reasonText(reason: SurfaceReason): string {
             {/each}
             <div class="glean-surf-foot">{t(i18n, "resurface.calmNote")}</div>
         </div>
+    {/if}
+
+    {#if facade.isMobile && onQuickCapture && onQuickSearch && onQuickCandidates}
+        <section class="glean-resurface__quick" aria-labelledby={quickActionsTitleId}>
+            <h2 id={quickActionsTitleId} class="glean-resurface__quick-title">{t(i18n, "resurface.quickActions")}</h2>
+            <div class="glean-resurface__quick-actions" role="group" aria-labelledby={quickActionsTitleId}>
+                <button type="button" class="glean-resurface__quick-action glean-resurface__quick-action--primary" aria-busy={quickCaptureBusy} disabled={quickCaptureBusy} onclick={onQuickCapture}>
+                    <svg class="glean-icon" aria-hidden="true"><use href="#iconGleanPlus" /></svg>
+                    <span>{t(i18n, "resurface.quickCapture")}</span>
+                </button>
+                <button type="button" class="glean-resurface__quick-action" onclick={onQuickSearch}>
+                    <svg class="glean-icon" aria-hidden="true"><use href="#iconGleanSearch" /></svg>
+                    <span>{t(i18n, "resurface.quickSearch")}</span>
+                </button>
+                <button type="button" class="glean-resurface__quick-action" onclick={onQuickCandidates}>
+                    <svg class="glean-icon" aria-hidden="true"><use href="#iconGleanInbox" /></svg>
+                    <span>{t(i18n, "resurface.quickCandidates")}</span>
+                </button>
+            </div>
+        </section>
     {/if}
 </div>
 
