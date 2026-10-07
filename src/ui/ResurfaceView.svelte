@@ -16,9 +16,11 @@ interface Props {
     index: GleanIndex;
     onMutated: () => void;
     embedded?: boolean;
+    onQuickSearch?: () => void;
+    onQuickCandidates?: () => void;
 }
 
-let { facade, index, onMutated, embedded = false }: Props = $props();
+let { facade, index, onMutated, embedded = false, onQuickSearch, onQuickCandidates }: Props = $props();
 const instanceId = $props.id();
 const panelTitleId = `glean-resurface-title-${instanceId}`;
 
@@ -255,6 +257,23 @@ function reasonText(reason: SurfaceReason): string {
 
     {#if facade.isMobile && picks.length > 0}
         <div class="glean-surf-swipe-hint" role="note">{t(i18n, "resurface.swipeHint")}</div>
+    {/if}
+
+    {#if facade.isMobile && onQuickSearch && onQuickCandidates}
+        <div class="glean-resurface__quick-actions" role="group" aria-label={t(i18n, "resurface.quickActions")}>
+            <button type="button" class="glean-resurface__quick-action glean-resurface__quick-action--primary" onclick={() => facade.openImport()}>
+                <svg class="glean-icon" aria-hidden="true"><use href="#iconGleanPlus" /></svg>
+                <span>{t(i18n, "resurface.quickImport")}</span>
+            </button>
+            <button type="button" class="glean-resurface__quick-action" onclick={onQuickSearch}>
+                <svg class="glean-icon" aria-hidden="true"><use href="#iconGleanSearch" /></svg>
+                <span>{t(i18n, "resurface.quickSearch")}</span>
+            </button>
+            <button type="button" class="glean-resurface__quick-action" onclick={onQuickCandidates}>
+                <svg class="glean-icon" aria-hidden="true"><use href="#iconGleanInbox" /></svg>
+                <span>{t(i18n, "resurface.quickCandidates")}</span>
+            </button>
+        </div>
     {/if}
 
     {#if undoNotice}

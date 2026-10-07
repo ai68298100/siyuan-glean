@@ -52,6 +52,21 @@ test("wide canvas resurface cards use an adaptive grid while dock stays single c
     assert.match(narrow, /flex-direction:\s*column/);
 });
 
+test("mobile resurface exposes prototype quick actions through parent navigation callbacks", () => {
+    const resurface = read("src/ui/ResurfaceView.svelte");
+    const dock = read("src/ui/DockPanel.svelte");
+    const styles = read("src/index.scss");
+    assert.match(resurface, /onQuickSearch\?: \(\) => void/);
+    assert.match(resurface, /onQuickCandidates\?: \(\) => void/);
+    assert.match(resurface, /resurface\.quickImport/);
+    assert.match(resurface, /resurface\.quickSearch/);
+    assert.match(resurface, /resurface\.quickCandidates/);
+    assert.match(resurface, /facade\.openImport\(\)/);
+    assert.match(dock, /onQuickSearch={openLibrarySearchFromHome}/);
+    assert.match(dock, /onQuickCandidates={openCandidateQueue}/);
+    assert.match(styles, /\.glean-resurface__quick-action\s*\{[\s\S]*min-height: 44px/);
+});
+
 test("wide canvas highlights use a two-column card area and center empty states", () => {
     const source = read("src/ui/HighlightView.svelte");
     assert.match(source, /class="glean-highlights__items"/);

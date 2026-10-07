@@ -460,7 +460,16 @@ function openCandidateQueue(): void {
     selectedTimeSource = "";
     selectedContentType = "";
     keyword = "";
+    searchOpen = false;
     if (isTabCanvas) layoutMode = "list";
+}
+
+function openLibrarySearchFromHome(): void {
+    markPrefsInteraction();
+    view = "library";
+    clearFilters();
+    authorTimeline = true;
+    searchOpen = true;
 }
 
 function clearFilters(): void {
@@ -2130,7 +2139,14 @@ function metaLine(entry: Row): string {
             />
         {/if}
     {:else if view === "resurface"}
-        <ResurfaceView {facade} {index} embedded onMutated={() => void reload()} />
+        <ResurfaceView
+            {facade}
+            {index}
+            embedded
+            onMutated={() => void reload()}
+            onQuickSearch={openLibrarySearchFromHome}
+            onQuickCandidates={openCandidateQueue}
+        />
     {:else if view === "stats"}
         <StatsView {facade} {index} onCaptured={() => void reload()} />
     {:else}

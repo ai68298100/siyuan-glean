@@ -4792,6 +4792,51 @@ body.b3-theme-dark {
     text-align: center;
 }
 
+.glean-resurface__quick-actions {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin: 10px 12px 0;
+}
+
+.glean-resurface__quick-action {
+    min-width: 0;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px 6px;
+    border: 1px solid var(--glean-border-soft);
+    border-radius: var(--glean-radius-md);
+    background: var(--glean-section-surface);
+    color: var(--b3-theme-on-background);
+    font-size: var(--glean-text-xs);
+    cursor: pointer;
+    transition: transform 180ms var(--glean-ease-out), border-color 180ms ease, background-color 180ms ease;
+
+    &:hover {
+        border-color: color-mix(in srgb, var(--glean-accent-b) 45%, var(--glean-border-soft));
+        background: var(--glean-primary-soft);
+    }
+
+    &:active { transform: scale(.985); }
+
+    &:focus-visible {
+        outline: 2px solid var(--b3-theme-primary);
+        outline-offset: 2px;
+    }
+
+    .glean-icon { flex: 0 0 auto; }
+}
+
+.glean-resurface__quick-action--primary {
+    border-color: transparent;
+    background: var(--glean-grad-soft);
+    color: var(--glean-accent-b);
+    font-weight: 650;
+}
+
 .glean-surf-undo {
     position: sticky;
     top: 0;
