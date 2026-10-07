@@ -1,5 +1,15 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-07 T-3290/D-0168）
+
+本轮将任务账本一致性检查加入 GitHub Quality gates：CI 在代码质量、测试、构建后执行 `pnpm task:ledger -- --check`，防止 `TODO.md` 执行板与生成账本漂移；同步刷新 T-3290 的账本描述和 D-0168 决策。没有改变插件功能、数据契约或版本。
+
+- 本轮改动：`.github/workflows/ci.yml`、`docs/TASK-LEDGER.md`、`docs/DECISIONS.md`、`docs/HANDOFF.md`。
+- 本地验证：`pnpm task:ledger -- --check`、`pnpm visual:check`（24 个案例均登记为 pending-host）、`pnpm check`（0 错误/0 警告）、`pnpm test`（1160/1160）、`pnpm build`、`pnpm check:release`、`git diff --check` 均通过。
+- CI 实现提交 `cfac3dc` 已推送到 `dev/thispc-1002`；该提交的 Quality gates 和 CodeQL 均成功。本轮未触碰 `main`，没有升版、打 tag、发 Release 或提交集市。
+- 下一步先完成 T-3275–T-3278 的作者真实宿主/真机验收；T-3279–T-3286 依赖真实截图、设备、模型或外部数据，按各自 blocker 留待实测；T-3287–T-3289 等主链反馈与作者品牌素材审阅。T-3292/3293 的代码与隔离验证已完成，分别等待 B-0002/B-0012；T-3290 等作者审阅真实截图与合并前发布口径；T-3291 等真实安装检查与明确发布授权。
+- 版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 `package.zip`。
+
 ## 当前有效交接（2026-10-07 T-3236/D-0167）
 
 本轮补齐工作台批量操作的原型归属：列表行和看板卡直接提供选择入口，各自内容区显示共享批量条；预览侧栏不被根级浮动条覆盖。批量状态、归档、AI 批处理和清空动作继续复用既有 Dock 逻辑，未改变数据契约。
