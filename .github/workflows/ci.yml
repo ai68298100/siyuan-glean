@@ -50,6 +50,9 @@ jobs:
       - name: Repository hygiene
         run: git diff --check
 
+      - name: Task ledger consistency
+        run: pnpm task:ledger -- --check
+
       - name: Visual baseline contract
         run: pnpm visual:check
 
