@@ -1,5 +1,10 @@
 # 进度（PROGRESS）
 
+## T-3300/D-0178（2026-10-07：收集箱精确 ID 恢复检查点）
+
+- [x] 新增严格 `inbox-recovery.json` schema 与 save/readback/clear 服务；收集箱迁入在副作用前持久化意图，收到合法文档 ID 后只沿确切 ID 重试 capture/index/remove；未知创建结果不自动认领或重建。
+- [x] 面板重载后恢复待收录/待删除/未知状态，同插件迁入串行化并补齐路径边界；收集箱/检查点定向回归 42/42，全量 `pnpm test` 1172/1172，`pnpm check`、`pnpm build`、`pnpm check:release`、`pnpm task:ledger -- --check` 与 `git diff --check` 通过。真实收集箱、重载和双窗口仍待 B-0002/B-0007；视觉矩阵 24 项继续标记为 pending-host。
+
 ## T-3299/D-0177（2026-10-07：外部元数据 Markdown 边界）
 
 - [x] 收集箱标题压为单行并转义 Markdown 标点；描述按原换行逐行引用，避免脱离引用；来源链接只接受 HTTP(S) 并使用安全目标。Pocket/Omnivore/Wallabag 导入的标题、来源名和标签按纯文本写入，防止标题结构、图片/链接语法及换行注入。云收集箱完整正文 Markdown 原样保留；没有新增端点、属性或存储字段。

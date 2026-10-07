@@ -11,6 +11,7 @@
 | 用户自己的标签 | 根块 IAL `tags`（官方剪藏写入位） | 仍在；外部导入仅在新建文档时带入文件标签，之后插件不覆写 |
 | 派生索引 `glean-index.json` | 插件 saveData | 随插件删除，可随时重建 |
 | 迁移任务进度 `migrate-progress.json` | 插件 saveData | 随插件删除；仅用于暂停、恢复与失败重试，文章属性仍是事实源 |
+| 收集箱迁入检查点 `inbox-recovery.json` | 插件 saveData | 随插件删除；只用于防止已创建文档重复迁入 |
 | 插件设置 | 插件 saveData | 随插件删除 |
 | 排版整理稿 | 原笔记本中的独立普通文档，仅标记既有 internal | 正文与原文回链仍在；不复制原文读库属性 |
 
@@ -297,6 +298,8 @@ UI 默认 Top8，其余项汇总显示项数和计数之和，可展开查看全
 所有 JSON 与 multipart 请求都通过统一 `kernelPost` 校验思源响应；只有明确的数字 `code=0` 才算端点成功，缺响应、缺 code 或非零 code 必须拒绝。传输使用 SDK 的异步 Promise 接口 `fetchSyncPost`：`fetchPost` 经宿主 `processMessage` 处理非零响应时可能不调用成功回调，不能用成功回调包 Promise 等待失败。multipart 保留 FormData 原样，不设置 JSON Content-Type。已按思源 `v3.8.6` 的 `app/src/util/fetch.ts` 与 `kernel/apicontract/inbox.go` 核实，不新增端点。
 
 收集箱列表还须校验云服务内层 `code=0` 和列表结构；外层成功不能掩盖内层失败。列表/详情异常分别返回不可用/null，云端删除和 assets 写入异常则抛出，让服务保留云条目或旧快照。当前不新增写入请求超时后的自动重试：响应丢失时不能据此认定服务器未写入。
+
+收集箱迁入使用 `inbox-recovery.json` 记录 `creating`、`capture-pending`、`remove-pending` 或 `unknown` 阶段、云端 `oId`、目标笔记本/路径和确切文档 ID；不记录正文、标题、URL、标签或属性。创建前先保存 `creating`，收到合法文档 ID 后立即保存 `capture-pending`；属性/索引失败只重试该 ID，云端删除失败只重试 `removeShorthands`。创建响应丢失、非法 ID 或检查点读写失败进入未知/人工核对路径，禁止按标题、路径或最近文档认领，也禁止自动重建。同一检查点只能由当前云端 `oId` 继续，完成云端删除后才清理。
 
 ### 5.2 AI 辅助范围与共享额度（D-0067，T-3225）
 

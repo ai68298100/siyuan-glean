@@ -4,7 +4,9 @@ import { openTab, showMessage } from "siyuan";
 import type { GleanFacade } from "../types";
 import { t } from "../libs/i18n";
 import { removeShorthands, type Shorthand } from "../api/inbox";
-import { checkInbox, migrateShorthand } from "../services/inbox-service";
+import { checkInbox, InboxRecoveryError, migrateShorthand } from "../services/inbox-service";
+import { clearInboxRecovery, loadInboxRecovery } from "../services/inbox-recovery";
+import type { InboxRecovery } from "../domain/inbox-recovery";
 
 interface Props {
     facade: GleanFacade;
@@ -25,12 +27,52 @@ let items = $state<Shorthand[]>([]);
 let busyId = $state("");
 let duplicate = $state<{ item: Shorthand; existingId: string } | null>(null);
 let pendingRemoval = $state<Record<string, string>>({});
+let pendingCapture = $state<Record<string, string>>({});
+let unknownRecovery = $state<Record<string, boolean>>({});
+let recovery = $state<InboxRecovery | null>(null);
+
+function applyRecovery(checkpoint: InboxRecovery | null) {
+    recovery = checkpoint;
+    pendingRemoval = {};
+    pendingCapture = {};
+    unknownRecovery = {};
+    if (!checkpoint) return;
+    if (checkpoint.phase === "remove-pending" && checkpoint.docId) pendingRemoval[checkpoint.shorthandId] = checkpoint.docId;
+    if (checkpoint.phase === "capture-pending" && checkpoint.docId) pendingCapture[checkpoint.shorthandId] = checkpoint.docId;
+    if (checkpoint.phase === "unknown") unknownRecovery[checkpoint.shorthandId] = true;
+}
+
+function recoveryMessage(error: unknown): string {
+    if (!(error instanceof InboxRecoveryError)) return String(error).slice(0, 140);
+    const messages: Record<InboxRecoveryError["reason"], string> = {
+        readFailed: "inbox.recoveryReadFailed",
+        invalid: "inbox.recoveryInvalid",
+        checkpointFailed: "inbox.recoveryCheckpointFailed",
+        clearFailed: "inbox.recoveryCheckpointFailed",
+        busy: "inbox.recoveryBusy",
+        createUnknown: "inbox.recoveryCreateUnknown",
+        captureFailed: "inbox.recoveryCaptureFailed",
+        removeFailed: "inbox.cloudRemoveFailed",
+        conflict: "inbox.duplicate",
+    };
+    return t(i18n, messages[error.reason]);
+}
+
+function rememberRecovery(checkpoint: InboxRecovery | undefined) {
+    if (checkpoint) applyRecovery(checkpoint);
+}
 
 async function refresh() {
     try {
         const status = await checkInbox();
         available = status.available;
         items = status.page?.shorthands ?? [];
+        try {
+            applyRecovery(await loadInboxRecovery(facade.pluginInstance));
+        } catch (error) {
+            applyRecovery(null);
+            showMessage(recoveryMessage(error), 5000);
+        }
     } catch {
         available = false;
     } finally {
@@ -56,6 +98,8 @@ async function migrate(item: Shorthand, allowDuplicate = false) {
             duplicate = { item, existingId: result.existing.id };
             return;
         }
+        if (result.recovery) rememberRecovery(result.recovery);
+        else if (result.cloudRemoved) applyRecovery(null);
         showMessage(t(i18n, "inbox.migrated"), 3000);
         if (result.cloudRemoved) {
             items = items.filter((entry) => entry.oId !== item.oId);
@@ -65,7 +109,8 @@ async function migrate(item: Shorthand, allowDuplicate = false) {
         }
         onMutated();
     } catch (error) {
-        showMessage(String(error).slice(0, 140), 5000);
+        if (error instanceof InboxRecoveryError) rememberRecovery(error.recovery);
+        showMessage(recoveryMessage(error), 5000);
     } finally {
         busyId = "";
     }
@@ -76,11 +121,15 @@ async function dismiss(item: Shorthand) {
     busyId = item.oId;
     try {
         await removeShorthands([item.oId]);
+        if (recovery?.shorthandId === item.oId) {
+            await clearInboxRecovery(facade.pluginInstance, recovery, true);
+            applyRecovery(null);
+        }
         items = items.filter((entry) => entry.oId !== item.oId);
         delete pendingRemoval[item.oId];
         if (duplicate?.item.oId === item.oId) duplicate = null;
     } catch (error) {
-        showMessage(String(error).slice(0, 140), 5000);
+        showMessage(recoveryMessage(error), 5000);
     } finally {
         busyId = "";
     }
@@ -109,8 +158,8 @@ async function dismiss(item: Shorthand) {
                                 {/if}
                             </div>
                             <div class="glean-inbox__ops">
-                                <button type="button" class="glean-cap-btn" aria-busy={busyId === item.oId} disabled={Boolean(busyId)} onclick={() => pendingRemoval[item.oId] ? void dismiss(item) : void migrate(item)}>
-                                    {t(i18n, pendingRemoval[item.oId] ? "inbox.retryCloudRemoval" : "inbox.migrate")}
+                                <button type="button" class="glean-cap-btn" aria-busy={busyId === item.oId} disabled={Boolean(busyId) || Boolean(unknownRecovery[item.oId])} onclick={() => pendingRemoval[item.oId] ? void dismiss(item) : void migrate(item)}>
+                                    {t(i18n, pendingRemoval[item.oId] ? "inbox.retryCloudRemoval" : pendingCapture[item.oId] ? "inbox.retryCapture" : unknownRecovery[item.oId] ? "inbox.recoveryUnknownShort" : "inbox.migrate")}
                                 </button>
                                 <button type="button" class="glean-inbox__dismiss" aria-busy={busyId === item.oId} disabled={Boolean(busyId)} title={t(i18n, "inbox.dismiss")} aria-label={t(i18n, "inbox.dismiss")} onclick={() => void dismiss(item)}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanClose" /></svg></button>
                             </div>
@@ -119,6 +168,17 @@ async function dismiss(item: Shorthand) {
                             <div class="glean-inbox__duplicate" role="group" aria-label={t(i18n, "inbox.cloudRemoveFailed")}>
                                 <span role="alert">{t(i18n, "inbox.cloudRemoveFailed")}</span>
                                 <button type="button" class="glean-op-btn" onclick={() => void openTab({ app: facade.pluginInstance.app, doc: { id: pendingRemoval[item.oId] }, keepCursor: false })}>{t(i18n, "inbox.openExisting")}</button>
+                            </div>
+                        {/if}
+                        {#if pendingCapture[item.oId]}
+                            <div class="glean-inbox__duplicate" role="group" aria-label={t(i18n, "inbox.recoveryCaptureFailed")}>
+                                <span role="alert">{t(i18n, "inbox.recoveryCaptureFailed")}</span>
+                                <button type="button" class="glean-op-btn" onclick={() => void openTab({ app: facade.pluginInstance.app, doc: { id: pendingCapture[item.oId] }, keepCursor: false })}>{t(i18n, "inbox.openExisting")}</button>
+                            </div>
+                        {/if}
+                        {#if unknownRecovery[item.oId]}
+                            <div class="glean-inbox__duplicate" role="group" aria-label={t(i18n, "inbox.recoveryUnknown")}>
+                                <span role="alert">{t(i18n, "inbox.recoveryUnknown")}</span>
                             </div>
                         {/if}
                         {#if duplicate?.item.oId === item.oId}

@@ -1,5 +1,13 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-07 T-3300/D-0178）
+
+收集箱迁入已接入 `inbox-recovery.json`：创建前保存 intent，拿到合法文档 ID 后保存 `capture-pending`，收录后保存 `remove-pending`；capture/index 失败复用精确 ID，创建响应未知进入 unknown 并禁止重建。检查点只保存阶段、oId、目标位置和文档 ID，不保存正文或文章属性。
+
+- 新增 `src/domain/inbox-recovery.ts`、`src/services/inbox-recovery.ts` 和 `tests/inbox-recovery.test.ts`；`tests/external-api.test.mjs` 增加恢复重试与未知创建回归，`package.json` 已纳入测试命令。
+- 收集箱/检查点定向回归 42/42，`pnpm check`（0 错误/0 警告）、`pnpm test`（1172/1172）、`pnpm build`、`pnpm check:release`、`pnpm task:ledger -- --check` 与 `git diff --check` 已通过；`pnpm visual:check` 的 24 个案例仍等待真实宿主截图。真实收集箱、插件重载、双窗口和云端删除仍待 B-0002/B-0007。
+- 当前开发分支为 `dev/thispc-1002`，不触碰 `main`，不升版、不打 tag、不创建 Release、不上传 `package.zip`。
+
 ## 当前有效交接（2026-10-07 T-3299/D-0177）
 
 收集箱和外部文件的标题、描述、站点名与标签按纯文本语义写入 Markdown；跨行描述逐行保持引用，来源链接限制为 HTTP(S)。云端 `shorthandMd` 正文不做改写；本轮未新增存储、属性或 API。

@@ -42,6 +42,7 @@ const cloudItem = {
     oId: "cloud-1", shorthandTitle: "文章", shorthandMd: "真实正文",
     shorthandDesc: "", shorthandURL: "https://example.com/article", hCreated: "2026-09-29 10:00",
 };
+const createdInboxDocId = "20261007144000-aaaaaaa";
 
 test("内核 Promise 传输保留成功数据和原始请求", async () => {
     const calls = mockResponse({ code: 0, data: { value: 42 } });
@@ -137,6 +138,7 @@ test("收集箱详情错误和空载荷降级为 null，合法载荷可回退请
 
 function serviceHarness() {
     const attrs = new Map();
+    const paths = new Map();
     const files = new Map();
     const calls = [];
     const responses = new Map();
@@ -144,6 +146,7 @@ function serviceHarness() {
         settings: normalizeSettings({}),
         async loadData(name) { return structuredClone(files.get(name)); },
         async saveData(name, value) { files.set(name, structuredClone(value)); },
+        async removeData(name) { files.delete(name); },
     };
     globalThis.__gleanExternalPost = async (route, body) => {
         calls.push({ route, body });
@@ -157,12 +160,13 @@ function serviceHarness() {
             case "/api/query/sql": {
                 const docId = /WHERE id = '([^']+)'/.exec(body.stmt)?.[1];
                 const ids = docId ? [docId] : [...attrs.keys()].filter((id) => attrs.get(id)["custom-clip-status"] || attrs.get(id)["custom-clip-url"]);
-                data = ids.map((id) => ({ id, box: "box", content: id, hpath: `/${id}`, updated: "20260929000000" }));
+                data = ids.map((id) => ({ id, box: "box", content: id, hpath: paths.get(id) ?? `/${id}`, updated: "20260929000000" }));
                 break;
             }
             case "/api/filetree/createDocWithMd":
-                attrs.set("new-doc", {});
-                data = "new-doc";
+                attrs.set(createdInboxDocId, {});
+                paths.set(createdInboxDocId, body.path);
+                data = createdInboxDocId;
                 break;
             case "/api/attr/getBlockAttrs": data = attrs.get(body.id) ?? {}; break;
             case "/api/attr/batchGetBlockAttrs": data = Object.fromEntries(body.ids.map((id) => [id, attrs.get(id) ?? {}])); break;
@@ -175,24 +179,71 @@ function serviceHarness() {
         }
         return { code: 0, data };
     };
-    return { attrs, files, calls, responses, plugin };
+    return { attrs, paths, files, calls, responses, plugin };
 }
 
 test("云端删除异常保留真实本地收录，返回 cloudRemoved=false", async () => {
     const context = serviceHarness();
     context.responses.set("/api/inbox/removeShorthands", {});
     const result = await migrateShorthand(context.plugin, cloudItem, { notebookId: "box" });
-    assert.equal(result.docId, "new-doc");
+    assert.equal(result.docId, createdInboxDocId);
     assert.equal(result.cloudRemoved, false);
-    assert.equal(context.attrs.get("new-doc")["custom-clip-status"], "inbox");
-    assert.equal(context.attrs.get("new-doc")["custom-clip-url"], cloudItem.shorthandURL);
+    assert.equal(context.attrs.get(createdInboxDocId)["custom-clip-status"], "inbox");
+    assert.equal(context.attrs.get(createdInboxDocId)["custom-clip-url"], cloudItem.shorthandURL);
+    assert.equal(context.files.get("inbox-recovery.json").phase, "remove-pending");
 });
 
 test("本地属性收录失败时不调用云端删除", async () => {
     const context = serviceHarness();
     context.responses.set("/api/attr/setBlockAttrs", { code: -1, msg: "permission denied" });
-    await assert.rejects(migrateShorthand(context.plugin, cloudItem, { notebookId: "box" }), /permission denied/);
+    await assert.rejects(migrateShorthand(context.plugin, cloudItem, { notebookId: "box" }), (error) => error.reason === "captureFailed");
     assert.equal(context.calls.some((call) => call.route === "/api/inbox/removeShorthands"), false);
+});
+
+test("收录失败重试复用检查点中的确切文档 ID，不再次创建", async () => {
+    const context = serviceHarness();
+    context.responses.set("/api/attr/setBlockAttrs", { code: -1, msg: "permission denied" });
+    await assert.rejects(migrateShorthand(context.plugin, cloudItem, { notebookId: "box" }), (error) => error.reason === "captureFailed");
+    const creates = () => context.calls.filter((call) => call.route === "/api/filetree/createDocWithMd").length;
+    assert.equal(creates(), 1);
+    context.responses.delete("/api/attr/setBlockAttrs");
+    context.responses.delete("/api/inbox/removeShorthands");
+    const result = await migrateShorthand(context.plugin, cloudItem, { notebookId: "box" });
+    assert.equal(result.docId, createdInboxDocId);
+    assert.equal(creates(), 1);
+    assert.equal(context.files.has("inbox-recovery.json"), false);
+});
+
+test("创建响应未知时转为 unknown，后续点击禁止再次创建", async () => {
+    const context = serviceHarness();
+    context.responses.set("/api/filetree/createDocWithMd", { code: 0, data: "" });
+    await assert.rejects(migrateShorthand(context.plugin, cloudItem, { notebookId: "box" }), (error) => error.reason === "createUnknown");
+    assert.equal(context.files.get("inbox-recovery.json").phase, "unknown");
+    context.responses.delete("/api/filetree/createDocWithMd");
+    await assert.rejects(migrateShorthand(context.plugin, cloudItem, { notebookId: "box" }), (error) => error.reason === "createUnknown");
+    assert.equal(context.calls.filter((call) => call.route === "/api/filetree/createDocWithMd").length, 1);
+});
+
+test("收集箱同一插件实例的并发迁入在检查点槽位上互斥", async () => {
+    const context = serviceHarness();
+    let release;
+    const blocked = new Promise((resolve) => { release = resolve; });
+    let firstQuery = true;
+    context.responses.set("/api/query/sql", async () => {
+        if (firstQuery) {
+            firstQuery = false;
+            await blocked;
+        }
+        return undefined;
+    });
+    const first = migrateShorthand(context.plugin, cloudItem, { notebookId: "box" });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await assert.rejects(
+        migrateShorthand(context.plugin, { ...cloudItem, oId: "cloud-2" }, { notebookId: "box" }),
+        (error) => error.reason === "busy",
+    );
+    release();
+    await first;
 });
 
 test("收集箱标题和描述保持在安全的 Markdown 结构内", async () => {
@@ -224,7 +275,7 @@ test("收集箱来源链接仅接受 HTTP(S)，并将 URL 放入安全目标", a
 test("收录未执行成功时不删除云条目或伪报迁入", async () => {
     const context = serviceHarness();
     context.responses.set("/api/attr/getBlockAttrs", { code: 0, data: { "custom-clip-status": "later" } });
-    await assert.rejects(migrateShorthand(context.plugin, cloudItem, { notebookId: "box" }), /未完成收录/);
+    await assert.rejects(migrateShorthand(context.plugin, cloudItem, { notebookId: "box" }), (error) => error.reason === "conflict");
     assert.equal(context.calls.some((call) => call.route === "/api/inbox/removeShorthands"), false);
 });
 
@@ -390,11 +441,11 @@ test("收集箱共享收录管线生成快照，快照失败仍允许真实本�
         context.plugin.settings.snapshotOnCapture = true;
         if (failed) context.responses.set("/api/export/exportHTML", new Error("snapshot failed"));
         const result = await migrateShorthand(context.plugin, cloudItem, { notebookId: "box" });
-        assert.equal(result.docId, "new-doc");
+        assert.equal(result.docId, createdInboxDocId);
         assert.equal(result.cloudRemoved, true);
-        assert.equal(context.attrs.get("new-doc")["custom-clip-status"], "inbox");
-        assert.equal(context.attrs.get("new-doc")["custom-clip-url"], cloudItem.shorthandURL);
-        assert.equal(Boolean(context.attrs.get("new-doc")["custom-clip-snapshot"]), !failed);
+        assert.equal(context.attrs.get(createdInboxDocId)["custom-clip-status"], "inbox");
+        assert.equal(context.attrs.get(createdInboxDocId)["custom-clip-url"], cloudItem.shorthandURL);
+        assert.equal(Boolean(context.attrs.get(createdInboxDocId)["custom-clip-snapshot"]), !failed);
         assert.equal(context.calls.filter((call) => call.route === "/api/export/exportHTML").length, 1);
     }
 });
