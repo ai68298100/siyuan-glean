@@ -10,6 +10,14 @@ The shortest loop is: **find source evidence → preview candidates → confirm 
 
 The [capability matrix](docs/CAPABILITY-MATRIX.md) records implementation, isolated verification, real-environment status, prerequisites, and fallbacks. The [terminology table](docs/TERMINOLOGY.md) keeps Chinese and English UI terms aligned.
 
+## Project status and links
+
+- Current public release: [`v1.1.0`](https://github.com/ai68298100/siyuan-glean/releases/latest), compatible with SiYuan `v3.8.5+`.
+- Package: download `package.zip` from the [Latest Release](https://github.com/ai68298100/siyuan-glean/releases/latest), then install it through SiYuan's marketplace or plugin manager; development branches are not stable releases.
+- Core library code and isolated regressions are in place. Desktop host, Android/mobile, browser frontend, real-model, and external-service paths are tracked and accepted separately in the capability matrix; browser previews and unit tests are not treated as real-device acceptance.
+- AI enrichment is manual by default and does not run automatically or spend tokens in the background. Individual AI actions require a configured model or channel; automatic enrichment must be enabled separately. The inbox bridge, external imports, snapshots, and cross-plugin bridges also have additional prerequisites.
+- Quick links: [`latest Release`](https://github.com/ai68298100/siyuan-glean/releases/latest) · [`report a problem or suggestion`](https://github.com/ai68298100/siyuan-glean/issues/new/choose) · [`all Issues`](https://github.com/ai68298100/siyuan-glean/issues) · [capability matrix](docs/CAPABILITY-MATRIX.md)
+
 ## What problem it solves
 
 The official SiYuan Web Clipper is convenient, but the source URL and time are often template text in the document body. Search, databases, and queries cannot manage those clippings as articles. Lv Glean adds a `custom-clip-*` document-attribute schema and a rebuildable index for reading views.
@@ -81,7 +89,7 @@ Four Lv (小驴) SiYuan plugins are currently developed:
 
 ## Community
 
-QQ group for discussion: **871707735**
+For feature requests, reproducible bugs, and compatibility reports, please open a [GitHub Issue](https://github.com/ai68298100/siyuan-glean/issues) with your SiYuan version, frontend type, plugin version, reproduction steps, and sanitized screenshots when useful. QQ group: **871707735**.
 
 ## Development
 
