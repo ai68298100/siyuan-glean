@@ -186,6 +186,7 @@
   "panel.resurface": "Today's gleaning",
   "panel.searchPlaceholder": "Search title, site, tags…",
   "panel.searchClear": "Clear search",
+  "panel.searchClose": "Close search",
   "panel.minutes": "~${n} min",
   "panel.words": "${n} words",
   "panel.untitled": "Untitled",

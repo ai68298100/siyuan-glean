@@ -66,6 +66,7 @@ let selectedAiTag = $state("");
 /** Dock 窄画布搜索默认折叠为图标（UX 审计 #8）；工作台/浮窗保持常驻。 */
 let searchOpen = $state(false);
 let searchInput = $state<HTMLInputElement | null>(null);
+let searchToggle = $state<HTMLButtonElement | null>(null);
 let selectedSource = $state("");
 let selectedTimeSource = $state("");
 let selectedContentType = $state("");
@@ -317,6 +318,12 @@ $effect(() => {
     if (!searchOpen) return;
     void tick().then(() => searchInput?.focus());
 });
+
+function closeSearch(): void {
+    if (!searchOpen) return;
+    searchOpen = false;
+    void tick().then(() => searchToggle?.focus());
+}
 
 const candidateCount = $derived(Object.keys(index.candidates).length);
 const totalClips = $derived(Object.keys(index.clips).length);
@@ -1378,6 +1385,7 @@ function metaLine(entry: Row): string {
                         aria-label={t(i18n, "panel.searchPlaceholder")}
                         placeholder={t(i18n, "panel.searchPlaceholder")}
                         bind:value={keyword}
+                        onkeydown={(event) => { if (event.key === "Escape") closeSearch(); }}
                     />
                     {#if keyword}
                         <button
@@ -1388,9 +1396,19 @@ function metaLine(entry: Row): string {
                             onclick={() => { keyword = ""; searchInput?.focus(); }}
                         ><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanClose" /></svg></button>
                     {/if}
+                    {#if !isTabCanvas}
+                        <button
+                            type="button"
+                            class="glean-search__close"
+                            title={t(i18n, "panel.searchClose")}
+                            aria-label={t(i18n, "panel.searchClose")}
+                            onclick={closeSearch}
+                        ><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanClose" /></svg></button>
+                    {/if}
                 </div>
             {:else}
                 <button
+                    bind:this={searchToggle}
                     class="glean-icon-btn"
                     title={t(i18n, "panel.searchPlaceholder")}
                     aria-label={t(i18n, "panel.searchPlaceholder")}

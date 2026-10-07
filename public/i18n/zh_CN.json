@@ -186,6 +186,7 @@
   "panel.resurface": "今日拾遗",
   "panel.searchPlaceholder": "搜索标题、站点、标签…",
   "panel.searchClear": "清空搜索",
+  "panel.searchClose": "关闭搜索",
   "panel.minutes": "约 ${n} 分钟",
   "panel.words": "${n} 字",
   "panel.untitled": "无标题",

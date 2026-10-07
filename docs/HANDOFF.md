@@ -1,5 +1,12 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-08 T-3292/D-0179）
+
+窄 Dock 搜索现在有完整的可逆交互：打开后自动聚焦，输入关键词时可清空；关闭按钮和 Escape 都会收起输入框，并将焦点还给搜索图标。关闭不清除关键词，回到图书馆时筛选结果保持不变；工作台/浮窗常驻搜索不显示关闭动作。
+
+- 本轮改动：`src/ui/DockPanel.svelte`、`src/index.scss`、`public/i18n/zh_CN.json`、`public/i18n/en_US.json`、`tests/accessibility.test.ts` 及任务/决策/进度文档。
+- 已通过：定向无障碍回归、`pnpm check`（0 错误/0 警告）、`pnpm test`（1172/1172）。真实 Dock 宽度、键盘和移动触控仍待 B-0002；版本保持 `1.1.0`，不触碰 `main`，不打 tag、不创建 Release、不上传 `package.zip`。
+
 ## 当前有效交接（2026-10-07 T-3300/D-0178）
 
 收集箱迁入已接入 `inbox-recovery.json`：创建前保存 intent，拿到合法文档 ID 后保存 `capture-pending`，收录后保存 `remove-pending`；capture/index 失败复用精确 ID，创建响应未知进入 unknown 并禁止重建。检查点只保存阶段、oId、目标位置和文档 ID，不保存正文或文章属性。

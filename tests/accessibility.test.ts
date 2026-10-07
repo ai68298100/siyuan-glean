@@ -84,12 +84,16 @@ test("reading context labels are unique per mounted instance", () => {
     assert.doesNotMatch(source, /id="glean-reading-context-title"/);
 });
 
-test("Dock 搜索打开后自动聚焦，并提供可访问的清空动作", () => {
+test("Dock 搜索打开后自动聚焦，并提供清空、关闭和 Esc 返回焦点", () => {
     const source = read("src/ui/DockPanel.svelte");
     assert.match(source, /bind:this=\{searchInput\}/);
+    assert.match(source, /bind:this=\{searchToggle\}/);
     assert.match(source, /searchInput\?\.focus\(\)/);
+    assert.match(source, /searchToggle\?\.focus\(\)/);
+    assert.match(source, /event\.key === "Escape"\) closeSearch\(\)/);
     assert.match(source, /class="glean-search__clear"/);
     assert.match(source, /aria-label=\{t\(i18n, "panel\.searchClear"\)\}/);
+    assert.match(source, /aria-label=\{t\(i18n, "panel\.searchClose"\)\}/);
 });
 
 test("mobile onboarding entry remains guarded by frontend detection", () => {

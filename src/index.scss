@@ -760,7 +760,8 @@ body.b3-theme-dark {
         }
     }
 
-    .glean-search__clear {
+    .glean-search__clear,
+    .glean-search__close {
         border: 0;
         border-radius: 999px;
         background: transparent;
@@ -3292,7 +3293,8 @@ body.b3-theme-dark {
         box-sizing: border-box;
     }
 
-    .glean-search__clear {
+    .glean-search__clear,
+    .glean-search__close {
         min-width: 44px;
         min-height: 44px;
     }
