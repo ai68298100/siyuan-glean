@@ -18,7 +18,7 @@ concurrency:
 
 jobs:
   quality:
-    name: check, test, build, release check
+    name: quality
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
