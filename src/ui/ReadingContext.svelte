@@ -25,9 +25,12 @@
     const i18n = $derived(facade.i18n);
     const instanceId = $props.id();
     const titleId = `glean-reading-context-title-${instanceId}`;
+    const maintenanceId = `glean-reading-context-maintenance-${instanceId}`;
+    const maintenanceTitleId = `glean-reading-context-maintenance-title-${instanceId}`;
     let context = $state<ReadingClipContext | null>(null);
     let loading = $state(true);
     let busy = $state(false);
+    let maintenanceOpen = $state(false);
     let reloadToken = 0;
     let mounted = true;
 
@@ -82,6 +85,10 @@
 
     let bodyState = $derived<FulltextBodyState>(context ? fulltextBodyState(context.contentType, context.words) : "na");
     let measuring = $state(false);
+
+    $effect(() => {
+        if (bodyState === "missing") maintenanceOpen = true;
+    });
 
     /** 显式"检测正文"（T-1727）：导出重算字数并写回；不修改正文，不触碰快照。 */
     async function checkBody(): Promise<void> {
@@ -201,17 +208,7 @@
             {:else if resolveCarrier(context.contentType) === "link"}
                 <span class="glean-reading-context__missing">{t(i18n, "clip.sourceMissing")}</span>
             {/if}
-            {#if bodyState === "unmeasured"}
-                <button
-                    type="button"
-                    class="glean-reading-context__source-btn"
-                    disabled={measuring}
-                    title={t(i18n, "clip.bodyCheckHint")}
-                    aria-label={t(i18n, "clip.bodyCheckHint")}
-                    aria-busy={measuring}
-                    onclick={checkBody}
-                ><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanSearch" /></svg></button>
-            {:else if bodyState === "missing"}
+            {#if bodyState === "missing"}
                 <span class="glean-reading-context__missing" title={t(i18n, "clip.bodyMissingHint")}>
                     {t(i18n, "clip.bodyMissing")}
                 </span>
@@ -225,10 +222,6 @@
                     ><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanRefresh" /></svg></button>
                 {/if}
             {/if}
-            <button type="button" class="glean-reading-context__back" onclick={backToLibrary}>
-                {t(i18n, "reading.backToLibrary")}
-            </button>
-            <button type="button" class="glean-reading-context__source-btn" onclick={() => openFormattingDialog(facade, context!.id)}>{t(i18n, "formatting.open")}</button>
             <ClipStatusActions
                 i18n={i18n}
                 status={context.status}
@@ -236,6 +229,24 @@
                 onStartReading={startReading}
                 onSetStatus={setStatus}
             />
+            <button type="button" class="glean-reading-context__back" onclick={backToLibrary}>
+                {t(i18n, "reading.backToLibrary")}
+            </button>
+            <details id={maintenanceId} class="glean-reading-context__maintenance" aria-labelledby={maintenanceTitleId} bind:open={maintenanceOpen}>
+                <summary id={maintenanceTitleId}>{t(i18n, "reading.maintenance")}</summary>
+                {#if bodyState === "unmeasured"}
+                    <button
+                        type="button"
+                        class="glean-reading-context__source-btn"
+                        disabled={measuring}
+                        title={t(i18n, "clip.bodyCheckHint")}
+                        aria-label={t(i18n, "clip.bodyCheckHint")}
+                        aria-busy={measuring}
+                        onclick={checkBody}
+                    ><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanSearch" /></svg>{t(i18n, "clip.bodyCheck")}</button>
+                {/if}
+                <button type="button" class="glean-reading-context__source-btn" onclick={() => openFormattingDialog(facade, context!.id)}>{t(i18n, "formatting.open")}</button>
+            </details>
         </div>
     </aside>
 {/if}

@@ -5381,6 +5381,33 @@ body.b3-theme-dark {
     white-space: nowrap;
 }
 
+.glean-reading-context__maintenance {
+    flex: 0 0 auto;
+    min-width: 0;
+}
+
+.glean-reading-context__maintenance > summary {
+    display: inline-flex;
+    align-items: center;
+    min-height: 28px;
+    padding: 4px 7px;
+    border: 1px solid var(--glean-border-soft);
+    border-radius: var(--glean-radius-sm);
+    background: var(--glean-inset-surface);
+    color: var(--b3-theme-on-surface);
+    cursor: pointer;
+    list-style: none;
+    white-space: nowrap;
+}
+
+.glean-reading-context__maintenance > summary::-webkit-details-marker { display: none; }
+.glean-reading-context__maintenance > summary::before { content: "›"; margin-right: 5px; transition: transform 160ms var(--glean-ease-out); }
+.glean-reading-context__maintenance[open] > summary::before { transform: rotate(90deg); }
+.glean-reading-context__maintenance > summary:focus-visible { outline: 2px solid var(--b3-theme-primary); outline-offset: 2px; }
+.glean-reading-context__maintenance[open] > summary,
+.glean-reading-context__maintenance > summary:hover { border-color: var(--b3-theme-primary); color: var(--b3-theme-primary); }
+.glean-reading-context__maintenance > :not(summary) { margin-top: 5px; }
+
 .glean-reading-context--loading {
     min-height: 48px;
     color: var(--b3-theme-primary);
@@ -5444,7 +5471,8 @@ body.b3-theme-dark {
 
 @media (max-width: 560px) {
     .glean-reading-context__source-btn,
-    .glean-reading-context__back {
+    .glean-reading-context__back,
+    .glean-reading-context__maintenance > summary {
         min-height: 44px;
         padding: 8px 10px;
     }

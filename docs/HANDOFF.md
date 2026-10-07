@@ -1,5 +1,13 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-07 T-3260/D-0160）
+
+本轮继续按原型收紧原生编辑器阅读上下文：来源、状态和返回读库保持主动作条；正文检测和排版优化放入默认关闭的“维护与增强”折叠区。正文缺失时维护区自动展开，缺失提示与重新剪藏动作仍直接可见；移动端折叠标题沿用 44px 命中区。未移除能力，也未改变正文、文章属性、索引、端点或写入契约。
+
+- 当前改动文件：`src/ui/ReadingContext.svelte`、`src/index.scss`、`public/i18n/zh_CN.json`、`public/i18n/en_US.json`、`tests/reader-acceptance.test.ts`、`docs/DECISIONS.md`、`docs/PROGRESS.md`、`docs/HANDOFF.md`。
+- 已通过：`pnpm test` 1153/1153；`pnpm run check` 0 错误/0 警告；`git diff --check` 通过。视觉矩阵仍为 24 个 `pending-host`，没有新增真实思源宿主或 Android 真机证据。
+- 版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 `package.zip`。
+
 ## 当前有效交接（2026-10-07 T-3260/D-0159）
 
 第三十六轮修正回顾趋势的真实时间范围，并按原型收紧阅读伴生栏首屏：`aggregateReadingReview` 新增 `recentCompletionTrend`，以参考日为终点生成最多 30 个本地日历日，跨月/跨年补零，完成计数不超过参考日；`StatsView` 只消费该序列，年度热力图继续用于全年分析。`ReaderTab` 将状态动作和优先级评分提前，最近阅读、作者编辑、阅读位置、外观和大纲包入默认关闭的“辅助工具”；桌面外观入口会先展开辅助工具再打开外观。`ReadingPositionControls` 改为接收实例 ID 并生成稳定标题关联，避免多实例重复 ID。

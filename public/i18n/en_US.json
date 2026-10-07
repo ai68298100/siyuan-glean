@@ -97,6 +97,7 @@
   "action.openDoc": "Open document",
   "reading.backToLibrary": "Back to this article in the library",
   "reading.contextLabel": "Reading context",
+  "reading.maintenance": "Maintenance and enhancements",
   "reading.sourceHint": "Opening the original does not mark it as done",
   "reading.noRecent": "No library article has been opened in this session",
   "action.refresh": "Refresh",
