@@ -26,6 +26,14 @@ pnpm test
 
 <!-- 补充实际运行的命令、结果和仍待作者真机验收的项目。不要把浏览器模拟器写成 Android 通过。 -->
 
+## 反馈闭环
+
+- 关联 Issue / T-xxxx / B-xxx：
+- 可复现步骤或验收项：
+- 修复提交与验证证据：
+- 状态：`fixed-verified` / `fixed-isolated` / `blocked` / `wont-fix`
+- 仍待作者真实宿主、真机、模型或外部文件验收的内容：
+
 ## 发布边界
 
 - [ ] 没有在本 PR 中打 tag、发 Release、上传 package.zip 或提交集市 PR

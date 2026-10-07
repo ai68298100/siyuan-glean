@@ -20,7 +20,7 @@
 | T-3285 |   | 入口与失败语义已有 | AI 矩阵与服务回归已有 | 待 B-0004 | 需要真实模型、嵌入、TLS 和脱敏证据 |
 | T-3286 |   | 入口与降级已有 | 解析/服务/spike 已有 | 待 B-0005–B-0008 | 需要真实文件、订阅、assets 和双插件环境 |
 | T-3287 |   | 现有入口较多 | 待交互契约 | 待 B-0002 | 依赖主链走查后的用户反馈 |
-| T-3288 |   | 部分文档已有 | 待流程门禁 | 待作者使用反馈 | 需先完成一轮真实走查 |
+| T-3288 | ◐ | 三类 Issue 模板补齐版本、文章载体、失败重试和能力矩阵入口，新增 `docs/FEEDBACK-LOOP.md` 并与 CONTRIBUTING/PR 互链 | 模板内容核对、任务账本和文档差异检查通过 | 待作者使用反馈 | 需先完成一轮真实走查并验证反馈流程是否足够 |
 | T-3289 |   | 已有 `icon.png`/`preview.png`，素材未闭环 | 待尺寸/压缩检查 | 待作者视觉确认 | 不能用未验证功能制造宣传画面 |
 | T-3290 | ◐ | 中英文 README 状态区、Quality gates/CodeQL/Release 徽章、安装入口、Issue/PR 模板、CI、Dependabot、SECURITY 和 CONTRIBUTING 已落地 | `pnpm check`、`pnpm test`、`pnpm build`、`pnpm visual:check`、`pnpm check:release` 和 i18n/能力矩阵门禁通过 | 待作者审阅 24 个真实宿主截图与稳定分支发布口径 | 当前开发线尚未与另一台电脑合并，暂不升版本或发新 Release |
 | T-3291 |   | 本地发布门禁已有 | 待真实覆盖/卸载 | 待作者授权 | 不得未经授权打 tag、发 Release 或提交集市 |

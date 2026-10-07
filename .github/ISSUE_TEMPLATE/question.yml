@@ -4,6 +4,10 @@ title: "[Question] "
 labels:
   - question
 body:
+  - type: markdown
+    attributes:
+      value: |
+        提问前请先查看 [README](https://github.com/ai68298100/siyuan-glean#readme)、[能力矩阵](https://github.com/ai68298100/siyuan-glean/blob/HEAD/docs/CAPABILITY-MATRIX.md) 和 [反馈闭环](https://github.com/ai68298100/siyuan-glean/blob/HEAD/docs/FEEDBACK-LOOP.md)。
   - type: input
     id: plugin-version
     attributes:

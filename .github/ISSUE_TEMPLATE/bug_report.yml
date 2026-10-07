@@ -8,6 +8,7 @@ body:
     attributes:
       value: |
         感谢反馈。请先确认问题发生在真实思源宿主中，并尽量附上脱敏截图、录屏或日志。
+        提交前可查看 [反馈闭环](https://github.com/ai68298100/siyuan-glean/blob/HEAD/docs/FEEDBACK-LOOP.md)、[能力矩阵](https://github.com/ai68298100/siyuan-glean/blob/HEAD/docs/CAPABILITY-MATRIX.md) 和 [恢复矩阵](https://github.com/ai68298100/siyuan-glean/blob/HEAD/docs/RECOVERY-MATRIX.md)。
   - type: input
     id: plugin-version
     attributes:
@@ -34,6 +35,26 @@ body:
         - 浏览器端
     validations:
       required: true
+  - type: dropdown
+    id: article-carrier
+    attributes:
+      label: 文章载体
+      options:
+        - 全文剪藏
+        - 仅链接
+        - 本地文档
+        - 候选文档
+        - 不确定
+    validations:
+      required: true
+  - type: input
+    id: first-seen-version
+    attributes:
+      label: 首次出现版本
+      description: 不确定时填写“不确定”；最后正常版本可写在上下文中。
+      placeholder: v1.1.0
+    validations:
+      required: true
   - type: textarea
     id: steps
     attributes:
@@ -57,6 +78,11 @@ body:
       label: 实际结果
     validations:
       required: true
+  - type: textarea
+    id: retry
+    attributes:
+      label: 失败后的重试结果
+      description: 如果涉及断网、权限、批量部分失败或异步结果，请写重试步骤、成功/失败结果和是否仍有残留。
   - type: textarea
     id: evidence
     attributes:

@@ -8,6 +8,7 @@ body:
     attributes:
       value: |
         小驴拾遗优先维护文章属性数据主权、阅读主链和可恢复操作。请说明建议解决的真实工作流问题。
+        提交前请查看 [反馈闭环](https://github.com/ai68298100/siyuan-glean/blob/HEAD/docs/FEEDBACK-LOOP.md) 与 [能力矩阵](https://github.com/ai68298100/siyuan-glean/blob/HEAD/docs/CAPABILITY-MATRIX.md)。
   - type: textarea
     id: problem
     attributes:
