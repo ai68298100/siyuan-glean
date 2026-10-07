@@ -44,6 +44,9 @@ jobs:
       - name: Test suite
         run: pnpm test
 
+      - name: Synthetic performance regression guard
+        run: pnpm perf:check
+
       - name: Production build
         run: pnpm build
 

@@ -1,5 +1,13 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-07 T-3284/D-0169）
+
+本轮把既有合成性能基线接入 GitHub Quality gates，在 1k/5k/10k 数据规模上检查扫描、索引重建、筛选、导入解析和今日拾遗的中位耗时，并继续检查分页、属性批次与结果规模约束。它只负责发现生产纯函数的明显退化，不把 Node 合成耗时当作真实思源宿主、移动设备或外部文件的性能承诺。
+
+- 本轮改动：`.github/workflows/ci.yml`、`TODO.md`、`docs/TASK-LEDGER.md`、`docs/DECISIONS.md`、`docs/HANDOFF.md`。
+- 本地验证：`pnpm check`（0 错误/0 警告）、`pnpm test`（1160/1160）、`pnpm build`、`pnpm perf:check`、`pnpm task:ledger -- --check`、`pnpm visual:check`（24 个案例仍待真实宿主）、`pnpm check:release` 和 `git diff --check` 均通过。
+- 版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 `package.zip`；真实大库体验仍归 T-3284/B-0002/B-0005。
+
 ## 当前有效交接（2026-10-07 T-3290/D-0168）
 
 本轮将任务账本一致性检查加入 GitHub Quality gates：CI 在代码质量、测试、构建后执行 `pnpm task:ledger -- --check`，防止 `TODO.md` 执行板与生成账本漂移；同步刷新 T-3290 的账本描述和 D-0168 决策。没有改变插件功能、数据契约或版本。
