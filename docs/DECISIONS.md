@@ -5,7 +5,7 @@
 
 ## D-0168（2026-10-07）GitHub 对外入口与质量门禁
 
-仓库保留 `dev/thispc-1002` 作为两台开发机合并前的默认分支，不提前把冻结中的 `main` 宣称为当前开发线；`main` 启用 PR、CODEOWNERS 和 `quality` 检查保护。对外入口集中在稳定 Release、Issue 模板和能力矩阵，CI 只读运行 `pnpm check`、`pnpm test`、`pnpm build`、视觉矩阵与发布门禁；Actions 使用固定 SHA 和来源白名单，Dependabot 与私密安全报告开启。此次不升版本、不打 tag、不发 Release。
+仓库保留 `dev/thispc-1002` 作为两台开发机合并前的默认分支，不提前把冻结中的 `main` 宣称为当前开发线；`main` 启用 PR、CODEOWNERS 和 `quality` 检查保护。对外入口集中在稳定 Release、Issue 模板和能力矩阵，CI 只读运行 `pnpm check`、`pnpm test`、`pnpm build`、视觉矩阵与发布门禁，并固定 `TZ=Asia/Shanghai`，避免导入时间测试依赖 runner 时区；Actions 使用固定 SHA 和来源白名单，Dependabot 与私密安全报告开启。此次不升版本、不打 tag、不发 Release。
 
 ## D-0167（2026-10-07）工作台批量选择与批量条归属
 
