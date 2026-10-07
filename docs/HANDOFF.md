@@ -1,5 +1,12 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-07 T-3297/D-0175）
+
+阅读帮助弹窗已改为 DOM 节点 + `textContent`，并使用 `glean-reader-help` 前缀样式和主题令牌，避免翻译文案进入 `innerHTML`。中英文 README 已同步开发分支稳定性说明、Node.js/pnpm 前置版本，并修正小驴雷切仓库链接；`docs/media/demo.gif` 仍按发布媒体清单等待作者真机素材，不视为断链故障。
+
+- T-3297 代码与文档已完成，待本地全量门禁和远端 CI 复核。
+- 版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 `package.zip`。
+
 ## 当前有效交接（2026-10-07 T-3296/D-0174）
 
 CodeQL push 触发器已补齐 `codex/**`，与 Quality gates 的 `main`、`dev/**`、`codex/**` 范围一致；临时开发分支也会执行安全扫描。该配置不改变版本、主干、Release 或集市策略。

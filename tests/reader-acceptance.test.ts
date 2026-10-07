@@ -9,6 +9,7 @@ const protyle = readFileSync(resolve(root, "src/ui/ProtyleHost.svelte"), "utf8")
 const preview = readFileSync(resolve(root, "src/ui/WorkbenchPreview.svelte"), "utf8");
 const context = readFileSync(resolve(root, "src/ui/ReadingContext.svelte"), "utf8");
 const styles = readFileSync(resolve(root, "src/index.scss"), "utf8");
+const entry = readFileSync(resolve(root, "src/index.ts"), "utf8");
 const guide = readFileSync(resolve(root, "docs/READER-ACCEPTANCE.md"), "utf8");
 
 test("阅读页签覆盖正文诊断、载体降级、摘录、制卡、回跳和状态边界", () => {
@@ -43,6 +44,18 @@ test("阅读页签桌面首屏保留原型的外观与原文入口，窄屏不�
     assert.match(reader, /class="glean-btn glean-btn--ghost glean-reader__toolbar-source"/);
     assert.match(reader, /bind:open=\{appearanceOpen\}/);
     assert.match(styles, /@media \(max-width: 720px\)[\s\S]*\.glean-reader__toolbar-appearance,[\s\S]*display: none/);
+});
+
+test("阅读帮助弹窗使用安全文本节点和主题令牌", () => {
+    const start = entry.indexOf("showReaderHelp(): void");
+    const end = entry.indexOf("/** 摘录制卡", start);
+    assert.ok(start >= 0 && end > start);
+    const help = entry.slice(start, end);
+    assert.doesNotMatch(help, /innerHTML/);
+    assert.match(help, /textContent = t\(this\.i18n, "help\.hint"\)/);
+    assert.match(help, /className = "glean-reader-help__row"/);
+    assert.match(styles, /\.glean-reader-help\s*\{[\s\S]*var\(--glean-space-2\)/);
+    assert.match(styles, /\.glean-reader-help__row\s*\{[\s\S]*var\(--glean-text-md\)/);
 });
 
 test("阅读页签切文时收起上篇文章的低频工具状态", () => {

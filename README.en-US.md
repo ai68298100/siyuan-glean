@@ -20,7 +20,7 @@ The [capability matrix](docs/CAPABILITY-MATRIX.md) records implementation, isola
 - AI enrichment is manual by default and does not run automatically or spend tokens in the background. Individual AI actions require a configured model or channel; automatic enrichment must be enabled separately. The inbox bridge, external imports, snapshots, and cross-plugin bridges also have additional prerequisites.
 - Quick links: [`latest Release`](https://github.com/ai68298100/siyuan-glean/releases/latest) · [`report a problem or suggestion`](https://github.com/ai68298100/siyuan-glean/issues/new/choose) · [`all Issues`](https://github.com/ai68298100/siyuan-glean/issues) · [capability matrix](docs/CAPABILITY-MATRIX.md)
 
-If you only want to use the plugin, download `package.zip` from the Latest Release. If you are reporting a problem, first check that it reproduces in a real SiYuan host and include the SiYuan version, plugin version, and frontend type. `dev/**` branches are for ongoing development and are not stable releases.
+If you only want to use the plugin, download `package.zip` from the Latest Release. If you are reporting a problem, first check that it reproduces in a real SiYuan host and include the SiYuan version, plugin version, and frontend type. `dev/**` and `codex/**` branches are for ongoing development and are not stable releases.
 
 ## What problem it solves
 
@@ -92,7 +92,7 @@ Code entry points do not mean every platform path has passed acceptance. Full is
 
 Four Lv (小驴) SiYuan plugins are currently developed:
 
-- [小驴雷切 / Lv Quickcut](https://github.com/ai68298100/siyuan-quickcut): quick web clipping and processing
+- [小驴雷切 / Lv Speed Switch](https://github.com/ai68298100/siyuan-speed-switch): unified switching and work context
 - [小驴打卡 / Lv Checkin](https://github.com/ai68298100/siyuan-checkin): reading and habit check-ins
 - [小驴人脉 / Lv Contacts](https://github.com/ai68298100/siyuan-contacts): contact and relationship management
 - **小驴拾遗 / Lv Glean**: clipping organization, reading triage, and daily resurfacing
@@ -104,6 +104,7 @@ For feature requests, reproducible bugs, and compatibility reports, please open 
 ## Development
 
 ```bash
+Node.js >= 24, pnpm 12.5.1 (run `corepack enable` first if needed)
 pnpm install
 pnpm dev        # development build with live reload
 pnpm check      # tsc + svelte-check

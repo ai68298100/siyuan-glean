@@ -21,7 +21,7 @@
 - AI 富化默认仅手动、不自动消耗 token；具体 AI 动作需配置模型或通道，自动运行须单独显式开启。收集箱、外部导入、快照和跨插件桥接也需要额外前提。
 - 快速入口：[`最新 Release`](https://github.com/ai68298100/siyuan-glean/releases/latest) · [`提交问题或建议`](https://github.com/ai68298100/siyuan-glean/issues/new/choose) · [`查看全部 Issue`](https://github.com/ai68298100/siyuan-glean/issues) · [能力矩阵](docs/CAPABILITY-MATRIX.md)
 
-如果你只是想开始使用，请下载 Latest Release 中的 `package.zip`；如果你要反馈问题，请先确认它能在真实思源宿主复现，并在 Issue 中写明思源版本、插件版本和前端类型。`dev/**` 分支用于持续开发，不能替代稳定 Release。
+如果你只是想开始使用，请下载 Latest Release 中的 `package.zip`；如果你要反馈问题，请先确认它能在真实思源宿主复现，并在 Issue 中写明思源版本、插件版本和前端类型。`dev/**` 与 `codex/**` 分支用于持续开发，不能替代稳定 Release。
 
 ## 它解决什么问题
 
@@ -94,7 +94,7 @@
 
 目前已开发四款小驴系列思源插件：
 
-- [小驴雷切](https://github.com/ai68298100/siyuan-quickcut)：快速剪藏与处理网页内容
+- [小驴雷切](https://github.com/ai68298100/siyuan-speed-switch)：统一切换与工作上下文
 - [小驴打卡](https://github.com/ai68298100/siyuan-checkin)：阅读与习惯打卡
 - [小驴人脉](https://github.com/ai68298100/siyuan-contacts)：联系人和人脉管理
 - **小驴拾遗**：剪藏文章整理、阅读分拣和每日重浮
@@ -106,6 +106,7 @@
 ## 开发
 
 ```bash
+Node.js >= 24，pnpm 12.5.1（可先执行 `corepack enable`）
 pnpm install
 pnpm dev        # 开发构建（live reload）
 pnpm check      # tsc + svelte-check

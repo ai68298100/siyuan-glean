@@ -74,6 +74,37 @@
     --glean-muted-badge-surface: color-mix(in srgb, var(--b3-theme-on-surface) 12%, transparent);
 }
 
+.glean-reader-help {
+    padding: var(--glean-space-2) var(--glean-space-1);
+    color: var(--b3-theme-on-surface);
+}
+
+.glean-reader-help__hint {
+    margin: 0 0 var(--glean-space-3);
+    color: var(--b3-theme-on-surface-light);
+    font-size: var(--glean-text-sm);
+    line-height: 1.5;
+}
+
+.glean-reader-help__list {
+    display: grid;
+    gap: var(--glean-space-1);
+}
+
+.glean-reader-help__row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--glean-space-3);
+    padding: var(--glean-space-1) 0;
+    font-size: var(--glean-text-md);
+    line-height: 1.5;
+}
+
+.glean-reader-help__action {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
 [data-theme-mode="dark"],
 body.body--dark,
 body.b3-theme-dark {

@@ -465,17 +465,29 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
             ["cmd.openSource", "cmd.archiveCurrent"],
             ["cmd.excerptQuote", "cmd.makeCard"],
         ];
-        const list = actions
-            .map(([left, right]) =>
-                `<div style="display:flex;gap:12px;padding:3px 0;font-size:12.5px">` +
-                `<span style="flex:1">${t(this.i18n, left)}</span><span style="flex:1">${t(this.i18n, right)}</span></div>`)
-            .join("");
         const wrap = document.createElement("div");
-        wrap.innerHTML =
-            `<div style="padding:6px 4px">` +
-            `<div style="font-size:12px;opacity:.72;margin-bottom:8px">${t(this.i18n, "help.hint")}</div>` +
-            list +
-            `</div>`;
+        wrap.className = "glean-reader-help";
+        const hint = document.createElement("p");
+        hint.className = "glean-reader-help__hint";
+        hint.textContent = t(this.i18n, "help.hint");
+        wrap.append(hint);
+        const list = document.createElement("div");
+        list.className = "glean-reader-help__list";
+        list.setAttribute("role", "list");
+        for (const [left, right] of actions) {
+            const row = document.createElement("div");
+            row.className = "glean-reader-help__row";
+            row.setAttribute("role", "listitem");
+            const primary = document.createElement("span");
+            primary.className = "glean-reader-help__action";
+            primary.textContent = t(this.i18n, left);
+            const secondary = document.createElement("span");
+            secondary.className = "glean-reader-help__action";
+            secondary.textContent = t(this.i18n, right);
+            row.append(primary, secondary);
+            list.append(row);
+        }
+        wrap.append(list);
         void import("./libs/dialog").then(({ simpleDialog }) => {
             simpleDialog({ title: t(this.i18n, "help.title"), closeLabel: t(this.i18n, "action.close"), ele: wrap, width: "520px" });
         });
