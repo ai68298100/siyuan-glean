@@ -30,9 +30,7 @@
         void docHostContext(docId).then((value) => { ctx = value; }).catch(() => undefined);
     });
 
-    async function settle(feedbackKey: string, action: () => Promise<unknown>): Promise<void> {
-        if (pending) return;
-        pending = true;
+    async function runSettled(feedbackKey: string, action: () => Promise<unknown>): Promise<void> {
         try {
             await action();
             facade.notifyDataChanged();
@@ -46,6 +44,12 @@
         }
     }
 
+    async function settle(feedbackKey: string, action: () => Promise<unknown>): Promise<void> {
+        if (pending) return;
+        pending = true;
+        await runSettled(feedbackKey, action);
+    }
+
     const keepInPlace = () => settle("archive.doneInPlace", async () => {
         // 保留原位置 = 三选项的默认语义：只写状态，不动文档（与今日拾遗/批量快速归档同语义）
         await writeClip(facade.pluginInstance, docId, { status: "archived" }, { forceStatus: true });
@@ -56,15 +60,20 @@
 
     async function purge(): Promise<void> {
         if (pending) return;
-        const info = await buildDocPurgeInfo(docId);
-        if (!info) {
-            showMessage(t(i18n, "msg.actionFailed"), 3000);
-            return;
+        pending = true;
+        try {
+            const info = await buildDocPurgeInfo(docId);
+            if (!info) {
+                showMessage(t(i18n, "msg.actionFailed"), 3000);
+                return;
+            }
+            const summary = `${info.title}\n${info.hpath}${info.url ? `\n${info.url}` : ""}`;
+            // §7.3：确认框必须列标题/路径/来源；不可逆提示；思源数据历史兜底
+            if (!window.confirm(t(i18n, "archive.purgeConfirm", { info: summary }))) return;
+            await runSettled("archive.donePurged", () => purgeDoc(facade.pluginInstance, docId));
+        } finally {
+            pending = false;
         }
-        const summary = `${info.title}\n${info.hpath}${info.url ? `\n${info.url}` : ""}`;
-        // §7.3：确认框必须列标题/路径/来源；不可逆提示；思源数据历史兜底
-        if (!window.confirm(t(i18n, "archive.purgeConfirm", { info: summary }))) return;
-        await settle("archive.donePurged", () => purgeDoc(facade.pluginInstance, docId));
     }
 </script>
 

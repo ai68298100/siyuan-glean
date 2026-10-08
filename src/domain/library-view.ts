@@ -147,8 +147,6 @@ export function matchesLibraryFilter(item: LibraryItem, filter: LibraryFilter = 
     if (!matchesExact(item.src, filter.src)) return false;
     if (!matchesExact(item.timeSource, filter.timeSource)) return false;
     if (!matchesExact(item.contentType, filter.contentType)) return false;
-    // T-1812：作者筛选（候选无作者字段，天然不命中）
-    if (!matchesExact(item.author, filter.author)) return false;
     // T-1755：仅看收藏（候选不参与收藏）
     if (filter.favoriteOnly && !(item.kind === "clip" && item.favorite === true)) return false;
     const query = key(filter.keyword);

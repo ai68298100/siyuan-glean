@@ -101,7 +101,10 @@ async function loadHighlights(targetScope: "current" | "library", docId: string,
             }
         }
     } catch (error) {
-        if (request === generation) loadError = `${t(i18n, "highlight.loadFailed")} ${String(error)}`;
+        if (request === generation) {
+            console.warn("[glean] 摘录加载失败:", error);
+            loadError = t(i18n, "highlight.loadFailed");
+        }
     } finally {
         if (request === generation) loading = false;
     }
@@ -133,7 +136,7 @@ function clearFilters() {
 function reasonText(reason: HighlightSaveReason): string {
     const keys: Record<HighlightSaveReason, string> = {
         changed: "highlight.changed", readFailed: "highlight.readFailed", empty: "highlight.emptySelection",
-        invalid: "highlight.invalidSelection", busy: "panel.loading", createUnknown: "highlight.createUnknown", markFailed: "highlight.markFailed",
+        invalid: "highlight.invalidSelection", busy: "highlight.busy", createUnknown: "highlight.createUnknown", markFailed: "highlight.markFailed",
     };
     return t(i18n, keys[reason]);
 }
@@ -158,6 +161,7 @@ async function runExport(action: "copy" | "csv" | "preview") {
             anchor.click();
             anchor.remove();
             setTimeout(() => URL.revokeObjectURL(url), 1000);
+            exportStatus = t(i18n, "highlight.exported");
         } else if (!session) {
             session = await prepareHighlightExport(items, selected, labels);
         }

@@ -30,6 +30,8 @@ export function createProtyleController(options: ControllerOptions): ProtyleCont
     let ready = false;
     let mode = options.mode;
     let appliedMode = mode;
+    /** destroy() 已销毁过的实例；after 回调迟到时避免对同一实例二次 destroy（内核注销重复执行）。 */
+    let destroyedInstance: ProtyleInstance | null = null;
     let disconnect = () => {};
 
     function invoke(action: (current: ProtyleInstance) => void): void {
@@ -50,6 +52,7 @@ export function createProtyleController(options: ControllerOptions): ProtyleCont
             disposed = true;
             disconnect();
             try { instance?.destroy(); } catch (error) { options.onError?.(error); }
+            destroyedInstance = instance;
             mount.remove();
             instance = null;
         },
@@ -58,7 +61,9 @@ export function createProtyleController(options: ControllerOptions): ProtyleCont
     try {
         instance = options.create(mount, (current) => {
             if (disposed) {
-                try { current.destroy(); } catch { }
+                if (current !== destroyedInstance) {
+                    try { current.destroy(); } catch { }
+                }
                 return;
             }
             instance = current;

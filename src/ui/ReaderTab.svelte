@@ -333,10 +333,6 @@
             if (!mounted || !isCurrent() || docId !== id) return;
             console.debug("[glean] 阅读页签读取上下文失败:", error);
             context = null;
-            readingTimerDocId = "";
-            readingTimerExpectedRaw = null;
-            readingTimerExpectedLocation = null;
-            readingTimer = createReadingTimer();
             contextError = true;
         }
         if (mounted && isCurrent() && docId === id) contextLoading = false;
@@ -404,10 +400,14 @@
         }
     }
 
-    function openAppearance(): void {
-        moreToolsOpen = true;
-        appearanceOpen = true;
-        if (sidebarCollapsed) void toggleSidebar();
+    function toggleAppearance(): void {
+        if (sidebarCollapsed) {
+            moreToolsOpen = true;
+            appearanceOpen = true;
+            void toggleSidebar();
+            return;
+        }
+        appearanceOpen = !appearanceOpen;
     }
 
     function currentSession(id: string, generation: number): boolean {
@@ -474,6 +474,9 @@
         relatedShown = false;
         relatedItems = [];
         excerpt = null;
+        speechChunks = [];
+        speechChunkIndex = 0;
+        speechScope = null;
         stopSpeech();
         void untrack(() => loadContext(id));
         void untrack(() => loadOutline(id));
@@ -916,7 +919,7 @@
                 <button class="glean-seg__btn" class:glean-seg__btn--on={mode === "edit"} aria-pressed={mode === "edit"} title={t(i18n, "reader.editHint")} onclick={() => setMode("edit")}>{t(i18n, "reader.modeEdit")}</button>
             </div>
             <button class="glean-btn glean-btn--ghost glean-reader__toolbar-sidebar" aria-busy={sidebarBusy} disabled={sidebarBusy} aria-expanded={!sidebarCollapsed} aria-controls={sidebarId} title={t(i18n, sidebarCollapsed ? "reader.sidebarShow" : "reader.sidebarHide")} onclick={() => void toggleSidebar()}>{t(i18n, sidebarCollapsed ? "reader.sidebarShow" : "reader.sidebarHide")}</button>
-            <button class="glean-btn glean-btn--ghost glean-reader__toolbar-appearance" aria-expanded={appearanceOpen} aria-controls={appearancePanelId} title={t(i18n, "reader.appearanceTitle")} onclick={openAppearance}>{t(i18n, "reader.appearanceTitle")}</button>
+            <button class="glean-btn glean-btn--ghost glean-reader__toolbar-appearance" aria-expanded={appearanceOpen} aria-controls={appearancePanelId} title={t(i18n, "reader.appearanceTitle")} onclick={toggleAppearance}>{t(i18n, "reader.appearanceTitle")}</button>
             {#if context && hasSourceAction(context.contentType, context.url)}
                 <button class="glean-btn glean-btn--ghost glean-reader__toolbar-source" title={t(i18n, "clip.openSource")} onclick={openSource}>{t(i18n, "clip.openSource")}</button>
             {/if}

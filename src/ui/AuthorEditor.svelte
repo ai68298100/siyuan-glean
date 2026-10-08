@@ -184,7 +184,7 @@
         <form id={`glean-author-editor-form-${docId}`} class="glean-author-editor__form" aria-busy={busy} onsubmit={(event) => { event.preventDefault(); void save(); }}>
             {#if busy}<p class="glean-author-editor__status glean-author-editor__status--busy" role="status" aria-live="polite"><span class="glean-author-editor__status-dot" aria-hidden="true"></span>{t(i18n, "panel.loading")}</p>{/if}
             <label for={`glean-author-editor-input-${docId}`}>{t(i18n, "author.label")}
-                <input id={`glean-author-editor-input-${docId}`} class="b3-text-field" bind:this={input} bind:value={draft} disabled={busy} autocomplete="off" />
+                <input id={`glean-author-editor-input-${docId}`} class="b3-text-field" bind:this={input} bind:value={draft} disabled={busy} autocomplete="off" maxlength="120" />
             </label>
             <p class="glean-author-editor__hint">{t(i18n, "author.hint")}</p>
             {#if snapshot}<p class="glean-author-editor__current"><span>{t(i18n, "author.current")}</span><strong>{snapshot.raw || t(i18n, "author.unknown")}</strong></p>{/if}

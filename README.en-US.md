@@ -18,6 +18,13 @@ Improved: immediate review after merging
 
 - Each group shows its affected article count, then rescans and refreshes the workbench after a successful merge.
 
+Fixed: interaction and logic defects found in a full walkthrough
+
+- "Continue reading" in the reader tab no longer reads the previous article after switching; session reading minutes survive transient context errors; the appearance toggle now opens and closes.
+- An empty filtered library now shows "no articles match" with a clear-filters action instead of a blank list; candidate row actions gain busy guards against double submits.
+- The migrator guards against concurrent double-click runs and confirms discarding progress; backup files can be re-selected and preview cancellation is no longer shown as an error; settings saving gained multi-window conflict protection.
+- Settings show errors and retry for notebooks, check-in items and AI logs; about 25 bilingual copy fixes, including the mislabeled source-URL toast and the AI usage counter label.
+
 Fixed: missing user entry for the AI tag service
 
 - The existing suggestion/merge service is now available from Settings. Bulk author backfill remains a separate task with per-article confirmation boundaries.

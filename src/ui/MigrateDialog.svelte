@@ -114,6 +114,7 @@ async function refreshProgress() {
 }
 
 async function startScan() {
+    if (phase === "scanning") return;
     phase = "scanning";
     rows = [];
     try {
@@ -122,16 +123,22 @@ async function startScan() {
         filter = "all";
         phase = "report";
     } catch (error) {
-        showMessage(String(error), 5000);
+        console.warn("[glean] 迁移扫描失败:", error);
+        showMessage(t(i18n, "msg.actionFailed"), 5000);
         await refreshProgress();
         phase = "intro";
     }
 }
 
 async function resume() {
+    if (phase !== "intro") return;
+    phase = "scanning";
     try {
         const progress = await loadMigrateProgress(facade.pluginInstance);
-        if (!progress) return;
+        if (!progress) {
+            phase = "intro";
+            return;
+        }
         rows = progress.rows;
         cursor = progress.cursor;
         await startRun(false);
@@ -142,7 +149,19 @@ async function resume() {
     }
 }
 
+async function discardProgress() {
+    if (!window.confirm(t(i18n, "migrate.confirmDiscard"))) return;
+    try {
+        await clearMigrateProgress(facade.pluginInstance);
+        resumeAvailable = false;
+    } catch (error) {
+        console.warn("[glean] 迁移进度清理失败:", error);
+        showMessage(t(i18n, "msg.actionFailed"), 4000);
+    }
+}
+
 async function startRun(startNew: boolean) {
+    if (phase === "running") return;
     phase = "running";
     aborted = false;
     const signal = { get aborted() { return aborted; } };
@@ -167,7 +186,8 @@ async function startRun(startNew: boolean) {
         }
         if (last && last.ok > 0) facade.notifyDataChanged();
     } catch (error) {
-        showMessage(String(error), 5000);
+        console.warn("[glean] 迁移回填失败:", error);
+        showMessage(t(i18n, "msg.actionFailed"), 5000);
         if (taskReady) await refreshProgress();
         phase = taskReady ? "paused" : "report";
     }
@@ -205,7 +225,8 @@ async function resolveManual(row: MigrateRow, decision: "url" | "local" | "exclu
         if (saved && saved.finished && !hasOutstanding(saved.rows, saved.finished)) await clearMigrateProgress(facade.pluginInstance);
         facade.notifyDataChanged();
     } catch (error) {
-        showMessage(String(error), 4000);
+        console.warn("[glean] 迁移行处理失败:", error);
+        showMessage(t(i18n, "msg.actionFailed"), 4000);
     }
 }
 
@@ -268,7 +289,7 @@ function rowStateLabel(row: MigrateRow): string {
                 <button class="glean-btn glean-btn--pri" onclick={() => void resume()}>
                     {t(i18n, "migrate.continue")}（{cursor}/{rows.length}）
                 </button>
-                <button class="glean-btn glean-btn--ghost" onclick={() => void clearMigrateProgress(facade.pluginInstance).then(() => (resumeAvailable = false))}>
+                <button class="glean-btn glean-btn--ghost" onclick={() => void discardProgress()}>
                     {t(i18n, "migrate.discardProgress")}
                 </button>
             </div>
@@ -319,7 +340,7 @@ function rowStateLabel(row: MigrateRow): string {
                 </div>
                     {#if editingRowId === row.id}
                         <div class="glean-candidate-edit">
-                            <input class="b3-text-field" type="url" bind:value={manualUrl} placeholder={t(i18n, "candidate.urlPlaceholder")} aria-label={t(i18n, "candidate.urlPlaceholder")} />
+                            <input class="b3-text-field" type="url" bind:value={manualUrl} placeholder={t(i18n, "candidate.urlPlaceholder")} aria-label={t(i18n, "candidate.urlPlaceholder")} onkeydown={(event) => { if (event.key === "Enter") { event.preventDefault(); void resolveManual(row, "url"); } }} />
                             <button class="glean-btn" onclick={() => void resolveManual(row, "url")}>{t(i18n, "action.save")}</button>
                             <button class="glean-btn glean-btn--ghost" onclick={() => (editingRowId = "")}>{t(i18n, "action.cancel")}</button>
                         </div>
@@ -392,7 +413,7 @@ function rowStateLabel(row: MigrateRow): string {
                 </div>
                     {#if editingRowId === row.id}
                         <div class="glean-candidate-edit">
-                            <input class="b3-text-field" type="url" bind:value={manualUrl} placeholder={t(i18n, "candidate.urlPlaceholder")} aria-label={t(i18n, "candidate.urlPlaceholder")} />
+                            <input class="b3-text-field" type="url" bind:value={manualUrl} placeholder={t(i18n, "candidate.urlPlaceholder")} aria-label={t(i18n, "candidate.urlPlaceholder")} onkeydown={(event) => { if (event.key === "Enter") { event.preventDefault(); void resolveManual(row, "url"); } }} />
                             <button class="glean-btn" onclick={() => void resolveManual(row, "url")}>{t(i18n, "action.save")}</button>
                             <button class="glean-btn glean-btn--ghost" onclick={() => (editingRowId = "")}>{t(i18n, "action.cancel")}</button>
                         </div>
@@ -403,7 +424,7 @@ function rowStateLabel(row: MigrateRow): string {
         </div>
         <div class="glean-migrate__ops glean-migrate__ops--footer">
             {#if phase === "running"}
-                <button class="glean-btn" onclick={() => (aborted = true)}>{t(i18n, "migrate.pause")}</button>
+                <button class="glean-btn" disabled={aborted} onclick={() => (aborted = true)}>{t(i18n, aborted ? "migrate.pausing" : "migrate.pause")}</button>
             {:else}
                 <button class="glean-btn glean-btn--pri" onclick={() => void startRun(false)}>{t(i18n, "migrate.continue")}</button>
             {/if}
@@ -435,7 +456,7 @@ function rowStateLabel(row: MigrateRow): string {
                     </div>
                     {#if editingRowId === row.id}
                         <div class="glean-candidate-edit">
-                            <input class="b3-text-field" type="url" bind:value={manualUrl} placeholder={t(i18n, "candidate.urlPlaceholder")} aria-label={t(i18n, "candidate.urlPlaceholder")} />
+                            <input class="b3-text-field" type="url" bind:value={manualUrl} placeholder={t(i18n, "candidate.urlPlaceholder")} aria-label={t(i18n, "candidate.urlPlaceholder")} onkeydown={(event) => { if (event.key === "Enter") { event.preventDefault(); void resolveManual(row, "url"); } }} />
                             <button class="glean-btn" onclick={() => void resolveManual(row, "url")}>{t(i18n, "action.save")}</button>
                             <button class="glean-btn glean-btn--ghost" onclick={() => (editingRowId = "")}>{t(i18n, "action.cancel")}</button>
                         </div>

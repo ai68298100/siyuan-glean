@@ -1,5 +1,15 @@
 # 进度（PROGRESS）
 
+## T-3312 全方位走查找缺修复（2026-10-09）
+
+- [x] 阅读链路：切文时清空朗读分段（修复"继续朗读"读上一篇）、上下文读取失败保留会话阅读计时、外观工具栏按钮可开合；`ProtyleHost` 迟到 ready 不再对已销毁实例二次 destroy，回归覆盖新旧行为。
+- [x] 工作台/库：Dock 与 Tab 画布空态统一（筛选无结果显示 `library.noMatch` + 清除筛选，去掉抑制空态的候选特判）；候选行收录/本地收录/忽略/保存 URL 增加 `candidateBusyId` 忙碌防护与禁用态；今日拾遗/快照/置顶的原始英文错误统一为本地化文案。
+- [x] 维护弹窗：迁移 `resume`/`startRun`/`startScan` 补重入防护，丢弃进度需确认且失败有提示，暂停有中间态反馈，行内 URL 支持回车；备份文件可重复选择、预览取消静默处理、二次恢复前清旧报告、停止按钮预览阶段显示"取消"；导入恢复/重试按钮禁用条件对齐静默 guard，收尾期关闭不再丢完成提示。
+- [x] 设置与面板：保存补 `expected` 乐观锁，`SettingsConflictError` 时刷新基准保留草稿；笔记本/打卡/AI 日志异步加载补 loading/错误/重试（收尾 T-3311 草稿）；AI 标签合并成功消息不再被重扫失败掩盖；归档彻底删除在确认框前进入忙碌态；作者输入框补 `maxlength`。
+- [x] i18n：新增 `library.noMatch`、`msg.urlSaved`、`migrate.confirmDiscard`、`migrate.pausing`、`settings.conflict`、`quotes.exporting`、`highlight.busy`、`highlight.exported`、`author.suggestion.cancelled` 共 9 键；修正约 25 处中英文表述（AI 调用量英文口径、"条条目"、"图书馆"→"读库"、快照写入笔记本资产、引导页四步等），中英键集合一致（各 1034）。
+- [x] 门禁：`pnpm check` 0 错误/0 警告、`pnpm test` 1221/1221、`pnpm build`、`pnpm check:release`、`pnpm task:ledger -- --check`、`git diff --check` 通过。
+- [ ] 真实三画布与移动端的交互修复走查仍待 B-0002；版本保持 `1.2.1`，不升版、不打 tag、不创建 Release。
+
 ## T-3311/D-0192 AI 标签规范化设置入口（2026-10-09）
 
 - [x] 将已有 `suggestAiTagMerges` / `applyAiTagMerge` 服务接入设置页；扫描按需执行，逐组展示变体与影响篇数，明确选择保留名称后才写回。

@@ -48,7 +48,9 @@
 
     async function chooseFile(event: Event): Promise<void> {
         if (busy) return;
-        const file = (event.target as HTMLInputElement).files?.[0];
+        const input = event.target as HTMLInputElement;
+        const file = input.files?.[0];
+        input.value = "";
         if (!file) return;
         reset();
         content = "";
@@ -94,7 +96,9 @@
             const next = await previewBackupRestore(facade.pluginInstance, content, controller.signal);
             if (mounted && isCurrent()) session = next;
         } catch (failure) {
-            if (mounted && isCurrent()) error = t(i18n, "backup.failed", { error: String(failure).slice(0, 200) });
+            if (mounted && isCurrent() && !(failure instanceof Error && failure.message === "Backup preview cancelled")) {
+                error = t(i18n, "backup.failed", { error: String(failure).slice(0, 200) });
+            }
         } finally { if (mounted && isCurrent()) { busy = ""; controller = null; } }
     }
 
@@ -114,6 +118,7 @@
         controller = new AbortController();
         busy = "restore";
         error = "";
+        report = null;
         processed = 0;
         total = restoring.rows.filter((row) => row.state === "ready" && row.fields.some((field) => field.supported && field.selected)).length;
         try {
@@ -203,7 +208,7 @@
         </details>
         <div class="glean-backup__actions glean-backup__actions--footer">
             <button class="glean-btn glean-btn--pri" disabled={Boolean(busy) || session.used || (!selectedFields && !restoreSettings && !restoreUiPrefs) || (restoreSettings && !configAllowed)} onclick={() => void apply()}>{t(i18n, "backup.apply")}</button>
-            {#if busy === "restore" || busy === "preview"}<button class="glean-btn glean-btn--ghost" onclick={() => controller?.abort()}>{t(i18n, "backup.stop")}</button>{/if}
+            {#if busy === "restore" || busy === "preview"}<button class="glean-btn glean-btn--ghost" onclick={() => controller?.abort()}>{t(i18n, busy === "preview" ? "action.cancel" : "backup.stop")}</button>{/if}
         </div>
     {/if}
     {#if busy}<p class="glean-backup__status glean-backup__status--busy" role="status" aria-live="polite"><span class="glean-backup__status-dot" aria-hidden="true"></span>{busy === "restore" ? t(i18n, "backup.progress", { done: processed, total }) : t(i18n, "panel.loading")}</p>{/if}

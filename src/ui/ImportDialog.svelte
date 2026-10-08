@@ -220,14 +220,17 @@ async function startImport(rowsOverride?: ImportPreviewRow[]) {
     } finally {
         facade.notifyDataChanged();
         if (mounted) {
-            await refreshProgress();
-            if (!mounted) return;
             if (result) { summary = mergeSummaries(result, progressRecord); retryRows = preview.rows.filter((row) => summary!.failedUrls.includes(row.url)); phase = "done"; }
             else phase = "preview";
-            busy = false;
-            controller = null;
-            resumeConfirmed = false;
-        } else if (result) showMessage(t(i18n, "import.progress.closed", { n: result.imported }), 5000);
+            await refreshProgress();
+            if (mounted) {
+                busy = false;
+                controller = null;
+                resumeConfirmed = false;
+            }
+        }
+        // 导入已完成的场合，即使浮窗在收尾期间被关闭，也要提示结果
+        if (!mounted && result) showMessage(t(i18n, "import.progress.closed", { n: result.imported }), 5000);
     }
 }
 
@@ -287,7 +290,7 @@ function openProgressDocument(id: string): void {
             {#if unfinished && !busy}
                 <label class="glean-import-progress__check"><input type="checkbox" bind:checked={resumeConfirmed} disabled={!resumable || !targetAvailable || progressReadFailed} />{t(i18n, "import.progress.confirmResume")}</label>
                 <div class="glean-import-progress__actions">
-                    <button class="glean-btn glean-btn--pri" disabled={!resumable || !resumeConfirmed || !targetAvailable || importable === 0 || progressReadFailed} onclick={() => void startImport()}>{t(i18n, "import.progress.resume")}</button>
+                    <button class="glean-btn glean-btn--pri" disabled={!resumable || !resumeConfirmed || !targetAvailable || importable === 0 || progressReadFailed || notebookLoading || notebookError} onclick={() => void startImport()}>{t(i18n, "import.progress.resume")}</button>
                     <button class="glean-btn glean-btn--ghost" onclick={resetToPick}>{t(i18n, "import.pickFile")}</button>
                 </div>
             {/if}
@@ -423,7 +426,7 @@ function openProgressDocument(id: string): void {
         {/if}
         <div class="glean-migrate__ops glean-migrate__ops--footer">
             {#if retryRows.length > 0}
-                <button class="glean-btn glean-btn--ghost" disabled={busy || !resumeConfirmed || progressReadFailed} onclick={() => void startImport(retryRows)}>{t(i18n, "import.retryFailed")}</button>
+                <button class="glean-btn glean-btn--ghost" disabled={busy || !resumeConfirmed || progressReadFailed || notebookLoading || notebookError} onclick={() => void startImport(retryRows)}>{t(i18n, "import.retryFailed")}</button>
             {/if}
             <button class="glean-btn glean-btn--pri" onclick={() => void onClose()}>{t(i18n, "action.close")}</button>
         </div>

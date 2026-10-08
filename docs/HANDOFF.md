@@ -1,5 +1,16 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-09 T-3312 全方位走查找缺修复）
+
+本轮对全部 UI 组件、文案与服务层做了一轮系统性走查（4 个并行审查 + 逐项人工验证），修复约 30 项确定性问题，未新增端点或文章属性，版本保持 `1.2.1`，不升版、不打 tag、不创建 Release。要点：
+
+- **阅读链路**：切文清空朗读分段（此前"继续朗读"会读出上一篇）；`loadContext` 失败保留会话阅读计时（计时条件含 `context` 非空，错误态自动暂停，安全）；外观工具栏按钮改为真正的开合；protyle-controller 迟到 ready 不再对已销毁实例二次 destroy（`tests/workbench-preview.test.ts` 断言已同步并新增新实例清理覆盖）。
+- **工作台**：Dock/Tab 空态统一——筛选无结果用新键 `library.noMatch` 并提供清除筛选，删掉了抑制空态的 `candidateCount > 0 && activeQueue === "inbox"` 特判（候选本就在 `rows` 里，该特判只会造成空白）；候选行四个操作用 `candidateBusyId` 互斥防重复提交。
+- **弹窗**：迁移 `resume`/`startRun`/`startScan` 均有重入 guard（此前双击"继续回填"会并发两条 `runBackfillBatch` 循环读写同一进度文件）；备份选择文件后清空 `input.value`（同文件可重选）、预览取消（`"Backup preview cancelled"`）静默处理；导入恢复/重试按钮 disabled 条件补齐 `notebookLoading/notebookError`。
+- **设置**：`save()` 传 `expected: originalSettings`，捕获 `SettingsConflictError` 后从磁盘刷新 `facade.settings` 与基准、保留用户草稿再提示（新键 `settings.conflict`）——多窗口并发保存不再整体覆盖；T-3311 遗留的笔记本/打卡/AI 日志加载错误+重试已随未提交工作树一并收尾验证。
+- **i18n**：zh/en 各 1034 键一致；新增 9 键、修正约 25 处表述（明细见 PROGRESS T-3312）。审查发现约 40 个"死键"（无代码引用，如旧 `stats.title` 族、`settings.aiEnrichOnCapture`）本轮未清理，避免无关 diff；后续可单独做键清理任务。
+- 门禁：`pnpm check` 0/0、`pnpm test` 1221/1221、`pnpm build`、`pnpm check:release`、任务账本、`git diff --check` 全通过。交互修复的真实三画布/移动端走查继续归 B-0002；审查中判定"不修"的项：今日拾遗"吃灰 N 天"徽标阈值 14 天为轻量展示口径（与超龄治理 `staleDays` 语义不同，联动会让徽标基本消失）、`excerpt-service` 中文导出目录名（改目录影响既有用户数据一致性，仅文案层面说明）。
+
 ## 当前有效交接（2026-10-09 AI 标签规范化入口）
 
 设置页现在提供“AI 标签规范化”：用户点击扫描后查看相似标签组，逐组选定保留名称，再显式合并；成功后重新扫描并广播数据变更。实现文件为 `src/ui/AiTagMergePanel.svelte`、`src/ui/SettingsView.svelte`、双语 i18n 和 `src/services/ai-tag-service.ts` 的输入保护；任务 T-3311，决策 D-0192。当前工作树后续必须保持版本 `1.2.1`，本轮不升版、不打 tag、不创建 Release。

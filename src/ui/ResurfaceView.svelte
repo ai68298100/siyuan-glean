@@ -88,7 +88,8 @@ async function togglePin(pick: SurfacePick): Promise<void> {
         await setSurfacePinned(facade.pluginInstance, pick.item.id, !isPinnedToday(pick));
         onMutated();
     } catch (error) {
-        showMessage(String(error).slice(0, 120), 4000);
+        console.warn("[glean] 置顶失败:", error);
+        showMessage(t(i18n, "msg.actionFailed"), 4000);
     } finally {
         actingId = "";
     }
@@ -116,7 +117,8 @@ async function act(pick: SurfacePick, action: SurfaceAction) {
         }
         onMutated();
     } catch (error) {
-        showMessage(String(error).slice(0, 120), 4000);
+        console.warn("[glean] 拾遗动作失败:", error);
+        showMessage(t(i18n, "msg.actionFailed"), 4000);
     } finally {
         actingId = "";
     }

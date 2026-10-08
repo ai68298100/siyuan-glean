@@ -134,7 +134,7 @@
         const id = entry.id;
         const expected = expectedUrl;
         const draft = urlDraft;
-        void process(() => savePreviewCandidateUrl(facade.pluginInstance, id, expected, draft), "msg.rankSaved", false);
+        void process(() => savePreviewCandidateUrl(facade.pluginInstance, id, expected, draft), "msg.urlSaved", false);
     }
 
     function quote(): void {

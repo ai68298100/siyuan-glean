@@ -9,7 +9,7 @@ import { usageToday, loadAiLog, type AiLogEntry } from "../services/enrich-servi
 import { listCheckinItems, type CheckinItemOption } from "../services/checkin-bridge";
 import { testDirectChannel } from "../api/ai-direct";
 import { t } from "../libs/i18n";
-import { DEFAULT_SETTINGS, cloneSettings, mergeSettingsDraft, normalizeSettings, settingsEqual, type GleanSettings } from "../services/settings";
+import { DEFAULT_SETTINGS, cloneSettings, loadSettings, mergeSettingsDraft, normalizeSettings, SettingsConflictError, settingsEqual, type GleanSettings } from "../services/settings";
 import { loadUiPrefs, saveUiPrefs } from "../services/prefs";
 import type { GleanFacade } from "../types";
 import { exportAnonymousDiagnostic, exportLibraryCsv } from "../services/library-export-service";
@@ -205,13 +205,21 @@ async function save() {
     saveBusy = true;
     try {
         const draft = buildDraftSettings();
-        await facade.updateSettings(mergeSettingsDraft(facade.settings, draft));
+        await facade.updateSettings(mergeSettingsDraft(facade.settings, draft), { expected: originalSettings });
         originalSettings = cloneSettings(facade.settings);
         loadDraft(originalSettings);
         showMessage(t(i18n, "settings.saved"), 2500);
         onClose?.();
     } catch (error) {
-        showMessage(`${t(i18n, "settings.saveFailed")}: ${String(error).slice(0, 120)}`, 5000);
+        if (error instanceof SettingsConflictError) {
+            // 其他窗口已修改设置：以磁盘最新值重新对账，保留当前草稿，请用户核对后再保存
+            facade.settings = await loadSettings(facade.pluginInstance);
+            originalSettings = cloneSettings(facade.settings);
+            facade.notifyDataChanged();
+            showMessage(t(i18n, "settings.conflict"), 5000);
+        } else {
+            showMessage(`${t(i18n, "settings.saveFailed")}: ${String(error).slice(0, 120)}`, 5000);
+        }
     } finally {
         saveBusy = false;
     }

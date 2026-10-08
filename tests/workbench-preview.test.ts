@@ -58,7 +58,7 @@ function controllerHarness() {
         observe(_host: HTMLElement, callback: () => void) { resize = callback; return () => calls.push("disconnect"); },
         onReady() { calls.push("ready"); },
     };
-    return { options, calls, children, instance, ready() { complete(instance); }, resize() { resize(); }, mounts() { return mountCount; } };
+    return { options, calls, children, instance, ready(withInstance?: ProtyleInstance) { complete(withInstance ?? instance); }, resize() { resize(); }, mounts() { return mountCount; } };
 }
 
 test("Protyle：加载前模式意图保留，同文模式切换不重建，resize和销毁幂等", () => {
@@ -89,11 +89,19 @@ test("Protyle：切文使用独立子宿主，迟到ready只清理旧实例", ()
     const current = controllerHarness();
     createProtyleController({ ...current.options, host: old.options.host });
     old.ready();
-    assert.deepEqual(old.calls, ["disconnect", "destroy", "destroy"]);
+    // 迟到 ready 传回的是 destroy() 已销毁过的同一实例：不重复销毁
+    assert.deepEqual(old.calls, ["disconnect", "destroy"]);
     assert.equal(old.calls.includes("ready"), false);
     assert.equal(old.children.length, 2);
     assert.equal(old.children[0].removed, true);
     assert.equal(old.children[1].removed, false);
+    // 迟到 ready 若带来未被销毁过的新实例，仍要销毁防止泄漏
+    const late = controllerHarness();
+    const lateController = createProtyleController(late.options);
+    lateController.destroy();
+    const fresh: ProtyleInstance = { switchMode() {}, resize() {}, destroy() { late.calls.push("destroy"); } };
+    late.ready(fresh);
+    assert.deepEqual(late.calls, ["disconnect", "destroy", "destroy"]);
     current.ready();
     assert.deepEqual(current.calls, ["ready", "resize"]);
 });

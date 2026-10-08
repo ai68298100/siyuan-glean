@@ -88,14 +88,19 @@ function toggleFacet(key: "site" | "tag" | "aiTag" | "color", value: string): vo
     filter = { ...filter, [key]: filter[key] === value ? undefined : value };
 }
 
-function activeChips(): Array<{ key: "site" | "tag" | "aiTag" | "color" | "keyword"; label: string }> {
-    const chips: Array<{ key: "site" | "tag" | "aiTag" | "color" | "keyword"; label: string }> = [];
-    if (filter.site) chips.push({ key: "site", label: filter.site });
-    if (filter.tag) chips.push({ key: "tag", label: `#${filter.tag}` });
-    if (filter.aiTag) chips.push({ key: "aiTag", label: `✨${filter.aiTag}` });
-    if (filter.color) chips.push({ key: "color", label: `●${colorLabel(filter.color)}` });
-    if (filter.keyword) chips.push({ key: "keyword", label: `“${filter.keyword}”` });
+function activeChips(): Array<{ key: "site" | "tag" | "aiTag" | "color" | "keyword"; label: string; value: string }> {
+    const chips: Array<{ key: "site" | "tag" | "aiTag" | "color" | "keyword"; label: string; value: string }> = [];
+    if (filter.site) chips.push({ key: "site", label: filter.site, value: filter.site });
+    if (filter.tag) chips.push({ key: "tag", label: `#${filter.tag}`, value: filter.tag });
+    if (filter.aiTag) chips.push({ key: "aiTag", label: `✨${filter.aiTag}`, value: filter.aiTag });
+    if (filter.color) chips.push({ key: "color", label: `●${colorLabel(filter.color)}`, value: filter.color });
+    if (filter.keyword) chips.push({ key: "keyword", label: `“${filter.keyword}”`, value: filter.keyword });
     return chips;
+}
+
+function removeChip(chip: { key: "site" | "tag" | "aiTag" | "color" | "keyword"; value: string }): void {
+    if (chip.key === "keyword") filter = { ...filter, keyword: undefined };
+    else toggleFacet(chip.key, chip.value);
 }
 
 function clearFilter(): void {
@@ -133,7 +138,8 @@ async function doExport(): Promise<void> {
         await exportQuotesToDoc(filtered, notebookId);
         showMessage(t(i18n, "quotes.exportDone", { n: filtered.length }), 3500);
     } catch (error) {
-        showMessage(String(error).slice(0, 140), 5000);
+        console.warn("[glean] 摘录导出失败:", error);
+        showMessage(t(i18n, "msg.actionFailed"), 5000);
     } finally {
         exporting = false;
     }
@@ -198,7 +204,7 @@ async function doExport(): Promise<void> {
         {#if activeChips().length > 0}
             <div class="glean-quotes__chips">
                 {#each activeChips() as chip (chip.key + chip.label)}
-                    <button class="glean-quotes__chip" title={t(i18n, "quotes.clearFilter")} onclick={() => clearFilter()}>
+                    <button class="glean-quotes__chip" title={t(i18n, "quotes.clearFilter")} onclick={() => removeChip(chip)}>
                         {chip.label} ×
                     </button>
                 {/each}
@@ -242,7 +248,7 @@ async function doExport(): Promise<void> {
             {/each}
         </div>
         <button class="glean-primary-btn" disabled={exporting || filtered.length === 0} onclick={() => void doExport()}>
-            📤 {exporting ? t(i18n, "panel.loading") : t(i18n, "quotes.export", { n: filtered.length })}
+            📤 {exporting ? t(i18n, "quotes.exporting") : t(i18n, "quotes.export", { n: filtered.length })}
         </button>
     {/if}
 </div>
