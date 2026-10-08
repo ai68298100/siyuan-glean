@@ -30,6 +30,8 @@ const idPrefix = `glean-settings-${instanceId}`;
 const titleId = `${idPrefix}-title`;
 
 let notebooks = $state<NotebookMeta[]>([]);
+let notebookLoading = $state(false);
+let notebookLoadError = $state(false);
 let anchorNotebooks = $state<string[]>([...DEFAULT_SETTINGS.anchorNotebooks]);
 let snapshotOnCapture = $state(DEFAULT_SETTINGS.snapshotOnCapture);
 let aiEnrichMode = $state<"off" | "manual" | "auto">(DEFAULT_SETTINGS.ai.enrichMode);
@@ -57,6 +59,8 @@ let checkinEnabled = $state(DEFAULT_SETTINGS.integration.checkinEnabled);
 let checkinItemId = $state(DEFAULT_SETTINGS.integration.checkinItemId);
 let bridgeWriteEnabled = $state(DEFAULT_SETTINGS.integration.bridgeWriteEnabled);
 let checkinItems = $state<CheckinItemOption[]>([]);
+let checkinLoadError = $state(false);
+let checkinLoading = $state(false);
 let readerOpenInTab = $state(DEFAULT_SETTINGS.reader.openInTab);
 let readerMode = $state<"read" | "edit">(DEFAULT_SETTINGS.reader.defaultMode);
 let originalSettings = $state<GleanSettings>(cloneSettings(DEFAULT_SETTINGS));
@@ -68,18 +72,23 @@ let exportError = $state("");
 let lastExport = $state<"csv" | "diagnostic" | "">("");
 
 let aiLog = $state<AiLogEntry[] | null>(null);
+let aiLogLoading = $state(false);
+let aiLogError = $state(false);
 let draftDirty = $derived(!settingsEqual(originalSettings, buildDraftSettings()));
+
+let mounted = false;
 
 onMount(() => {
     let active = true;
+    mounted = true;
     originalSettings = cloneSettings(facade.settings);
     loadDraft(originalSettings);
     void loadUiPrefs(facade.pluginInstance).then((prefs) => {
         if (active) showNewbieHint = !prefs.onboardingDone && !prefs.onboardingHintDismissed;
     }).catch(() => undefined);
-    void listNotebooks().then((items) => (notebooks = items));
+    void loadNotebookOptions();
     if (originalSettings.integration.checkinEnabled) {
-        void listCheckinItems().then((items) => { checkinItems = items; });
+        void loadCheckinItems();
     }
     let usageRequest = 0;
     const refreshUsage = () => {
@@ -95,9 +104,38 @@ onMount(() => {
     document.addEventListener("glean:data-changed", refreshUsage);
     return () => {
         active = false;
+        mounted = false;
         document.removeEventListener("glean:data-changed", refreshUsage);
     };
 });
+
+async function loadNotebookOptions(): Promise<void> {
+    if (notebookLoading) return;
+    notebookLoading = true;
+    notebookLoadError = false;
+    try {
+        const items = await listNotebooks();
+        if (mounted) notebooks = items;
+    } catch {
+        if (mounted) notebookLoadError = true;
+    } finally {
+        if (mounted) notebookLoading = false;
+    }
+}
+
+async function loadCheckinItems(): Promise<void> {
+    if (checkinLoading) return;
+    checkinLoading = true;
+    checkinLoadError = false;
+    try {
+        const items = await listCheckinItems();
+        if (mounted) checkinItems = items;
+    } catch {
+        if (mounted) checkinLoadError = true;
+    } finally {
+        if (mounted) checkinLoading = false;
+    }
+}
 
 function toggleNotebook(id: string) {
     anchorNotebooks = anchorNotebooks.includes(id)
@@ -273,18 +311,32 @@ async function exportData(kind: "csv" | "diagnostic"): Promise<void> {
 }
 
 async function toggleCheckin() {
-    checkinEnabled = !checkinEnabled;
-    if (checkinEnabled && checkinItems.length === 0) {
-        checkinItems = await listCheckinItems();
+    if (!checkinEnabled) {
+        checkinEnabled = true;
+        await loadCheckinItems();
+        if (checkinLoadError) checkinEnabled = false;
+        return;
     }
+    checkinEnabled = false;
 }
 
 async function toggleAiLog() {
-    if (aiLog !== null) {
+    if (aiLogLoading) return;
+    if (aiLog !== null && !aiLogError) {
         aiLog = null;
+        aiLogError = false;
         return;
     }
-    aiLog = await loadAiLog(facade.pluginInstance);
+    aiLogLoading = true;
+    aiLogError = false;
+    try {
+        aiLog = await loadAiLog(facade.pluginInstance);
+    } catch {
+        aiLog = [];
+        aiLogError = true;
+    } finally {
+        aiLogLoading = false;
+    }
 }
 
 async function doMountBoard() {
@@ -300,7 +352,7 @@ async function doMountBoard() {
 }
 </script>
 
-<section class="glean-settings" aria-labelledby={titleId} aria-busy={saveBusy || testBusy || boardBusy || rebuildBusy || Boolean(exportBusy) || dismissHintBusy}>
+<section class="glean-settings" aria-labelledby={titleId} aria-busy={saveBusy || testBusy || boardBusy || rebuildBusy || Boolean(exportBusy) || dismissHintBusy || notebookLoading || checkinLoading || aiLogLoading}>
     <div class="glean-settings__head">
         <div class="glean-brand__mark glean-settings__head-mark">
             <svg aria-hidden="true"><use href="#iconGleanWheat" /></svg>
@@ -323,6 +375,12 @@ async function doMountBoard() {
         <div id={`${idPrefix}-workspace-title`} class="glean-set-title" role="heading" aria-level="2">{t(i18n, "settings.workspaceGroup")}</div>
         <div class="glean-set-group">
             <div class="glean-nb-wrap" role="group" aria-label={t(i18n, "settings.anchorNotebooks")}>
+                {#if notebookLoading}
+                    <span class="glean-settings__empty" role="status">{t(i18n, "panel.loading")}</span>
+                {:else if notebookLoadError}
+                    <span class="glean-settings__empty glean-settings__error" role="alert">{t(i18n, "settings.notebookLoadFailed")}</span>
+                    <button class="glean-btn glean-btn--ghost" type="button" onclick={() => void loadNotebookOptions()}>{t(i18n, "action.retry")}</button>
+                {:else}
                 {#each notebooks as notebook (notebook.id)}
                     <button
                         class="glean-nb"
@@ -335,6 +393,7 @@ async function doMountBoard() {
                 {/each}
                 {#if notebooks.length === 0}
                     <span class="glean-settings__empty">—</span>
+                {/if}
                 {/if}
             </div>
             <div class="glean-set-row">
@@ -597,8 +656,14 @@ async function doMountBoard() {
                     {t(i18n, "settings.checkinEnable")}
                     <div class="glean-set-row__desc">{t(i18n, "settings.checkinEnableDesc")}</div>
                 </div>
-                <button class="glean-sw" class:glean-sw--on={checkinEnabled} aria-label={t(i18n, "settings.checkinEnable")} aria-pressed={checkinEnabled} onclick={() => void toggleCheckin()}></button>
+                <button class="glean-sw" class:glean-sw--on={checkinEnabled} aria-label={t(i18n, "settings.checkinEnable")} aria-pressed={checkinEnabled} aria-busy={checkinLoading} disabled={checkinLoading} onclick={() => void toggleCheckin()}></button>
             </div>
+            {#if checkinLoadError}
+                <div class="glean-set-row" role="alert">
+                    <span class="glean-settings__error">{t(i18n, "settings.checkinLoadFailed")}</span>
+                    <button class="glean-btn glean-btn--ghost" type="button" disabled={checkinLoading} onclick={() => void loadCheckinItems()}>{t(i18n, "action.retry")}</button>
+                </div>
+            {/if}
             <div class="glean-set-row">
                 <div class="glean-set-row__lb">
                     {t(i18n, "settings.bridgeWriteEnable")}
@@ -682,11 +747,17 @@ async function doMountBoard() {
                     {t(i18n, "settings.aiLog")}
                     <div class="glean-set-row__desc">{t(i18n, "settings.aiLogDesc")}</div>
                 </div>
-                <button class="glean-btn glean-action-btn" onclick={() => void toggleAiLog()}>
-                    {aiLog === null ? t(i18n, "settings.aiLogView") : t(i18n, "action.close")}
+                <button class="glean-btn glean-action-btn" disabled={aiLogLoading} aria-busy={aiLogLoading} onclick={() => void toggleAiLog()}>
+                    {aiLogLoading ? t(i18n, "panel.loading") : aiLog === null || aiLogError ? t(i18n, "settings.aiLogView") : t(i18n, "action.close")}
                 </button>
             </div>
-            {#if aiLog !== null && aiLog.length > 0}
+            {#if aiLogError}
+                <div class="glean-set-row" role="alert">
+                    <span class="glean-settings__error">{t(i18n, "settings.aiLogLoadFailed")}</span>
+                    <button class="glean-btn glean-btn--ghost" type="button" disabled={aiLogLoading} onclick={() => void toggleAiLog()}>{t(i18n, "action.retry")}</button>
+                </div>
+            {/if}
+            {#if aiLog !== null && !aiLogError && aiLog.length > 0}
                 <div class="glean-set-row glean-settings__log-list">
                     {#each aiLog as entry (entry.at + entry.docId)}
                         <div class="glean-logrow">
@@ -696,7 +767,7 @@ async function doMountBoard() {
                         </div>
                     {/each}
                 </div>
-            {:else if aiLog !== null}
+            {:else if aiLog !== null && !aiLogError}
                 <div class="glean-set-row glean-settings__log-empty">
                     {t(i18n, "settings.aiLogEmpty")}
                 </div>

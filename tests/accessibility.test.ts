@@ -30,6 +30,11 @@ test("settings exposes names for groups, controls and save state", () => {
     assert.match(source, /aria-label=\{t\(i18n, "settings\.aiDailyCap"\)\}/);
     assert.match(source, /aria-label=\{t\(i18n, "settings\.checkinItem"\)\}/);
     assert.match(source, /customBaseUrlInsecure/);
+    assert.match(source, /notebookLoadFailed/);
+    assert.match(source, /checkinLoadFailed/);
+    assert.match(source, /aiLogLoadFailed/);
+    assert.match(source, /aria-busy=\{checkinLoading\}/);
+    assert.match(source, /aria-busy=\{aiLogLoading\}/);
 });
 
 test("stats uses per-instance section names and readable daily heatmap labels", () => {
