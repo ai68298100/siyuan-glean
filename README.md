@@ -46,6 +46,15 @@
 - [真实宿主验收指南](docs/ACCEPTANCE.md) · [阅读验收](docs/READER-ACCEPTANCE.md)。
 - [AI 验收](docs/AI-ACCEPTANCE.md) · [外部集成验收](docs/INTEGRATION-ACCEPTANCE.md) · [已知阻塞](docs/BLOCKERS.md)。
 
+## 相关小驴项目
+
+目前已开发四款小驴系列思源插件：
+
+- [小驴雷切](https://github.com/ai68298100/siyuan-speed-switch)：统一切换与工作上下文
+- [小驴打卡](https://github.com/ai68298100/siyuan-checkin)：阅读与习惯打卡
+- [小驴人脉](https://github.com/ai68298100/siyuan-contacts)：联系人和人脉管理
+- **小驴拾遗**：剪藏文章整理、阅读分拣和每日重浮
+
 ## 反馈与社区
 
 请通过[问题与建议模板](https://github.com/ai68298100/siyuan-glean/issues/new/choose)提交反馈，并附上思源版本、插件版本、前端类型和可复现步骤。截图或日志请先移除标题、正文、URL 和密钥等隐私内容。也可加入 QQ 群：**871707735**。

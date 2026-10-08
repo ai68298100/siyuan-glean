@@ -46,6 +46,15 @@ Desktop host, Android/mobile, browser frontend, real models, the official clippe
 - [Real-host acceptance guide](docs/ACCEPTANCE.md) · [Reader acceptance](docs/READER-ACCEPTANCE.md).
 - [AI acceptance](docs/AI-ACCEPTANCE.md) · [Integration acceptance](docs/INTEGRATION-ACCEPTANCE.md) · [Known blockers](docs/BLOCKERS.md).
 
+## The Lv plugin family
+
+Four Lv (小驴) SiYuan plugins are currently developed:
+
+- [Lv Quickcut / 小驴雷切](https://github.com/ai68298100/siyuan-speed-switch): navigation and work-context switching
+- [Lv Checkin / 小驴打卡](https://github.com/ai68298100/siyuan-checkin): reading and habit check-ins
+- [Lv Contacts / 小驴人脉](https://github.com/ai68298100/siyuan-contacts): contact and relationship management
+- **Lv Glean / 小驴拾遗**: clipping organization, reading triage and daily resurfacing
+
 ## Feedback and community
 
 Use the [issue templates](https://github.com/ai68298100/siyuan-glean/issues/new/choose) and include your SiYuan version, plugin version, frontend type, and reproduction steps. Remove document titles, body text, URLs, and secrets from screenshots or logs before sharing. QQ group: **871707735**.
