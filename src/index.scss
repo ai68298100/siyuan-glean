@@ -3623,6 +3623,9 @@ body.b3-theme-dark {
 .glean-settings {
     display: flex;
     flex-direction: column;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
     gap: 14px;
     height: 100%;
     padding: 14px 16px 16px;
