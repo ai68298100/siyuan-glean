@@ -149,6 +149,7 @@ let defaultSavedViewId = $state("");
 let savedViewId = $state("");
 let savedViewName = $state("");
 let prefsLoading = $state(true);
+let prefsError = $state(false);
 let prefsUserTouched = false;
 let applyingPrefs = false;
 let governanceMuted = $state<GovernanceMuted>({ quota: "", stale: "", candidates: "" });
@@ -668,8 +669,11 @@ $effect(() => {
 });
 
 // 视图偏好持久化：挂载恢复 + 切换保存
-$effect(() => {
-    void loadUiPrefs(facade.pluginInstance).then((prefs) => {
+async function restorePreferences(): Promise<void> {
+    prefsLoading = true;
+    prefsError = false;
+    try {
+        const prefs = await loadUiPrefs(facade.pluginInstance);
         const valid = views.some((item) => item.key === prefs.lastView);
         // 返回读库定位优先于异步恢复的上次视图，避免把 library 切回旧视图。
         applyingPrefs = true;
@@ -684,7 +688,16 @@ $effect(() => {
         if (!prefsUserTouched && !focusRequested && prefs.defaultSavedViewId) applySavedViewState(prefs.defaultSavedViewId, prefs.savedViews);
         applyingPrefs = false;
         prefsLoading = false;
-    });
+    } catch (error) {
+        console.warn("[glean] 工作台偏好读取失败:", error);
+        applyingPrefs = false;
+        prefsError = true;
+        prefsLoading = false;
+    }
+}
+
+$effect(() => {
+    void restorePreferences();
 });
 
 $effect(() => {

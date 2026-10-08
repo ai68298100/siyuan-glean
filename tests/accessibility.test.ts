@@ -203,3 +203,11 @@ test("reading review save exposes unexpected failures", () => {
     assert.match(source, /阅读回顾保存失败/);
     assert.match(source, /msg\.actionFailed/);
 });
+
+test("workbench preference reads expose retry feedback", () => {
+    const source = read("src/ui/DockPanel.svelte");
+    assert.match(source, /工作台偏好读取失败/);
+    assert.match(source, /prefsError/);
+    assert.match(source, /msg\.actionFailed/);
+    assert.match(source, /restorePreferences/);
+});
