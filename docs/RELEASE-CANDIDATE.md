@@ -11,12 +11,12 @@
 | 源版本 | `1.2.0` | `package.json` 与 `plugin.json` 一致 |
 | 变更记录 | 已有 `v1.2.0` 条目 | `docs/CHANGELOG.md` |
 | 类型与 Svelte 检查 | 通过，0 错误/0 警告 | `pnpm check` |
-| 全量测试 | 待本轮复跑 | `pnpm test`，含大库窗口、今日置顶、阅读位置、AI 批量、备份恢复和导出回归 |
-| 隔离内核主链 | 待本轮复跑 | `node scripts/e2e/s1-flow.mjs`，含恢复检查点、备份恢复、AV、制卡和导入实证 |
+| 全量测试 | 通过，1214/1214 | `pnpm test`，含大库窗口、今日置顶、阅读位置、AI 批量、备份恢复和导出回归 |
+| 隔离内核主链 | 通过，58/58 | `node scripts/e2e/s1-flow.mjs`，含恢复检查点、备份恢复、AV、制卡和导入实证；制卡恢复 10 条 |
 | 生产构建 | 通过 | `pnpm build` |
 | 性能门禁 | 通过当前机器合成基线 | `pnpm perf:check` |
 | 视觉矩阵 | 通过登记检查；24 张仍待真实宿主 | `pnpm visual:check`，B-0002 |
-| 发布产物 | 待本轮复跑 | `pnpm check:release`；`package.zip`、`dist` 资源齐全并上传 Latest Release |
+| 发布产物 | 通过，373563B | `pnpm check:release` 14/14；`package.zip` 已上传 [v1.2.0 Release](https://github.com/ai68298100/siyuan-glean/releases/tag/v1.2.0)，SHA-256 `fcb0ecae350d04ab2d6c699a9a7aa18882ed9a67c18df85c9443bcc69c6f7033` |
 
 版本已按 D-0005 定版为 `1.2.0`。GitHub tag、Release 和 `package.zip` 与 `main` 保持同一发布提交；集市仍需单独授权。
 

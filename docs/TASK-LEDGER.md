@@ -32,8 +32,8 @@
 | T-3287 |   | 现有入口较多 | 待交互契约 | 待 B-0002 | 依赖主链走查后的用户反馈 |
 | T-3288 | ◐ | 三类 Issue 模板补齐版本、文章载体、失败重试和能力矩阵入口，新增 `docs/FEEDBACK-LOOP.md` 并与 CONTRIBUTING/PR 互链 | 模板内容核对、任务账本和文档差异检查通过 | 待作者使用反馈 | 需先完成一轮真实走查并验证反馈流程是否足够 |
 | T-3289 |   | 已有 `icon.png`/`preview.png`，素材未闭环 | 待尺寸/压缩检查 | 待作者视觉确认 | 不能用未验证功能制造宣传画面 |
-| T-3290 | ◐ | 中英文 README 状态区、Quality gates/CodeQL/Release 徽章、安装入口、Issue/PR 模板、CI、Dependabot、SECURITY 和 CONTRIBUTING 已落地 | `pnpm check`、`pnpm test`、`pnpm build`、`pnpm visual:check`、`pnpm check:release` 和 i18n/能力矩阵门禁通过 | 待作者审阅 24 个真实宿主截图与稳定分支发布口径 | 当前开发线尚未与另一台电脑合并，暂不升版本或发新 Release |
-| T-3291 | ◐ | v1.2.0 已定版 | 发布门禁与 S1 E2E 已通过，tag/Release 待本轮执行 | 待 B-0002–B-0008 | 覆盖安装、卸载保留属性、真实宿主/移动端和外部集成仍需作者走查，集市 PR 未授权 |
+| T-3290 | ◐ | 中英文 README 状态区、Quality gates/CodeQL/Release 徽章、安装入口、Issue/PR 模板、CI、Dependabot、SECURITY 和 CONTRIBUTING 已落地 | `pnpm check`、`pnpm test`、`pnpm build`、`pnpm visual:check`、`pnpm check:release` 和 i18n/能力矩阵门禁通过 | 待作者审阅 24 个真实宿主截图与稳定分支发布口径 | v1.2.0 已将稳定分支统一为 `main`，真实宿主截图仍待作者审阅 |
+| T-3291 | ◐ | v1.2.0 已定版，发布提交 `faf046c` 已推送 | 发布门禁与 S1 E2E 已通过，`v1.2.0` tag/Release 已创建，GitHub 默认分支已切为 `main` | 待 B-0002–B-0008 | 覆盖安装、卸载保留属性、真实宿主/移动端和外部集成仍需作者走查，集市 PR 未授权 |
 | T-3260 | ◐ | 完成 | 完成 | 待 B-0002 | 真实三画布观感与触控必须作者走查 |
 | T-3261 | ◐ | 完成 | 完成 | 待 B-0002 | 真实三画布观感与触控必须作者走查 |
 | T-3262 | ◐ | 完成 | 完成 | 待 B-0002 | 真实宿主滚动、内存和低端设备收益必须实测 |

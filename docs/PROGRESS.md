@@ -4,7 +4,7 @@
 
 - [x] 当前 `main` 已合并两台开发机结果，版本从 `1.1.0` 定版为 `1.2.0`；`package.json` 与 `plugin.json` 同步，README、CHANGELOG、发布候选和发布手册口径已更新。
 - [x] E2E 缺陷修复已进入 `main`：制卡响应丢失后显式恢复确切检查点，隔离 S1 E2E 通过 58/58 条断言，其中制卡恢复 10 条；S1 harness 兼容 `conf.api.token`。
-- [ ] 本轮发布门禁、tag、GitHub Release、默认分支切换和多机同步在本轮收尾执行；真实宿主/移动端、外部服务和视觉矩阵仍按 B-0001–B-0008 验收，不以发布替代真机证据。
+- [x] 发布门禁、`v1.2.0` tag、GitHub Release 和默认分支切换已完成：发布提交 `faf046c`，Release 为 [v1.2.0](https://github.com/ai68298100/siyuan-glean/releases/tag/v1.2.0)，`package.zip` SHA-256 为 `fcb0ecae350d04ab2d6c699a9a7aa18882ed9a67c18df85c9443bcc69c6f7033`；其他机器后续从 `origin/main` 快进同步。真实宿主/移动端、外部服务和视觉矩阵仍按 B-0001–B-0008 验收，不以发布替代真机证据。
 
 ## T-3303/D-0182（2026-10-08：移动快捷动作语义修正）
 
