@@ -11,14 +11,14 @@
 | 源版本 | `1.2.1` | `package.json` 与 `plugin.json` 一致 |
 | 变更记录 | 已有 `v1.2.1` 条目 | `docs/CHANGELOG.md` |
 | 类型与 Svelte 检查 | 通过，0 错误/0 警告 | `pnpm check` |
-| 全量测试 | 通过，1214/1214 | `pnpm test`，含大库窗口、今日置顶、阅读位置、AI 批量、备份恢复和导出回归 |
+| 全量测试 | 通过，1215/1215 | `pnpm test`，含大库窗口、今日置顶、阅读位置、AI 批量、备份恢复和导出回归 |
 | 隔离内核主链 | 通过，58/58 | `node scripts/e2e/s1-flow.mjs`，含恢复检查点、备份恢复、AV、制卡和导入实证；制卡恢复 10 条 |
 | 生产构建 | 通过 | `pnpm build` |
 | 性能门禁 | 通过当前机器合成基线 | `pnpm perf:check` |
 | 视觉矩阵 | 通过登记检查；24 张仍待真实宿主 | `pnpm visual:check`，B-0002 |
-| 发布产物 | 待本轮构建 | `pnpm check:release` 将校验 v1.2.1 的 `dist` 与 `package.zip`；Release 上传后回填资产链接和 SHA-256 |
+| 发布产物 | 通过，365985B | `pnpm check:release` 14/14；[v1.2.1 Release](https://github.com/ai68298100/siyuan-glean/releases/tag/v1.2.1) 附件 SHA-256：`8eb5d37622cf355f6dfd297ef27956cef92250d015b7f159988861ae759b3346` |
 
-版本已按 D-0005 定版为 `1.2.1`。GitHub tag、Release 和 `package.zip` 必须与 `main` 同一发布提交；集市仍需单独授权。
+版本已按 D-0005 定版为 `1.2.1`。annotated tag 和 Release 指向发布提交 `2c82a44a585a4f9c1965d17a3e0057876d9f62f2`；Quality gates [37792918048](https://github.com/ai68298100/siyuan-glean/actions/runs/37792918048) 与 CodeQL [37792918085](https://github.com/ai68298100/siyuan-glean/actions/runs/37792918085) 均成功。集市仍需单独授权。
 
 ## 2. 仍需真实环境证据
 

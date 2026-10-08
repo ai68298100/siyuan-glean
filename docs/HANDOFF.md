@@ -2,10 +2,10 @@
 
 ## 当前有效交接（2026-10-08 v1.2.1 发布）
 
-作者已授权将当前 `main` 发布为补丁版 `v1.2.1`。双 manifest 已同步，README 前置更新区块已改为 v1.2.1，CHANGELOG、RELEASE、发布候选和验收说明正在同步。发布顺序固定为：全门禁 → 提交并推送 `main` → 推送 annotated tag `v1.2.1` → GitHub Release 上传重新构建的 `package.zip` → 核对资产哈希与两条工作流。集市 PR、历史发布、保留分支和真实宿主验收边界不变。
+`v1.2.1` 已发布。源提交 `2c82a44`、annotated tag 和 GitHub Release 对齐；Release 附件 `package.zip` SHA-256 为 `8eb5d37622cf355f6dfd297ef27956cef92250d015b7f159988861ae759b3346`。发布提交的 Quality gates 与 CodeQL 均成功，隔离 S1 E2E 58/58；本次发布记录已补齐。集市 PR、历史发布、保留分支和真实宿主验收边界不变。
 
 - 任务/决策：T-3310、D-0191。
-- 注意：`package.zip` 必须由 v1.2.1 构建生成；不要把真实桌面、移动端、AI、外部服务或 pending-host 视觉案例写成已完成验收。
+- 注意：不要把真实桌面、移动端、AI、外部服务或 pending-host 视觉案例写成已完成验收。
 
 ## 当前有效交接（2026-10-08 README 更新摘要约定）
 

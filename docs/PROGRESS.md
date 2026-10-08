@@ -3,7 +3,8 @@
 ## T-3310/D-0191 v1.2.1 补丁发布（2026-10-08）
 
 - [x] 版本由 `1.2.0` 升至 `1.2.1`，`package.json` 与 `plugin.json` 保持一致；双语 README、CHANGELOG、RELEASE、发布候选和验收说明同步当前版本。
-- [ ] 待本轮门禁、提交、推送 `main`、推送 `v1.2.1` tag 并创建 GitHub Release 后回填提交、资产哈希和 Quality gates/CodeQL 运行结论。
+- [x] 发布提交 `2c82a44` 已推送 `main`，annotated tag `v1.2.1` 与 Release 均指向该提交；隔离 S1 E2E **58/58**，`pnpm test` **1215/1215**，`pnpm check` 0 错误/0 警告，`pnpm build`、`pnpm check:release`、`pnpm perf:check`、`pnpm visual:check`、任务账本和 `git diff --check` 通过。Release 的 `package.zip` 为 365985B，SHA-256 `8eb5d37622cf355f6dfd297ef27956cef92250d015b7f159988861ae759b3346`。
+- [x] GitHub Quality gates [37792918048](https://github.com/ai68298100/siyuan-glean/actions/runs/37792918048) 与 CodeQL [37792918085](https://github.com/ai68298100/siyuan-glean/actions/runs/37792918085) 均成功；真实桌面、移动端、AI、外部集成和宿主视觉仍按 blockers 待验收。
 - [x] 集市 PR、历史 tag/Release、保留分支和真实宿主验收边界不因补丁发布改变。
 
 ## T-3309/D-0190 README 更新摘要约定（2026-10-08）
