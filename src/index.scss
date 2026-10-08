@@ -5111,6 +5111,17 @@ body.b3-theme-dark {
 
     .glean-surf-swipe {
         min-width: 0;
+        display: flex;
+    }
+
+    .glean-surf-card {
+        display: flex;
+        flex: 1 1 auto;
+        flex-direction: column;
+    }
+
+    .glean-surf-card .glean-surf__acts {
+        margin-top: auto;
     }
 
     .glean-surf__acts {
