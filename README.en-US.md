@@ -14,7 +14,7 @@ The [capability matrix](docs/CAPABILITY-MATRIX.md) records implementation, isola
 
 ## Project status and links
 
-- Current public release: [`v1.1.0`](https://github.com/ai68298100/siyuan-glean/releases/latest), compatible with SiYuan `v3.8.5+`.
+- Current public release: [`v1.2.0`](https://github.com/ai68298100/siyuan-glean/releases/latest), compatible with SiYuan `v3.8.5+`.
 - Package: download `package.zip` from the [Latest Release](https://github.com/ai68298100/siyuan-glean/releases/latest), then install it through SiYuan's marketplace or plugin manager; development branches are not stable releases.
 - Core library code and isolated regressions are in place. Desktop host, Android/mobile, browser frontend, real-model, and external-service paths are tracked and accepted separately in the capability matrix; browser previews and unit tests are not treated as real-device acceptance.
 - AI enrichment is manual by default and does not run automatically or spend tokens in the background. Individual AI actions require a configured model or channel; automatic enrichment must be enabled separately. The inbox bridge, external imports, snapshots, and cross-plugin bridges also have additional prerequisites.

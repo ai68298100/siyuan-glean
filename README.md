@@ -15,7 +15,7 @@
 
 ## 项目状态与入口
 
-- 当前公开版本：[`v1.1.0`](https://github.com/ai68298100/siyuan-glean/releases/latest)，支持思源 `v3.8.5+`。
+- 当前公开版本：[`v1.2.0`](https://github.com/ai68298100/siyuan-glean/releases/latest)，支持思源 `v3.8.5+`。
 - 安装包：从 [Latest Release](https://github.com/ai68298100/siyuan-glean/releases/latest) 下载 `package.zip`，再在思源集市或插件管理入口中安装；开发分支内容不等同于稳定版。
 - 核心读库代码和隔离回归已具备；桌面宿主、Android/移动端、浏览器前端、真实模型和外部服务仍按能力矩阵分别验收，不把浏览器预览或单元测试当作真机通过。
 - AI 富化默认仅手动、不自动消耗 token；具体 AI 动作需配置模型或通道，自动运行须单独显式开启。收集箱、外部导入、快照和跨插件桥接也需要额外前提。

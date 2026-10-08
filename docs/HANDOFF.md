@@ -1,5 +1,13 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-08 v1.2.0 发布收口）
+
+本轮将两台开发机已合入 `main` 的结果定版为 `v1.2.0`。GitHub 默认分支、稳定 Release 和后续机器同步源统一为 `main`；本机后续只从 `origin/main` 快进同步，`dev/thispc-1002` 保留为历史开发分支，不再作为发布源。制卡 E2E 恢复缺陷已修复，独立 S1 通过 58/58 条断言，其中恢复路径 10 条；真实桌面、移动、AI、外部服务和视觉矩阵仍需作者按 blockers 验收。
+
+- 版本文件、README、CHANGELOG、发布候选和主线协议已同步到 v1.2.0。
+- 待收尾：执行完整发布门禁，提交并推送版本提交，创建 `v1.2.0` tag 和 GitHub Release（附件 `package.zip`），将 GitHub 默认分支切为 `main`，并核对其他机器按 `origin/main` 同步。
+- 集市 PR 仍未授权，不执行；不修改或删除 `codex/main-sync-20261008`。
+
 ## 当前有效交接（2026-10-08 T-3303/D-0182）
 
 移动今日拾遗快捷动作首项已修正为“收录”：按钮通过父级 `quickCapture` 回调调用 `GleanFacade.addCurrentDocToLibrary()`，复用当前文档手动收录链路；Pocket/Omnivore/wallabag 外部导入仍位于更多菜单。按钮保持 44px 命中区，并复用父级忙碌态防重复点击；DOM 顺序调整为主卡片或空态先于“快捷动作”标题和按钮。

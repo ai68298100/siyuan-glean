@@ -6,6 +6,8 @@ import test from "node:test";
 import { main, SESSION_KINDS, validateSessionRecord } from "../scripts/e2e/acceptance-session.mjs";
 import { isSupportedE2EManifest, resolvePluginBundle } from "../scripts/e2e/plugin-identity.mjs";
 
+const pluginVersion = JSON.parse(fs.readFileSync(path.resolve(import.meta.dirname, "../plugin.json"), "utf8")).version;
+
 async function quietMain(args) {
     const log = console.log;
     const error = console.error;
@@ -84,7 +86,7 @@ test("linking an E2E manifest records service evidence", async () => {
         workspace,
         host: "127.0.0.1",
         port: 41234,
-        pluginVersion: "1.1.0",
+        pluginVersion,
         kernelVersion: "3.8.6",
         results: [{ name: "E2E-01", ok: true }],
     }));
