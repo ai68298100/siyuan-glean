@@ -39,6 +39,7 @@ export async function suggestAiTagMerges(plugin: Plugin): Promise<AiTagMergePlan
  * 返回实际写成功的文档篇数；单篇失败不阻断。
  */
 export async function applyAiTagMerge(plugin: Plugin, variants: string[], keep: string): Promise<number> {
+    if (!keep.trim() || variants.length === 0 || !variants.includes(keep)) return 0;
     const index = await loadIndex(plugin);
     const from = new Set(variants.filter((variant) => variant !== keep));
     let ok = 0;

@@ -8,7 +8,21 @@ Lv Glean organizes clippings and articles already in SiYuan. It does not crawl t
 
 [中文说明](README.md) · [Latest Release](https://github.com/ai68298100/siyuan-glean/releases/latest) · [Capability matrix](docs/CAPABILITY-MATRIX.md) · [Feedback](https://github.com/ai68298100/siyuan-glean/issues/new/choose)
 
-## Latest update (v1.2.1, 2026-10-08)
+## Latest update (main · after v1.2.1, 2026-10-09)
+
+Added: AI tag cleanup entry
+
+- Settings can scan similar AI tags on demand; each group requires choosing the name to keep before merging. Only the AI tag field is changed.
+
+Improved: immediate review after merging
+
+- Each group shows its affected article count, then rescans and refreshes the workbench after a successful merge.
+
+Fixed: missing user entry for the AI tag service
+
+- The existing suggestion/merge service is now available from Settings. Bulk author backfill remains a separate task with per-article confirmation boundaries.
+
+## v1.2.1 release update (2026-10-08)
 
 Added: v1.2.1 mainline release
 

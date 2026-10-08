@@ -15,6 +15,7 @@ import type { GleanFacade } from "../types";
 import { exportAnonymousDiagnostic, exportLibraryCsv } from "../services/library-export-service";
 import BackupPanel from "./BackupPanel.svelte";
 import FlashcardRecoveryPanel from "./FlashcardRecoveryPanel.svelte";
+import AiTagMergePanel from "./AiTagMergePanel.svelte";
 
 interface Props {
     facade: GleanFacade;
@@ -578,6 +579,13 @@ async function doMountBoard() {
                     {t(i18n, "import.entryAction")}
                 </button>
             </div>
+        </div>
+    </div>
+
+    <div class="glean-settings__section glean-settings__section--maintenance" aria-labelledby={`${idPrefix}-ai-tag-merge-title`}>
+        <div id={`${idPrefix}-ai-tag-merge-title`} class="glean-set-title" role="heading" aria-level="2">{t(i18n, "aiTagMerge.groupTitle")}</div>
+        <div class="glean-set-group glean-settings__extension-card">
+            <AiTagMergePanel {facade} />
         </div>
     </div>
 
