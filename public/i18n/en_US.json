@@ -726,6 +726,7 @@
   "settings.checkinEnable": "Log finished reads to Checkin",
   "settings.checkinEnableDesc": "Marking an article as Finished writes a reading event to Lv Checkin (local write). Requires Lv Checkin enabled and a selected target; bridge failures never block the done state",
   "settings.checkinItem": "Reading target item",
+  "settings.checkinLoading": "Loading checkin items…",
   "settings.checkinNoItems": "No checkin items found (requires Lv Checkin installed & enabled)",
   "settings.checkinItemsFound": "checkin items available",
   "settings.checkinLoadFailed": "Could not load checkin items. Try again.",

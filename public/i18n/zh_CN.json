@@ -726,6 +726,7 @@
   "settings.checkinEnable": "标记已读时记入打卡",
   "settings.checkinEnableDesc": "在读库中把文章标记为“已读”时，向小驴打卡写入一条阅读事件（写能力，仅本机）。需要已安装并启用小驴打卡并选择目标；桥接失败不阻断已读",
   "settings.checkinItem": "阅读打卡目标",
+  "settings.checkinLoading": "正在读取打卡项目…",
   "settings.checkinNoItems": "未检测到打卡项目（需安装并启用小驴打卡）",
   "settings.checkinItemsFound": "个打卡项目可选",
   "settings.checkinLoadFailed": "打卡项目读取失败，请重试",

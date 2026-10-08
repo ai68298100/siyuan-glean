@@ -676,10 +676,10 @@ async function doMountBoard() {
                     <div class="glean-set-row__lb">
                         {t(i18n, "settings.checkinItem")}
                         <div class="glean-set-row__desc">
-                            {#if checkinItems.length === 0}{t(i18n, "settings.checkinNoItems")}{:else}{checkinItems.length} {t(i18n, "settings.checkinItemsFound")}{/if}
+                            {#if checkinLoading}{t(i18n, "settings.checkinLoading")}{:else if checkinLoadError}{t(i18n, "settings.checkinLoadFailed")}{:else if checkinItems.length === 0}{t(i18n, "settings.checkinNoItems")}{:else}{checkinItems.length} {t(i18n, "settings.checkinItemsFound")}{/if}
                         </div>
                     </div>
-                    <select class="b3-select" style="font-size:12px" aria-label={t(i18n, "settings.checkinItem")} bind:value={checkinItemId}>
+                    <select class="b3-select" style="font-size:12px" aria-label={t(i18n, "settings.checkinItem")} disabled={checkinLoading || checkinLoadError || checkinItems.length === 0} bind:value={checkinItemId}>
                         <option value="">—</option>
                         {#each checkinItems as item (item.id)}
                             <option value={item.id}>{item.name}</option>
