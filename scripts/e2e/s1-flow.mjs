@@ -870,7 +870,7 @@ async function main() {
             if (child.exitCode !== null || child.signalCode !== null) throw new Error("测试内核已退出");
         }, client);
         const conf = JSON.parse(fs.readFileSync(path.join(WORKSPACE, "conf", "conf.json"), "utf8"));
-        const token = TARGET_ARGS.token || process.env.SIYUAN_TOKEN || conf.accessAuthCode || "";
+        const token = TARGET_ARGS.token || process.env.SIYUAN_TOKEN || conf.api?.token || conf.accessAuthCode || "";
         if (!token) throw new Error("隔离内核未生成 token；请设置 SIYUAN_TOKEN 或检查 conf.json");
         client.setToken(token);
         await prepareWriteSmoke((route, body) => client.api(route, body), { base, log: console });

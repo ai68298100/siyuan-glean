@@ -263,6 +263,29 @@ export async function runFlashcardFlow({ client, plugin, until, pass, workspace 
         await assertSourcePreserved();
         record("真实插入响应丢失：确切原块已存在，服务保留未知状态并拒绝重发/猜块/登记", { unknownResult, actualUnknownId, card: unknownCard });
 
+        const pendingRecovery = await cards.loadFlashcardRecovery(monitoredPlugin);
+        assert.equal(pendingRecovery?.phase, "insert-intent");
+        assert.equal(pendingRecovery?.cardBlockId, actualUnknownId);
+        assert.equal(pendingRecovery?.hostDocId, unknownResult.hostDocId);
+        assert.equal(pendingRecovery?.deckId, unknownSession.deckId);
+        const recoveryOffset = calls.length;
+        const recoveryStorageOffset = storageWrites.length;
+        const recoveryResult = await cards.resumeFlashcardRecovery(monitoredPlugin);
+        assert.equal(recoveryResult.ok, true);
+        assert.equal(recoveryResult.registered, true);
+        assert.equal(recoveryResult.recovery?.phase, "registered");
+        assert.equal(recoveryResult.recovery?.cardBlockId, actualUnknownId);
+        assert.equal(recoveryResult.recovery?.hostDocId, unknownResult.hostDocId);
+        assert.equal(recoveryResult.recovery?.deckId, unknownSession.deckId);
+        assert.equal(await cards.loadFlashcardRecovery(monitoredPlugin), null);
+        assert.equal(inserts(recoveryOffset).length, 0);
+        assert.equal(registrations(recoveryOffset).length, 1);
+        assert.deepEqual(registrations(recoveryOffset)[0].body, { deckID: unknownSession.deckId, blockIDs: [actualUnknownId] });
+        assert.equal(storageWrites.length, recoveryStorageOffset + 2);
+        assert.equal(await deckSize(unknownSession.deckId), initialDeckSize + 3);
+        await assertSourcePreserved();
+        record("插入响应丢失后的恢复路径：按确切卡片ID显式登记、记录推进到registered并清理检查点，不重复插入", { pendingRecovery, recoveryResult, actualUnknownId });
+
         const invalidSource = cards.createFlashcardSession({ ...source, blockId: foreignBlocks[0].id });
         const ownershipOffset = calls.length;
         const ownershipStorageOffset = storageWrites.length;
