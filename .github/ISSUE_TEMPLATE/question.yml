@@ -12,7 +12,7 @@ body:
     id: plugin-version
     attributes:
       label: 插件版本
-      placeholder: v1.1.0
+      placeholder: 实际安装版本
     validations:
       required: true
   - type: input

@@ -13,8 +13,8 @@ body:
     id: plugin-version
     attributes:
       label: 插件版本
-      description: 例如 v1.1.0；可在插件设置或 package.zip 名称中查看。
-      placeholder: v1.1.0
+      description: 请填写插件设置中显示的实际版本。
+      placeholder: 实际安装版本
     validations:
       required: true
   - type: input
@@ -51,8 +51,8 @@ body:
     id: first-seen-version
     attributes:
       label: 首次出现版本
-      description: 不确定时填写“不确定”；最后正常版本可写在上下文中。
-      placeholder: v1.1.0
+      description: 不确定时填写“不确定”；如有需要，可在上下文中补充最后正常版本。
+      placeholder: 版本号或“不确定”
     validations:
       required: true
   - type: textarea
