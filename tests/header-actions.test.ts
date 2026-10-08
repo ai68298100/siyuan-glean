@@ -41,6 +41,11 @@ test("popup action uses the same wide-canvas wrapper as a workbench tab", () => 
     assert.match(source, /container\.className\s*=\s*"glean-tab-root fn__flex-1"/);
 });
 
+test("svelte dialogs let workbench roots fill the popup content width", () => {
+    const source = read("src/libs/dialog.ts");
+    assert.match(source, /class=\"dialog-content\" style=\"display: flex; flex-direction: column; width: 100%; height: 100%; min-width: 0; min-height: 0; box-sizing: border-box;/);
+});
+
 test("prototype workbench frame shows the three readable header actions", () => {
     const prototype = read("design/prototype-v2.html");
     const home = prototype.slice(prototype.indexOf('<article class="screen" id="home">'), prototype.indexOf("</article>", prototype.indexOf('<article class="screen" id="home">')));

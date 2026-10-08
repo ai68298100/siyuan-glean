@@ -1,5 +1,12 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-08 独立浮窗工作台宽度修复）
+
+独立浮窗截图中的中文竖排和按钮挤压来自弹窗内容区的 flex 方向与尺寸约束：`svelteDialog` 原本让 `dialog-content` 使用默认横向 flex，`display: contents` 挂载下的 `.glean-panel` 按最小内容宽度收缩，触发 `glean-workbench` 窄容器规则。本轮把内容区改为纵向 flex，设置 `width: 100%`、`min-width/min-height: 0` 和 `box-sizing: border-box`，让工作台根节点沿横轴铺满浮窗。
+
+- 改动：`src/libs/dialog.ts`、`tests/header-actions.test.ts`；任务 T-3307，决策 D-0188。
+- 门禁与 PR 尚未完成；版本继续为 v1.2.0，不升版、不打 tag、不创建 Release。真实独立浮窗排版、滚动和关闭行为仍需 B-0002。
+
 ## 当前有效交接（2026-10-08 宽画布今日拾遗卡片排版修复）
 
 用户截图反馈第二张今日拾遗卡片底部出现灰色露底、阴影不齐。根因是宽屏 CSS Grid 的行高拉伸了 `glean-surf-swipe` 包装层，绝对定位滑动背景层覆盖到短内容卡片之外。当前修复在宽屏将包装层设为 flex，卡片纵向填满网格行，操作区贴底；窄 Dock/移动端不改变。
