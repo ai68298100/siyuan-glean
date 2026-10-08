@@ -1,5 +1,13 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-08 GitHub 内容与分支收口）
+
+README 中英文已恢复独立的小驴系列插件说明和 QQ 群 `871707735`，雷切入口使用当前有效的 `siyuan-speed-switch`；版本继续为 v1.2.0，本轮没有新的产品功能，不升版、不重发 Release。GitHub 当前无开放 PR，历史 PR/Release/tag 保留审计链；main 保护只保留 `quality` 必过，禁止强推和删除。
+
+- `main`/`origin/main` 当前为 `0153da9`，本机工作树应继续从 `origin/main` 快进同步。
+- `codex/main-sync-20261008` 必须保留并继续指向 `c6b37a8`；`dev/thispc-1002` 已被 main 完整包含且无独有提交，是否删除待作者确认。
+- 本轮仅修改 README 和治理文档；完成门禁后可提交 PR，分支整理的最后一步按作者确认执行。
+
 ## 当前有效交接（2026-10-08 README/GitHub 首页整理）
 
 中英文 README 已按用户上手顺序收敛，包含 Latest Release 安装、候选确认主流程、属性数据主权、AI 隐私和真实验收边界；删除过时的 T-1713/T-1718 内部待办表述。Issue 模板改为填写实际安装版本。GitHub About、主页、主题、main 默认分支、v1.2.0 Latest Release 和开放 Issue/PR 已核对，无需改动或清理历史记录；真实宿主截图仍待 B-0002。
