@@ -71,10 +71,10 @@ function siteFromUrl(rawUrl: string): string {
     }
 }
 
-/** unix 秒 / ISO 8601 → YYYYMMDDHHmmss；解析不出为空串 */
+/** unix 秒/毫秒 / ISO 8601 → YYYYMMDDHHmmss；解析不出为空串 */
 export function toSiyuanTime(value: unknown): string {
     if (typeof value !== "string" && typeof value !== "number") return "";
-    const num = typeof value === "number" ? value : /^\d{10}$/.test(value.trim()) ? Number(value) : Date.parse(value);
+    const num = typeof value === "number" ? value : /^\d{10}$|^\d{13}$/.test(value.trim()) ? Number(value) : Date.parse(value);
     if (typeof num !== "number" || !Number.isFinite(num)) return "";
     const date = new Date(num < 10_000_000_000 ? num * 1000 : num);
     if (Number.isNaN(date.getTime())) return "";
@@ -275,7 +275,9 @@ export function parseOmnivoreJson(raw: string): ParseResult {
         const labels = Array.isArray(page.labels)
             ? (page.labels as Array<{ name?: unknown }>).map((label) => String(label?.name ?? "")).filter(Boolean)
             : [];
-        const archived = page.isArchived === true;
+        // Omnivore 导出的归档语义有两种载体：wallabag 风格 isArchived 布尔，或 state 字符串（如 "ARCHIVED"）
+        const state = String(page.state ?? "").toUpperCase();
+        const archived = page.isArchived === true || state.includes("ARCHIVED");
         items.push({
             title: String(page.title ?? ""),
             url,

@@ -1,5 +1,17 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-09 T-3313 第二轮全方位走查：服务层/域层/API/主入口）
+
+继 T-3312（UI 组件层）之后的第二轮系统性走查，覆盖上次未深入的服务层（37 文件）、域层纯函数、`src/api/` 端点层与 `src/index.ts` 主入口。修复约 30 项，未新增端点或文章属性，版本保持 `1.2.1`，不升版、不打 tag、不创建 Release。要点：
+
+- **功能级 bug**：`pickDaily`（domain/resurface.ts）有两个算法缺陷——置顶项以 `MAX_SAFE_INTEGER` 作贪心比较基准，只要有"今日置顶"，每日拾遗就坍缩为只剩置顶（"读完并下一篇"也永远返回置顶）；-2 淘汰规则误伤分数天然低但无标签重叠的候选。两者已修并补回归。滑动背景的动作标签 CSS 左右放反（右滑显示"归档"实际执行"改天"），已对齐 `resolveSurfaceSwipe`。
+- **主入口**：`currentDocId()` 原来取布局序第一个编辑器——多编辑器/分屏时 `markDone`/收录/富化可能写错文档，现改为选区→焦点→布局序三级锚定；补基类 `openSetting()` 覆盖（此前思源"设置→插件"齿轮点击静默无反应）；`⌥⌘G` 双重注册只保留命令；`kernelPost` 的 fetchSyncPost 回退分支补超时与 failCallback，`KERNEL_TIMEOUT_LONG_MS` 接线到 exportMdContent/exportHTML/putFile 三个长操作。
+- **服务层**：`writeClip`/`reconcileIndex`/`scanPreview`/`rebuildIndex` 的索引读改写全部包进 `withIndexLock`（此前并发增量写会丢、对账期间一次属性写可用旧快照覆盖整份新索引）；导入文件加 32MiB 上限（`import.progress.error.size`）；迁移 URL 裁决合并单次 patch；删除 weeklyReport 死代码链（`buildWeeklyReportMarkdown`/`weeklyReportDocPath`/`exportWeeklyReport` 及测试）。
+- **重要教训（代理误报甄别）**：审查代理报告 `uncertainUsage`（计量未知暂停 AI）与 author 非法 ID `reason:"changed"` 为"死锁/语义缺陷"，但两者的行为均有既有测试明确锁定（"计量未知不得继续调用"、"非法ID→changed"），属于**有意的设计契约**——保守暂停 + UI 文案引导重载。本轮曾尝试"修复"后被测试拦下，已回滚。后续改动这两个语义前必须先改契约和测试。
+- **i18n**：新增审计脚本 `scripts/audit-dead-i18n.mjs`（字面量+动态模板前缀双向核对），清理 30 个死键（旧 stats.* 周报族、migrate.column* 族、board.mounted 等），双语各 1005 键一致；新增 `import.progress.error.size`。
+- 门禁：`pnpm check` 0/0、`pnpm test` 1222/1222、`pnpm build`、`pnpm check:release`、任务账本、`git diff --check` 全通过。**隔离 S1 E2E 本轮未跑**：`launch-e2e` 读到工作区 `~/SiYuan-Glean-E2E/conf/conf.json` 的 `accessAuthCode` 为空（上次会话残留），需 `--token`/`SIYUAN_TOKEN` 或重建隔离工作区；不属于代码门禁失败。
+- 记录不修项（同 T-3312 口径）：migrate-service 全面加锁（UI 已有重入 guard，双实例并发低频，需专门任务）、bridge.listClips 全量对账性能、bindClipsToLibrary 批失败粒度、inbox 云端时区语义、三个零引用服务文件（services/tts.ts、reading-time.ts、reading-position.ts，仅测试引用，删除需连测试一起处理）。
+
 ## 当前有效交接（2026-10-09 T-3312 全方位走查找缺修复）
 
 本轮对全部 UI 组件、文案与服务层做了一轮系统性走查（4 个并行审查 + 逐项人工验证），修复约 30 项确定性问题，未新增端点或文章属性，版本保持 `1.2.1`，不升版、不打 tag、不创建 Release。要点：

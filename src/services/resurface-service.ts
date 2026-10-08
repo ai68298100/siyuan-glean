@@ -151,7 +151,8 @@ export async function pickNextUnread(plugin: Plugin, excludeDocId: string): Prom
     if (picks.length > 0) return picks[0].item.id;
     const stalest = pool
         .filter((item) => item.status === "inbox" || item.status === "later")
-        .sort((a, b) => a.time.localeCompare(b.time) || a.id.localeCompare(b.id));
+        // 缺 time 的旧数据垫底，不抢占"下一篇"
+        .sort((a, b) => (a.time || "9999").localeCompare(b.time || "9999") || a.id.localeCompare(b.id));
     return stalest[0]?.id ?? "";
 }
 

@@ -232,6 +232,7 @@ function mobileBack() {
     if (view === "resurface") return;
     view = "resurface";
     mobileMoreOpen = false;
+    markPrefsInteraction();
 }
 
 function selectMobileNav(key: MobileNavKey) {
@@ -569,6 +570,14 @@ function closeMobileFilters(): void {
     dispose();
     mobileFilterReturnFocus = null;
 }
+
+// 切换主视图时若移动筛选抽屉还开着：收起并释放焦点陷阱，避免回到图书馆时抽屉以"无陷阱"状态复现
+$effect(() => {
+    void view;
+    return () => {
+        if (mobileFilterOpen) closeMobileFilters();
+    };
+});
 
 function clearMobileFilterDraft(): void {
     mobileFilterDraft = {

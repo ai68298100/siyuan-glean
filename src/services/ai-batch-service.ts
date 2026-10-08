@@ -75,7 +75,9 @@ async function locked<Result>(plugin: Plugin, operation: AiBatchState["busy"], w
     try {
         return await work(current);
     } catch (error) {
-        current.error = error instanceof AiBatchError ? error.reason : "previewRead";
+        // 非 AiBatchError 的意外异常按所处阶段给出默认原因，避免一律误标为"预览读取失败"
+        const fallback: AiBatchErrorReason = operation === "run" ? "journalSave" : operation === "load" ? "journalRead" : "previewRead";
+        current.error = error instanceof AiBatchError ? error.reason : fallback;
         throw error;
     } finally {
         current.busy = "";

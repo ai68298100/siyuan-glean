@@ -166,7 +166,8 @@ async function runExport(action: "copy" | "csv" | "preview") {
             session = await prepareHighlightExport(items, selected, labels);
         }
     } catch (error) {
-        exportError = error instanceof HighlightExportError ? reasonText(error.reason) : String(error);
+        console.warn("[glean] 摘录导出失败:", error);
+        exportError = error instanceof HighlightExportError ? reasonText(error.reason) : t(i18n, "msg.actionFailed");
     } finally {
         exportBusy = false;
     }
@@ -187,7 +188,8 @@ async function save() {
             exportError = reasonText(result.reason ?? "readFailed");
         }
     } catch (error) {
-        exportError = String(error);
+        console.warn("[glean] 制卡保存失败:", error);
+        exportError = t(i18n, "msg.actionFailed");
     } finally {
         exportBusy = false;
     }
@@ -204,7 +206,8 @@ async function card(item: HighlightItem) {
     try {
         makeQuoteCardPreview(facade, { title: item.title || docTitle, quote: item.text, docId: item.rootId, blockId: item.id });
     } catch (error) {
-        showMessage(String(error).slice(0, 140), 5000);
+        console.warn("[glean] 分享卡生成失败:", error);
+        showMessage(t(i18n, "msg.actionFailed"), 3000);
     } finally {
         cardingKey = "";
     }

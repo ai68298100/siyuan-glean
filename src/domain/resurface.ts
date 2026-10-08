@@ -139,7 +139,7 @@ export function pickDaily(pool: SurfaceItem[], recentTagSets: Set<string>[], opt
     const used = new Set<string>();
     for (const pinned of pinnedToday) {
         if (picked.length >= options.count) break;
-        picked.push({ item: pinned, score: Number.MAX_SAFE_INTEGER });
+        picked.push({ item: pinned, score: surfaceScore(pinned, recentTagSets, now) });
         pickedTagSets.push(new Set((pinned.aiTags || []).map((tag) => tag.toLowerCase())));
         used.add(pinned.id);
     }
@@ -153,8 +153,10 @@ export function pickDaily(pool: SurfaceItem[], recentTagSets: Set<string>[], opt
             for (const tag of tags) if (pickedTags.has(tag)) overlap += 1;
             adjusted -= overlap * 2;
         }
-        // 与已选批重叠严重的靠后：重新按调整分与已选比较
-        if (picked.length > 0 && adjusted < picked[picked.length - 1].score - 2) {
+        // 只淘汰"因标签重叠被降分后明显低于在选批"的候选；
+        // 分数天然偏低但无重叠的候选按序正常入选，不设额外门槛
+        const demoted = adjusted < candidate.score;
+        if (picked.length > 0 && demoted && adjusted < picked[picked.length - 1].score - 2) {
             continue;
         }
         picked.push({ item: candidate.item, score: adjusted });

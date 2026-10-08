@@ -171,3 +171,38 @@ test("pickDaily：钉住当日置顶优先且覆盖改天过滤，隔日自然�
     const nextDay = pickDaily(pool, [], { count: 3, includeDone: false, now: tomorrow });
     assert.equal(nextDay.some((pick) => pick.item.id === "20260101000000-aaaaaaa"), true);
 });
+
+test("pickDaily：有钉住时其余候选仍正常入选，不坍缩为仅置顶项（T-3313）", () => {
+    const now = new Date(2026, 8, 29, 12, 0, 0);
+    const base = { title: "t", status: "inbox" as const, priority: 3, time: "20260901000000", aiTags: [] };
+    const pool = [
+        { ...base, id: "20260101000000-aaaaaaa", pinned: "20260929" },
+        { ...base, id: "20260101000001-aaaaaaa", time: "20260910000000" },
+        { ...base, id: "20260101000002-aaaaaaa", time: "20260915000000" },
+        { ...base, id: "20260101000003-aaaaaaa", time: "20260920000000" },
+    ];
+    const picks = pickDaily(pool, [], { count: 4, includeDone: false, now });
+    assert.equal(picks[0].item.id, "20260101000000-aaaaaaa");
+    assert.equal(picks.length, 4);
+});
+
+test("pickDaily：分数差距大但无标签重叠的候选按序入选，仅重叠降分过多的才淘汰（T-3313）", () => {
+    const now = new Date(2026, 8, 29, 12, 0, 0);
+    const base = { title: "t", status: "inbox" as const, priority: 3, aiTags: [] };
+    const pool = [
+        { ...base, id: "20260101000001-aaaaaaa", time: "20260928000000" },
+        { ...base, id: "20260101000002-aaaaaaa", time: "20260815000000" },
+        { ...base, id: "20260101000003-aaaaaaa", time: "20260601000000" },
+        { ...base, id: "20260101000004-aaaaaaa", time: "20260601000000" },
+    ];
+    const picks = pickDaily(pool, [], { count: 4, includeDone: false, now });
+    assert.equal(picks.length, 4);
+    // 同批 AI 标签高度重叠时，重叠降分过多者被淘汰（同批不做同主题）
+    const sameTopic = [
+        { ...base, id: "20260101000001-aaaaaaa", time: "20260928000000", aiTags: ["ai"] },
+        { ...base, id: "20260101000002-aaaaaaa", time: "20260927000000", aiTags: ["ai"] },
+        { ...base, id: "20260101000003-aaaaaaa", time: "20260926000000", aiTags: ["ai"] },
+    ];
+    const deduped = pickDaily(sameTopic, [], { count: 3, includeDone: false, now });
+    assert.equal(deduped.length < 3, true);
+});

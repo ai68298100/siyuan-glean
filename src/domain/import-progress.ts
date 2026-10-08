@@ -4,7 +4,7 @@ export const IMPORT_PROGRESS_FILE = "import-progress.json";
 export const IMPORT_ROW_STATES = ["pending", "creating", "created", "applied", "duplicate", "failed", "unknown"] as const;
 export type ImportRowState = (typeof IMPORT_ROW_STATES)[number];
 export type ImportFailureReason = "" | "missing" | "changed" | "internal" | "conflict" | "read" | "capture" | "unknown";
-export type ImportProgressReason = "invalid" | "busy" | "unfinished" | "changed" | "file" | "target" | "confirmation" | "read" | "save";
+export type ImportProgressReason = "invalid" | "busy" | "unfinished" | "changed" | "file" | "target" | "confirmation" | "read" | "save" | "size";
 
 export class ImportProgressError extends Error {
     readonly reason: ImportProgressReason;

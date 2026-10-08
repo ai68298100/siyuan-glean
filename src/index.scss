@@ -4942,14 +4942,15 @@ body.b3-theme-dark {
     font-weight: 700;
 }
 
-.glean-surf-swipe__action--archive {
+/* 右滑=改天（露出左侧标签），左滑=归档（露出右侧标签），与 resolveSurfaceSwipe 一致 */
+.glean-surf-swipe__action--later {
     justify-content: flex-start;
-    color: var(--glean-st-arch);
+    color: var(--glean-st-later);
 }
 
-.glean-surf-swipe__action--later {
+.glean-surf-swipe__action--archive {
     justify-content: flex-end;
-    color: var(--glean-st-later);
+    color: var(--glean-st-arch);
 }
 
 .glean-surf-card {

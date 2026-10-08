@@ -10,7 +10,7 @@ import { writeClip, type WriteClipOptions } from "./clip-store";
 
 /** 查文档所属笔记本（box）。 */
 async function docBox(docId: string): Promise<string> {
-    const rows = await querySql<{ box: string }>(`SELECT box FROM blocks WHERE id = '${docId}' AND type = 'd' LIMIT 1`);
+    const rows = await querySql<{ box: string }>(`SELECT box FROM blocks WHERE id = '${docId.replace(/'/g, "''")}' AND type = 'd' LIMIT 1`);
     return rows[0]?.box ?? "";
 }
 

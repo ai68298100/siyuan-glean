@@ -1,5 +1,6 @@
 /**
- * 阅读统计纯函数（T-1201）：从索引投影聚合统计 + 周报 markdown 生成。
+ * 阅读统计纯函数（T-1201）：从索引投影聚合统计 + 阅读回顾（review）口径生成。
+ * 旧的 weeklyReport 直出 markdown 已由 buildReadingReviewMarkdown 取代并移除。
  * 输入是轻量索引条目切片，输出是可渲染/可导出的聚合结构；全部可单测。
  */
 import { CLIP_STATUSES, siyuanDate, siyuanTimestamp } from "./schema.ts";
@@ -71,9 +72,9 @@ export function aggregateStats(items: StatsInput[], now: Date = new Date()): Rea
 
         const site = (item.site || "").trim().toLowerCase();
         if (site) siteCounts.set(site, (siteCounts.get(site) ?? 0) + 1);
-        for (const tag of item.aiTags ?? []) {
-            const key = tag.trim();
-            if (key) tagCounts.set(key, (tagCounts.get(key) ?? 0) + 1);
+        // 与 reviewNameCounts 同口径：同一篇文章的重复标签只计一次
+        for (const tag of new Set((item.aiTags ?? []).map((value) => value.trim()).filter(Boolean))) {
+            tagCounts.set(tag, (tagCounts.get(tag) ?? 0) + 1);
         }
     }
 
@@ -105,80 +106,10 @@ export function withinWeek(stamp: string, todayNoon: number): boolean {
     return daysAgo >= 0 && daysAgo < 7;
 }
 
-/* ---------- 周报 ---------- */
-
-export interface WeeklyReportInput {
-    stats: ReadingStats;
-    doneItems: StatsInput[];
-    rangeLabel: string;
-    author?: string;
-}
-
-/** 生成 Markdown 周报（供 createDocWithMd 导出）。 */
-export function buildWeeklyReportMarkdown(input: WeeklyReportInput, now: Date = new Date()): string {
-    const { stats, doneItems, rangeLabel } = input;
-    const lines: string[] = [];
-    lines.push(`# 阅读周报 · ${rangeLabel}`);
-    lines.push("");
-    lines.push(`> 由小驴拾遗生成于 ${formatDate(now)} —— 把吃灰的收藏捡回来喂给自己`);
-    lines.push("");
-    lines.push("## 概览");
-    lines.push("");
-    lines.push(`- 库内文章 **${stats.total}** 篇，已读 **${stats.done}** 篇，阅读中 **${stats.reading}** 篇`);
-    lines.push(`- 累计字数 **${formatWords(stats.totalWords)}** 字`);
-    lines.push(`- 本周完成 **${stats.doneThisWeek}** 篇，新增收录 **${stats.dailyCaptured.reduce((a, b) => a + b, 0)}** 篇`);
-    lines.push("");
-    if (doneItems.length > 0) {
-        lines.push("## 本周读完");
-        lines.push("");
-        for (const item of doneItems.slice(0, 12)) {
-            const site = item.site ? `（${item.site}）` : "";
-            const rating = item.rating > 0 ? ` ⭐${item.rating}` : "";
-            lines.push(`- [${item.title || "无标题"}](siyuan://blocks/${item.id})${site}${rating}`);
-        }
-        lines.push("");
-    }
-    if (stats.bySite.length > 0) {
-        lines.push("## 站点分布");
-        lines.push("");
-        for (const { name, count } of stats.bySite) {
-            lines.push(`- ${name} × ${count}`);
-        }
-        lines.push("");
-    }
-    if (stats.byTag.length > 0) {
-        lines.push("## 标签分布");
-        lines.push("");
-        for (const { name, count } of stats.byTag) {
-            lines.push(`- ${name} × ${count}`);
-        }
-        lines.push("");
-    }
-    return lines.join("\n");
-}
-
-/** 周报文档标题：读库周报/YYYYMMDD-YYYYMMDD */
-export function weeklyReportDocPath(now: Date = new Date()): { title: string; rangeLabel: string } {
-    const end = siyuanDate(now);
-    const startDate = new Date(now);
-    startDate.setDate(startDate.getDate() - 6);
-    const start = siyuanDate(startDate);
-    return { title: `${start}-${end}`, rangeLabel: `${start.slice(4, 6)}.${start.slice(6, 8)} – ${end.slice(4, 6)}.${end.slice(6, 8)}` };
-}
-
 export function nowStamp(now: Date = new Date()): string {
     return siyuanTimestamp(now);
 }
 
-function formatDate(now: Date): string {
-    const pad = (n: number) => String(n).padStart(2, "0");
-    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
-}
-
-function formatWords(words: number): string {
-    if (words >= 10_000) return `${(words / 10_000).toFixed(1)} 万`;
-    return String(words);
-}
 
 export type ReviewPeriodKind = "week" | "month" | "year";
 

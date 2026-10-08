@@ -26,7 +26,7 @@ test("domain/ 是纯函数层：禁 import svelte/siyuan/api/services/ui", () =>
 
 test("api/ 是唯一内核传输层：全仓只有 api/ 允许出现内核端点字符串", () => {
     const srcFiles = [...walk(resolve(root, "src"))].filter((file) => /\.(ts|svelte)$/.test(file));
-    const endpointPattern = /\/api\/(attr|query|notebook|filetree|export|search|ai|block)\//;
+    const endpointPattern = /\/api\/(attr|query|notebook|filetree|export|search|ai|block|file|av|inbox|riff|system|sync|filter|template|clipboard)\//;
     for (const file of srcFiles) {
         if (file.replace(/\\/g, "/").includes("/src/api/")) continue;
         const source = readFileSync(file, "utf8");

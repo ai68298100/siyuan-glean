@@ -5,8 +5,8 @@ import { spawnSync } from "node:child_process";
 import { summarizeDistribution } from "../src/domain/distribution.ts";
 
 import {
-    aggregateStats, aggregateReadingReview, buildReadingReviewCsv, buildReadingReviewMarkdown, buildWeeklyReportMarkdown,
-    completedReviewItems, csvCell, parseLocalTimestamp, parseReviewDate, reviewPeriod, weeklyReportDocPath, withinWeek,
+    aggregateStats, aggregateReadingReview, buildReadingReviewCsv, buildReadingReviewMarkdown,
+    completedReviewItems, csvCell, parseLocalTimestamp, parseReviewDate, reviewPeriod, withinWeek,
     type ReadingReview, type StatsInput,
 } from "../src/domain/stats.ts";
 
@@ -144,26 +144,15 @@ test("aggregateStats：站点与标签计数排序", () => {
     assert.equal(stats.byTag[0].count, 3);
 });
 
-test("weeklyReportDocPath：七天区间标题", () => {
-    const { title, rangeLabel } = weeklyReportDocPath(NOW);
-    assert.equal(title, "20260923-20260929");
-    assert.match(rangeLabel, /09\.23 – 09\.29/);
-});
-
-test("buildWeeklyReportMarkdown：含概览/已读列表/分布", () => {
+test("aggregateStats：同一篇文章的重复标签只计一次（T-3313）", () => {
     const stats = aggregateStats(
-        [item({ status: "done", title: "深度文章", site: "a.com", rating: 4, updated: "20260928000000" })],
+        [item({ aiTags: ["x", "x", "y"] }), item({ aiTags: ["x"] })],
         NOW
     );
-    const md = buildWeeklyReportMarkdown({
-        stats,
-        doneItems: [item({ status: "done", title: "深度文章", site: "a.com", rating: 4 })],
-        rangeLabel: "09.23 – 09.29",
-    });
-    assert.ok(md.includes("# 阅读周报 · 09.23 – 09.29"));
-    assert.ok(md.includes("深度文章"));
-    assert.ok(md.includes("a.com"));
-    assert.ok(md.includes("siyuan://blocks/"));
+    const x = stats.byTag.find((entry) => entry.name === "x");
+    const y = stats.byTag.find((entry) => entry.name === "y");
+    assert.equal(x?.count, 2);
+    assert.equal(y?.count, 1);
 });
 
 test("阅读回顾按完整本地日历周/月/年选择，跨年周从周一开始", () => {

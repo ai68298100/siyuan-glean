@@ -1,5 +1,15 @@
 # 进度（PROGRESS）
 
+## T-3313 第二轮全方位走查：服务层/域层/API/主入口（2026-10-09）
+
+- [x] 域层：`pickDaily` 修复置顶项 `MAX_SAFE_INTEGER` 基准导致的"有钉住时每日拾遗只剩置顶"，并按注释本意只淘汰因标签重叠降分过多的候选（新增 2 条回归：置顶不坍缩、低分无重叠按序入选）；滑动背景动作标签 CSS 与 `resolveSurfaceSwipe` 方向对齐；朗读分块保护小数点；`toSiyuanTime` 支持 13 位毫秒；Omnivore 解析 `state` 归档语义；`csvCell` 补公式注入防护；stats byTag 同篇重复标签只计一次。
+- [x] 服务层：`writeClip` 与 reconcile/scanPreview/rebuildIndex 的索引读改写段全部包进 `withIndexLock`，损坏保护路径补日志；迁移 URL 裁决合并为一次 patch；`pickNextUnread` 空 time 垫底；`ai-batch` 意外异常按阶段映射默认 reason；fetchDocMeta/docBox SQL 转义；删除 weeklyReport 死代码链及配套测试。审查提出但**维持原样**的契约：`uncertainUsage` 计量未知暂停（enrich-service 测试锁定"计量未知不得继续调用"）、author 非法 ID reason=`changed`（测试锁定）——代理误报为缺陷，实为既有设计。
+- [x] API/主入口：`currentDocId()` 改为选区→焦点→布局序三级锚定（多编辑器不再写错文档）；补基类 `openSetting()` 覆盖（思源设置齿轮入口此前静默失效）；`kernelPost` 回退分支补超时与 failCallback，`KERNEL_TIMEOUT_LONG_MS` 接线 exportMdContent/exportHTML/putFile；`⌥⌘G` 只保留命令注册；onboarding 定时器随 onunload 取消；`dockInstance` 死字段移除；`cmd.archiveCurrent` 复用 requireCurrentDoc；5 处原始错误本地化；`getShorthand` 吞错补日志；架构护栏端点模式补齐 file/av/inbox/riff/system/sync/filter/template/clipboard。
+- [x] UI 收尾：移动返回键补 `markPrefsInteraction`；移动筛选抽屉随主视图切换释放焦点陷阱；HighlightView/StatsView/SettingsView 残余原始错误展示收敛为本地化文案（原始 error 只进 console）。
+- [x] i18n：新增 `import.progress.error.size`（导入文件 32MiB 上限配套）；用新增审计脚本 `scripts/audit-dead-i18n.mjs`（字面量 + 动态模板前缀双向核对）清理 30 个死键，双语各 1035→1005 键一致。
+- [x] 门禁：`pnpm check` 0 错误/0 警告、`pnpm test` 1222/1222、`pnpm build`、`pnpm check:release`、任务账本、`git diff --check` 通过。隔离 S1 E2E 本轮未跑：`launch-e2e` 读取到的工作区 `conf.json` `accessAuthCode` 为空（上次会话残留状态），需要作者环境 token 或重建隔离工作区后另行验证，不属于本轮代码门禁。
+- [ ] 真实验收：多编辑器"当前文档"语义、置顶拾遗卡片观感、滑动标签视觉方向待 B-0002；版本保持 `1.2.1`，不升版、不打 tag、不创建 Release。
+
 ## T-3312 全方位走查找缺修复（2026-10-09）
 
 - [x] 阅读链路：切文时清空朗读分段（修复"继续朗读"读上一篇）、上下文读取失败保留会话阅读计时、外观工具栏按钮可开合；`ProtyleHost` 迟到 ready 不再对已销毁实例二次 destroy，回归覆盖新旧行为。

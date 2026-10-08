@@ -14,7 +14,7 @@ registerHooks({
     },
 });
 
-const { buildStats, buildReadingReview, previewReadingReview, saveReadingReviewReport, exportWeeklyReport } = await import("../src/services/stats-service.ts");
+const { buildStats, buildReadingReview, previewReadingReview, saveReadingReviewReport } = await import("../src/services/stats-service.ts");
 const { DEFAULT_SETTINGS } = await import("../src/services/settings.ts");
 const articleId = "20261004120000-aaaaaaa";
 const archivedId = "20261004120000-bbbbbbb";
@@ -249,12 +249,11 @@ test("已创建报告被删除、移动或加入读库时恢复失败，不另�
     }
 });
 
-test("无笔记本可预览和 CSV，但创建需要目标；旧导出入口不能跳过预览", async () => {
+test("无笔记本可预览和 CSV，但创建需要目标", async () => {
     const fixture = harness();
     fixture.settings.anchorNotebooks = [];
     const session = await previewReadingReview(fixture.plugin, fixture.settings, options);
     assert.ok(session.csv);
     assert.deepEqual(await saveReadingReviewReport(fixture.plugin, session, true), { ok: false, reason: "notebookMissing" });
-    await assert.rejects(exportWeeklyReport(fixture.files.get("glean-index.json"), fixture.settings, fixture.plugin), /Preview/);
     assert.equal(fixture.countCreates(), 0);
 });

@@ -9,7 +9,12 @@ export function chunkSpeechText(text: string, maxLength = SPEECH_CHUNK_MAX_LENGT
     const normalized = normalizeSpeechText(text);
     if (!normalized) return [];
 
-    const sentences = normalized.match(/[^。！？!?；;：:.]+[。！？!?；;：:.]?/g) ?? [normalized];
+    // 小数点不是句尾：先把"数字.数字"里的点换成占位符，切分后还原，
+    // 否则 "3.14" 会被切成 "3." / "14" 并在回拼时插进空格
+    const DECIMAL_GUARD = "\u0000";
+    const guarded = normalized.replace(/(\d)\.(\d)/g, `$1${DECIMAL_GUARD}$2`);
+    const sentences = (guarded.match(/[^。！？!?；;：:.]+[。！？!?；;：:.]?/g) ?? [guarded])
+        .map((part) => part.split(DECIMAL_GUARD).join("."));
     const chunks: string[] = [];
     let current = "";
 

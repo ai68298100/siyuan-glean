@@ -46,7 +46,8 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
     isMobile = false;
     settings: GleanSettings = DEFAULT_SETTINGS;
 
-    private dockInstance: ReturnType<typeof mount> | null = null;
+    /** 首启引导延迟弹出的句柄，onunload 时取消 */
+    private onboardingTimer: number | null = null;
     private disposeReadingContext: (() => void) | null = null;
     private disposeBridge: (() => void) | null = null;
     private loaded = false;
@@ -110,7 +111,7 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
                 size: { width: 320, height: 0 },
                 icon: "iconGleanWheat",
                 title: t(this.i18n, "dock.title"),
-                hotkey: "⌥⌘G",
+                // 不设默认热键：⌥⌘G 已注册给"打开工作台"命令，同一和弦挂两套机制会同时触发
             },
             type: DOCK_TYPE,
             data: {},
@@ -162,7 +163,7 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
         this.addCommand({ langKey: "cmd.markDone", callback: () => void this.markCurrentStatus("done") });
         this.addCommand({ langKey: "cmd.readNext", callback: () => void this.readNextArticle() });
         this.addCommand({ langKey: "cmd.markLater", callback: () => void this.markCurrentStatus("later") });
-        this.addCommand({ langKey: "cmd.archiveCurrent", callback: () => { const id = this.currentDocId(); if (id) this.openArchiveDialog(id); } });
+        this.addCommand({ langKey: "cmd.archiveCurrent", callback: () => { const id = this.requireCurrentDoc(); if (id) this.openArchiveDialog(id); } });
         this.addCommand({ langKey: "cmd.openSource", callback: () => void this.openCurrentSource() });
         this.addCommand({ langKey: "cmd.excerptQuote", callback: () => void this.excerptQuoteFromSelection() });
         this.addCommand({ langKey: "cmd.readerHelp", callback: () => this.showReaderHelp() });
@@ -228,9 +229,10 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
         if (!this.isMobile) {
             void (async () => {
                 const prefs = await loadUiPrefs(this);
+                if (!this.loaded) return;
                 const onboardingInProgress = prefs.onboardingInterrupted || prefs.onboardingStep !== 1;
                 if (prefs.onboardingDone || (this.settings.anchorNotebooks.length > 0 && !onboardingInProgress)) return;
-                window.setTimeout(() => this.openOnboarding(), 800);
+                this.onboardingTimer = window.setTimeout(() => this.openOnboarding(), 800);
             })();
         }
 
@@ -245,16 +247,17 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
 
     async onunload() {
         this.loaded = false;
+        if (this.onboardingTimer !== null) {
+            clearTimeout(this.onboardingTimer);
+            this.onboardingTimer = null;
+        }
         this.disposeBridge?.();
         this.disposeBridge = null;
         this.eventBus.off("open-menu-content", this.onMenuContent);
         this.eventBus.off("open-menu-inbox", this.onMenuInbox);
         this.disposeReadingContext?.();
         this.disposeReadingContext = null;
-        if (this.dockInstance) {
-            unmount(this.dockInstance);
-            this.dockInstance = null;
-        }
+        // dock/tab 的 Svelte 实例由 addDock/addTab 的 destroy 回调负责卸载
     }
 
     /* ---------- GleanFacade ---------- */
@@ -270,8 +273,21 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
     }
 
     currentDocId(): string {
-        const editor = getAllEditor().find((item) => item?.protyle?.block?.rootID);
-        return editor?.protyle?.block?.rootID ?? "";
+        // 多编辑器/分屏时取"用户正在看"的那份：选区锚定 → 焦点锚定 → 布局序兜底
+        const editors = getAllEditor().filter((item): item is NonNullable<typeof item> & { protyle: { block: { rootID: string }; element: Element } } =>
+            Boolean(item?.protyle?.block?.rootID && item?.protyle?.element));
+        if (editors.length <= 1) return editors[0]?.protyle?.block?.rootID ?? "";
+        const selection = window.getSelection();
+        if (selection && !selection.isCollapsed) {
+            const anchored = editors.find((item) => item.protyle.element?.contains(selection.anchorNode));
+            if (anchored) return anchored.protyle.block.rootID;
+        }
+        const active = document.activeElement;
+        if (active instanceof Element) {
+            const focused = editors.find((item) => item.protyle.element?.contains(active));
+            if (focused) return focused.protyle.block.rootID;
+        }
+        return editors[0].protyle.block.rootID;
     }
 
     openReadingDocument(docId: string): void {
@@ -556,7 +572,8 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
         try {
             makeQuoteCardPreview(this, { title: docTitle, quote, docId, blockId });
         } catch (error) {
-            showMessage(String(error).slice(0, 140), 5000);
+            console.warn("[glean] 分享卡生成失败:", error);
+            showMessage(t(this.i18n, "msg.actionFailed"), 3000);
         }
     }
 
@@ -592,7 +609,8 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
                 }
                 ok += 1;
             } catch (error) {
-                showMessage(String(error).slice(0, 140), 5000);
+                console.warn("[glean] 收集箱迁入失败:", error);
+                showMessage(t(this.i18n, "msg.actionFailed"), 3500);
             }
         }
         if (ok > 0) showMessage(t(this.i18n, "inbox.migrated"), 3000);
@@ -632,7 +650,7 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
             this.notifyDataChanged();
         } catch (error) {
             console.warn("[glean] 手动收录失败:", error);
-            showMessage(String(error).slice(0, 140), 5000);
+            showMessage(t(this.i18n, "msg.captureFailed"), 3500);
         }
     }
 
@@ -654,7 +672,8 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
                         const rows = await querySql<{ content: string }>("SELECT content FROM blocks WHERE id = '" + rootId.replace(/'/g, "''") + "' LIMIT 1");
                         makeQuoteCardPreview(this, { title: rows[0]?.content ?? "", quote: selectionText, docId: rootId, blockId: selected?.blockId });
                     } catch (error) {
-                        showMessage(String(error).slice(0, 140), 5000);
+                        console.warn("[glean] 分享卡生成失败:", error);
+                        showMessage(t(this.i18n, "msg.actionFailed"), 3000);
                     }
                 },
             });
@@ -676,7 +695,7 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
                     this.notifyDataChanged();
                 } catch (error) {
                     console.warn("[glean] 右键收录失败:", error);
-                    showMessage(String(error).slice(0, 140), 5000);
+                    showMessage(t(this.i18n, "msg.captureFailed"), 3500);
                 }
             },
         });
@@ -845,6 +864,11 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
             width: "720px",
             height: "560px",
         });
+    }
+
+    /** 思源"设置→插件"齿轮调用的是基类 openSetting（单数）；转发到本插件的设置浮窗。 */
+    openSetting(): void {
+        this.openSettings();
     }
 
     openSettings(): void {

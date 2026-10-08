@@ -282,7 +282,8 @@ async function doRebuildIndex() {
         await rebuildIndex(facade.pluginInstance, buildDraftSettings());
         showMessage(t(i18n, "msg.indexRebuilt"), 2500);
     } catch (error) {
-        showMessage(String(error).slice(0, 140), 5000);
+        console.warn("[glean] 索引重建失败:", error);
+        showMessage(t(i18n, "msg.actionFailed"), 5000);
     } finally {
         rebuildBusy = false;
     }
@@ -311,7 +312,8 @@ async function exportData(kind: "csv" | "diagnostic"): Promise<void> {
             downloadText("siyuan-glean-diagnostic.json", diagnostic, "application/json;charset=utf-8");
         }
     } catch (error) {
-        exportError = String(error).slice(0, 160);
+        console.warn("[glean] 读库导出失败:", error);
+        exportError = t(i18n, "msg.actionFailed");
         showMessage(exportError, 5000);
     } finally {
         exportBusy = "";
@@ -353,7 +355,8 @@ async function doMountBoard() {
         const result = await bindAllClipsToLibrary(facade.pluginInstance, buildDraftSettings());
         showMessage(t(i18n, "board.projected", { bound: result.bound, synced: result.synced, failed: result.failures.length }), 3500);
     } catch (error) {
-        showMessage(String(error).slice(0, 140), 5000);
+        console.warn("[glean] 挂载读库看板失败:", error);
+        showMessage(t(i18n, "msg.actionFailed"), 5000);
     } finally {
         boardBusy = false;
     }

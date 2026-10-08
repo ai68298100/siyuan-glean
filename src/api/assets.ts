@@ -4,16 +4,16 @@
  * - putFile：multipart/form-data（path + file），宿主 fetchSyncPost 原生透传 FormData
  *   （app/src/util/fetch.ts:35，apicontract/file.go:5-11 PutFileRequest）
  */
-import { kernelPost } from "./client";
+import { KERNEL_TIMEOUT_LONG_MS, kernelPost } from "./client";
 
 export interface ExportHtmlResult {
     name: string;
     content: string;
 }
 
-/** 导出文档为单文件 HTML（内容字符串）。 */
+/** 导出文档为单文件 HTML（内容字符串）。大文档导出走长超时。 */
 export async function exportDocHtml(id: string): Promise<ExportHtmlResult> {
-    const data = await kernelPost<ExportHtmlResult>("/api/export/exportHTML", { id, pdf: false });
+    const data = await kernelPost<ExportHtmlResult>("/api/export/exportHTML", { id, pdf: false }, { timeoutMs: KERNEL_TIMEOUT_LONG_MS });
     if (!data || typeof data.content !== "string") throw new Error("快照导出响应缺少 HTML 正文");
     return data;
 }
@@ -23,5 +23,5 @@ export async function putFile(path: string, blob: Blob, filename: string): Promi
     const form = new FormData();
     form.append("path", path);
     form.append("file", blob, filename);
-    await kernelPost<void>("/api/file/putFile", form);
+    await kernelPost<void>("/api/file/putFile", form, { timeoutMs: KERNEL_TIMEOUT_LONG_MS });
 }

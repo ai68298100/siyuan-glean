@@ -18,7 +18,7 @@ function kernelPost<T>(
     body: Record<string, unknown> | FormData = {},
     options: { timeoutMs?: number } = {},
 ): Promise<T> {
-    const fetchPost = (siyuan as unknown as { fetchPost?: (route: string, body: unknown, callback: (response: KernelResponse<T>) => void) => void }).fetchPost;
+    const fetchPost = (siyuan as unknown as { fetchPost?: (route: string, body: unknown, callback: (response: KernelResponse<T>) => void, failCallback?: (response: unknown) => void) => void }).fetchPost;
     if (typeof fetchPost === "function") {
         const timeoutMs = options.timeoutMs ?? KERNEL_TIMEOUT_DEFAULT_MS;
         return new Promise<T>((resolve, reject) => {
@@ -36,6 +36,12 @@ function kernelPost<T>(
                     if (!response || typeof response.code !== "number") reject(new Error(`${route} 返回异常响应`));
                     else if (response.code !== 0) reject(new Error(`${route} code=${response.code} msg=${response.msg || ""}`));
                     else resolve(response.data as T);
+                }, () => {
+                    // 网络级失败立即暴露真实原因，不等超时兜底
+                    if (settled) return;
+                    settled = true;
+                    clearTimeout(timer);
+                    reject(new Error(`${route} 网络请求失败`));
                 });
             } catch (error) {
                 if (!settled) {
@@ -48,15 +54,23 @@ function kernelPost<T>(
     }
     const fetchSyncPost = (siyuan as unknown as { fetchSyncPost?: (route: string, body: unknown) => Promise<KernelResponse<T>> }).fetchSyncPost;
     if (typeof fetchSyncPost !== "function") return Promise.reject(new Error("思源内核请求接口不可用"));
-    return Promise.resolve(fetchSyncPost(route, body)).then((response) => {
-    if (!response || typeof response.code !== "number") {
-        throw new Error(`${route} 返回异常响应`);
-    }
-    if (response.code !== 0) {
-        throw new Error(`${route} code=${response.code} msg=${response.msg || ""}`);
-    }
-    return response.data as T;
+    // 回退分支与 fetchPost 分支保持同一超时契约
+    const timeoutMs = options.timeoutMs ?? KERNEL_TIMEOUT_DEFAULT_MS;
+    const timeout = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error(`${route} 请求超时（${Math.round(timeoutMs / 1000)}s 无响应）`)), timeoutMs);
     });
+    return Promise.race([
+        Promise.resolve(fetchSyncPost(route, body)).then((response) => {
+            if (!response || typeof response.code !== "number") {
+                throw new Error(`${route} 返回异常响应`);
+            }
+            if (response.code !== 0) {
+                throw new Error(`${route} code=${response.code} msg=${response.msg || ""}`);
+            }
+            return response.data as T;
+        }),
+        timeout,
+    ]);
 }
 
 export { kernelPost };
@@ -151,7 +165,8 @@ export interface ExportMarkdownOptions {
 }
 
 export async function exportMdContent(id: string, options: ExportMarkdownOptions = {}): Promise<{ hPath: string; content: string }> {
-    return kernelPost<{ hPath: string; content: string }>("/api/export/exportMdContent", { id, ...options });
+    // 大文档导出可能超过默认 60s，走长超时（迁移器/收录主链路）
+    return kernelPost<{ hPath: string; content: string }>("/api/export/exportMdContent", { id, ...options }, { timeoutMs: KERNEL_TIMEOUT_LONG_MS });
 }
 
 /** 创建文档（同路径会再建新文档，不幂等——调用方先查重，人脉 D-0007 同款结论）。返回文档 ID。 */

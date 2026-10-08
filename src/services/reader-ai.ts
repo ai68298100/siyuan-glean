@@ -86,7 +86,8 @@ export async function readerArticleQuestion(
                 context = stripMarkdown(exported?.content ?? "").trim();
             }
             if (!context) return { ok: false, skipped: "invalid" as const };
-            const truncated = context.length > ARTICLE_QUESTION_CONTEXT_MAX_LENGTH;
+            // 与选区校验同用码点口径，避免 emoji 选区"未超限却提示已截断"
+            const truncated = Array.from(context).length > ARTICLE_QUESTION_CONTEXT_MAX_LENGTH;
             const prompt = buildArticleQuestionPrompt(before.meta.title, context, requestedQuestion, truncated);
             currentSettings = activeAiSettings(plugin, settings);
             if (!articleQuestionEnabled(currentSettings) || !(await aiQuotaAvailable(plugin, currentSettings))) return { ok: false, skipped: articleQuestionEnabled(currentSettings) ? "cap" as const : "off" as const };
@@ -101,7 +102,7 @@ export async function readerArticleQuestion(
             if (!same) return { ok: false, skipped: "changed" as const };
             currentSettings = activeAiSettings(plugin, settings);
             if (!articleQuestionEnabled(currentSettings)) return { ok: false, skipped: "off" as const };
-            const result = parseArticleQuestionResponse(typeof llm.text === "string" ? llm.text : "", context.slice(0, ARTICLE_QUESTION_CONTEXT_MAX_LENGTH));
+            const result = parseArticleQuestionResponse(typeof llm.text === "string" ? llm.text : "", [...context].slice(0, ARTICLE_QUESTION_CONTEXT_MAX_LENGTH).join(""));
             if (!result) return { ok: false, skipped: "error" as const };
             return { ok: true, result, truncated };
         } catch {

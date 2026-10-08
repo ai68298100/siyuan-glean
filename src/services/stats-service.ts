@@ -130,11 +130,3 @@ export async function saveReadingReviewReport(plugin: Plugin, session: ReadingRe
         session.busy = false;
     }
 }
-
-export async function exportWeeklyReport(_index: GleanIndex, _settings: GleanSettings, plugin: Plugin, session?: ReadingReviewSession): Promise<string> {
-    if (!session || session.review.stats.period.kind !== "week") throw new Error("Preview the weekly report before confirming creation");
-    const result = await saveReadingReviewReport(plugin, session, true);
-    if (!result.ok) throw new Error(`Reading review: ${result.reason}${result.docId ? ` (${result.docId})` : ""}`);
-    return result.docId!;
-}
-

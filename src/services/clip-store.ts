@@ -41,6 +41,7 @@ import {
     emptyIndex,
     loadIndex,
     saveIndex,
+    withIndexLock,
     type CandidateEntry,
     type ClipIndexEntry,
     type GleanIndex,
@@ -455,9 +456,12 @@ export async function writeClip(
         else merged[key] = value;
     }
     const meta = await fetchDocMeta(docId);
-    const index = await loadIndex(plugin);
-    applyAttrsToIndex(index, { ...meta, id: docId }, merged);
-    await saveIndex(plugin, index);
+    // 索引读改写整体串行：并发增量写或与完整对账交错时，后保存者会用旧快照覆盖新索引
+    await withIndexLock(async () => {
+        const index = await loadIndex(plugin);
+        applyAttrsToIndex(index, { ...meta, id: docId }, merged);
+        await saveIndex(plugin, index);
+    });
 
     return { attrs: parseClipAttrs(merged), skippedKeys };
 }
@@ -607,7 +611,7 @@ export async function measureClipBody(plugin: Plugin, docId: string): Promise<Cl
 
 async function fetchDocMeta(docId: string): Promise<DocMeta> {
     const rows = await querySql<DocRow>(
-        `SELECT id, content, hpath, box, updated FROM blocks WHERE id = '${docId}' AND type = 'd' LIMIT 1`
+        `SELECT id, content, hpath, box, updated FROM blocks WHERE id = '${docId.replace(/'/g, "''")}' AND type = 'd' LIMIT 1`
     );
     const row = rows[0];
     if (row) return { id: row.id, title: row.content || "", hpath: row.hpath || "", box: row.box || "", updated: row.updated || "" };
@@ -833,8 +837,12 @@ export async function reconcileIndex(plugin: Plugin, settings: GleanSettings): P
     const promise = (async () => {
         const scopes = await scanDocScopes(settings);
         const index = await indexFromScopes(scopes);
-        const saved = await saveIndex(plugin, index);
-        confirmIndexRebuilt();
+        // 保存与损坏解除入锁：避免与增量写交错时用旧快照覆盖对方的写入
+        const saved = await withIndexLock(async () => {
+            const result = await saveIndex(plugin, index);
+            confirmIndexRebuilt();
+            return result;
+        });
         return saved;
     })();
     reconcileFlights.set(plugin, { key, promise });
@@ -849,8 +857,10 @@ export async function reconcileIndex(plugin: Plugin, settings: GleanSettings): P
 export async function scanPreview(plugin: Plugin, settings: GleanSettings): Promise<ScanPreview> {
     const scopes = await scanDocScopes(settings);
     const index = await indexFromScopes(scopes);
-    await saveIndex(plugin, index);
-    confirmIndexRebuilt();
+    await withIndexLock(async () => {
+        await saveIndex(plugin, index);
+        confirmIndexRebuilt();
+    });
     return buildScanPreview(scopes, index);
 }
 
@@ -862,7 +872,10 @@ function rowToMeta(row: DocRow): DocMeta {
 export async function rebuildIndex(plugin: Plugin, settings: GleanSettings): Promise<GleanIndex> {
     const scopes = await scanDocScopes(settings);
     const index = await indexFromScopes(scopes);
-    const saved = await saveIndex(plugin, index);
-    confirmIndexRebuilt();
+    const saved = await withIndexLock(async () => {
+        const result = await saveIndex(plugin, index);
+        confirmIndexRebuilt();
+        return result;
+    });
     return saved;
 }

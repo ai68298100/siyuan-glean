@@ -18,6 +18,9 @@ import type { GleanFacade } from "../types";
 import { ImportProgressError, summarizeImportProgress, type ImportProgress } from "../domain/import-progress";
 import { discardImportProgress, fingerprintImportSource, loadImportProgress } from "../services/import-progress";
 
+/** 导入文件读取上限（32 MiB，与备份同数量级）：整文件解码/指纹/解析都在主线程。 */
+const MAX_IMPORT_BYTES = 32 * 1024 * 1024;
+
 interface Props {
     facade: GleanFacade;
     onClose: () => void;
@@ -153,6 +156,8 @@ async function onFileChosen(event: Event) {
     progressError = "";
     try {
         const record = await loadImportProgress(facade.pluginInstance);
+        // 与备份同数量级的读取上限：整文件解码/指纹/解析都在主线程，超大文件会冻结 UI
+        if (file.size > MAX_IMPORT_BYTES) throw new ImportProgressError("size");
         const bytes = await file.arrayBuffer();
         const fingerprint = await fingerprintImportSource(bytes);
         if (record && record.state !== "finished" && fingerprint !== record.fingerprint) throw new ImportProgressError("file");

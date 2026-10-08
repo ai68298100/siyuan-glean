@@ -71,7 +71,9 @@ export async function removeShorthands(ids: string[]): Promise<void> {
 export async function getShorthand(id: string): Promise<Shorthand | null> {
     try {
         return parseShorthand(await kernelPost<unknown>("/api/inbox/getShorthand", { id }), id);
-    } catch {
+    } catch (error) {
+        // 静默返回 null 让调用方跳过，但留下日志避免"总数对不上"无从排查
+        console.warn("[glean] 收集箱条目读取失败，跳过:", id, error);
         return null;
     }
 }

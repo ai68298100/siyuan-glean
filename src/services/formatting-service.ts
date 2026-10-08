@@ -126,7 +126,7 @@ export async function saveFormattingDraft(plugin: Plugin, session: FormattingSes
                 return { ok: false, reason: "readFailed" };
             }
             if (Object.keys(session.source).some((key) => current[key as keyof FormattingSource] !== session.source[key as keyof FormattingSource])) return { ok: false, reason: "changed" };
-            const title = `${session.source.title || session.source.id} · ${labels.suffix}`.replace(/[\\/\u0000-\u001f]/g, " ").slice(0, 100);
+            const title = [...`${session.source.title || session.source.id} · ${labels.suffix}`.replace(/[\\/\u0000-\u001f]/g, " ")].slice(0, 100).join("");
             const parent = session.source.hpath.slice(0, session.source.hpath.lastIndexOf("/"));
             try {
                 const docId = await createDocWithMd(session.source.box, `${parent}/${title} ${newNodeId()}`, draftMarkdown(session, markdown, labels));

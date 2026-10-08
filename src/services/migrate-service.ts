@@ -184,8 +184,9 @@ export async function resolveMigrateRow(
                 return unresolved;
             }
         } else {
-            await writeClip(plugin, row.id, { url });
+            // 一次 patch 写全：分两次写时，第二次失败后重试会命中 already-clipped 分支导致元数据永久缺失
             await writeClip(plugin, row.id, {
+                url,
                 site: metadata.site || undefined,
                 contentType: metadata.contentType,
                 words: metadata.words > 0 ? metadata.words : undefined,

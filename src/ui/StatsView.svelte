@@ -91,7 +91,8 @@ async function preview(): Promise<void> {
         session = next;
         saveState = next.state;
     } catch (error) {
-        if (!disposed) message = t(i18n, "review.previewFailed", { error: String(error).slice(0, 200) });
+        console.warn("[glean] 回顾预览失败:", error);
+        if (!disposed) message = t(i18n, "review.previewFailed");
     } finally {
         if (!disposed) busy = false;
     }

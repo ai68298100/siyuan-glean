@@ -157,6 +157,7 @@ export async function loadIndex(plugin: Plugin, options: { strict?: boolean } = 
         };
     } catch (error) {
         indexCorrupted = true;
+        console.warn("[glean] 索引读取失败，进入损坏保护（增量落盘暂停，等待完整对账/重建）:", error);
         if (options.strict) throw error;
         return emptyIndex();
     }
@@ -165,6 +166,7 @@ export async function loadIndex(plugin: Plugin, options: { strict?: boolean } = 
 export async function saveIndex(plugin: Plugin, index: GleanIndex): Promise<GleanIndex> {
     if (indexCorrupted) {
         // 损坏未消除前拒绝增量落盘，避免空/局部索引覆盖原文件。
+        console.warn("[glean] 索引处于损坏保护，本次变更仅保留在内存，等待完整对账/重建后恢复落盘");
         return index;
     }
     index.version = INDEX_VERSION;
