@@ -163,6 +163,10 @@
             facade.notifyDataChanged();
             showMessage(t(i18n, "msg.statusChanged"), 2500);
             return true;
+        } catch (error) {
+            console.warn("[glean] 阅读上下文状态变更失败:", error);
+            showMessage(t(i18n, "msg.statusFailed"), 3000);
+            return false;
         } finally {
             busy = false;
         }

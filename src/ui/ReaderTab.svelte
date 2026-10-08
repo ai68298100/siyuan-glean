@@ -759,6 +759,9 @@
             }
             facade.notifyDataChanged();
             showMessage(t(i18n, "msg.statusChanged"), 2500);
+        } catch (error) {
+            console.warn("[glean] 阅读状态变更失败:", error);
+            showMessage(t(i18n, "msg.statusFailed"), 3000);
         } finally {
             statusBusy = false;
         }
@@ -804,6 +807,9 @@
             relatedShown = false;
             relatedItems = [];
             excerpt = null;
+        } catch (error) {
+            console.warn("[glean] 阅读完成变更失败:", error);
+            showMessage(t(i18n, "msg.statusFailed"), 3000);
         } finally {
             statusBusy = false;
         }

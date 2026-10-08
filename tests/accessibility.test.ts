@@ -168,3 +168,12 @@ test("status semantics and accessibility modes do not rely on color or motion al
     assert.match(styles, /:focus-visible[\s\S]*outline:\s*2px solid var\(--b3-theme-primary\)/);
     assert.match(styles, /forced-colors: active[\s\S]*outline-color:\s*Highlight/);
 });
+
+test("reading status actions surface write failures and always release busy state", () => {
+    const reader = read("src/ui/ReaderTab.svelte");
+    const context = read("src/ui/ReadingContext.svelte");
+    assert.match(reader, /阅读状态变更失败/);
+    assert.match(reader, /showMessage\(t\(i18n, "msg\.statusFailed"\), 3000\)/);
+    assert.match(context, /阅读上下文状态变更失败/);
+    assert.match(context, /showMessage\(t\(i18n, "msg\.statusFailed"\), 3000\)/);
+});
