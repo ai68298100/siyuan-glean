@@ -64,6 +64,9 @@ test("wide canvas resurface cards use an adaptive grid while dock stays single c
     assert.match(wide, /grid-template-columns:\s*repeat\(auto-fit, minmax\(min\(100%, 310px\), 1fr\)\)/);
     assert.match(wide, /\.glean-surf__acts\s*\{[\s\S]*flex-wrap:\s*wrap/);
     assert.match(wide, /\.glean-surf-foot\s*\{[\s\S]*grid-column:\s*1\s*\/\s*-1/);
+    assert.match(wide, /\.glean-surf-swipe\s*\{[\s\S]*display:\s*flex/);
+    assert.match(wide, /\.glean-surf-card\s*\{[\s\S]*display:\s*flex[\s\S]*flex-direction:\s*column/);
+    assert.match(wide, /\.glean-surf-card \.glean-surf__acts\s*\{[\s\S]*margin-top:\s*auto/);
     const narrow = styles.slice(styles.indexOf(".glean-surf {"), styles.indexOf(".glean-surf-swipe-hint"));
     assert.match(narrow, /display:\s*flex/);
     assert.match(narrow, /flex-direction:\s*column/);
