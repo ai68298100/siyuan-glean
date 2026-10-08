@@ -3,8 +3,8 @@
 ## T-3305/D-0185 GitHub 内容与分支收口（2026-10-08）
 
 - [x] 中英文 README 恢复独立的小驴系列插件介绍和 QQ 群 `871707735`，雷切入口更新为当前有效的 `siyuan-speed-switch`；不改变 v1.2.0 版本和 Release。
-- [x] 核对 GitHub 默认分支、Latest Release、历史 PR、tag、保护规则和远端分支；历史记录保留，`codex/main-sync-20261008` 保留，`dev/thispc-1002` 无独有提交，删除动作待作者确认。
-- [ ] 完成本轮文档门禁并决定是否删除 `dev/thispc-1002`。
+- [x] 核对 GitHub 默认分支、Latest Release、历史 PR、tag、保护规则和远端分支；历史记录保留，`codex/main-sync-20261008` 保留，`dev/thispc-1002` 无独有提交后按作者授权删除。
+- [x] 完成本轮文档门禁并删除已合入 main 的 `dev/thispc-1002`；当前远端只保留 main 和指定的 main-sync 分支。
 
 ## T-3290/D-0184 README 与 GitHub 首页收敛（2026-10-08）
 
