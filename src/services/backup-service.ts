@@ -6,6 +6,9 @@ import { loadSettings, normalizeSettings, saveSettings, settingsEqual, SettingsC
 import { loadUiPrefs, normalizeUiPrefs, saveUiPrefs, UiPrefsConflictError, type UiPrefs } from "./prefs";
 
 export type RestoreRowState = "ready" | "missing" | "internal" | "unavailable" | "applied" | "changed" | "unknown" | "skipped" | "conflict";
+
+/** 预览阶段被用户主动取消：UI 据此静默处理（T-3315 共享常量，避免裸字符串三处耦合）。 */
+export const BACKUP_PREVIEW_CANCELLED = "Backup preview cancelled";
 export interface RestoreRow {
     document: BackupDocument;
     snapshot: ClipAttributeSnapshot | null;
@@ -62,7 +65,7 @@ export async function previewBackupRestore(plugin: Plugin, content: string, sign
     afterSettings.reader.defaultMode = "read";
     const rows: RestoreRow[] = [];
     for (let offset = 0; offset < backup.documents.length; offset += 20) {
-        if (signal?.aborted) throw new Error("Backup preview cancelled");
+        if (signal?.aborted) throw new Error(BACKUP_PREVIEW_CANCELLED);
         const batch = await Promise.all(backup.documents.slice(offset, offset + 20).map(async (document): Promise<RestoreRow> => {
             try {
                 const snapshot = await readClipAttributeSnapshot(document.id);
@@ -74,7 +77,7 @@ export async function previewBackupRestore(plugin: Plugin, content: string, sign
         }));
         rows.push(...batch);
     }
-    if (signal?.aborted) throw new Error("Backup preview cancelled");
+    if (signal?.aborted) throw new Error(BACKUP_PREVIEW_CANCELLED);
     return { backup, rows, busy: false, used: false, preferences: { beforeSettings, afterSettings, beforeUiPrefs, afterUiPrefs: normalizeUiPrefs(backup.uiPrefs), settingsSupported: backup.settings.version === 1 } };
 }
 

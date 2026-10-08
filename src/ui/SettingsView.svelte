@@ -100,8 +100,30 @@ const filteredNotebooks = $derived.by(() => {
     return notebooks.filter((notebook) => notebook.name.toLocaleLowerCase().includes(query));
 });
 
+/** 长任务分类（备份恢复/闪卡恢复/AI 标签扫描）首次访问后保持挂载：切分类只隐藏不卸载，避免进行中的任务被静默中止（T-3315）。 */
+let dataVisited = $state(false);
+let maintenanceVisited = $state(false);
+
 function selectSection(id: SettingsSectionId): void {
     activeSection = id;
+    if (id === "data") dataVisited = true;
+    if (id === "maintenance") maintenanceVisited = true;
+}
+
+/** ARIA tabs 键盘模式：左右（竖排时上下）方向键在分类间移动焦点并激活，Home/End 跳两端。 */
+function onNavKeydown(event: KeyboardEvent): void {
+    const keys = ["ArrowLeft", "ArrowUp", "ArrowRight", "ArrowDown", "Home", "End"];
+    if (!keys.includes(event.key)) return;
+    const tabs = [...(event.currentTarget as HTMLElement).querySelectorAll<HTMLButtonElement>('[role="tab"]')];
+    const current = tabs.indexOf(document.activeElement as HTMLButtonElement);
+    if (current < 0) return;
+    event.preventDefault();
+    const backward = event.key === "ArrowLeft" || event.key === "ArrowUp";
+    const next = event.key === "Home" ? 0 : event.key === "End" ? tabs.length - 1 : (current + (backward ? -1 : 1) + tabs.length) % tabs.length;
+    const target = tabs[next];
+    if (!target) return;
+    target.focus();
+    selectSection(SETTINGS_SECTIONS[next].id);
 }
 
 function clearAnchorNotebooks(): void {
@@ -245,10 +267,15 @@ async function save() {
     } catch (error) {
         if (error instanceof SettingsConflictError) {
             // 其他窗口已修改设置：以磁盘最新值重新对账，保留当前草稿，请用户核对后再保存
-            facade.settings = await loadSettings(facade.pluginInstance);
-            originalSettings = cloneSettings(facade.settings);
-            facade.notifyDataChanged();
-            showMessage(t(i18n, "settings.conflict"), 5000);
+            try {
+                facade.settings = await loadSettings(facade.pluginInstance);
+                originalSettings = cloneSettings(facade.settings);
+                facade.notifyDataChanged();
+                showMessage(t(i18n, "settings.conflict"), 5000);
+            } catch (reloadError) {
+                console.warn("[glean] 设置冲突后重读失败:", reloadError);
+                showMessage(t(i18n, "settings.saveFailed"), 5000);
+            }
         } else {
             showMessage(`${t(i18n, "settings.saveFailed")}: ${String(error).slice(0, 120)}`, 5000);
         }
@@ -407,7 +434,7 @@ async function doMountBoard() {
                     <div class="glean-settings__brand-sub">{t(i18n, "settings.sovereigntyNote")}</div>
                 </div>
             </div>
-            <div class="glean-settings__nav-list" id={navLabelId} role="tablist" aria-label={t(i18n, "settings.navLabel")}>
+            <div class="glean-settings__nav-list" id={navLabelId} role="tablist" aria-label={t(i18n, "settings.navLabel")} tabindex="-1" onkeydown={onNavKeydown}>
                 {#each SETTINGS_SECTIONS as section (section.id)}
                     <button
                         id={`${idPrefix}-tab-${section.id}`}
@@ -459,7 +486,7 @@ async function doMountBoard() {
                         bind:value={notebookFilter}
                     />
                     {#if notebookFilter}
-                        <button class="glean-linkish glean-nb-search__clear" type="button" aria-label={t(i18n, "action.cancel")} onclick={() => (notebookFilter = "")}>×</button>
+                        <button class="glean-linkish glean-nb-search__clear" type="button" aria-label={t(i18n, "settings.anchorSearchClear")} onclick={() => (notebookFilter = "")}>×</button>
                     {/if}
                 </div>
                 {#if !notebookLoading && !notebookLoadError}
@@ -486,7 +513,9 @@ async function doMountBoard() {
                         {anchorNotebooks.includes(notebook.id) ? "✓ " : ""}{notebook.name}
                     </button>
                 {/each}
-                {#if filteredNotebooks.length === 0}
+                {#if notebooks.length === 0}
+                    <span class="glean-settings__empty" role="status">{t(i18n, "settings.anchorEmpty")}</span>
+                {:else if filteredNotebooks.length === 0}
                     <span class="glean-settings__empty" role="status">{t(i18n, "settings.anchorNoMatch")}</span>
                 {/if}
                 {/if}
@@ -674,8 +703,8 @@ async function doMountBoard() {
     </div>
 
     {/if}
-    {#if activeSection === "data"}
-    <div class="glean-settings__section glean-settings__section--maintenance">
+    {#if dataVisited}
+    <div class="glean-settings__section glean-settings__section--maintenance" style:display={activeSection === "data" ? "" : "none"}>
         <div class="glean-set-group">
             <div class="glean-set-row">
                 <div class="glean-set-row__lb">
@@ -714,8 +743,8 @@ async function doMountBoard() {
     </div>
 
     {/if}
-    {#if activeSection === "data"}
-    <div class="glean-settings__section glean-settings__section--maintenance glean-settings__section--data" aria-labelledby={`${idPrefix}-data-title`}>
+    {#if dataVisited}
+    <div class="glean-settings__section glean-settings__section--maintenance glean-settings__section--data" style:display={activeSection === "data" ? "" : "none"}>
         <div class="glean-set-group">
             <div class="glean-settings__extension-card">
                 <BackupPanel {facade} settingsDirty={draftDirty} settingsBusy={saveBusy} onPreferencesRestored={() => { originalSettings = cloneSettings(facade.settings); loadDraft(originalSettings); }} />
@@ -736,8 +765,8 @@ async function doMountBoard() {
     </div>
 
     {/if}
-    {#if activeSection === "maintenance"}
-    <div class="glean-settings__section glean-settings__section--maintenance">
+    {#if maintenanceVisited}
+    <div class="glean-settings__section glean-settings__section--maintenance" style:display={activeSection === "maintenance" ? "" : "none"}>
         <div class="glean-set-group glean-settings__extension-card">
             <AiTagMergePanel {facade} />
         </div>
@@ -828,8 +857,8 @@ async function doMountBoard() {
     </div>
 
     {/if}
-    {#if activeSection === "maintenance"}
-    <div class="glean-settings__section glean-settings__section--maintenance glean-settings__section--danger" aria-labelledby={`${idPrefix}-tools-title`}>
+    {#if maintenanceVisited}
+    <div class="glean-settings__section glean-settings__section--maintenance glean-settings__section--danger" style:display={activeSection === "maintenance" ? "" : "none"}>
         <div class="glean-set-group">
             <div class="glean-set-row">
                 <div class="glean-set-row__lb">
@@ -1038,7 +1067,6 @@ async function doMountBoard() {
         flex-direction: column;
         gap: var(--glean-space-3);
         padding: 2px 2px 2px 0;
-        outline: none;
     }
 
     .glean-settings__pagehead {
@@ -1255,7 +1283,7 @@ async function doMountBoard() {
         .glean-settings__tab {
             width: auto;
             flex: 0 0 auto;
-            min-height: 36px;
+            min-height: 44px;
             padding: 6px 12px;
             border-radius: 999px;
             border: 1px solid var(--glean-border-soft);
@@ -1272,14 +1300,8 @@ async function doMountBoard() {
         .glean-settings__tab-badge {
             display: none;
         }
-    }
 
-    /* 移动端触控：导航项与搜索框保持 44px 命中区 */
-    @media (max-width: 560px) {
-        .glean-settings__tab {
-            min-height: 44px;
-        }
-
+        /* 触控命中区随容器断点走：宽视口下的窄 Dock 同样生效（T-3315） */
         .glean-nb-search {
             min-height: 44px;
         }

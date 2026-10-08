@@ -1,5 +1,15 @@
 # 进度（PROGRESS）
 
+## T-3315 第三轮全方位走查：变更自查 / CSS / 文档一致性 / E2E 修复（2026-10-09）
+
+- [x] 变更自查（T-3312..3314 diff 全量重审）：修复设置页分类切换静默中止进行中的备份恢复/闪卡恢复/AI 标签扫描（data/maintenance 分类首次访问后常驻挂载、切分类仅 display 切换）；`kernelPost` 回退分支补 `clearTimeout`；备份预览取消改共享常量 `BACKUP_PREVIEW_CANCELLED`（消除三处裸字符串耦合）；AI 标签合并后重扫失败保留剩余分组（手动扫描仍报错）；设置冲突后二次读盘加兜底。自查确认跨分类脏检查、keepalive、锁无死锁、pickDaily、currentDocId、i18n 占位符等 20+ 项无新缺陷。
+- [x] CSS 层（10485 行全量）：清理设置页旧版式死规则（`__head` sticky 套装、scroll-padding、重复容器声明）、`.glean-card__title` 死代码、639→640 断点统一；阅读上下文条状态动作按钮补 focus-visible；AuthorEditor/FlashcardRecoveryPanel 补本地 reduced-motion；设置页 44px 命中区并入容器断点、tabpanel 保留键盘焦点指示。确认暗色主题零硬编码颜色、z-index 阶梯无冲突、flex 溢出处理完整。
+- [x] 文档一致性：DECISIONS.md 重复的 D-0183 重编号为 D-0193（无外部引用，D-0001..D-0193 无缺口）；双语 README 补 `⌥⌘G` 快捷键说明与 CHANGELOG 链接。确认 README 全部内部链接、"本次更新" 8 条描述与代码一一对应、双语 i18n 键集合一致、81 个测试文件与 package.json 引用一致、14 个脚本入口存在。
+- [x] i18n 新增 2 键（`settings.anchorSearchClear`、`settings.anchorEmpty`，双语各 1029）。
+- [x] E2E 修复与实测：`launch-e2e` 的 token 读取改为优先 `conf.json` 的 `api.token`（API 鉴权令牌），`accessAuthCode`（网页访问密码，未设置时为空）仅作后备——此前误读导致隔离 E2E 无法启动；修复后**隔离 S1 E2E 58/58 全部通过**（真实内核 3.8.6、独立临时工作区，覆盖候选资格/收录/迁移/导入/备份恢复/AV 投影/阅读书签/制卡恢复/导入检查点全链，证据目录 `siyuan-glean-s1-1791501922316-52908`）。
+- [x] 门禁：`pnpm check` 0 错误/0 警告、`pnpm test` 1223/1223、`pnpm build`、`pnpm check:release`、`pnpm perf:check`、任务账本、`git diff --check` 通过。
+- [ ] 真实验收归 B-0002；版本保持 `1.2.1`，不升版、不打 tag、不创建 Release。
+
 ## T-3314 设置页分类导航重构（2026-10-09）
 
 - [x] 调研同类产品（Obsidian、思源桌面设置、Notion）确认"左导航+右内容"范式；产出并自查原型 `design/prototype-settings.html`（桌面 760×640 与窄容器横向 tab 两种形态、亮暗双色）。

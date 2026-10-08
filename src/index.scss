@@ -983,9 +983,6 @@ body.b3-theme-dark {
     font-weight: 600;
     line-height: 1.45;
     letter-spacing: 0.1px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
     transition: color 0.2s;
 }
 
@@ -2337,6 +2334,11 @@ body.b3-theme-dark {
         border-color: var(--glean-accent-b);
     }
 
+    &:focus-visible {
+        outline: 2px solid var(--b3-theme-primary);
+        outline-offset: 2px;
+    }
+
     &:disabled {
         opacity: 0.5;
         cursor: default;
@@ -3620,6 +3622,7 @@ body.b3-theme-dark {
 
 /* ============ 设置（iOS inset grouped） ============ */
 
+/* T-3314：滚动与容器声明由 SettingsView 的 scoped 样式接管（overflow:hidden + container），此处只保留布局基线 */
 .glean-settings {
     display: flex;
     flex-direction: column;
@@ -3630,18 +3633,6 @@ body.b3-theme-dark {
     height: 100%;
     padding: 14px 16px 16px;
     font-size: 13px;
-    overflow-y: auto;
-}
-
-.glean-settings__head {
-    display: flex;
-    align-items: center;
-    gap: var(--glean-space-3);
-    padding: var(--glean-space-3) var(--glean-space-4);
-    background: var(--glean-grad-soft);
-    border: 1px solid var(--glean-border-soft);
-    border-radius: var(--glean-radius-lg);
-    box-shadow: var(--glean-shadow-card);
 }
 
 .glean-settings__head-mark {
@@ -8383,7 +8374,7 @@ body.b3-theme-dark {
     }
 }
 
-@container glean-workbench (max-width: 639px) {
+@container glean-workbench (max-width: 640px) {
     .glean-stats__intro {
         align-items: stretch;
         flex-direction: column;
@@ -9231,12 +9222,7 @@ body.b3-theme-dark .glean-panel--mobile,
     }
 }
 
-/* 第二十一轮：设置长页的边界和异常状态收口。让 sticky footer 不遮挡最后一组操作，
-   错误/日志在窄屏保持可读，备份文件控件也与插件按钮共享视觉重量。 */
-.glean-settings {
-    scroll-padding-block: var(--glean-space-3) calc(88px + env(safe-area-inset-bottom, 0px));
-}
-
+/* 第二十一轮：设置长页的边界和异常状态收口。（原 scroll-padding 已随滚动容器移交组件内而移除） */
 .glean-settings__footer {
     bottom: calc(-16px + env(safe-area-inset-bottom, 0px));
     box-shadow: 0 -8px 18px color-mix(in srgb, var(--b3-theme-background) 26%, transparent);
@@ -9951,18 +9937,7 @@ body.b3-theme-dark .glean-panel--mobile,
 
 /* 第二十四轮：设置页的窄屏层级与控件光学对齐。长描述先占满一行，
    操作控件再落到下一行，避免 320px 视口里标签、数值和按钮互相挤压。 */
-.glean-settings {
-    container-type: inline-size;
-    container-name: glean-settings;
-}
-
-.glean-settings__head {
-    position: sticky;
-    top: calc(var(--glean-safe-top, 0px) * -1);
-    z-index: 4;
-    box-shadow: var(--glean-shadow-card), 0 8px 20px color-mix(in srgb, var(--b3-theme-background) 16%, transparent);
-}
-
+/* 容器声明在 SettingsView scoped 样式内（container: glean-settings / inline-size），全局不再重复 */
 .glean-settings__section {
     scroll-margin-top: var(--glean-space-3);
 }

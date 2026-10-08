@@ -242,6 +242,7 @@
     .glean-author-editor__status-dot { width: 7px; height: 7px; flex: 0 0 7px; border-radius: 50%; background: currentColor; box-shadow: 0 0 0 4px color-mix(in srgb, currentColor 12%, transparent); animation: glean-author-pulse 1.4s ease-in-out infinite; }
     .glean-author-editor :global(button):focus-visible, .glean-author-editor input:focus-visible { outline: 2px solid var(--b3-theme-primary); outline-offset: 2px; }
     @keyframes glean-author-pulse { 50% { opacity: .45; transform: scale(.82); } }
+    @media (prefers-reduced-motion: reduce) { .glean-author-editor__status-dot { animation: none; } }
     @media (max-width: 560px) {
         .glean-author-editor__form { padding: var(--glean-space-3); }
         .glean-author-editor__actions :global(button) { min-height: 44px; }

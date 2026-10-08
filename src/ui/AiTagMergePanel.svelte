@@ -28,13 +28,15 @@
         keepByGroup = { ...keepByGroup, [keyOf(plan)]: value };
     }
 
-    async function runScan(setError = true): Promise<boolean> {
+    async function runScan(setError = true, keepPlansOnFailure = false): Promise<boolean> {
         try {
             plans = await suggestAiTagMerges(facade.pluginInstance);
             keepByGroup = Object.fromEntries(plans.map((plan) => [keyOf(plan), plan.keep]));
             scanned = true;
             return true;
         } catch {
+            // apply 后的刷新失败保留旧 plans：剩余待合并分组不应从界面上消失；手动扫描仍显示错误
+            if (keepPlansOnFailure && plans.length > 0) return false;
             plans = [];
             keepByGroup = {};
             scanned = false;
@@ -62,8 +64,8 @@
             const changed = await applyAiTagMerge(facade.pluginInstance, plan.variants, keep);
             facade.notifyDataChanged();
             message = t(i18n, "aiTagMerge.applied", { n: changed });
-            // 合并已生效：随后的重扫失败只影响列表刷新，不把成功提示吞成错误
-            await runScan(false);
+            // 合并已生效：随后的重扫失败只影响列表刷新（保留剩余分组），不把成功提示吞成错误
+            await runScan(false, true);
         } catch {
             error = true;
         } finally {

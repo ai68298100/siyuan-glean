@@ -837,7 +837,8 @@ export async function reconcileIndex(plugin: Plugin, settings: GleanSettings): P
     const promise = (async () => {
         const scopes = await scanDocScopes(settings);
         const index = await indexFromScopes(scopes);
-        // 保存与损坏解除入锁：避免与增量写交错时用旧快照覆盖对方的写入
+        // 保存与损坏解除入锁：消除"save-save 交错"。注意扫描本身在锁外——
+        // 扫描→保存间隙内的一次增量写仍可能被这份陈旧快照覆盖（低频，下次对账自愈）。
         const saved = await withIndexLock(async () => {
             const result = await saveIndex(plugin, index);
             confirmIndexRebuilt();

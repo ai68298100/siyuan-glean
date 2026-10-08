@@ -120,5 +120,6 @@
     .glean-flashcard-recovery__dot { width: 7px; height: 7px; flex: 0 0 7px; border-radius: 50%; background: currentColor; box-shadow: 0 0 0 4px color-mix(in srgb, currentColor 12%, transparent); animation: glean-recovery-pulse 1.4s ease-in-out infinite; }
     .glean-flashcard-recovery :global(button):focus-visible { outline: 2px solid var(--b3-theme-primary); outline-offset: 2px; }
     @keyframes glean-recovery-pulse { 50% { opacity: .45; transform: scale(.82); } }
+    @media (prefers-reduced-motion: reduce) { .glean-flashcard-recovery__dot { animation: none; } }
     @media (max-width: 600px) { .glean-flashcard-recovery__body { justify-content: flex-start; } .glean-flashcard-recovery__actions { width: 100%; } .glean-flashcard-recovery__actions :global(button) { min-height: 44px; flex: 1 1 auto; } }
 </style>

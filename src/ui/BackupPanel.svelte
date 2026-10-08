@@ -6,7 +6,7 @@
     import { createLatestRequestGate } from "../libs/latest-request";
     import { MAX_BACKUP_BYTES } from "../domain/backup";
     import { ATTR } from "../domain/schema";
-    import { applyBackupRestore, exportLibraryBackup, previewBackupRestore, type RestoreReport, type RestoreSession } from "../services/backup-service";
+    import { applyBackupRestore, BACKUP_PREVIEW_CANCELLED, exportLibraryBackup, previewBackupRestore, type RestoreReport, type RestoreSession } from "../services/backup-service";
 
     interface Props { facade: GleanFacade; settingsDirty?: boolean; settingsBusy?: boolean; onPreferencesRestored?: () => void }
     let { facade, settingsDirty = false, settingsBusy = false, onPreferencesRestored }: Props = $props();
@@ -96,7 +96,7 @@
             const next = await previewBackupRestore(facade.pluginInstance, content, controller.signal);
             if (mounted && isCurrent()) session = next;
         } catch (failure) {
-            if (mounted && isCurrent() && !(failure instanceof Error && failure.message === "Backup preview cancelled")) {
+            if (mounted && isCurrent() && !(failure instanceof Error && failure.message === BACKUP_PREVIEW_CANCELLED)) {
                 error = t(i18n, "backup.failed", { error: String(failure).slice(0, 200) });
             }
         } finally { if (mounted && isCurrent()) { busy = ""; controller = null; } }

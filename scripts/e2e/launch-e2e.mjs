@@ -150,7 +150,9 @@ async function main() {
         if (child.exitCode !== null || child.signalCode !== null) throw new Error("内核已退出");
     }, client);
     const confPath = path.join(workspace, "conf", "conf.json");
-    const token = options.token || process.env.SIYUAN_TOKEN || JSON.parse(fs.readFileSync(confPath, "utf8")).accessAuthCode || "";
+    // API 鉴权用的是 conf.json 的 api.token；accessAuthCode 是网页访问密码（未设置时为空），只作后备
+    const conf = JSON.parse(fs.readFileSync(confPath, "utf8"));
+    const token = options.token || process.env.SIYUAN_TOKEN || (conf.api && conf.api.token) || conf.accessAuthCode || "";
     if (!token) throw new Error("隔离内核未生成 token；请传入 --token 或设置 SIYUAN_TOKEN");
     client.setToken(token);
     await prepareWriteSmoke((route, body) => client.api(route, body), { base, log: console });

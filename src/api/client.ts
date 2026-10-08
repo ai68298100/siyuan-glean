@@ -56,8 +56,9 @@ function kernelPost<T>(
     if (typeof fetchSyncPost !== "function") return Promise.reject(new Error("思源内核请求接口不可用"));
     // 回退分支与 fetchPost 分支保持同一超时契约
     const timeoutMs = options.timeoutMs ?? KERNEL_TIMEOUT_DEFAULT_MS;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     const timeout = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error(`${route} 请求超时（${Math.round(timeoutMs / 1000)}s 无响应）`)), timeoutMs);
+        timer = setTimeout(() => reject(new Error(`${route} 请求超时（${Math.round(timeoutMs / 1000)}s 无响应）`)), timeoutMs);
     });
     return Promise.race([
         Promise.resolve(fetchSyncPost(route, body)).then((response) => {
@@ -70,7 +71,7 @@ function kernelPost<T>(
             return response.data as T;
         }),
         timeout,
-    ]);
+    ]).finally(() => clearTimeout(timer));
 }
 
 export { kernelPost };
