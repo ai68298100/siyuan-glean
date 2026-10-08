@@ -197,3 +197,9 @@ test("onboarding async actions expose visible failure feedback", () => {
     assert.match(source, /role="alert"/);
     assert.match(source, /msg\.actionFailed/);
 });
+
+test("reading review save exposes unexpected failures", () => {
+    const source = read("src/ui/StatsView.svelte");
+    assert.match(source, /阅读回顾保存失败/);
+    assert.match(source, /msg\.actionFailed/);
+});

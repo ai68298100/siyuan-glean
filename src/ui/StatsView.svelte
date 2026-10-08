@@ -117,6 +117,9 @@ async function save(): Promise<void> {
         }
         saveState = saving.state;
         message = resultMessage;
+    } catch (error) {
+        console.warn("[glean] 阅读回顾保存失败:", error);
+        if (!disposed) message = t(i18n, "msg.actionFailed");
     } finally {
         if (!disposed) busy = false;
     }
