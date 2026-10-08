@@ -4,7 +4,7 @@
 
 | 任务 | 看板状态 | 代码状态 | 隔离验证 | 真实验收 | 延后/阻塞原因 |
 | --- | --- | --- | --- | --- | --- |
-| T-3305 | ◐ | 文档整理完成 | 待本轮门禁 | 不适用 | 历史 PR/Release 保留审计链，`dev/thispc-1002` 是否删除待作者确认，`codex/main-sync-20261008` 按纪律保留 |
+| T-3305 | x | 文档整理完成 | 完成（`pnpm check`、`pnpm test` 1214/1214、`pnpm build`、`pnpm perf:check`、`pnpm visual:check`、`pnpm check:release`、任务账本、`git diff --check`，PR #11 Quality gates/CodeQL 通过） | 不适用 | 无，历史 PR/Release/tag 保留审计链，`dev/thispc-1002` 已确认无独有提交后删除，`codex/main-sync-20261008` 按纪律保留 |
 | T-3303 | ◐ | 完成 | 完成（定向 UI/i18n、`pnpm check`、全量 `pnpm test` 1174/1174、`pnpm build`、`pnpm perf:check`、`pnpm task:ledger -- --check`、`pnpm check:release`） | 待 B-0002 | 需确认真机当前文档语义、按钮状态和安全区布局 |
 | T-3302 | ◐ | 完成 | 完成（定向 UI/i18n、`pnpm check`、全量 `pnpm test` 1174/1174、`pnpm build`） | 待 B-0002 | 需作者在工作台、独立浮窗和多编辑器场景确认当前文档语义与按钮密度 |
 | T-3301 | ◐ | 完成 | 完成（定向 UI/i18n、`pnpm check`、全量 `pnpm test` 1173/1173 通过） | 待 B-0002 | 真实 Android 安全区、触控误触和当前文档收录语义仍需作者走查 |

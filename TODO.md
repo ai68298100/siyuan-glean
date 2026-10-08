@@ -11,7 +11,7 @@
 
 > 评审结论与验收顺序见 [`docs/STATUS-REVIEW-2026-10-06.md`](docs/STATUS-REVIEW-2026-10-06.md)。这些任务优先收口真实可用性、恢复能力和对外承诺，再扩展新功能。
 
-- [◐] **T-3305**（P2，2026-10-08）GitHub 内容与分支收口：恢复 README 中小驴系列和交流群说明，核对 main/Release/PR/分支关系；代码状态：文档整理完成；隔离验证：待本轮门禁；真实验收：不适用；延后原因：历史 PR/Release 保留审计链，`dev/thispc-1002` 是否删除待作者确认，`codex/main-sync-20261008` 按纪律保留。
+- [x] **T-3305**（P2，2026-10-08）GitHub 内容与分支收口：恢复 README 中小驴系列和交流群说明，核对 main/Release/PR/分支关系；代码状态：文档整理完成；隔离验证：完成（`pnpm check`、`pnpm test` 1214/1214、`pnpm build`、`pnpm perf:check`、`pnpm visual:check`、`pnpm check:release`、任务账本、`git diff --check`，PR #11 Quality gates/CodeQL 通过）；真实验收：不适用；延后原因：无，历史 PR/Release/tag 保留审计链，`dev/thispc-1002` 已确认无独有提交后删除，`codex/main-sync-20261008` 按纪律保留。
 - [◐] **T-3303**（P1，2026-10-08）修正移动快捷动作语义：原型首项是当前文档“收录”，复用 `GleanFacade.addCurrentDocToLibrary()`，外部 Pocket/Omnivore/wallabag 导入继续留在更多菜单；快捷动作标题改为语义化 heading，并在 DOM 中置于主卡片/空态之后；不新增端点、属性或存储字段；代码状态：完成；隔离验证：完成（定向 UI/i18n、`pnpm check`、全量 `pnpm test` 1174/1174、`pnpm build`、`pnpm perf:check`、`pnpm task:ledger -- --check`、`pnpm check:release`）；真实验收：待 B-0002；延后原因：需确认真机当前文档语义、按钮状态和安全区布局。
 - [◐] **T-3302**（P1，2026-10-08）桌面工作台快速收录对齐原型：在宽画布首页与图书馆头部显示主操作，复用 `GleanFacade.addCurrentDocToLibrary()` 与既有手动收录链路；Dock/移动端保持窄布局，不复制业务逻辑；代码状态：完成；隔离验证：完成（定向 UI/i18n、`pnpm check`、全量 `pnpm test` 1174/1174、`pnpm build`）；真实验收：待 B-0002；延后原因：需作者在工作台、独立浮窗和多编辑器场景确认当前文档语义与按钮密度。
 - [◐] **T-3301**（P1，2026-10-08）移动端首页快捷动作对齐原型：在今日拾遗首屏提供收录、搜索、候选三个 44px 入口；通过父级回调切换图书馆/搜索/候选队列，不复制业务逻辑；代码状态：完成；隔离验证：完成（定向 UI/i18n、`pnpm check`、全量 `pnpm test` 1173/1173 通过）；真实验收：待 B-0002；延后原因：真实 Android 安全区、触控误触和当前文档收录语义仍需作者走查。
