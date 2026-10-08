@@ -204,6 +204,7 @@ let snappingId = $state("");
 let archivingStale = $state(false);
 let editingCandidateId = $state("");
 let candidateUrlInput = $state("");
+let candidateBusyId = $state("");
 
 type QueueKey = ClipStatus;
 const queues: QueueKey[] = ["inbox", "later", "reading", "done", "archived"];
@@ -828,10 +829,12 @@ $effect(() => {
 });
 
 async function capture(entry: CandidateEntry) {
+    if (candidateBusyId) return;
     if (!normalizeUrl(entry.url)) {
         showMessage(t(i18n, "msg.candidateNeedsUrl"), 3500);
         return;
     }
+    candidateBusyId = entry.id;
     try {
         const result = await captureDocument(facade.pluginInstance, entry.id, { url: entry.url || undefined });
         if (result.captured) {
@@ -846,11 +849,14 @@ async function capture(entry: CandidateEntry) {
     } catch (error) {
         console.warn("[glean] 收录失败:", error);
         showMessage(t(i18n, offline ? "msg.offlineRetry" : "msg.captureFailed"), 3500);
+    } finally {
+        candidateBusyId = "";
     }
 }
 
 async function captureAsLocal(entry: CandidateEntry) {
-    if (entry.url) return;
+    if (candidateBusyId || entry.url) return;
+    candidateBusyId = entry.id;
     try {
         const result = await captureDocument(facade.pluginInstance, entry.id, { contentType: "local" });
         showMessage(t(i18n, result.captured ? "msg.added" : "msg.alreadyIn"), 2500);
@@ -858,10 +864,14 @@ async function captureAsLocal(entry: CandidateEntry) {
     } catch (error) {
         console.warn("[glean] 本地文档收录失败:", error);
         showMessage(t(i18n, offline ? "msg.offlineRetry" : "msg.captureFailed"), 3500);
+    } finally {
+        candidateBusyId = "";
     }
 }
 
 async function excludeCandidate(entry: CandidateEntry) {
+    if (candidateBusyId) return;
+    candidateBusyId = entry.id;
     try {
         await writeClip(facade.pluginInstance, entry.id, { excluded: true });
         showMessage(t(i18n, "msg.candidateExcluded"), 2500);
@@ -869,6 +879,8 @@ async function excludeCandidate(entry: CandidateEntry) {
     } catch (error) {
         console.warn("[glean] 忽略候选失败:", error);
         showMessage(t(i18n, offline ? "msg.offlineRetry" : "msg.captureFailed"), 3500);
+    } finally {
+        candidateBusyId = "";
     }
 }
 
@@ -878,11 +890,13 @@ function startCandidateUrlEdit(entry: CandidateEntry) {
 }
 
 async function saveCandidateUrl(entry: CandidateEntry) {
+    if (candidateBusyId) return;
     const url = candidateUrlInput.trim();
     if (!normalizeUrl(url)) {
         showMessage(t(i18n, "msg.candidateInvalidUrl"), 3500);
         return;
     }
+    candidateBusyId = entry.id;
     try {
         const conflict = await findClipUrlConflict(url, entry.id, facade.pluginInstance);
         if (conflict) {
@@ -895,6 +909,8 @@ async function saveCandidateUrl(entry: CandidateEntry) {
     } catch (error) {
         console.warn("[glean] 修正来源失败:", error);
         showMessage(t(i18n, offline ? "msg.offlineRetry" : "msg.captureFailed"), 3500);
+    } finally {
+        candidateBusyId = "";
     }
 }
 
@@ -1269,7 +1285,8 @@ async function takeSnapshot(entry: ClipIndexEntry) {
         entry.snapshot = path;
         await reload();
     } catch (error) {
-        showMessage(String(error).slice(0, 140), 5000);
+        console.warn("[glean] 快照生成失败:", error);
+        showMessage(t(i18n, "snapshot.failed"), 5000);
     } finally {
         snappingId = "";
     }
@@ -1471,6 +1488,13 @@ function metaLine(entry: Row): string {
         <div class="glean-load-error" role="alert" aria-live="assertive">
             <span>{t(i18n, "panel.reloadFailed")}</span>
             <button class="glean-btn" aria-busy={loading} disabled={loading} onclick={() => void reload()}>{t(i18n, "action.retry")}</button>
+        </div>
+    {/if}
+
+    {#if prefsError}
+        <div class="glean-load-error" role="alert" aria-live="assertive">
+            <span>{t(i18n, "msg.actionFailed")}</span>
+            <button class="glean-btn" aria-busy={prefsLoading} disabled={prefsLoading} onclick={() => void restorePreferences()}>{t(i18n, "action.retry")}</button>
         </div>
     {/if}
 
@@ -1868,7 +1892,7 @@ function metaLine(entry: Row): string {
                     {#if rows.length === 0}
                         <div class="glean-empty" role="status">
                             <div class="glean-empty__art"><svg aria-hidden="true"><use href="#iconGleanWheat" /></svg></div>
-                            <div class="glean-empty__title">{t(i18n, "panel.empty")}</div>
+                            <div class="glean-empty__title">{t(i18n, hasFilters ? "library.noMatch" : "panel.empty")}</div>
                             <div class="glean-empty__hint">
                                 {facade.settings.anchorNotebooks.length === 0
                                     ? t(i18n, "panel.noAnchorHint")
@@ -1877,6 +1901,10 @@ function metaLine(entry: Row): string {
                             {#if facade.settings.anchorNotebooks.length === 0}
                                 <button class="glean-btn" style="margin-top:10px" onclick={() => facade.openSettings()}>
                                     {t(i18n, "panel.setupAnchor")}
+                                </button>
+                            {:else if hasFilters}
+                                <button class="glean-btn glean-btn--ghost" style="margin-top:10px" onclick={clearFilters}>
+                                    {t(i18n, "library.clearFilters")}
                                 </button>
                             {/if}
                         </div>
@@ -1959,18 +1987,18 @@ function metaLine(entry: Row): string {
                                         {#if candidateMissing(entry)}<span class="glean-drow__len">{candidateMissing(entry)}</span>{/if}
                                         <span class="glean-drow__st">
                                             <span class="glean-candidate-state">{t(i18n, "candidate.pending")}</span>
-                                            {#if entry.url}<button class="glean-card__capture" onclick={(e) => { e.stopPropagation(); void capture(entry); }}>{t(i18n, "action.addToInbox")}</button>{/if}
+                                            {#if entry.url}<button class="glean-card__capture" disabled={Boolean(candidateBusyId)} aria-busy={candidateBusyId === entry.id} onclick={(e) => { e.stopPropagation(); void capture(entry); }}>{t(i18n, "action.addToInbox")}</button>{/if}
                                         </span>
                                         <div class="glean-drow__ops">
                                             <button class="glean-op-btn" title={t(i18n, "candidate.fixUrl")} aria-label={t(i18n, "candidate.fixUrl")} onclick={(e) => { e.stopPropagation(); startCandidateUrlEdit(entry); }}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanEdit" /></svg></button>
-                                            {#if !entry.url}<button class="glean-op-btn" title={t(i18n, "candidate.captureLocal")} aria-label={t(i18n, "candidate.captureLocal")} onclick={(e) => { e.stopPropagation(); void captureAsLocal(entry); }}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanLocal" /></svg></button>{/if}
-                                            <button class="glean-op-btn" title={t(i18n, "candidate.exclude")} aria-label={t(i18n, "candidate.exclude")} onclick={(e) => { e.stopPropagation(); void excludeCandidate(entry); }}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanClose" /></svg></button>
+                                            {#if !entry.url}<button class="glean-op-btn" disabled={Boolean(candidateBusyId)} title={t(i18n, "candidate.captureLocal")} aria-label={t(i18n, "candidate.captureLocal")} onclick={(e) => { e.stopPropagation(); void captureAsLocal(entry); }}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanLocal" /></svg></button>{/if}
+                                            <button class="glean-op-btn" disabled={Boolean(candidateBusyId)} title={t(i18n, "candidate.exclude")} aria-label={t(i18n, "candidate.exclude")} onclick={(e) => { e.stopPropagation(); void excludeCandidate(entry); }}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanClose" /></svg></button>
                                         </div>
                                     </div>
                                     {#if editingCandidateId === entry.id}
                                         <div class="glean-candidate-edit">
                                             <input class="b3-text-field" type="url" bind:value={candidateUrlInput} placeholder={t(i18n, "candidate.urlPlaceholder")} aria-label={t(i18n, "candidate.urlPlaceholder")} />
-                                            <button class="glean-btn" onclick={() => void saveCandidateUrl(entry)}>{t(i18n, "action.save")}</button>
+                                            <button class="glean-btn" disabled={Boolean(candidateBusyId)} aria-busy={candidateBusyId === entry.id} onclick={() => void saveCandidateUrl(entry)}>{t(i18n, "action.save")}</button>
                                             <button class="glean-btn glean-btn--ghost" onclick={() => (editingCandidateId = "")}>{t(i18n, "action.cancel")}</button>
                                         </div>
                                     {/if}
@@ -2004,10 +2032,10 @@ function metaLine(entry: Row): string {
             </div>
         {:else}
             <div class="glean-list">
-                {#if rows.length === 0 && !(candidateCount > 0 && activeQueue === "inbox" && !authorTimeline)}
+                {#if rows.length === 0}
                     <div class="glean-empty" role="status">
                         <div class="glean-empty__art"><svg aria-hidden="true"><use href="#iconGleanWheat" /></svg></div>
-                        <div class="glean-empty__title">{t(i18n, "panel.empty")}</div>
+                        <div class="glean-empty__title">{t(i18n, hasFilters ? "library.noMatch" : "panel.empty")}</div>
                         <div class="glean-empty__hint">
                             {facade.settings.anchorNotebooks.length === 0
                                 ? t(i18n, "panel.noAnchorHint")
@@ -2076,20 +2104,20 @@ function metaLine(entry: Row): string {
                             </div>
                             {#if entry.kind === "candidate"}
                                 <div class="glean-card__ops">
-                                    {#if entry.url}<button class="glean-card__capture" onclick={() => void capture(entry)}>{t(i18n, "action.addToInbox")}</button>{/if}
+                                    {#if entry.url}<button class="glean-card__capture" disabled={Boolean(candidateBusyId)} aria-busy={candidateBusyId === entry.id} onclick={() => void capture(entry)}>{t(i18n, "action.addToInbox")}</button>{/if}
                                     <button class="glean-op-btn" title={t(i18n, "candidate.fixUrl")} aria-label={t(i18n, "candidate.fixUrl")} onclick={() => startCandidateUrlEdit(entry)}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanEdit" /></svg></button>
-                                    {#if !entry.url}<button class="glean-op-btn" title={t(i18n, "candidate.captureLocal")} aria-label={t(i18n, "candidate.captureLocal")} onclick={() => void captureAsLocal(entry)}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanLocal" /></svg></button>{/if}
-                                    <button class="glean-op-btn" title={t(i18n, "candidate.exclude")} aria-label={t(i18n, "candidate.exclude")} onclick={() => void excludeCandidate(entry)}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanClose" /></svg></button>
+                                    {#if !entry.url}<button class="glean-op-btn" disabled={Boolean(candidateBusyId)} title={t(i18n, "candidate.captureLocal")} aria-label={t(i18n, "candidate.captureLocal")} onclick={() => void captureAsLocal(entry)}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanLocal" /></svg></button>{/if}
+                                    <button class="glean-op-btn" disabled={Boolean(candidateBusyId)} title={t(i18n, "candidate.exclude")} aria-label={t(i18n, "candidate.exclude")} onclick={() => void excludeCandidate(entry)}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanClose" /></svg></button>
                                 </div>
                                 <div class="glean-candidate-detail">
                                     <span>{t(i18n, "candidate.evidenceLabel")}: {candidateEvidence(entry)}</span>
                                     {#if candidateMissing(entry)}<span>{candidateMissing(entry)}</span>{/if}
                                     {#if entry.url}<span title={entry.url}>{entry.url}</span>{/if}
                                 </div>
-                                {#if editingCandidateId === entry.id}
-                                    <div class="glean-candidate-edit">
-                                        <input class="b3-text-field" type="url" bind:value={candidateUrlInput} placeholder={t(i18n, "candidate.urlPlaceholder")} aria-label={t(i18n, "candidate.urlPlaceholder")} />
-                                        <button class="glean-btn" onclick={() => void saveCandidateUrl(entry)}>{t(i18n, "action.save")}</button>
+                                    {#if editingCandidateId === entry.id}
+                                        <div class="glean-candidate-edit">
+                                            <input class="b3-text-field" type="url" bind:value={candidateUrlInput} placeholder={t(i18n, "candidate.urlPlaceholder")} aria-label={t(i18n, "candidate.urlPlaceholder")} />
+                                            <button class="glean-btn" disabled={Boolean(candidateBusyId)} aria-busy={candidateBusyId === entry.id} onclick={() => void saveCandidateUrl(entry)}>{t(i18n, "action.save")}</button>
                                         <button class="glean-btn glean-btn--ghost" onclick={() => (editingCandidateId = "")}>{t(i18n, "action.cancel")}</button>
                                     </div>
                                 {/if}
