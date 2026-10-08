@@ -28,7 +28,7 @@ export const simpleDialog = (args: {
     let closing = false;
     const dialog = new Dialog({
         title: args.title,
-        content: `<div class="dialog-content" style="display: flex; height: 100%;"></div>`,
+        content: `<div class="dialog-content" style="display: flex; flex-direction: column; width: 100%; height: 100%; min-width: 0; min-height: 0; box-sizing: border-box;"></div>`,
         width: args.width,
         height: args.height,
         destroyCallback: () => {

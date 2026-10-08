@@ -11,6 +11,7 @@
 
 > 评审结论与验收顺序见 [`docs/STATUS-REVIEW-2026-10-06.md`](docs/STATUS-REVIEW-2026-10-06.md)。这些任务优先收口真实可用性、恢复能力和对外承诺，再扩展新功能。
 
+- [◐] **T-3307**（P1，2026-10-08）修复独立浮窗工作台横向容器塌缩：让 Svelte 弹窗内容区按纵向 flex 填满对话框，避免 `glean-panel` 按最小内容宽度收缩后触发窄容器查询，导致中文逐字竖排和按钮挤压；不新增端点、属性或存储字段；代码状态：完成；隔离验证：待本轮门禁；真实验收：待 B-0002；延后原因：需要作者在独立浮窗确认宽画布排版、滚动和关闭行为。
 - [◐] **T-3306**（P1，2026-10-08）修复宽画布今日拾遗卡片底部错位：CSS Grid 行高拉伸时让滑动包装层与卡片同步填满，操作区贴底，避免短标题卡片露出灰色滑动背景；不新增端点、属性或存储字段；代码状态：完成；隔离验证：待本轮门禁；真实验收：待 B-0002；延后原因：需要作者在宽画布今日拾遗中确认三张卡片底线、阴影和窄屏布局。
 - [x] **T-3305**（P2，2026-10-08）GitHub 内容与分支收口：恢复 README 中小驴系列和交流群说明，核对 main/Release/PR/分支关系；代码状态：文档整理完成；隔离验证：完成（`pnpm check`、`pnpm test` 1214/1214、`pnpm build`、`pnpm perf:check`、`pnpm visual:check`、`pnpm check:release`、任务账本、`git diff --check`，PR #11 Quality gates/CodeQL 通过）；真实验收：不适用；延后原因：无，历史 PR/Release/tag 保留审计链，`dev/thispc-1002` 已确认无独有提交后删除，`codex/main-sync-20261008` 按纪律保留。
 - [◐] **T-3303**（P1，2026-10-08）修正移动快捷动作语义：原型首项是当前文档“收录”，复用 `GleanFacade.addCurrentDocToLibrary()`，外部 Pocket/Omnivore/wallabag 导入继续留在更多菜单；快捷动作标题改为语义化 heading，并在 DOM 中置于主卡片/空态之后；不新增端点、属性或存储字段；代码状态：完成；隔离验证：完成（定向 UI/i18n、`pnpm check`、全量 `pnpm test` 1174/1174、`pnpm build`、`pnpm perf:check`、`pnpm task:ledger -- --check`、`pnpm check:release`）；真实验收：待 B-0002；延后原因：需确认真机当前文档语义、按钮状态和安全区布局。
