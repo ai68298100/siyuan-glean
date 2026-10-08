@@ -26,6 +26,13 @@ test("正文统计不把标题、来源链接、导入说明当成全文", () =>
     assert.equal(inspectClipMarkdown("# 本地文档\n\n三行正文").contentType, "local");
 });
 
+test("中文路径来源 URL 可从模板识别；无效入口 URL 不会遮蔽正文中的有效来源", () => {
+    const url = "https://blog.effie.co/渐进式写作/";
+    const markdown = `# 渐进式写作\n\n- [${url}](${url})`;
+    assert.equal(inspectClipMarkdown(markdown).url, url);
+    assert.equal(inspectClipMarkdown(markdown, { url: "not-a-url" }).url, url);
+});
+
 test("旧时间来源呈 legacy，新时间来源与内容类型可序列化；文档 ID 时间须有效", () => {
     assert.equal(parseClipAttrs({ [ATTR.time]: "20240102030405" }).timeSource, "legacy");
     assert.deepEqual(serializePatch({ timeSource: "document", contentType: "fulltext", excluded: true }), {

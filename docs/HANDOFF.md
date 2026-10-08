@@ -1,389 +1,941 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
-## 当前有效交接（2026-10-01 第四十五轮：T-2023 首启 stepper + T-2024 标题截断策略）
+## 当前有效交接（2026-10-08 T-3303/D-0182）
 
-- **stepper（T-2023 最小版）**：Onboarding 头部下三步指示（`.glean-onb-steps`——当前实心主色光环/已完成绿淡实/未到空心，`aria-current` + `onboarding.stepN/stepsLabel` 双语键），纯展示方向感不改导入路由语义；扫描中/失败/跳过的状态卡表达随 B-0002 后按需补。
-- **标题截断统一策略（T-2024）**：行内单行 ellipsis（dock 卡片/行表，密度优先）+ 卡面 2 行 clamp（看板卡/阅读标题原已有；本轮补今日拾遗 `.glean-surf__title` 2 行 clamp + overflow-wrap anywhere）。
-- 门禁：check 0 错 **0 告警**、build 通过、E2E 全过。未发布新版本。提交序列：…→ 2c65b12 → 本轮（git log）。集市 PR #2288 待审。
-- 下一批候选：UI 组可离线 P1 已全部清完（T-2013/2022/2023/2024/2027/2028/2030）；剩余任务依赖真机或原型（T-2025 行表换行需原型对照、T-2017 原型同步、验收矩阵）；**请作者安排 B-0002 真机走查**（可走查面已覆盖：归档全链/会话重排/宽幅形态/空态/语义色/stepper，走查后定版 v1.1.x + T-1879 用户说明 + 当日补丁闭环）。
+移动今日拾遗快捷动作首项已修正为“收录”：按钮通过父级 `quickCapture` 回调调用 `GleanFacade.addCurrentDocToLibrary()`，复用当前文档手动收录链路；Pocket/Omnivore/wallabag 外部导入仍位于更多菜单。按钮保持 44px 命中区，并复用父级忙碌态防重复点击；DOM 顺序调整为主卡片或空态先于“快捷动作”标题和按钮。
 
-## 当前有效交接（2026-10-01 第四十四轮：T-2022 阅读模式段 parity）
+- 本轮改动：`src/ui/ResurfaceView.svelte`、`src/ui/DockPanel.svelte`、中英文 i18n、`tests/header-actions.test.ts` 及任务/决策/进度文档。
+- 已通过定向 UI/i18n 回归、全量 `pnpm test` 1174/1174、`pnpm check`、`pnpm build`、`pnpm perf:check`、`pnpm task:ledger -- --check` 与 `pnpm check:release`；`pnpm visual:check` 保留 24 个 pending-host。版本保持 `1.1.0`，不触碰 `main`，不打 tag、不创建 Release、不上传 `package.zip`。
 
-- **模式段 parity（T-2022）**：ReaderTab 模式容器挂 `.glean-seg`（胶囊轨道与 Settings/Dock 同形态）+ `.glean-reader__mode` 改 flex-wrap 窄宽回流 + `setMode` 切换失败 try/catch 回滚选中态并反馈（原 switchMode 异常未捕获、选中态假成功）+ `.glean-seg__btn:focus-visible` 焦点环（Settings/Dock 同惠）。
-- 坑：build 首跑遇 Windows 偶发进程崩溃（exit 0xC0000409），重跑即绿非编译错误——偶发环境故障重跑确认即可。
-- 门禁：check 0 错 **0 告警**、build 通过、E2E 全过。未发布新版本。提交序列：…→ 6d8a43f → 本轮（git log）。集市 PR #2288 待审。
-- 下一批候选：UI 组可离线 P1 已清完；剩余多为真机/原型驱动（T-2023 Onboarding stepper、T-2024 标题截断等）；**B-0002 真机走查仍是定版 v1.1.x 唯一实质瓶颈**。
+## 当前有效交接（2026-10-08 T-3302/D-0181）
 
-## 当前有效交接（2026-10-01 第四十三轮：T-2013 spark 类名映射修正）
+宽画布工作台与独立浮窗的首页/图书馆头部已补齐原型主收录动作：首页显示“快速收录”，图书馆显示“收录”。按钮只调用 `GleanFacade.addCurrentDocToLibrary()`，复用现有 `captureDocument(src: "manual")`、冲突提示、自动富化和数据变更通知；Dock/移动端不增加窄顶栏按钮。
 
-- **spark 热柱修复（T-2013 核心缺陷）**：渲染类名 `hot` 与 scss `.glean-tile__spark--hot` 不匹配——**"今日高亮"渐变+光晕样式自上线从未生效**（恒灰色柱）。类名修正 + 每根柱补 `title`（日期+数量，复用 stats.heatDay 键）——颜色/高度不再单独表达事实。柱高/空数据/超长标签经查无恙。
-- 坑：**类名手写漂移**（svelte `class:hot` vs scss BEM 全名）编译期无法发现——同类 class:gx 映射可 grep 交叉核对。
-- 门禁：check 0 错 **0 告警**、build 通过、E2E 全过。未发布新版本。提交序列：…→ f310550 → 本轮（git log）。集市 PR #2288 待审。
-- 下一批候选：UI 组可离线项剩 **T-2022 ReaderTab 模式段 parity**（.glean-seg 容器/激活轨道）；**B-0002 真机走查仍是定版 v1.1.x 唯一实质瓶颈**。
+- 本轮改动：`src/types.ts`、`src/ui/DockPanel.svelte`、`src/index.scss`、中英文 i18n、`tests/header-actions.test.ts` 及任务/决策/进度文档。
+- 已通过：定向 UI/i18n 回归、全量 `pnpm test` 1174/1174、`pnpm check`、`pnpm build`、`pnpm perf:check`、`pnpm task:ledger -- --check`、`pnpm check:release`；视觉矩阵仍有 24 个 pending-host。真实工作台宽度、独立浮窗、多编辑器当前文档语义仍待 B-0002。版本保持 `1.1.0`，不触碰 `main`，不打 tag、不创建 Release、不上传 `package.zip`。
 
-## 当前有效交接（2026-10-01 第四十二轮：T-2030 归档状态令牌统一）
+## 当前有效交接（2026-10-08 T-3301/D-0180）
 
-- **令牌统一（T-2030）**：`glean-st-badge--archived` 底/字改消费 `--glean-st-arch`（原回退 on-surface 普通灰）；看板卡与行表 archived 行加 `.glean-dim--archived` 降透明度 0.68（退出视觉主层仍可辨识、选中/拖拽不受影响）。状态点与看板列头 dot 原已消费 token，无需改。
-- 门禁：check 0 错 **0 告警**、build 通过、E2E 全过。未发布新版本。提交序列：…→ 070333e → 本轮（git log）。集市 PR #2288 待审。
-- 下一批候选：UI 组可离线项剩 T-2022 ReaderTab 模式段 parity、T-2013 统计 spark 类名映射（含 `.glean-spark` 类名/样式映射排查）；**B-0002 真机走查仍是定版 v1.1.x 唯一实质瓶颈**。
+移动端今日拾遗首屏已补齐原型的三个快捷动作：导入、搜索、候选。导入调用既有导入弹层；搜索由 Dock 父级清除旧筛选后进入全库搜索；候选由既有 `openCandidateQueue` 进入收件箱队列。按钮保持 44px 命中区，未新增数据字段或端点。
 
-## 当前有效交接（2026-10-01 第四十一轮：T-2028 载体与五态分色）
+- 本轮改动：`src/ui/ResurfaceView.svelte`、`src/ui/DockPanel.svelte`、`src/index.scss`、中英文 i18n、`tests/header-actions.test.ts` 及任务/决策/进度文档。
+- 已通过：定向 UI/i18n 回归、`pnpm check`；真实 Android 安全区、触控误触和导入弹层仍待 B-0002。版本保持 `1.1.0`，不触碰 `main`，不打 tag、不创建 Release、不上传 `package.zip`。
 
-- **载体分色（T-2028）**：`.glean-carrier-badge` 删除 fulltext/link/local 三态对五态颜色（紫/琥珀/绿）的复用，统一中性底+on-surface 文字+`::before` 载体图标（📄 全文/🔗 链接/📂 本地）；图标是辅助，文字 label `clip.type.*` 在图标缺失时完整回退；b3 变量自动适配深浅色。五态颜色现在只表达文章状态。ResurfaceView/DockPanel 各处徽章同 CSS 生效，组件零改动。
-- 门禁：check 0 错 **0 告警**、build 通过、E2E 全过。未发布新版本。提交序列：…→ 5ecd812 → 本轮（git log）。集市 PR #2288 待审。
-- 下一批候选：UI 组可离线项剩 **T-2022 ReaderTab 模式段 parity**（.glean-seg 容器/激活轨道）、T-2013 统计 spark 类名映射、T-2030 归档状态令牌统一（--glean-st-arch 消费）；**B-0002 真机走查仍是定版 v1.1.x 唯一实质瓶颈**。
+## 当前有效交接（2026-10-08 T-3292/D-0179）
 
-## 当前有效交接（2026-10-01 第四十轮：T-2027 统计卡语义染色修正）
+窄 Dock 搜索现在有完整的可逆交互：打开后自动聚焦，输入关键词时可清空；关闭按钮和 Escape 都会收起输入框，并将焦点还给搜索图标。关闭不清除关键词，回到图书馆时筛选结果保持不变；工作台/浮窗常驻搜索不显示关闭动作。
 
-- **语义色修正（T-2027）**：`.glean-mstat` 排位染色（nth-child）改为语义 modifier `--ok/--pending/--skip/--manual/--err`（ok=done 绿/pending=inbox 琥珀/skip=中性/manual=reading 紫/err=theme-error 红）；MigrateDialog 扫描报告/回填两处 + OnboardingDialog 预览三处全接线。**修复实错**：回填阶段"失败"数原排位第 3 无错误色、扫描阶段"需人工"被误染待处理琥珀。
-- 门禁：check 0 错 **0 告警**、build 通过、E2E 全过。未发布新版本。提交序列：…→ def0876 → 本轮（git log）。集市 PR #2288 待审。
-- 下一批候选：UI 组同域可离线项——**T-2028 载体与五态分色**（下一个 P1，fulltext/link/local 不再复用五态色）、T-2022 ReaderTab 模式段 parity、T-2013 统计 spark 类名映射；**B-0002 真机走查仍是定版 v1.1.x 唯一实质瓶颈**。
+- 本轮改动：`src/ui/DockPanel.svelte`、`src/index.scss`、`public/i18n/zh_CN.json`、`public/i18n/en_US.json`、`tests/accessibility.test.ts` 及任务/决策/进度文档。
+- 已通过：定向无障碍回归、`pnpm check`（0 错误/0 警告）、`pnpm test`（1172/1172）。真实 Dock 宽度、键盘和移动触控仍待 B-0002；版本保持 `1.1.0`，不触碰 `main`，不打 tag、不创建 Release、不上传 `package.zip`。
 
-## 当前有效交接（2026-10-01 第三十九轮：T-1825 宽画布空态居中）
+## 当前有效交接（2026-10-07 T-3300/D-0178）
 
-- **空态居中（T-1825）**：`.glean-tab-root` 宽幅块内 `.glean-empty` 加 `grid-column: 1/-1` + `max-width: 520px` 水平居中——修复宽画布栅格容器中空态卡"左对齐窄列+右侧空白"的坏观感；非 grid 上下文无副作用，窄 Dock/移动端不受影响。纯 CSS。与 T-1824 同域收尾。
-- 门禁：check 0 错 **0 告警**、build 通过、E2E 全过。未发布新版本。提交序列：…→ 3dacfd9 → 本轮（git log）。集市 PR #2288 待审。
-- 下一批候选：**功能线 P0/P1 已全清，P2 轻项与 UI 组存量（T-2007–T-2030 视觉/验收组）多为真机或原型驱动**；无作者输入时的可选方向：T-1916 时间线分组（大项）或就 UI 组挑可离线做的项；**B-0002 真机走查仍是定版 v1.1.x 的唯一实质瓶颈**（归档全链/会话重排/宽幅形态/空态可一次走查）。
+收集箱迁入已接入 `inbox-recovery.json`：创建前保存 intent，拿到合法文档 ID 后保存 `capture-pending`，收录后保存 `remove-pending`；capture/index 失败复用精确 ID，创建响应未知进入 unknown 并禁止重建。检查点只保存阶段、oId、目标位置和文档 ID，不保存正文或文章属性。
 
-## 当前有效交接（2026-10-01 第三十八轮：T-1824 摘录墙/高亮宽幅双栏）
+- 新增 `src/domain/inbox-recovery.ts`、`src/services/inbox-recovery.ts` 和 `tests/inbox-recovery.test.ts`；`tests/external-api.test.mjs` 增加恢复重试与未知创建回归，`package.json` 已纳入测试命令。
+- 收集箱/检查点定向回归 42/42，`pnpm check`（0 错误/0 警告）、`pnpm test`（1172/1172）、`pnpm build`、`pnpm check:release`、`pnpm task:ledger -- --check` 与 `git diff --check` 已通过；`pnpm visual:check` 的 24 个案例仍等待真实宿主截图。真实收集箱、插件重载、双窗口和云端删除仍待 B-0002/B-0007。
+- `docs/INTEGRATION-ACCEPTANCE.md` 与 `docs/BLOCKERS.md` 已补充 T-3300 的真实验收记录：重载后阶段/确切 docId、unknown 禁止重建、云删除失败重试和双窗口 busy 结果；下一台机器可直接按 INT-02/INT-F05 执行。
+- 当前开发分支为 `dev/thispc-1002`，不触碰 `main`，不升版、不打 tag、不创建 Release、不上传 `package.zip`。
 
-- **宽幅形态（T-1824）**：工作台/浮窗宽画布（`.glean-tab-root`）下，摘录墙（`.glean-quotes`）与高亮列表（新增 `.glean-hl-list` 容器）改 `repeat(auto-fill, minmax(320px, 1fr))` 自适应栅格 + 卡片 break-inside 防截断——宽画布自适应 2–3 栏；窄 Dock/移动端无 tab-root 容器不受影响（保持纵向单栏）。纯 CSS + 一个容器 div，无逻辑改动。
-- 门禁：check 0 错 **0 告警**、test **182/182**、build 通过、E2E 全过。未发布新版本。提交序列：…→ 033f15e → 本轮（git log）。集市 PR #2288 待审。
-- 下一批候选：P2 轻项（T-1825 宽画布空态居中与 T-1824 同域可顺手、T-2017 原型同步等 UI 组）；功能线大项基本清完；**强烈建议作者安排 B-0002 真机走查**（归档全链/会话重排/宽幅形态可一次走查，走查后定版 v1.1.x + T-1879 用户说明）。
+## 当前有效交接（2026-10-07 T-3299/D-0177）
 
-## 当前有效交接（2026-10-01 第三十七轮：T-1903 会话队列重排最小版）
+收集箱和外部文件的标题、描述、站点名与标签按纯文本语义写入 Markdown；跨行描述逐行保持引用，来源链接限制为 HTTP(S)。云端 `shorthandMd` 正文不做改写；本轮未新增存储、属性或 API。
 
-- **会话阅读队列重排（D-0034）**：读库排序新增「自定义（会话）」——顺序只存 `ui-prefs.json` 的 `sessionOrder={order: docId[], seed}`，**永不写 priority/文章属性**；`domain/session-order.ts` 纯函数（applySessionOrder 投影：order 内按相对次序在前、未入列追加尾部、已删 ID 自然失效；pinToSessionTop/moveWithinSession/shuffleIds 种子可复现，单测 3 组）→ `library-view` sortBy="session"（domain 不读 prefs，调用方传 order）→ DockPanel：排序下拉两处加选项、行溢出菜单「会话置顶/上移/下移」（仅 session 模式显示）、session 模式下方向按钮换 🔀 洗牌（当前筛选全集洗牌，视图外 order 条目保留追加尾部）。跨画布即时共享、重启保留。
-- 拖拽 handle/左右滑触控降级随 B-0002 真机走查后评估（溢出菜单模式本身触控可用）。
-- 坑：Svelte `$derived` 引用声明在后的 `$state` 报 used before declaration——组件状态声明集中状态区。
-- 门禁：check 0 错 **0 告警**、test **182/182**、build 通过、E2E 全过。未发布新版本。提交序列：…→ b939125 → 本轮（git log）。集市 PR #2288 待审。
-- 下一批候选：功能线剩余大项已不多（T-1916 时间线分组、T-1824 摘录墙宽幅形态等 P2）；**强烈建议作者安排 B-0002 真机走查**（归档生命周期全链 + 会话重排可走查，走查后定版 v1.1.x）；T-1879 用户说明待真机后写。
+- 改动涉及 `src/services/inbox-service.ts`、`src/services/import-service.ts`、相应服务回归、`TODO.md`、`docs/TASK-LEDGER.md`、`docs/DECISIONS.md`、`docs/PROGRESS.md` 与本页。
+- 收集箱/导入定向回归 52/52；`pnpm check` 0 错误/0 警告，`pnpm test` 1166/1166，`pnpm build`、发布门禁、任务账本和差异检查通过。视觉矩阵 24 项仍需真实宿主截图，不视为本地失败。
+- 提交 `91b4ecb` 已推送到 `dev/thispc-1002`；GitHub Quality gates `37634094181` 和 CodeQL `37634094243` 均成功，当前开放 CodeQL 告警 0。版本保持 `1.1.0`，不触碰 `main`，不打 tag、不创建 Release、不上传 `package.zip`。
 
-## 当前有效交接（2026-10-01 第三十六轮：T-1878 资产研究 + 孤儿账本失效修复）
+## 当前有效交接（2026-10-07 T-3298/D-0176）
 
-- **T-1878 研究完成**：docs/RESEARCH-archive-assets.md 对象级结论表（11 类对象）。快照 HTML 在彻底删除/宿主递归删除后成**永久孤儿资产**（内核对 assets 无 GC）——规则=保留+确认文案提示，不做自动清理；后续可选项（快照清理动作/AV 孤儿检测）P3 只入账。
-- **随研究修复**：retryImportOrphans/retryInboxOrphans 重试前 SQL 判文档存在——已删文档条目计入 `expired` 并从账本移除（**此前会无限重试失败**，因 getBlockAttrs 对已删块返回空对象不报错）；两处 UI 反馈追加失效计数。
-- **顺带修复既有 UI 缺陷**：`import.orphansRetried`/`inbox.orphansRetried` 条件表达式模板在 t() 中从不求值（真机会显示字面 `${skip > 0 ? …}`）——t() 只支持平占位符 `${name}`，模板改纯占位、条件拼接移到调用处（新增 msg.remainSuffix/msg.expiredSuffix 双语键）。**全仓如有同类条件模板键需排查**（本轮 grep 仅此两处）。
-- 坑：E2E 中删除文档后 SQL 索引清空异步——判"已删"前后都要等收敛；孤儿账本条目结构含 notebookId/tags（照 T-1840 形状）。
-- 门禁：check 0 错 **0 告警**、test **179/179**、build 通过、E2E 全过（+T-1878 断言）。未发布新版本。提交序列：…→ ace045b → 本轮（git log）。集市 PR #2288 待审。
-- 下一批候选：**归档生命周期组（T-1866–T-1878）开发/契约/E2E/研究项全部关闭**，剩 T-1879 用户说明待 B-0002 真机走查后写 + 验收矩阵 T-1873/1874/1875 需真机；功能线下一个大项候选 **T-1903 会话阅读队列重排**（契约+开发）或按 PRODUCT-REPLAN 顺序推进；**强烈建议作者安排 B-0002 真机走查**（归档全链可走查，走查后可定版 v1.1.x）。
+README 中英文将生态入口改为明确的精选列表，不再声称小驴系列总共只有四款；链接已核对到公开仓库。并回填前两轮验证：T-3296 的 Quality gates/CodeQL 运行 `37621180944`/`37621181033` 均成功；T-3297 的运行 `37627913882`/`37627914365` 均成功。
 
-## 当前有效交接（2026-10-01 第三十五轮：T-1877 E2E 完整矩阵 + T-1876 可发现性）
+- T-3298 文档事实与本地链接、任务台账检查通过；没有改变插件行为或发布策略。
+- 版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 `package.zip`。
 
-- **T-1877 生命周期 E2E 矩阵完成**（s1-flow 8 条断言）：新增失败不伪报（对不存在文档 archiveMoveDoc/purgeDoc 必须抛错）、**宿主删除语义实证——内核 removeDoc 删宿主会递归删除其下全部子文档**（思源语义、数据历史兜底；幸存分支含 ensureHost 重建+幂等复验，当前内核走递归分支）、数据主权（glean-index.json 删除重建后无幽灵条目）。已在 §7.6 回写：**用户删宿主=连删全部归档文章，T-1879 发布材料必须显著提示**。
-- **T-1876 最小版**：`docHostContext`（hpath/宿主判定/归档移入目标/移出目标一次投影）+ ArchiveDialog「移动到：{宿主 hpath}」与「已在归档宿主下」提示 + RestoreDialog 移出目标显示（根→"根目录"）；i18n 双语 3 键（archive.targetPath/alreadyInHost/common.rootFolder）。打开宿主入口/返回原位置等交互随 B-0002 后评估。
-- 坑：E2E 断言"宿主重建"前未料到内核递归删除——写成双分支（childGone?递归实证:重建验证），两个分支都有断言价值，实测走了递归分支。
-- 门禁：check 0 错 **0 告警**、test **179/179**、build 通过、E2E 全过（生命周期矩阵 8 条）。未发布新版本。提交序列：…→ 2e9758d → 本轮（git log）。集市 PR #2288 待审。
-- 下一批候选：T-1878 资产关联处理研究（快照/引述/闪卡/AV/打卡在删除/移动时的孤儿风险，多为文档性研究）；T-1879 用户说明待 B-0002 真机走查后写；**B-0002 真机走查积压非常多（归档生命周期全链已就绪可走查）**；功能线其他候选（T-1903 会话队列重排等）。
+## 当前有效交接（2026-10-07 T-3297/D-0175）
 
-## 当前有效交接（2026-10-01 第三十四轮：T-1872 恢复策略契约 + 移出宿主）
+阅读帮助弹窗已改为 DOM 节点 + `textContent`，并使用 `glean-reader-help` 前缀样式和主题令牌，避免翻译文案进入 `innerHTML`。中英文 README 已同步开发分支稳定性说明、Node.js/pnpm 前置版本，并修正小驴雷切仓库链接；`docs/media/demo.gif` 仍按发布媒体清单等待作者真机素材，不视为断链故障。
 
-- **恢复策略（D-0033 + §7.6）**：恢复是状态动作——宿主内文章恢复后位置默认留在宿主下（合法状态，队列只看状态）；宿主内文章恢复按钮弹两选项「仅恢复 / 恢复并移出宿主」（`RestoreDialog.svelte`，`ClipStatusActions.onRestore` 五处入口接线与 onArchive 对称），非宿主文章保持既有直接恢复（`openRestoreDialog` 内 `docUnderHostKind` SQL 分流）。移出目标=第一个宿主段的父目录（`domain/lifecycle.hostParentFolderOf` 纯函数 + 单测），从当前位置推导、**无"原路径"隐式状态**；`moveDocOutOfHost` 服务（目标父目录文档 path 作 toPath，根目录 toPath="/"）。
-- **spike 补实证**：moveDocs `toPath="/"` 移动到根合法（lifecycle-spike **8/8**，§7.5 已回写）。
-- 坑：E2E 新建文档后内核 SQL 索引异步建行——服务层 docRow 依赖 SQL，createDocWithMd 后必须等 SQL 收敛再调生命周期动作（漏写一次等待超时定位）。
-- 门禁：check 0 错 **0 告警**、test **179/179**、build 通过、E2E 全过（恢复分流+移出链路断言）。未发布新版本。提交序列：…→ 7fc6146 → 本轮（git log）。集市 PR #2288 待审。
-- 下一批候选：T-1866 组剩余（T-1876 归档宿主可发现性、T-1877 生命周期 E2E 完整矩阵、T-1878 资产关联处理研究、T-1879 用户说明待 B-0002 后）；验收矩阵 T-1873/1874/1875 需真机（**并入 B-0002**）；功能线其他候选（T-1903 会话队列重排等）。
+- T-3297 本地 `pnpm check`、`pnpm test` 1164/1164、构建、视觉登记、发布门禁和任务账本均通过；GitHub Quality gates `37627913882`、CodeQL `37627914365` 均成功。
+- 版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 `package.zip`。
 
-## 当前有效交接（2026-10-01 第三十三轮：T-1866 归档后处理入口统一接线）
+## 当前有效交接（2026-10-07 T-3296/D-0174）
 
-- **归档三选对话框全入口统一**：`ArchiveDialog.svelte`（保留原位置【默认】/ 移入【归档】/ 删除文章=recycleDoc + 底部二级"彻底删除"=confirm 列标题/路径/来源+不可逆提示后 purgeDoc）经 `facade.openArchiveDialog(docId)` 打开（GleanFacade 接口已加方法）。`ClipStatusActions` 归档按钮新增可选 `onArchive` 回调，五处使用点全接线：Dock 行表、看板卡、卡片视图、ReaderTab 阅读页签、ReadingContext（移动伴生栏）；命令 `cmd.archiveCurrent` 改弹对话框（未收录提示沿用 markCurrentStatus 逻辑独立在 archiveCurrentWithChoice）。
-- **裁决**：今日拾遗快速归档与自动化批量（archive_stale/超龄清单/批量条）**保持默认项语义**（不弹窗、纯状态写 archived）——轻量消费场景不打断、T-1875 禁止自动化批量默认不可逆删除；今日拾遗归档反馈统一为 `archive.doneInPlace`。i18n 双语 15 键（archive.*）。
-- 坑：Svelte 5 模板回调闭包不收窄 `{#if}` 内可空值——`@const` 只能放块直接子级（跨层包裹时改 `$derived`/守卫）；本次一轮内两次 Edit 事故（index.ts 误删 done 打卡联动行、heredoc 追加中文注释——后者本次未损坏但再次确认纪律）均已即时恢复。
-- 门禁：check 0 错 **0 告警**、test **178/178**、build 通过、E2E 全过。未发布新版本。提交序列：…→ 46483d0 → 本轮（git log）。集市 PR #2288 待审。
-- 下一批候选：T-1866 组剩余（T-1872 恢复策略契约、T-1876 归档宿主可发现性、T-1877 生命周期 E2E 完整矩阵、T-1878 资产关联处理研究、T-1879 用户说明）；验收矩阵 T-1873/1874/1875 需真机（**并入 B-0002 强烈建议作者走查**）；功能线其他候选（T-1903 会话队列重排等）。
+CodeQL push 触发器已补齐 `codex/**`，与 Quality gates 的 `main`、`dev/**`、`codex/**` 范围一致；临时开发分支也会执行安全扫描。该配置不改变版本、主干、Release 或集市策略。
 
-## 当前有效交接（2026-10-01 第三十二轮：归档生命周期服务层 T-1869/1870/1871）
+- T-3296 已通过 workflow YAML 解析、任务账本和差异检查；GitHub Quality gates `37621180944`、CodeQL `37621181033` 均成功。
+- 版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 `package.zip`。
 
-- **生命周期服务层全落地**（契约 §7 + spike §7.5 的实现闭环）：`domain/lifecycle.ts` 纯函数（宿主路径/幂等判定/确认信息，单测 6 组）+ `api/client.ts` 补 `moveDocs`/`removeDoc`（带实证形状注释）+ `services/lifecycle-service.ts`：
-  - `ensureHost`：**先 SQL 查再 createDocWithMd**（同路径静默新建不幂等），复用用户手动建的同名文档，创建后写 `custom-clip-internal=true` 双保险；
-  - `moveDocToHost/archiveMoveDoc/recycleDoc`：moveDocs（toPath 带 `.sy`）→ 轮询 hpath 收敛 → 写 `archived`（writeClip 按最新 hpath 刷新索引）；已在宿主下 no-op；
-  - `purgeDoc`：删前重查 ID+path 配对（防误删同名新文档）、删后确认 SQL 清空、索引必须清理、失败抛出不伪报；`buildDocPurgeInfo` 供确认框。
-- **嵌宿主边界（新契约点，已回写 §7.1 + 单测）**：已在【归档】下的文章其【回收】宿主为宿主内同级（`/S1/【归档】/【回收】`）——契约字面"当前文章所在文件夹下创建"的自洽结果，不追忆原路径、无隐式状态。
-- 坑：E2E 期望 hpath 忘算 makeDoc 的 `/S1/` 前缀（一次超时）；TODO.md 组内插行覆盖误删相邻条目（git diff 复核后恢复）——**old_string 含相邻行的大段替换，提交前必查相邻条目仍在**。
-- 门禁：check 0 错 **0 告警**、test **178/178**、build 通过、E2E 全过（新增生命周期链路断言）、lifecycle spike 7/7。未发布新版本。提交序列：…→ b3027d6 → 本轮（git log）。集市 PR #2288 待审。
-- 下一批候选：**T-1866 归档后处理入口 UI 接线**（服务层已就绪：三选项 = 保留原位置（纯状态写 archived）/ 移入【归档】（archiveMoveDoc）/ 删除（recycleDoc，彻底删除为确认框二级动作 purgeDoc）——统一 Dock、工作台、看板、阅读页签、命令面板、今日拾遗和移动端动作名称与结果反馈，i18n 双语先补键）；T-1872 恢复策略契约、T-1873/1874/1875 验收矩阵；**强烈建议作者安排 B-0002 真机走查**。
+## 当前有效交接（2026-10-07 T-3294/D-0172）
 
-## 当前有效交接（2026-10-01 第三十一轮：归档生命周期契约 + 端点实证）
+CodeQL 发现 Pocket HTML 导入标题清理和 Markdown 注释闭合的生产告警，本轮已修复输入边界并补回归；固定测试 URL 断言已独立核验无敏感 sink，保留断言并按 `used in tests` 分类关闭。详细状态见 TODO 的 T-3294/T-3295。
 
-- **T-1867 契约（P0 完成）**：DATA-CONTRACT 新增 **§7 归档生命周期**——概念三分（归档状态=纯属性 / 【归档】宿主=同目录幂等创建+移动即可逆 / 两级删除=默认移入【回收】宿主+彻底删除二级动作）；移动不变式（ID/属性/标签/正文/引述/闪卡/AV/断点/打卡键全保留，索引 hpath 定向刷新）；彻底删除留存边界矩阵（索引必须清、快照/AV 行/打卡历史保留并提示）；恢复不新增"原路径"隐式状态。**DECISIONS D-0032** 记裁决与理由（T-1905 研究落地：思源无回收 API，可恢复删除只能靠隔离宿主）。
-- **T-1868 spike（P0 完成）**：`scripts/spike/lifecycle-spike.mjs` **7/7**（隔离内核 v3.8.6，每轮 removeNotebook 重建防重名污染）。**关键实证：moveDocs `toPath` 必须是宿主完整 path（带 `.sy`）**，去 `.sy` 目录形态报 block not found；移动不变式内核层全部成立（ID/属性/正文保留+hpath 更新+重复移动幂等）；removeDoc code=0 索引异步清空、**删后 getBlockAttrs 返回 code=0+空对象（判存在性只能靠 SQL）**、同路径可立即重建；失败语义 code=-1 "block not found"；重名 createDocWithMd 静默新建且索引异步。形状已回写 DATA-CONTRACT §7.5 与 §5 端点表。
-- **§7.4 最小实现**：`isInternalDocument` 增加【归档】/【回收】路径段豁免（单测 +1=172）。
-- 坑：spike 工作区复用残留重名文档污染 blocktree（moveDocs 误报 block not found）——隔离 spike 每轮重建笔记本；官方 API 文档网络不可达时，隔离内核多形态试探是合规实证路径。
-- 门禁：check 0 错 **0 告警**、test **172/172**、build 通过、E2E 全过、lifecycle spike **7/7**。未发布新版本。提交序列：…→ 37d3baf → 本轮（git log）。集市 PR #2288 待审。
-- 下一批候选：**T-1869【归档】宿主幂等创建 → T-1870 归档移动语义 → T-1871 删除安全语义**（契约与端点已就绪，api 层包壳 moveDocs/removeDoc 后按 §7 实现；三选项 UI 入口=T-1866 随后统一接线）；重活缺陷已全清；**强烈建议作者安排 B-0002 真机走查**（积压非常多，走查后可按 v1.1.x 补丁版定版）。
+- T-3294 已通过导入/格式化定向 61/61、全量 `pnpm test` 1163/1163、`pnpm check`、`pnpm build`、性能/视觉/发布门禁，CodeQL #1/#2 已标记 fixed。
+- T-3295 已确认 #3/#4 为隔离 Spike 固定导出断言、#5/#6 为测试结果断言，四条均无敏感 sink，保留原断言并按 `used in tests` 关闭；不得通过放宽或删除断言绕过 CodeQL。
+- 版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 `package.zip`。
 
-## 当前有效交接（2026-10-01 第三十轮：摘录墙颜色筛选/导出色标）
+## 当前有效交接（2026-10-07 T-3288/D-0171）
 
-- **T-1901 延伸二：颜色全链在摘录墙闭合**：domain `QuoteFilter.color` + `quoteFacets.colors` 分面 + `filterQuotes` 颜色匹配（单测）；`quoteExportMarkdown` 有色条目加【色名】前缀（新单测）；QuotesView 颜色分面 chips（色点 `glean-hl__color--*` 着色 + i18n 色名）+ 活性 chip 本地化；i18n 新增 `highlight.color.yellow/red/blue/green` 双语 4 键（tests/i18n.test.ts 守门通过）。HighlightView 分享卡构造补 color 字段。引述块删除/高亮视图侧全库操作仍随 T-1753 后续。
-- 坑（教训推广）：domain 接口加必填字段（QuoteEntry.color）后，其他构造点（HighlightView 分享卡字面量）编译即时暴露——**接口加必填字段需全仓 grep 构造点**（DEFAULTS 字面量教训的推广形）。
-- 门禁：check 0 错 **0 告警**、test **171/171**、build 通过、E2E **31/31**。未发布新版本。提交序列：…→ 68b9951 → 本轮（git log）。集市 PR #2288 待审。
-- 下一批候选：功能线大项/契约组（T-1903 会话队列重排、T-1905 结论落地随 T-1866/T-1867、T-1753 摘录侧删除）；重活缺陷已全清；**强烈建议作者安排 B-0002 真机走查**（积压非常多，走查后可按 v1.1.x 补丁版定版）。
+本轮补齐用户反馈闭环：新增 `docs/FEEDBACK-LOOP.md`，明确问题发现、诊断、修复、验证和关闭的记录字段；问题模板补充文章载体、首次出现版本、重试结果和能力/恢复矩阵链接；功能建议、使用问题、CONTRIBUTING 与 PR 模板统一链接该规范。未改变插件功能、数据契约或发布策略。
 
-## 当前有效交接（2026-10-01 第二十九轮：摘录墙颜色 / 简报朗读）
+- 本轮验证：模板字段与链接静态核对、`pnpm task:ledger -- --check`、`git diff --check` 通过；真实使用反馈仍待作者走查。
+- T-3288 当前为“代码与文档已补齐、流程真实使用待验证”；不要把模板存在当成反馈闭环已经在真实 Issue 中跑通。
+- 版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 `package.zip`。
 
-- **T-1901 延伸：摘录墙颜色**：`QuotesView` entries 扩展 `QuoteEntryWithColor`（color 字段）+ loadQuotes 后逐块 `getQuoteColor` 补齐 + 色点循环切换（`cycleQuoteColor` 写引述块级 IAL）+ 色条渲染。颜色筛选随 T-1901 后续（全库筛选/搜索）。
-- **T-1764×T-1744 衔接：简报朗读**：速览卡「朗读/停止」按钮（TTS 可用且非移动端时显示，复用 speakText/stopSpeaking）。
-- 坑：`digestOn` 重复声明一次（Edit 插入位置与既有声明冲突，svelte-check 即时暴露已删）。
-- 门禁：check 0 错 **0 告警**、test **169/169**、build 通过、E2E **31/31**。未发布新版本。提交序列：…→ 8b2079d → 本轮（git log）。集市 PR #2288 待审。
-- 下一批候选：功能线大项/契约组（T-1901 后续的删除/全库筛选/搜索、T-1903 会话队列重排、T-1905 结论落地随 T-1866/T-1867）；重活缺陷已全清；**强烈建议作者安排 B-0002 真机走查**（积压非常多，走查后可按 v1.1.x 补丁版定版）。
+## 当前有效交接（2026-10-07 T-3290/D-0170）
 
-## 当前有效交接（2026-10-01 第二十八轮：T-1901 高亮颜色标记）
+中英文 README 顶部新增 CodeQL 工作流徽章，与现有 Quality gates 和 Latest Release 徽章并列，方便查看 CI、安全扫描及稳定发布状态。徽章不代表真实宿主、移动端或外部集成已验收；T-3290 仍等待作者审阅真实截图和合并前发布口径。
 
-- **T-1901 高亮颜色**（最小版）：**契约裁决=颜色存引述块级 IAL `custom-clip-hl-color`**（yellow/red/blue/green，非文档样式、思源原文外观不变）。DATA-CONTRACT §4 契约行；highlights.ts `getQuoteColor`/`setQuoteColor`（覆写/清除经 setBlockAttrs）+ HighlightView 色点五档循环 + 色条渲染。E2E 断言（写入→读取→清除）。
-- **关键发现**：**SQL `blocks.ial` 列对引述块自定义键同步有限**（实测写入后 ial 只含 id/updated 等内置键）——颜色读取必须走 `getBlockAttrs` 属性端点，不走 SQL。已记入教训。
-- 门禁：check 0 错 **0 告警**、test **169/169**、build 通过、E2E **31/31**。未发布新版本。提交序列：…→ 1edfd35 → f74b85f → 本轮（git log）。集市 PR #2288 待审。
-- 下一批候选：功能线大项/契约组（T-1901 后续：删除/全库筛选/搜索随 T-1750/T-1753；T-1903 会话队列重排）；重活缺陷已全清；**强烈建议作者安排 B-0002 真机走查**（积压非常多，走查后可按 v1.1.x 补丁版定版）。
+- 本轮改动：`README.md`、`README.en-US.md`、`TODO.md`、`docs/TASK-LEDGER.md`、`docs/DECISIONS.md`、`docs/HANDOFF.md`。
+- 本地验证：README 中英文入口与 CodeQL workflow 文件路径一致，任务账本和差异格式检查通过。
+- 版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 `package.zip`。
 
-## 当前有效交接（2026-10-01 第二十七轮：T-1742 栏宽收尾 / T-1743 阅读主题）
+## 当前有效交接（2026-10-07 T-3284/D-0169）
 
-- **T-1742 栏宽三档（收尾）**：`ReaderTypography.width`（narrow/medium/wide）+ 宿主 `--w-*` class（正文 max-width 42/58em/不限居中）+ 循环按钮。T-1742 至此全部交付。
-- **T-1743 阅读主题**：`ReaderTypography.theme`（follow/paper/sepia）+ 宿主 `--theme-*` 纯 CSS（纸感 #faf6ef / 护眼 #f4ecd8 作用于正文区域，**不写用户文档样式**）+ ◐/📄/☕ 循环按钮。随排版偏好持久化。
-- 坑：接口加字段时模块内 DEFAULTS 字面量漏同步（TS 即时暴露）——**接口加字段同步检查所有字面量构造点**。
-- 门禁：check 0 错 **0 告警**、test **169/169**、build 通过、E2E **31/31**。未发布新版本。提交序列：…→ 5f63506 → 8b2079d → 本轮（git log）。集市 PR #2288 待审。
-- 下一批候选：功能线大项/契约组（T-1901 高亮颜色契约、T-1903 会话队列重排、T-1905 研究结论落地随 T-1866/T-1867）；重活缺陷已全清；**强烈建议作者安排 B-0002 真机走查**（积压非常多，走查后可按 v1.1.x 补丁版定版）。
+本轮把既有合成性能基线接入 GitHub Quality gates，在 1k/5k/10k 数据规模上检查扫描、索引重建、筛选、导入解析和今日拾遗的中位耗时，并继续检查分页、属性批次与结果规模约束。它只负责发现生产纯函数的明显退化，不把 Node 合成耗时当作真实思源宿主、移动设备或外部文件的性能承诺。
 
-## 当前有效交接（2026-10-01 第二十六轮：T-1742 排版偏好 / T-1905 删除回收期研究）
+- 本轮改动：`.github/workflows/ci.yml`、`TODO.md`、`docs/TASK-LEDGER.md`、`docs/DECISIONS.md`、`docs/HANDOFF.md`。
+- 本地验证：`pnpm check`（0 错误/0 警告）、`pnpm test`（1160/1160）、`pnpm build`、`pnpm perf:check`、`pnpm task:ledger -- --check`、`pnpm visual:check`（24 个案例仍待真实宿主）、`pnpm check:release` 和 `git diff --check` 均通过。
+- 版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 `package.zip`；真实大库体验仍归 T-3284/B-0002/B-0005。
 
-- **T-1742 排版偏好**（字号/行距部分）：prefs `ReaderTypography`（fontSize sm/md/lg + lineHeight compact/normal/relaxed，归一化非法回落）+ ReaderTab 模式段旁 A/≡ 循环按钮 + 宿主根 class `glean-reader--font-*`/`--lh-*` 三档应用（SCSS 作用于 `.glean-reader__main`/`.protyle-content`）。ui-prefs 持久化、纯视图状态。栏宽三档留下轮；真机观感随 B-0002。
-- **T-1905 删除回收期研究**：docs/RESEARCH-delete-recycle.md——**推荐方案 B「移入【回收】隔离文档」为默认删除语义 + A「彻底删除+二次确认」为二级动作**；不采用定时自动清理（违反平静原则 D-0008 同源）；数据主权靠思源数据历史兜底。裁决落地随 T-1866/T-1867 契约组。
-- 门禁：check 0 错 **0 告警**、test **169/169**、build 通过、E2E **31/31**。未发布新版本。提交序列：…→ 91c3cb3 → f74b85f → 本轮（git log）。集市 PR #2288 待审。
-- 下一批候选：功能线大项/契约组（T-1901 高亮颜色契约、T-1903 会话队列重排、T-1902 已完成报告的真机核对）；重活缺陷已全清；**强烈建议作者安排 B-0002 真机走查**（积压非常多，走查后可按 v1.1.x 补丁版定版）。
+## 当前有效交接（2026-10-07 T-3290/D-0168）
 
-## 当前有效交接（2026-10-01 第二十五轮：T-1902 多文档 AI 报告）
+本轮将任务账本一致性检查加入 GitHub Quality gates：CI 在代码质量、测试、构建后执行 `pnpm task:ledger -- --check`，防止 `TODO.md` 执行板与生成账本漂移；同步刷新 T-3290 的账本描述和 D-0168 决策。没有改变插件功能、数据契约或版本。
 
-- **T-1902 多文档 AI 报告**：`domain/enrich.buildMultiReportPrompt`（勾选篇标题/状态中文标签/来源/摘要清单、20 篇截断、400 字综述要求，单测）+ `reader-ai.generateMultiReport`（**单次调用额度一次**、租约队列/失败静默写 ai-log）+ 批量条「📝 AI 报告」按钮 → 结果弹窗（文本+复制按钮）。结果会话状态不落属性；上下文基于索引摘要（非全文）如实标注。真实模型报告质量随 B-0004。
-- 门禁：check 0 错 **0 告警**、test **169/169**、build 通过、E2E **31/31**。未发布新版本。提交序列：…→ f74b85f → 91c3cb3 → 本轮（git log）。集市 PR #2288 待审。
-- 下一批候选：功能线大项/契约组（T-1901 高亮颜色契约、T-1903 会话队列重排、T-1905 物理删除回收期研究）；重活缺陷已全清；**强烈建议作者安排 B-0002 真机走查**（积压非常多，走查后可按 v1.1.x 补丁版定版）。
+- 本轮改动：`.github/workflows/ci.yml`、`docs/TASK-LEDGER.md`、`docs/DECISIONS.md`、`docs/HANDOFF.md`。
+- 本地验证：`pnpm task:ledger -- --check`、`pnpm visual:check`（24 个案例均登记为 pending-host）、`pnpm check`（0 错误/0 警告）、`pnpm test`（1160/1160）、`pnpm build`、`pnpm check:release`、`git diff --check` 均通过。
+- CI 实现提交 `cfac3dc` 已推送到 `dev/thispc-1002`；该提交的 Quality gates 和 CodeQL 均成功。本轮未触碰 `main`，没有升版、打 tag、发 Release 或提交集市。
+- 下一步先完成 T-3275–T-3278 的作者真实宿主/真机验收；T-3279–T-3286 依赖真实截图、设备、模型或外部数据，按各自 blocker 留待实测；T-3287–T-3289 等主链反馈与作者品牌素材审阅。T-3292/3293 的代码与隔离验证已完成，分别等待 B-0002/B-0012；T-3290 等作者审阅真实截图与合并前发布口径；T-3291 等真实安装检查与明确发布授权。
+- 版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 `package.zip`。
 
-## 当前有效交接（2026-10-01 第二十四轮：T-1764 每日简报 / T-1765 通道警示）
+## 当前有效交接（2026-10-07 T-3236/D-0167）
 
-- **T-1764 AI 每日简报**：`domain/enrich.buildDailyDigestPrompt`（今日拾遗前 3 篇标题/来源/摘要、150 字串联速览、无摘要占位"（无摘要）"，单测）+ `reader-ai.dailyDigest`（租约队列/额度共享/失败静默写 ai-log）+ 今日拾遗速览卡（`digestOn` = AI 开且非移动端；手动触发 → 结果卡复制/关闭；会话状态仅复制不落属性）。TTS 语音化衔接 T-1744 真机后评估。简报质量随 B-0004。
-- **T-1765 通道警示**：设置 AI 通道 custom 分支，baseUrl 以 `http://` 开头（大小写不敏感）时显示 ⚠ 警示行（API 请求传输未加密、密钥本体存思源密钥库不受影响）。
-- 门禁：check 0 错 **0 告警**、test **168/168**、build 通过、E2E **31/31**。未发布新版本。提交序列：…→ 1edfd35 → f74b85f → 本轮（git log）。集市 PR #2288 待审。
-- 下一批候选：功能线大项/契约组（T-1901 高亮颜色契约、T-1902 多文档 AI 报告、T-1903 会话队列重排）；重活缺陷已全清；**强烈建议作者安排 B-0002 真机走查**（积压非常多，走查后可按 v1.1.x 补丁版定版）。
+本轮补齐工作台批量操作的原型归属：列表行和看板卡直接提供选择入口，各自内容区显示共享批量条；预览侧栏不被根级浮动条覆盖。批量状态、归档、AI 批处理和清空动作继续复用既有 Dock 逻辑，未改变数据契约。
 
-## 当前有效交接（2026-10-01 第二十三轮：T-1846 保存筛选视图）
+- 当前改动文件：`src/ui/LibraryBatchBar.svelte`、`src/ui/DockPanel.svelte`、`src/index.scss`、`tests/header-actions.test.ts`、`tests/recovery.test.ts`、`docs/DECISIONS.md`、`docs/PROGRESS.md`、`docs/HANDOFF.md`。
+- 本轮静态回归、类型检查（0 错误/0 警告）、全量测试（1160/1160）、生产构建、任务台账、视觉矩阵和 `git diff --check` 均通过；真实 Dock 宽度、看板密度和移动触控仍归 B-0002，视觉矩阵仍有 24 个 `pending-host`。
+- 版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 `package.zip`。
 
-- **T-1846 保存筛选视图**（契约先行）：DATA-CONTRACT §3 补 savedFilters 语义（仅筛选条件投影、不复制文章状态、失效条件自然空结果、用户显式动作、跨画布共享）。`prefs.ts` 新增 `SavedFilter` 类型与归一化（仅原语键）；DockPanel 库视图：活性筛选非空时出现「保存」输入框（Enter/💾）+ 保存视图 chips（点击应用回填筛选器、× 删除）；命名覆盖语义。**固定/跨画布即时同步留下轮**；高级查询构建器衔接 T-1895。
-- 坑：`activeQueue !== "all"` 与 QueueKey 类型无重叠（TS 判不可达比较）——冗余比较直接删；新类型需显式 import。
-- 门禁：check 0 错 **0 告警**、test **167/167**、build 通过、E2E **31/31**。未发布新版本。提交序列：…→ 5f63506 → 1edfd35 → 本轮（git log）。集市 PR #2288 待审。
-- 下一批候选：功能线大项/契约组（T-1901 高亮颜色契约、T-1747 已完成的计时真机核对、作者组收尾核对）；重活缺陷已全清；**强烈建议作者安排 B-0002 真机走查**（积压非常多，走查后可按 v1.1.x 补丁版定版）。
+## 当前有效交接（2026-10-07 T-3283/D-0166）
 
-## 当前有效交接（2026-10-01 第二十二轮：T-1741 键盘流 / T-1815 剪藏模板研究）
+本轮将低频朗读控件移入阅读页签既有“辅助工具”折叠区；摘录与 AI 仍在伴生栏主层，切文时继续由原有状态收起。未改变 speechSynthesis 会话、正文宿主或数据契约。
 
-- **T-1741 页签键盘流**：`handleHotkey`（document keydown + `isReaderFocused` 限定焦点在 `.glean-reader` 宿主且非输入控件）——j/k 块步进滚动（scrollIntoView 复用锚定块定位，无内部 API）、e 切阅读/编辑、m 标记已读（联动阅读计时结算）、x 摘录选区、? 快捷键帮助弹窗。**与思源全局快捷键冲突随 B-0002 真机核验**。
-- **T-1815 剪藏模板研究**：docs/RESEARCH-clipper-template.md——公开检索**无法证实**官方剪藏扩展的自定义模板/选择器/meta 抓取能力（官方仓库两次 404；社区教程指向第三方 SimpRead）；已证实仅产出文档前部 URL 模板链接行（无作者）。核对扩展配置页需作者真机（**并入 B-0001**）。证实前 `custom-clip-author` 写入路径维持 T-1813 手动+AI 推断。
-- 坑重演（第三次）：新函数 sed/Edit 后闭合结构破坏（showHotkeyHelp 缺 `}`）——**编辑函数体后立即 pnpm check 验证，勿连续盲改**。
-- 门禁：check 0 错 **0 告警**、test **167/167**、build 通过、E2E **31/31**。未发布新版本。提交序列：…→ 34737c8 → 5f63506 → 本轮（git log）。集市 PR #2288 待审。
-- 下一批候选：功能线轻项已基本清完，剩余为大项/契约组（T-1747 已完成的计时组真机核对、T-1846 保存筛选视图、T-1901 高亮颜色等 P2 研究组）；缺陷重活已全清；**强烈建议作者安排 B-0002 真机走查**（积压非常多，走查后可按 v1.1.x 补丁版定版）。
+- 当前改动文件：`src/ui/ReaderTab.svelte`、`src/index.scss`、`tests/reader-acceptance.test.ts`、`docs/DECISIONS.md`、`docs/PROGRESS.md`、`docs/HANDOFF.md`。
+- 已通过：定向阅读/i18n/无障碍 29/29；全量 `pnpm test` 1159/1159；`pnpm run check` 0 错误/0 警告；生产构建、任务台账、视觉矩阵和 `git diff --check` 通过。真实宿主、系统语音和 Android 仍归 B-0002，视觉矩阵仍有 24 个 `pending-host`。
+- 版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 `package.zip`。
 
-## 当前有效交接（2026-10-01 第二十一轮：T-1842 批量取消 / T-1751 AI 问句卡）
+## 当前有效交接（2026-10-07 T-3283/D-0165）
 
-- **T-1842 批量任务背压**（最后一个重活）：`batchSetStatusDetailed`/`archiveStaleCandidates` 增 `options.signal` 检查点（取消保留部分结算，已写成的 ID 保留在 succeeded）；DockPanel 共享 `batchAbort` 取消态（批量条/批量富化进行中显示取消按钮、超龄归档接入），取消回执「已取消（保留已完成部分）」；导入器 importing 阶段取消按钮（已建文档入孤儿账本可重试）。**明确不取消**：收集箱逐条（单条短）、索引重建（中断无害）。迁移器暂停恢复/富化串行队列/进度单调为既有能力。断网/重启 E2E 随 T-1855。
-- **T-1751 AI 问句制卡**：`domain/enrich.buildQuestionCardPrompt/parseQuestionResponse`（回忆问句指令/编号引号清洗、120 字上限，单测）+ `reader-ai.inferQuestionCard`（租约/额度共享）+ 摘录段「❓ AI 问句卡」→ 草稿输入框可改 → 「制卡」确认入卡（`makeQuoteCard` 增 `frontOverride` 覆盖默认模板）。写入由用户触发。
-- 坑（两次）：新函数重复定义（svelte-check 即时暴露）、纯函数放错域文件导致 import 错——**新增纯函数先确认落点域文件；同轮多次编辑同文件前 grep 函数名唯一性**。
-- 门禁：check 0 错 **0 告警**、test **167/167**、build 通过、E2E **31/31**。未发布新版本。提交序列：…→ 20bf344 → 本轮（git log）。集市 PR #2288 待审。
-- 下一批候选：功能线 T-1748 键盘流（j/k 滚动等，快捷键冲突真机核验）、T-1815 剪藏模板研究（P3）；重活缺陷**已全部清完**；**强烈建议作者安排 B-0002 真机走查**（积压非常多，走查后可按 v1.1.x 补丁版定版）。
+本轮继续按原型收口原生阅读上下文的标题层级：文章标题提升为 13px/700，来源、载体和状态继续保持较小元数据层级，长标题仍单行省略。未改变正文、文章属性、索引、端点或写入契约。
 
-## 当前有效交接（2026-10-01 第二十轮：T-1813 作者回填 / rail 作者组）
+- 当前改动文件：`src/index.scss`、`tests/reader-acceptance.test.ts`、`docs/DECISIONS.md`、`docs/PROGRESS.md`、`docs/HANDOFF.md`。
+- 本轮新增静态回归待验证；真实宿主与 Android 仍归 B-0002，视觉矩阵仍有 24 个 `pending-host`。
+- 版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 `package.zip`。
 
-- **T-1813 作者回填**：`domain/enrich.buildAuthorPrompt/parseAuthorResponse`（公众号名线索提取；结果清洗——"作者："/"公众号："前缀与引号剥离、"未知"与超长/多行拒绝）+ `services/author-service`（`listMissingAuthors` 缺作者扫描 Top100 / `inferAuthor` 单篇 AI 推断——租约队列额度共享、确认前不写 / `applyAuthor` 用户确认写入经 writeClip）+ 设置-维护「补全来源作者」区（逐条：标题+可编辑草稿输入+✨推断+写入按钮，手动填写亦可，Top20 分批）。真实模型推断质量随 B-0004。
-- **rail 作者组**（T-1812 收尾部分）：rail 新增「作者」组（✍ 前缀 Top8 截断，与站点/标签组同款）；完整折叠策略仍随 T-1804。
-- 门禁：check 0 错 **0 告警**、test **166/166**、build 通过、E2E **34/34**。未发布新版本。提交序列：…→ 18ccca6 → d4e7d9b → 本轮（git log）。集市 PR #2288 待审。
-- 下一批候选：作者组已基本收官（剩 T-1815 剪藏模板研究 P3）；功能线 T-1746/T-1747 的真机项随 B-0002；缺陷 **T-1842 批量任务背压统一评估**（最后一个重活）；**强烈建议作者安排 B-0002 真机走查**（积压非常多，走查后可按 v1.1.x 补丁版定版）。
+## 当前有效交接（2026-10-07 T-3283/D-0164）
 
-## 当前有效交接（2026-10-01 第十九轮：T-1811/T-1812 作者属性组第一轮）
+本轮继续收口阅读失败恢复：Protyle 失败时若正文宿主曾获焦，焦点转移到重试按钮；异步失败不会抢走原本在工具栏等处的焦点。原生阅读上下文在窄屏横向动作轨道中保持状态动作组完整宽度，避免按钮内部折行。未改变正文、文章属性、索引、端点或写入契约。
 
-- **T-1811 来源作者属性**（契约先行）：**新增 `custom-clip-author`（string）**——契约裁决为**用户可改可覆盖类**（不进手填保护列表 USER_GUARDED_KEYS；captureClip 收录不自动写；写入途径仅用户内联编辑与 AI 推断经确认）。链路：DATA-CONTRACT §1 → schema → 索引投影 → 行表/卡片「站点 · 作者」显示（title 完整信息）。
-- **T-1812 作者分面（部分）**：`library-view` `filter.author` 精确匹配 + `facets.authors` 分面（单测）+ DockPanel 两处筛选器「作者」select（selectedAuthor 状态/activeFilter/selectQueue/clearFilters 全接线，clearFilters 顺带补了 onlyFavorite 重置）。
-- 本轮未做（组内剩余）：T-1813 AI 批量推断回填 + 行内联编辑；rail 作者组与站点→作者钻取（依赖 T-1804 折叠策略）；T-1815 剪藏模板能力研究。
-- 门禁：check 0 错 **0 告警**、test **165/165**、build 通过、E2E **34/34**（+1）。未发布新版本。提交序列：…→ 548b022 → c798933 → 18ccca6 → 本轮（git log）。集市 PR #2288 待审。
-- 下一批候选：**T-1813 作者回填**（AI 批量推断逐条确认 + 行内联编辑）；缺陷 **T-1842 批量任务背压统一评估**（最后一个重活）；**强烈建议作者安排 B-0002 真机走查**（积压非常多，走查后可按 v1.1.x 补丁版定版）。
+- 当前改动文件：`src/ui/ProtyleHost.svelte`、`src/ui/ReadingContext.svelte`、`src/index.scss`、`tests/reader-acceptance.test.ts`、`docs/DECISIONS.md`、`docs/PROGRESS.md`、`docs/HANDOFF.md`。
+- 已通过：定向阅读/i18n/无障碍/焦点 27/27；全量 `pnpm test` 1157/1157；`pnpm run check` 0 错误/0 警告；生产构建、任务台账和视觉矩阵检查通过。真实宿主与 Android 仍归 B-0002；视觉矩阵仍有 24 个 `pending-host`。
+- 版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 `package.zip`。
 
-## 当前有效交接（2026-10-01 第十八轮：T-1747 真实阅读计时）
+## 当前有效交接（2026-10-07 T-3283/D-0163）
 
-- **T-1747 真实阅读计时**（契约先行）：**契约裁决=新键 `custom-clip-read-minutes`**（number 累计，与 minutes 字数估算语义分离互不读写）。DATA-CONTRACT §1 契约行（可见状态累计/切文销毁标记已读结算/增量累加不足 1 分钟不写/批量自动动作永不写）。
-- 实现：`services/reading-time.ts`（`sessionMinutes` 纯计算 2 单测 + `settleReadingMinutes` 增量累加）；ReaderTab 前台累计（**visibilitychange 暂停/恢复**——hidden 停表不计后台；切文结算由 mount effect 的 docId 依赖处理：旧 cleanup 闭包捕获旧 docId 结算旧文档【语义正确，svelte-ignore state_referenced_locally 抑制】；销毁/标记已读 done 前结算）；伴生栏 meta 显示「本次阅读 N 分钟」（30s 刷新，纯会话状态）。
-- E2E 累计语义断言：3 分钟→写 3；再 2 分钟→累计 5；30 秒→不写。**计时准确性（休眠/前后台切换）随 B-0002 真机**。
-- 门禁：check 0 错 **0 告警**、test **164/164**、build 通过、E2E **33/33**（+1）。未发布新版本。提交序列：…→ 548b022 → c798933 → 本轮（git log）。集市 PR #2288 待审。
-- 下一批候选：契约先行组 **T-1811 作者属性组**（6 项含 AI 批量回填，大组建议分两轮：先契约+属性+分面，再回填）；缺陷 **T-1842 批量任务背压统一评估**（最后一个重活）；T-1746/T-1747 的真机项随 B-0002；**强烈建议作者安排 B-0002 真机走查**（积压非常多，走查后可按 v1.1.x 补丁版定版）。
+本轮补齐原生阅读上下文读取失败态：`readClipContext` 异常时显示主题错误表面、双语失败说明和可重试按钮；成功返回 `null` 仍表示非剪藏并保持静默。未改变正文、文章属性、索引、端点或写入契约。
 
-## 当前有效交接（2026-10-01 第十七轮：T-1746 阅读断点与进度）
+- 当前改动文件：`src/ui/ReadingContext.svelte`、`src/index.scss`、`public/i18n/zh_CN.json`、`public/i18n/en_US.json`、`tests/reader-acceptance.test.ts`、`docs/DECISIONS.md`、`docs/PROGRESS.md`、`docs/HANDOFF.md`。
+- 已通过：定向阅读/i18n/无障碍 25/25；全量 `pnpm test` 1155/1155；`pnpm run check` 0 错误/0 警告；生产构建、任务台账和视觉矩阵检查通过。真实宿主、多窗口、三画布与 Android 触控仍归 B-0002；视觉矩阵仍有 24 个 `pending-host`。
+- 版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 `package.zip`。
 
-- **T-1746 阅读断点与进度**（契约先行，同时关闭 T-1728 前置）：
-  - 契约：DATA-CONTRACT §1 新增 `custom-clip-reading-pos`（块锚定）+ §3.1a 五要素（防抖 30s+切文/销毁写、原生编辑器不写、last-writer、归档不清除、丢失即从头无重建）。
-  - 实现：`services/reading-position.ts`（`anchorBlockInViewport` 视口顶部 1/3 锚定、`countDocBlocks/blockPosition` 块序结构估计、`saveReadingPos`）+ ReaderTab 滚动捕获监听（`addEventListener("scroll", fn, true)`）防抖 30s 写、effect cleanup 立即 flush、续读 `scrollIntoView`（600ms 延迟等首屏渲染）、伴生栏顶部细进度条（结构估计**无百分比数字**）。
-  - **断点不进派生索引**（单文档阅读状态，E2E 断言索引无该字段）——写入频率 30s/次可接受全量 saveData。
-  - E2E 断言：写入→readClipContext 投影→索引无污染。**滚动定位与进度准确性随 B-0002 真机**。
-- 坑：effect 内 `host` 变量与外层重名（svelte-check 即时暴露，改名 `scrollHost`）。
-- 门禁：check 0 错 **0 告警**、test **162/162**、build 通过、E2E **32/32**（+1）。未发布新版本。提交序列：…→ 33a2570 → 548b022 → 本轮（git log）。集市 PR #2288 待审。
-- 下一批候选：契约先行组 **T-1747 阅读计时**（契约讨论：新键 or 复用 minutes）、**T-1811 作者属性组**（6 项，含 AI 批量回填）；缺陷 **T-1842 批量任务背压统一评估**（最后一个重活）；**强烈建议作者安排 B-0002 真机走查**（积压非常多，走查后可按 v1.1.x 补丁版定版）。
+## 当前有效交接（2026-10-07 T-3283/D-0162）
 
-## 当前有效交接（2026-10-01 第十六轮：T-1745 双语对照 / T-1803 分享卡）
+本轮补齐原生阅读上下文的切文隔离：切换 `docId` 时清空旧上下文、进入加载态并收起“维护与增强”；新文档如果正文缺失，状态 effect 仍会自动展开维护区。未改变正文、文章属性、索引、端点或写入契约。
 
-- **T-1745 双语对照**：`reader-ai.readerTranslateFull`（全文 stripMarkdown 8000 字截断、租约队列/额度共享/失败静默写 ai-log）+ 伴生栏「文A+ 全文翻译」按钮 + `translateFull` 结果折叠块（`{@const}` 局部变量绕 Svelte 5 嵌套块 null 收窄——直接引用 `aiResult.text` 会报 possibly null）。真机翻译质量随 B-0004。
-- **T-1803 高亮分享卡（文本部分）**：`domain/quotes.formatQuoteShare`（`> 引述` + `—— 标题（站点）` + siyuan:// 回链，单测）+ 高亮视图与摘录墙「⧉ 复制引用」按钮。图片卡片导出仍为待研究。
-- **小坑**：i18n 插入新键的 Edit 把锚点行（reader.aiAsk）替换掉了（丢键），i18n 键集合测试即时暴露后补回——**i18n 插入 old_string 要含锚点行并保留**。
-- 门禁：check 0 错 **0 告警**、test **162/162**、build 通过、E2E **31/31**。未发布新版本。提交序列：…→ 34737c8 → 33a2570 → 本轮（git log）。集市 PR #2288 待审。
-- 下一批候选：功能线剩余多为契约先行或大项（T-1746 阅读进度契约、T-1747 阅读计时契约、T-1808 已完成后的 T-1811 作者属性组）；缺陷仅剩 **T-1842 批量任务背压统一评估**（最后一个重活）；**强烈建议作者安排 B-0002 真机走查**（积压非常多，走查后可按 v1.1.x 补丁版定版）。
-
-## 当前有效交接（2026-10-01 第十五轮：T-1808 行表溢出菜单 / T-1763 富化重试标记）
+- 当前改动文件：`src/ui/ReadingContext.svelte`、`tests/reader-acceptance.test.ts`、`docs/DECISIONS.md`、`docs/PROGRESS.md`、`docs/HANDOFF.md`。
+- 真实 Protyle、多窗口、三画布与 Android 触控仍归 B-0002；视觉矩阵仍有 24 个 `pending-host`。
+- 版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 `package.zip`。
 
-- **T-1808 行表溢出菜单**：行表操作区低频辅助（★收藏/📷快照/✨富化/↗来源）收进 SDK `Menu` ⋯ 溢出（`new Menu(id)` + `addItem({label, click})` + `open({clientX, clientY})`，动态 import "siyuan"，类型已核对 node_modules/siyuan）；高频流转 ClipStatusActions 与多选 ☑ 保留。看板卡暂保持现状（宽裕），观感随 B-0002 再议。
-- **T-1763 富化失败重试标记**：语义变更——**富化成功也写 ai-log（stage=ok）**（原 appendLog 只记失败）；`loadEnrichFailedIds` 按每文档最近一条日志判定（非 ok 即失败待重试）。卡片 ✨ 变 ⚠（title=「上次富化失败，点击重试」）+ 溢出菜单条目 ⚠ 前缀；点击即重跑 enrichClip。相关单测期望已同步（日志数组含 ok）。
-- 门禁：check 0 错 **0 告警**、test **161/161**、build 通过、E2E **31/31**。未发布新版本。提交序列：…→ 0876482 → 34737c8 → 本轮（git log）。集市 PR #2288 待审。
-- 下一批候选：功能线 T-1745 双语对照（AI 延伸）、高亮分享卡、T-1755 高亮视图增强已完成剩时间回填核对；缺陷 T-1842 批量任务背压统一评估（最后一个重活）；**强烈建议作者安排 B-0002 真机走查**（积压非常多，走查后可按 v1.1.x 补丁版定版）。
-
-## 当前有效交接（2026-10-01 第十四轮：T-1797 钉住今日 / T-1762 批量富化）
-
-- **T-1797 钉住今日**（契约先行）：**新增 `custom-clip-pinned`（YYYYMMDD 生效日）**——与收藏（favorite 长期标记）、priority（重要性）三方语义分离，互不联动。链路：DATA-CONTRACT §1 → schema → 索引投影 → `domain/resurface.pickDaily`（pinned===今天 置顶优先入选：占每日名额、不参与多样性降权、**覆盖"改天"lastSurfaced 过滤**；隔日 pinned 不匹配自然回池——平静原则不变，无后台清理）→ `actOnSurface("pin")`（写 pinned=今日，不写 lastSurfaced）→ 今日拾遗卡 📌 按钮（toast 回执）。1 组单测 + E2E（置顶首位/属性索引一致）。
-- **T-1762 批量富化**：批量条「✨ 批量富化」——多选逐篇 `enrichClip`（串行队列 T-1883 租约、额度统一把守），进度 toast（${done}/${total}）+ 完成真实结算（成功/额度满跳过/失败）。
-- 坑重演（第二次）：E2E 变量名冲突 + sed 按行号误改早期代码导入名——已全部恢复；**E2E 追加断言前先 grep 变量名唯一性；变量改名录用唯一名 + Edit 而非行号 sed**。
-- 门禁：check 0 错 **0 告警**、test **161/161**、build 通过、E2E **31/31**（+1）。未发布新版本。提交序列：…→ cde5066 → 0876482 → 本轮（git log）。集市 PR #2288 待审。
-- 下一批候选：功能线 T-1808 行操作溢出菜单、T-1745 双语对照（AI 延伸）、T-1763 富化失败重试入口、T-1755 高亮分享卡（编号已核对为 T-1803 附近组）；缺陷 T-1842 批量任务背压统一评估；**强烈建议作者安排 B-0002 真机走查**（积压非常多，走查后可按 v1.1.x 补丁版定版）。
-
-## 当前有效交接（2026-10-01 第十三轮：T-1967 内核请求超时 / T-1963 失败原因）
-
-- **T-1967 内核请求超时**：`kernelPost(route, body, {timeoutMs})` 默认 **60s 兜底**（本地内核 60s 无响应视为挂起），`KERNEL_TIMEOUT_LONG_MS=180s` 放宽长操作——已放宽点：`batchGetBlockAttrs`/`querySql`（大库分页）/`exportMdContent`/`exportHTML`/`putFile`（快照上传，assets.ts 自带同款超时）。settled 守卫：超时 reject 后迟到响应丢弃。3 组单测（stub fetchPost）。**边界说明：fetchPost 回调模式无底层取消，本轮是"放弃等待"语义；Abort 与断网/重启 E2E 随 T-1855**。默认值若真机误伤（长操作漏放宽），放宽点加 `{timeoutMs: KERNEL_TIMEOUT_LONG_MS}` 即可。
-- **T-1963 导入逐条失败原因**：`ImportSummary.failures`（title + 脱敏 reason 前 120 字），done 阶段逐条列出；与孤儿账本（T-1840）互补。完整五态逐条状态机随 T-1842。
-- 门禁：check 0 错 **0 告警**、test **160/160**、build 通过、E2E **30/30**。未发布新版本。提交序列：…→ ea7c5ab → cde5066 → 本轮（git log）。集市 PR #2288 待审。
-- 下一批候选：功能线 T-1808 行操作溢出菜单、T-1745 双语对照（AI 延伸）、T-1797 今日钉住、T-1762 批量富化；缺陷 T-1842 批量任务背压统一评估；**强烈建议作者安排 B-0002 真机走查**（积压非常多，走查后可按 v1.1.x 补丁版定版）。
-
-## 当前有效交接（2026-10-01 第十二轮：T-1904 收藏）
-
-- **T-1904 收藏（契约先行）**：**新增独立属性 `custom-clip-favorite`（boolean）**——设计裁决不复用 priority（收藏与重要性排序语义分离，不联动 priority/rating）。全链落地：DATA-CONTRACT §1 属性行 → schema（ATTR.favorite/parseFlag/serializePatch "true"/null）→ 索引投影（ClipIndexEntry.favorite，loadIndex 防御归一）→ `library-view.favoriteOnly` 筛选（候选不参与；单测）→ UI：行表操作区与卡片右上角星标（★/☆ toggle，writeClip 直写）、ReaderTab 伴生栏标题旁星标（context.favorite 投影经 ReadingClipContext 扩展）、DockPanel 搜索框旁「仅看收藏」switch（role=switch/aria-checked）。E2E 断言（写入→投影→筛选）。**注意：上一轮口令写"T-1755 收藏"是编号笔误，实际任务号=T-1904**（T-1755 编号未占用）。
-- 门禁：check 0 错 **0 告警**、test **157/157**、build 通过、E2E **30/30**（+1）。未发布新版本。提交序列：…→ 0c0c319 → ea7c5ab → 本轮（git log）。集市 PR #2288 待审。
-- 下一批候选：**T-1967 内核请求超时取消**（重活缺陷最后一个大项，波及面大需单独评估默认超时值与长操作豁免清单）、T-1963 逐条失败原因展示、T-1808 行操作溢出菜单、T-1745 双语对照（AI 延伸）、T-1797 今日钉住（与收藏分离的另一半）；**强烈建议作者安排 B-0002 真机走查**（积压功能非常多，走查后可按 v1.1.x 补丁版定版）。
-
-## 当前有效交接（2026-10-01 第十一轮：T-1841 收集箱半成功 / T-1978 收尾）
-
-- **T-1841 收集箱半成功恢复**：契约先行 DATA-CONTRACT §0 补 `inbox-orphans.json`。`inbox-service`：`loadInboxOrphans/saveInboxOrphans/retryInboxOrphans`；migrateShorthand 的收录失败与 URL 冲突均入账本（新建孤儿不再静默丢弃）；重试补收录成功即移出 + 尝试补删云端（失败不阻塞）、同 URL 冲突孤儿移出交用户处置（不无限重试）。InboxSection 展开时账本非空显示「重试补收录」。E2E 断言通过。
-- **T-1978 统一失败处理收尾**：`ClipStatusActions.invoke` 补 catch（原 try/finally 无 catch）——失败给可重试提示并恢复 pending。至此全局无 unhandled rejection。
-- 坑重演：新服务函数漏 export 第二次（saveInboxOrphans，E2E 即时暴露）——账本类函数 export 与定义同时写。
-- 门禁：check 0 错 **0 告警**、test **156/156**、build 通过、E2E **29/29**（+1）。未发布新版本。提交序列：…→ 9f28407 → 0c0c319 → 本轮（git log）。集市 PR #2288 待审。
-- 下一批候选：重活缺陷仅剩 **T-1967 内核请求超时取消**（波及面大需单独评估默认超时值）、T-1963 逐条失败原因展示；功能线 T-1755/T-1904 收藏（契约先行）、T-1808 行操作溢出菜单、T-1745 双语对照（AI 延伸）；**强烈建议作者安排 B-0002 真机走查**（积压功能已非常多，走查后可按 v1.1.x 补丁版定版）。
-
-## 当前有效交接（2026-10-01 第十轮：T-1840 导入半成功恢复 / T-1795 icon-only 审计）
-
-- **T-1840 导入半成功恢复**（重活缺陷之首）：契约先行 DATA-CONTRACT §0 补 `import-orphans.json` 账本行。
-  - `import-service`：`loadImportOrphans/saveImportOrphans/retryImportOrphans`；runImport 的 catch 里按 **existingUrls 守卫**（建档成功才记孤儿）+ 结束时 `attachOrphanDocIds`（按 notebook+hpath 回查无状态文档补 docId，回查不到不误绑）。
-  - ImportDialog：挂载时账本非空 → 「重试补收录」入口；done 阶段显示半成功结算（N 篇已记录可重试）。
-  - E2E：手工注入账本 → retry → 断言 status/url 写全、账本清空。
-- **T-1795 icon-only 审计**：icon-only 按钮已普遍带 title（a11y 轮成果），本轮补最后缺口（ReaderTab 快照按钮拍摄/打开双态 title）；「按钮标签可见性」规则入 **UI-STANDARD §4.3**（icon-only 必带 title；悬浮操作不展开文字；头部宽画布 labeled）。
-- 门禁：check 0 错 **0 告警**、test **156/156**、build 通过、E2E **28/28**（+1）。未发布新版本。提交序列：…→ f982b21 → 9f28407 → 本轮（git log）。集市 PR #2288 待审。
-- 下一批候选：重活缺陷 **T-1841 收集箱半成功**（三步事务，比导入复杂）、T-1963 逐条失败原因展示、T-1967 内核请求超时取消、T-1978 统一失败处理收尾；功能线 T-1755/T-1904 收藏（契约先行）、T-1808 行操作溢出菜单；**继续提醒作者 B-0002 真机走查（积压更多）**。
-
-## 当前有效交接（2026-10-01 第九轮：P1 功能线第六批 T-1794 头部文字化 / T-1761 AI 标签规范化）
-
-- **T-1794 头部文字化**（作者反馈）：DockPanel 头部三按钮加 `glean-icon-btn--labeled` 变体，按 `isTabCanvas` 切换——宽画布（工作台 tab/独立浮窗）图标+文字，Dock 窄栏保持图标+title。UI-STANDARD 响应式条目待下版整理补记。
-- **T-1761 AI 标签规范化**：`domain/enrich.findSimilarTagGroups`（归一化相等 + 包含关系成组，短方 ≥2 字防误判；不猜无包含关系的同义词——宁缺勿滥）+ `services/ai-tag-service.ts`（`suggestAiTagMerges` 扫描索引 aiTags 全集返回建议组+影响篇数；`applyAiTagMerge` 组内变体→keep 全量替换，逐篇 writeClip，单篇失败不阻断）+ 设置-维护「整理 AI 标签」（扫描→变体→保留目标 diff→逐组确认合并，完成后 notifyDataChanged）。
-- 门禁：check 0 错 **0 告警**、test **156/156**、build 通过、E2E **27/27**。未发布新版本。提交序列：…→ cffe2ce → f982b21 → 本轮（git log）。集市 PR #2288 待审。
-- 下一批候选：T-1755 收藏/T-1904 长期收藏（契约先行）、T-1795 全局 icon-only 审计、T-1753 已完成后的高亮时间回填核对；重活缺陷 T-1840/1841/1963 半成功账本、T-1967 超时取消、T-1978 统一失败处理；**继续提醒作者 B-0002 真机走查**（新功能积压更多了）。
-
-## 当前有效交接（2026-10-01 第八轮：P1 功能线第五批 T-1744 TTS / T-1773 漏斗 / T-1753 高亮增强）
-
-- **T-1744 TTS 朗读（首版）**：`domain/tts.ts`（`chunkTextForSpeech` 按中英句边界切分合并到 220 上限、超长句硬切；`nextSpeechRate` 档位循环）+ `services/tts.ts`（`ttsAvailable` 能力探测——无 speechSynthesis 的环境全部静默空操作；`speakText` 分块顺序朗读、`lang="zh-CN"`、`stopSpeaking`）+ ReaderTab 伴生栏入口（▶ 选区优先/全文兜底 = `protyle.protyle.element.textContent`；⏹ 停止；语速按钮换速重启朗读；移动端 `facade.isMobile` 与无能力环境整行隐藏；组件销毁停播）。纯会话行为零写入。**真机效果（voice 选择、CJK 断句、语速感受）待 B-0002/B-0004**；"从当前位置继续"待真机反馈再议。
-- **T-1773 收录漏斗**：`domain/stats.captureFunnel(captured, done, candidates)` 纯投影（done 按 doneTime 口径 D-0028）+ 统计页三段条形卡。
-- **T-1753 高亮增强**：`listQuoteBlocks` 查询补 `updated` 字段（同端点新字段，非新端点）；高亮条显示 MM/DD HH:mm +「原文位置」跳转（openTab doc.id=引述块 id）。
-- **踩坑（重要）**：Git Bash 的 sed 处理 UTF-8 中文行产出乱码（TODO.md 三行损坏后 git checkout 恢复）——**中文内容的批量替换禁止用 sed，一律 Edit 工具**；本口令"含反斜杠不用 heredoc"教训之外再加这条。
-- 门禁：check 0 错 **0 告警**、test **154/154**、build 通过、E2E **27/27**。未发布新版本。提交序列：…→ 75b4070 → cffe2ce → 本轮（git log）。集市 PR #2288 待审。
-- **P1 功能线主线已基本收官**（热力图/问文章/大纲/备份/月报/CSV/摘录墙/批量导出/TTS/漏斗/高亮增强）。下一批候选：T-1761 AI 标签规范化、T-1755 收藏（T-1904 口径）、T-1794 面板头部文字化；重活缺陷 T-1840/1841/1963 半成功账本、T-1967 超时取消、T-1978 统一失败处理；**强烈建议作者安排 B-0002 真机走查**（新功能已大量积压：页签大纲/TTS/摘录墙/备份/热力图/漏斗等）。
-
-## 当前有效交接（2026-10-01 第七轮：P1 功能线第四批 T-1750 摘录墙 / T-1752 批量导出）
-
-- **T-1750 全库摘录墙**：面板第五视图 `quotes`（DockPanel views + PanelView 扩展）。数据链：`listLibraryQuotes`（单页 500+1 探测截断）→ `listQuoteRoots`（分批 IN 补未收录文档标题）→ 索引映射（标题/站点/tags/aiTags）→ `domain/quotes` 纯函数投影（`quoteFacets`/`filterQuotes`，筛选不写属性）。UI：关键词搜索 + 分面点击筛选 + 可移除 chip + 计数 + 空态/失败态分流；点击回链 `openTab({doc:{id: 引述块id}})`。
-- **T-1752 批量导出**：`exportQuotesToDoc`（excerpt-service）按当前筛选落盘 `/摘录导出/YYYYMMDD-HHmmss`；不写 custom-clip-*（无候选证据）；E2E 落盘断言通过。
-- 修档教训：TODO 勾选插入条目时误复制相邻行（T-1751 重复），sed 删重——勾选后 grep 核对任务号唯一。
-- 门禁：check 0 错 **0 告警**、test **149/149**、build 通过、E2E **27/27**。未发布新版本。提交序列：…→ b51a60f → 75b4070 → 本轮（git log）。集市 PR #2288 待审。
-- 下一批候选：**T-1744 TTS 朗读**（Web Speech API——代码可先写能力探测+降级，效果需作者真机）、T-1773 收录漏斗（纯投影轻项）、T-1753 高亮视图增强、T-1761 AI 标签规范化；重活缺陷 T-1840/1841/1963 半成功账本、T-1967 超时取消、T-1978 统一失败处理。P1 功能线主线（热力图/问文章/大纲/备份/月报/CSV/摘录墙/导出）已全部落地，建议下轮可考虑收尾性小项或作者真机走查（B-0002 清单已积累大量新功能项）。
-
-## 当前有效交接（2026-10-01 第六轮：P1 功能线第三批 T-1740 大纲 / T-1772 CSV / 摘录墙地基）
-
-- **T-1740 本文大纲**：`services/outline.ts`（heading SQL `SELECT id, content, subtype FROM blocks WHERE root_id=? AND type='h' ORDER BY sort`——querySql 既有端点的新查询，E2E 实证）+ ReaderTab 伴生栏可折叠大纲段（`outlineIndent` 相对最小层级归一缩进）+ 点击定位 = `protyle.protyle.element.querySelector('[data-node-id]')?.scrollIntoView()`（**SDK 公开字段**，查 `node_modules/siyuan/types/protyle.d.ts` 确认——定位 Protyle 能力先查 SDK 类型，公开字段够用就不碰内部 API）。滚动行为真机随 B-0002。
-- **T-1772 CSV 导出**：`domain/csv.ts`（RFC 4180 转义，2 单测）+ `buildLibraryCsv`（18 列 + BOM）+ 统计页下载按钮。
-- **T-1750/1752 地基**：`highlights.listLibraryQuotes(limit, offset)` 全库引述块分页（**条件=`type='b'`**，臆加 `subtype='bq'` 查不到——引述块 subtype 不是 bq，已踩坑记入）。剩视图层：新面板视图 + root 元数据映射 + 筛选分面。
-- 门禁：check 0 错 **0 告警**、test **146/146**、build 通过、E2E **26/26**。未发布新版本。提交序列：…→ 50c0103 → b51a60f → 本轮（git log）。集市 PR #2288 待审。
-- 下一批候选：**T-1750 全库摘录墙视图**（地基已就绪）、**T-1752 摘录批量导出 Markdown**（共用查询）、**T-1744 TTS**（先 spike 桌面端 voice，Node 无法验证需真机）、T-1773 收录漏斗；重活缺陷 T-1840/1841/1963、T-1967、T-1978。
-
-## 当前有效交接（2026-10-01 第五轮：P1 功能线第二批 T-1780 备份恢复 / T-1771 月度回顾）
-
-- **T-1780 一键备份/恢复**（契约先行 DATA-CONTRACT §0.1）：
-  - 包格式 `{version:1, app:"siyuan-glean", exportedAt, settings, index, uiPrefs, clips:[{id, attrs}]}`，attrs 只含 custom-clip-*；**不含密钥**（只导出 secretName 名字）。
-  - `domain/backup.ts`：`parseBackup`（版本/应用不符整体拒绝、非法键丢弃）、`pickClipAttrs`、`previewBackup`；`backup-service.ts`：`buildBackupPackage`（listClipDocs+batchReadClipAttrs）→ `backupPackageJson` 下载；`previewRestore`（SQL 存在性检查）→ `restoreBackup`（**经 clip-store 新增的 `restoreClipAttrs`**：IAL 形态补丁直接 setBlockAttrs + 索引锁内增量更新——注意 writeClip 的 patch 是 schema 字段形态，不能直接喂 IAL 键）→ saveSettings/saveUiPrefs → rebuildIndex。
-  - UI 在设置-维护：导出（Blob 下载）/ 选包预览（N 篇/可恢复/缺失）→ 确认执行；恢复后壳层经 `facade.updateSettings(pkg.settings)` 同步缓存。
-  - E2E 回环：导出→改 rating/status→恢复→属性与索引都回到备份点。
-- **T-1771 月度回顾**（本月部分）：`monthlyReview`（doneTime 前缀匹配当月）+ `/读库月报/YYYYMM` 幂等定位导出 + 统计页按钮；年度回顾待走查后扩展。
-- **踩坑记录**：Edit 工具做函数级插入时 old_string 不要携带相邻函数的声明行（本轮两次误删函数签名/注释，均靠 sed -n 复查与类型门禁立即发现恢复）。
-- 门禁：check 0 错 **0 告警**、test **144/144**、build 通过、E2E **23/23**。未发布新版本。提交序列：0d70bfc → a32d4ec → f77e2f2 → 50c0103 → 本轮（git log）。集市 PR #2288 待审。
-- 下一批功能线候选：**T-1750 全库摘录墙**（新视图 + 全库引述块查询）、**T-1740 本文大纲**（先 spike heading SQL 与 Protyle 定位 API——查 node_modules/siyuan 类型）、**T-1744 TTS**（桌面端 voice spike）、T-1772 统计 CSV、T-1752 摘录批量导出 Markdown；重活缺陷 T-1840/1841/1963 半成功账本、T-1967 超时取消、T-1978 统一失败处理。
-
-## 当前有效交接（2026-10-01 第四轮：P1 功能线第一批 T-1770/T-1760/T-1790）
-
-- 缺陷清剿三轮收官后按续跑口令转 **P1 功能线**，本轮交付三项功能/质量项。
-- **T-1770 阅读热力图**：`domain/stats.readingHeatmap(doneTimes, weeks, now)` 纯函数——输入 doneTime 数组，输出周列网格（列=周、行=周一..周日、当前周截断到今天）+ maxCount/activeDays/totalDone；StatsView 渲染近 26 周网格（`.glean-heat` CSS grid auto-flow column，b3 主色 opacity 五档 `--l0..l4`），逐格 `role="img"` + aria-label 与文字摘要双通道（兼顾 T-1976 图表文本替代）。年度跨度只需调 HEATMAP_WEEKS。
-- **T-1760 问这篇文章**：`domain/reader.buildAskPrompt`（上下文=本文全文 8000 字截断、无关问题要求拒答、`clampAskQuestion` 500 字上限）+ `reader-ai.readerAsk`（runAiTask 租约、额度共享、失败静默写 ai-log）+ ReaderTab 伴生栏 AI 段新增单轮输入行（Enter 提交、aiResult.kind="ask" 结果卡带 AI 来源标记、切文清空）。**不做追问/会话/聊天窗**（铁律 8/D-0030）；选区上下文版本与 T-1726 翻译重叠暂不做。
-- **T-1790 a11y 清零**：svelte-check **39→0 告警**。修法沉淀：①可点击 div（role=button/tabindex）统一补 `onkeydown` Enter/Space（DockPanel 用 `activateOnKey(handler)` 辅助）；②看板拖放列补 `role="group"` + aria-label；③多选 `<label onclick>` 事件移入内部 input（label 保持无事件）；④六枚 `.glean-sw` 补 `role="switch"`/`aria-checked`/`aria-label`（T-1971 开关部分顺带完成）；⑤**25 条 `state_referenced_locally`（表单 `$state(facade.settings.x)` 初始化快照）经"快照函数化"消除**——把 props 读取包进 `function snapshotFormState()` 再在顶层调用，静态分析不再报且语义更显式；⑥bind:this 目标转 `$state`。
-- 门禁：check 0 错误 **0 告警**（历史最佳）、test **140/140**、build 通过、E2E **21/21**。未发布新版本。
-- 提交序列：0d70bfc（P0）→ a32d4ec（P1-I）→ f77e2f2（P1-II）→ 本轮（见 git log）。集市 PR #2288 待审。
-- 下一批功能线候选：T-1750 全库摘录墙（新视图+全库引述块查询，体量较大）、T-1780 一键备份恢复（契约先行改 DATA-CONTRACT）、T-1740 本文大纲（先 spike heading SQL/Protyle outline）、T-1744 TTS（桌面端 voice spike）、T-1771 月度回顾报告（复用周报管线，轻）。
-
-## 当前有效交接（2026-10-01 第三轮：P1 可靠性批次 II T-1956/1957/1968/1984/1988/1989）
-
-- 按续跑口令继续，本轮清掉六项 P1 缺陷，未做新功能。剩余 P1 缺陷已不多且多为重活（半成功账本组 T-1840/1841/1963、T-1967 超时取消、T-1978 统一失败处理、T-1975 的 partial 展示），**建议下一轮转 P1 功能线**。
-- **T-1988**：`domain/importers.normalizeImportFolder`（反斜杠归一、空段/`.`/`..` 丢弃、逐段清理非法字符，fallback"导入"）；runImport 接线；预览区显示最终落点（i18n `import.targetPath`）。
-- **T-1984**：换文件重置 previewPage/summary；预览行 key 改稳定分页索引；无笔记本禁用开始键 +「打开设置」。
-- **T-1957**：`updateSettings` 写队列，patch 合并基准=**队列任务内的最新 this.settings**（不是调用时快照）；Onboarding/Migrate 调用点改只传变化字段——这是关键配套：全量快照展开在调用时求值会重新引入覆盖。
-- **T-1956/T-1968**：壳层 `openDialogs` 登记表 + `openGleanDialog` 统一入口（六类弹窗，含 help 的 simpleDialog），onunload 逐个 close；浮窗 `workbenchPopup` 单实例守卫（真实 destroyCallback 回执），DockPanel 1.5s 定时器已删。
-- **T-1989**：`guardAction` wrapper 接管命令面板 7 动作 + 右键收录（脱敏留痕 + `msg.actionFailed` 可重试提示）。
-- i18n 新增双名键 5 个；门禁：check 0 错/39 告警、test **136/136**、build 通过、E2E **21/21**。未发布新版本。
-- **教训（重要）**：heredoc 写含 `\\` 的正则会丢转义（本轮代码与测试双双踩中）——含反斜杠内容一律用 Edit 工具，不用 bash heredoc。
-- 提交：0d70bfc（P0）→ a32d4ec（P1-I）→ 本轮（见 git log）。集市 PR #2288 仍待官方审核。
-
-## 当前有效交接（2026-10-01 第二轮：P1 可靠性批次 T-1839/1884/1955/1958/1961/1975/1981/1985/1990）
-
-- P0 批次清完后按续跑口令继续，本轮清掉九项 P1 可靠性/一致性缺陷，未做新功能。
-- **T-1990 索引校验与坏文件隔离**：`loadIndex` 枚举白名单（status 脏条目丢弃、evidence/missing 白名单过滤）；坏 JSON 置 `indexCorrupted` → `saveIndex` 拒绝一切落盘（**原文件保留**），`confirmIndexRebuilt()` 只在对账/重建完整扫描成功后解除。教训：没有 getFile 封装（新端点须先 spike），"保留原文件"靠拒绝覆盖实现而非副本。
-- **T-1884**：`indexFromScopes` 返回 `missingIds`；属性批读缺任何文档 → 对账/重建抛错保留旧索引（"扫描后即刻删除"的保守误报可接受）。
-- **T-1985**：`archive_stale` 返回 `{requested, archived, failedIds}` 真实结算（配合 T-1980 服务端守卫）。
-- **T-1961**：`DOC_ID_UNSAFE = /['"\\;()\s/]|--/` 拒绝列表——**教训：严格格式白名单（`\d{14}-[0-9a-z]{7}`）会打死测试 harness 的短假 ID，注入向量拒绝列表是任务原文"格式校验或 sqlQuote"的合规解**。writeClip 入口断言 + fetchDocMeta/HighlightView 拼接前拦截。
-- **T-1839**：ReaderTab `loadContext` 加 `contextSeq` 代次；**顺带删除了重复的"读完并下一篇"按钮**（T-1893 清单项，该大项仍未完——硬编码"文A"等还在）。
-- **T-1975/T-1981**：HighlightView `loadSeq` 代次贯穿三段异步 + `glean:data-changed` 强制刷新。
-- **T-1955**：prefs.ts 全部读写入串行队列；DockPanel `prefsLoaded` 屏障（加载完成前不保存——否则默认视图覆盖磁盘偏好）。
-- **T-1958（部分）**：周报同周幂等定位（先查 `/读库周报/{title}` 复用 ID，E2E 断言不堆积）；**内容更新**待 createDocWithMd 对已存在路径行为实证（先 spike）再补。
-- 门禁：check 0 错/39 告警、test **135/135**、build 通过、隔离 E2E **21/21**（+2：周报幂等、损坏索引全链）。未发布新版本。
-- 提交：0d70bfc（P0 批次）+ 本轮 P1 批次提交（见 git log）。集市 PR #2288 仍待官方审核。
-
-## 当前有效交接（2026-10-01 第一轮：P0 缺陷批次 T-1881/1882/1883/1885/1979/1980/1987）
-
-- 作者指令"读取仓库情况，并按待办计划开发"= 开发授权；按优先级先清 **七项 P0 缺陷**（可靠性/数据主权），未做新功能。
-- **T-1881 索引写入串行化**：`index-store.ts` 新增 `withIndexLock`（内存 promise 链互斥）；`writeClip` 读改写段与 `reconcileIndex/rebuildIndex` 保存段全部入锁。教训：互斥只约束本插件实例执行顺序，锁内不得再获取锁（当前无嵌套）。
-- **T-1882 对账合并+代次**：`reconcileIndex` 进行中调用合并（`reconcileInFlight`）；`DockPanel.reload` 加 `reloadSeq` 代次守卫。全量对账与增量写互斥后，慢对账不再回滚期间的属性写入。
-- **T-1883 AI 额度原子租约**：`enrich-service` 导出 `runAiTask`（即原富化串行队列），`reader-ai` 总结/翻译的检查→调用→计数全程入队；并发回归：额度 2、并发 4 任务只放行 2 次模型调用。
-- **T-1885 完成统计口径**：`domain/stats.ts` `aggregateStats` 与 `stats-service` 周报 doneItems 改为只认 `doneTime`、与 status 解耦——读完又归档不丢本周完成记录（对齐 D-0028 本意；旧测试断言的正是缺陷行为，已更新）。
-- **T-1979 首启导入路由**：`OnboardingDialog` 能力卡"导入器"链接改 `finishThenImport()` → `facade.openImport()`（原先借道 `finish(true)` 开迁移器）。
-- **T-1980 焦点编辑器+收录前置**：`index.ts` 新增 `focusedEditor()`（活跃选区/焦点元素定位，无焦点回退第一个编辑器）；`markCurrentStatus` 对未收录文档提示（新 i18n 键 `msg.notInLibrary` 双名）；`batchSetStatusDetailed` 服务端跳过未收录文档（按未成功结算）——超龄清单/看板/智能体的 ID 都来自索引，正常路径不受影响（E2E 实证）。
-- **T-1987 内部宿主身份**：schema 新增纯函数 `isMarkedInternalDoc`；`library-db.findVerifiedHost` 只复用带 `custom-clip-internal` 标记的宿主，旧版无标记宿主以"内部已有四字段库（状态/字数/时长/来源）"幂等补标恢复；flashcard 宿主只认标记、无标记另建（riff 无按文档查卡端点，未臆造，旧卡按块注册仍可复习——后续要迁移先 spike `getTreeRiffCards`）；`api/av.ts` 新增 `findDocsByTitle`（全候选，保留旧 `findDocByTitle`）。
-- **契约同步**（行为澄清，无新属性）：DATA-CONTRACT §2 补宿主复用身份与状态动作前置；§3 补写入互斥与对账合并；§3.3 补 AI 租约原子性。
-- 门禁：`pnpm check` 0 错误 / 39 条既有告警、`pnpm test` **135/132+3**、`pnpm build` 通过、隔离 E2E **19/16+3**（新增：状态动作跳过未收录、读库/闪卡宿主身份三断言；E2E 里新建宿主后查 SQL 必须 `until` 轮询等索引刷新，踩过一次）。未发布新版本。
-- 未动项：T-1884/T-1886（P1）保持待办；多画布并发、分屏焦点、宿主幂等的真机行为统一随 B-0002。
-- 下一批候选（作者点单驱动）：P1 功能线（T-1740 本文大纲 / T-1744 TTS spike / T-1750 摘录墙 / T-1760 问这篇文章 / T-1770 热力图 / T-1780 备份恢复 / T-1790 a11y 清零），或继续 P1 缺陷（T-1839 ReaderTab 竞态 / T-1840/1841 半成功恢复 / T-1955–T-1957 竞态组 / T-1985 archive_stale 真实结算）。
-
-## 历史交接存档
-
-## 当前有效交接（2026-09-30 UI 专项质感与美观复核）
-
-- 本轮只读 UI 复核记录见 [RESEARCH-ui-polish-audit-2026-09.md](RESEARCH-ui-polish-audit-2026-09.md)，覆盖 `src/index.scss`、`src/ui/*.svelte`、`UI-STANDARD.md` 和 `design/prototype.html`；没有修改 `src/`，没有驱动作者真实思源窗口。
-- 新增 UI 专项待办 T-1991–T-2030：令牌与表面层级、排版/间距/图标、操作主次、队列与卡片、三画布容器策略、看板窄宽、阅读伴生栏、对话框/设置、空态/加载/失败反馈、主题/动效/高对比、触控、统计图、视觉性能、CSS 兼容、原型同步、截图回归和发布材料。
-- 静态定位的代表性问题：行表操作区在普通状态长期占位；`StatsView` 的 spark 热柱使用 `class:hot` 而样式声明期待 `glean-tile__spark--hot`；ReaderTab 模式按钮缺少 `.glean-seg` 容器；阅读伴生栏固定 264px；Dock/今日拾遗标题截断过早；设置/导入器/统计仍有固定视觉 inline style；首启步骤条和实现不一致；`prefers-reduced-motion`、forced-colors 和集中式 focus-visible 规则尚未形成单一视觉门禁。以上均只入账，未开始开发。
-- 上一轮基线仍有效：`pnpm test` 132/132 通过；`pnpm check:svelte` 0 错误、39 条既有告警。UI 专项任务应先按 T-1991/T-2002 建立令牌与容器规则，再按 T-2017–T-2019 建立原型/截图/真机验收链。
-- 继续遵守作者工作协议：后续需求先入 `TODO.md` 并主动扩展同类事项；只有作者明确说“开始开发”或点具体任务号，才启动代码开发。发布/集市/版本动作仍逐次请示。
-
-## 当前有效交接（2026-09-30 功能/UI/交互/流程复核）
-
-- 本轮只读复核记录见 [RESEARCH-functional-ui-flow-audit-2026-09.md](RESEARCH-functional-ui-flow-audit-2026-09.md)，没有修改 `src/` 功能代码。
-- `pnpm test` 132/132 通过；`pnpm check:svelte` 0 错误、39 条既有警告，已按 T-1858/T-1886–T-1913 挂接。新待办为 T-1955–T-1990，重点是 UI 偏好/设置竞态、浮窗与 Protyle 生命周期、周报/导入幂等、内核超时与异步错误边界、首启导入误路由、焦点编辑器状态流、外部导入已读时间、内部宿主碰撞和索引损坏恢复。
-- 已确认的首要流程缺陷：首启“Pocket/Omnivore 导入器”按钮实际打开迁移器（T-1979）；多编辑器命令可能取错文档，普通文档状态命令缺收录前置校验（T-1980）；Pocket `time_read`/Omnivore 状态存在导入保真缺口（T-1982）。这些仍只入账，未开始开发。
-- 继续遵守作者工作协议：后续需求先入 `TODO.md` 并主动扩展同类事项；只有作者明确说“开始开发”或点具体任务号，才启动代码开发。发布/集市/版本动作仍逐次请示。
+## 当前有效交接（2026-10-07 T-3283/D-0161）
+
+本轮继续做阅读舒适度收口：ReaderTab 切文时重置“辅助工具”和“阅读外观”的展开状态，避免低频面板跨文档残留；统计页 30 日趋势在窄视口和窄工作台容器中降低柱间距与最小宽度，并保留横向滚动兜底。未改变统计口径、文章属性、索引、端点或写入契约。
+
+- 当前改动文件：`src/ui/ReaderTab.svelte`、`src/index.scss`、`tests/reader-acceptance.test.ts`、`tests/header-actions.test.ts`、`docs/DECISIONS.md`、`docs/PROGRESS.md`、`docs/HANDOFF.md`。
+- 已通过：定向 UI/i18n/无障碍 37/37；全量 `pnpm test` 1154/1154；`pnpm run check` 0 错误/0 警告；生产构建、任务台账和视觉矩阵检查通过。真实宿主与 Android 验收仍归 B-0002，视觉矩阵仍有 24 个 `pending-host`。
+- 版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 `package.zip`。
+
+## 当前有效交接（2026-10-07 T-3260/D-0160）
+
+本轮继续按原型收紧原生编辑器阅读上下文：来源、状态和返回读库保持主动作条；正文检测和排版优化放入默认关闭的“维护与增强”折叠区。正文缺失时维护区自动展开，缺失提示与重新剪藏动作仍直接可见；移动端折叠标题沿用 44px 命中区。未移除能力，也未改变正文、文章属性、索引、端点或写入契约。
+
+- 当前改动文件：`src/ui/ReadingContext.svelte`、`src/index.scss`、`public/i18n/zh_CN.json`、`public/i18n/en_US.json`、`tests/reader-acceptance.test.ts`、`docs/DECISIONS.md`、`docs/PROGRESS.md`、`docs/HANDOFF.md`。
+- 已通过：`pnpm test` 1153/1153；`pnpm run check` 0 错误/0 警告；`git diff --check` 通过。视觉矩阵仍为 24 个 `pending-host`，没有新增真实思源宿主或 Android 真机证据。
+- 版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 `package.zip`。
+
+## 当前有效交接（2026-10-07 T-3260/D-0159）
+
+第三十六轮修正回顾趋势的真实时间范围，并按原型收紧阅读伴生栏首屏：`aggregateReadingReview` 新增 `recentCompletionTrend`，以参考日为终点生成最多 30 个本地日历日，跨月/跨年补零，完成计数不超过参考日；`StatsView` 只消费该序列，年度热力图继续用于全年分析。`ReaderTab` 将状态动作和优先级评分提前，最近阅读、作者编辑、阅读位置、外观和大纲包入默认关闭的“辅助工具”；桌面外观入口会先展开辅助工具再打开外观。`ReadingPositionControls` 改为接收实例 ID 并生成稳定标题关联，避免多实例重复 ID。
+
+- 当前改动文件：`src/domain/stats.ts`、`src/ui/StatsView.svelte`、`src/ui/ReaderTab.svelte`、`src/ui/ReadingPositionControls.svelte`、`src/index.scss`、`public/i18n/zh_CN.json`、`public/i18n/en_US.json`、`tests/stats.test.ts`、`docs/DECISIONS.md`、`docs/PROGRESS.md`、`docs/HANDOFF.md`。
+- 已通过：`pnpm test` 1152/1152；`pnpm run check` 0 错误/0 警告；`pnpm build`、`pnpm task:ledger -- --check`、`pnpm visual:check`、`git diff --check` 通过。
+- 当前视觉矩阵仍为 24 个 `pending-host`，本轮未新增真实思源宿主或 Android 真机截图；不要把本地组件截图当作宿主验收证据。
+- 版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 `package.zip`。
+
+## 当前有效交接（2026-10-07 T-3260/D-0158）
+
+第三十五轮恢复原型首屏动作并降低增量信息噪声：阅读桌面顶栏提供阅读外观与打开原文，外观按钮直接打开伴生栏折叠区；窄屏隐藏桌面动作，保持正文首屏高度。伴生栏标题改为“伴生栏”，统计快照移入统计口径详情、完成文章列表默认折叠，趋势零值柱降低存在感；摘录 scope active 恢复轻量胶囊，卡片 hover 限定在支持悬浮的设备。未新增功能，未改变业务、数据、文章属性、索引、端点或设置语义。
+
+- 当前改动文件：`src/index.scss`、`src/ui/ReaderTab.svelte`、`src/ui/StatsView.svelte`、`public/i18n/zh_CN.json`、`public/i18n/en_US.json`、`tests/accessibility.test.ts`、`tests/header-actions.test.ts`、`tests/reader-acceptance.test.ts`、`docs/DECISIONS.md`、`docs/PROGRESS.md`、`docs/HANDOFF.md`。
+- 截图基线仍为 `output/playwright/round34-stats-desktop.png`、`output/playwright/round34-stats-mobile.png`；本轮未新增宿主截图，非真实思源内核运行或 Android 真机验收。
+- 已通过：`pnpm run check` 0 错误/0 警告；定向 UI/i18n/阅读回归 35/35；`pnpm test` 1151/1151；`pnpm build`、`pnpm task:ledger -- --check`、`pnpm visual:check`、`git diff --check` 通过。视觉矩阵仍为 24 个 pending-host，未冒充真实宿主截图。
+- 版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 package.zip。
+
+## 既往交接（2026-10-07 T-3260/D-0157）
+
+第三十四轮继续按原型收口动作发现与阅读伴生区密度：统计总览首屏承载已有报告动作，趋势增加起止日期，指标提示改为合法描述列表项；阅读外观与大纲默认折叠，摘录读屏标签带跨页连续序号和摘要；阅读伴生栏标题按组件实例生成唯一 ID。此轮只调整 UI、CSS、测试和可访问表达，没有新增功能或改变业务、数据、文章属性、索引、端点、设置语义。
+
+- 当前改动文件：`src/index.scss`、`src/ui/HighlightView.svelte`、`src/ui/ReaderTab.svelte`、`src/ui/ReadingContext.svelte`、`src/ui/StatsView.svelte`、`tests/accessibility.test.ts`、`docs/DECISIONS.md`、`docs/PROGRESS.md`、`docs/HANDOFF.md`。
+- 截图基线：`output/playwright/round34-stats-desktop.png`、`output/playwright/round34-stats-mobile.png`；为本地组件预览，非真实思源内核运行或 Android 真机验收。本轮未新增宿主截图。
+- 已通过：`pnpm run check` 0 错误/0 警告；定向 UI/i18n/可访问性 31/31；全量 `pnpm test` 1150/1150。
+- 提交前继续执行 `pnpm build`、`pnpm task:ledger -- --check`、`git diff --check`。版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 package.zip。
+
+## 既往交接（2026-10-07 T-3260/D-0156）
+
+第三十三轮按原型重排统计主路径并补实例语义：统计首屏三张指标卡增加辅助说明，主活动区改为过去 30 天趋势，全年热力图、逐日表和四组分布收进可展开分析；摘录标题、排序方向和清除筛选状态补齐；阅读页侧栏、快捷键、章节和语速控件 ID 按组件实例隔离。只调整 UI、CSS、i18n、测试和可访问表达，未改变业务逻辑、数据、文章属性、索引、端点或设置语义。
+
+- 当前改动文件：`src/index.scss`、`src/ui/HighlightView.svelte`、`src/ui/ReaderTab.svelte`、`src/ui/StatsView.svelte`、`public/i18n/zh_CN.json`、`public/i18n/en_US.json`、`tests/accessibility.test.ts`、`tests/header-actions.test.ts`、`docs/DECISIONS.md`、`docs/PROGRESS.md`、`docs/HANDOFF.md`。
+- 已生成截图：`output/playwright/round34-stats-desktop.png`、`output/playwright/round34-stats-mobile.png`；为本地组件预览，非真实思源内核运行或 Android 真机验收。
+- `pnpm run check` 0 错误/0 警告；`pnpm test` 1149/1149；`pnpm build`、`pnpm task:ledger -- --check`、`git diff --check` 通过。
+- 版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 package.zip。
+
+## 既往交接（2026-10-07 T-3260/D-0155）
+
+第三十二轮收口统计筛选、热力图和摘录操作层级：统计口径折叠、补充指标命名、窄屏筛选纵向全宽排列，热力图图例放到日期网格下方；摘录选择与导出采用独立命名分组并移除重复嵌套，跨页序号连续；阅读区窄屏高度规则去重。只调整 UI、CSS、i18n、测试和可访问表达，未改变业务逻辑、数据、文章属性、索引、端点或设置语义。
+
+- 当前改动文件：`src/index.scss`、`src/ui/HighlightView.svelte`、`src/ui/StatsView.svelte`、`public/i18n/zh_CN.json`、`public/i18n/en_US.json`、`tests/accessibility.test.ts`、`tests/header-actions.test.ts`、`docs/DECISIONS.md`、`docs/PROGRESS.md`、`docs/HANDOFF.md`。
+- 已生成截图：`output/playwright/round33-dark-desktop.png`、`output/playwright/round33-dark-mobile.png`；为本地组件预览，非真实思源内核运行或 Android 真机验收。
+- `pnpm run check` 0 错误/0 警告；`pnpm test` 1148/1148；`pnpm build`、`pnpm task:ledger -- --check`、`git diff --check` 通过。
+- 版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 package.zip。
+
+## 既往交接（2026-10-07 T-3260/D-0154）
+
+第三十一轮收口统计主路径、维护弹窗和阅读侧栏：统计首屏按原型保留三张主指标卡，候选指标使用短文案，索引快照折叠收纳其余数字，390px 改为单列；分布区恢复命名 section。摘录预览和今日拾遗标题 ID 按组件实例隔离，导入/迁移进度恢复读屏播报，阅读侧栏辅助文字统一主题字号。只调整 UI、CSS、i18n、测试与可访问表达，未改变业务逻辑、数据、文章属性、索引、端点或设置语义。
+
+- 当前改动文件：`src/index.scss`、`src/ui/BackupPanel.svelte`、`src/ui/HighlightView.svelte`、`src/ui/ImportDialog.svelte`、`src/ui/MigrateDialog.svelte`、`src/ui/OnboardingDialog.svelte`、`src/ui/ResurfaceView.svelte`、`src/ui/SettingsView.svelte`、`src/ui/StatsView.svelte`、`public/i18n/zh_CN.json`、`public/i18n/en_US.json`、`tests/accessibility.test.ts`、`tests/header-actions.test.ts`。
+- 已生成统计页预览截图：`output/playwright/round31-stats-current-desktop.png`、`output/playwright/round31-stats-current-mobile.png`；截图为本地组件预览，非真实思源内核运行或 Android 真机验收。
+- `pnpm run check` 0 错误/0 警告；定向 UI/i18n/可访问性 67/67；全量 `pnpm test` 曾因旧四列断言失败，断言已同步新契约，提交前需复跑全量测试、`pnpm build`、`pnpm task:ledger -- --check` 与 `git diff --check`。
+- 版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 package.zip。
+
+## 当前有效交接（2026-10-07 T-3260/D-0153）
+
+第三十轮收口工作台、阅读与全局控件状态：预览/收件箱补实例唯一 ID、加载错误播报和操作状态；阅读工具栏拆分次级动作，上下文切换增加加载骨架，Protyle 标签 ID 关联修正；全局按钮、输入、状态表面、滚动条及移动导航补焦点和主题层级。未改变业务逻辑、数据、文章属性、端点或设置语义。
+
+- 当前改动文件：`src/index.scss`、`src/ui/AuthorEditor.svelte`、`src/ui/ClipRankControls.svelte`、`src/ui/InboxSection.svelte`、`src/ui/LibraryFilters.svelte`、`src/ui/ProtyleHost.svelte`、`src/ui/ReaderTab.svelte`、`src/ui/ReadingContext.svelte`、`src/ui/ReadingPositionControls.svelte`、`src/ui/WorkbenchPreview.svelte`。
+- 已生成静态回归截图：`output/playwright/round30-desktop.png`、`output/playwright/round30-mobile.png`；截图为暗色 prototype fixture 回归，非真实思源内核运行或 Android 真机验收。
+- 定向回归 100/100；全量检查、测试、构建、任务账本和最终差异检查在提交前执行。
+- 版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 package.zip。
+
+## 当前有效交接（2026-10-07 T-3260/D-0152）
+
+第二十九轮收口统计摘录、设置长页与弹窗表单：统计分布补标题和忙碌层级，摘录制卡保持卡片级反馈；备份分页、首启欢迎与选择状态适配窄屏；浮层、导入/迁移、排版和制卡弹窗补进度、步骤、错误关联及状态播报。未改变业务逻辑、数据、文章属性、端点或设置语义。
+
+- 当前改动文件：`src/index.scss`、`src/ui/ActionPopover.svelte`、`src/ui/BackupPanel.svelte`、`src/ui/FlashcardDialog.svelte`、`src/ui/FormattingDialog.svelte`、`src/ui/HighlightView.svelte`、`src/ui/ImportDialog.svelte`、`src/ui/MigrateDialog.svelte`、`src/ui/OnboardingDialog.svelte`、`src/ui/StatsView.svelte`。
+- 已生成静态回归截图：`output/playwright/round29-desktop.png`、`output/playwright/round29-mobile.png`；截图为当前暗色 prototype fixture 回归，非真实思源内核运行或 Android 真机验收。
+- `pnpm run check` 0 错误/0 警告；定向回归 322/322；全量测试、构建、任务账本和最终差异检查在提交前执行。
+- 版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 package.zip。
+
+## 当前有效交接（2026-10-07 T-3260/D-0151）
+
+第二十八轮收口阅读伴生、维护流程和工作台状态：阅读上下文/作者编辑/阅读位置补标题与控件关联、操作分组和状态层级；导入/迁移/备份/制卡恢复补进度播报、阶段表面、长文案边界和忙碌反馈；预览/筛选/收件箱/空结果补当前筛选高亮、条目忙碌态和清除筛选动作。未改变业务逻辑、数据、文章属性、端点或设置语义。
+
+- 当前改动文件：`src/index.scss`、`src/ui/AuthorEditor.svelte`、`src/ui/BackupPanel.svelte`、`src/ui/DockPanel.svelte`、`src/ui/FlashcardRecoveryPanel.svelte`、`src/ui/ImportDialog.svelte`、`src/ui/InboxSection.svelte`、`src/ui/LibraryFilters.svelte`、`src/ui/MigrateDialog.svelte`、`src/ui/ReadingContext.svelte`、`src/ui/ReadingPositionControls.svelte`、`src/ui/WorkbenchPreview.svelte`。
+- 已生成静态回归截图：`output/playwright/round28-desktop.png`、`output/playwright/round28-mobile.png`；截图为当前暗色 prototype fixture 回归，非真实思源内核运行或 Android 真机验收。
+- `pnpm run check` 0 错误/0 警告；定向回归 102/102；`pnpm test` 1146/1146、`pnpm build`、`pnpm task:ledger -- --check`、`git diff --check` 已通过。
+- 版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 package.zip。
+
+## 当前有效交接（2026-10-07 T-3260/D-0150）
+
+第二十七轮继续收口设置异步、移动更多菜单和暗色空态：设置分组补标题关联，重建索引按钮防重入并显示忙碌反馈；移动更多菜单补首项聚焦、键盘导航、Tab 收起和长文案截断；暗色空态/加载/错误表面补独立层级与内高光；阅读位置无消息时隐藏空状态条，评分控件补 group 语义。未改变业务逻辑、数据、文章属性、端点或设置语义。
+
+- 当前改动文件：`src/index.scss`、`src/ui/DockPanel.svelte`、`src/ui/SettingsView.svelte`、`src/ui/ReadingPositionControls.svelte`、`src/ui/ClipRankControls.svelte`。
+- 已生成静态回归截图：`output/playwright/round27-desktop.png`、`output/playwright/round27-mobile.png`；截图为当前 dark prototype fixture 回归，非真实思源内核运行或 Android 真机验收。
+- `pnpm run check` 0 错误/0 警告；定向回归 62/62；全量测试、构建、任务账本和最终差异检查在提交前执行。
+- 版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 package.zip。
+
+## 当前有效交接（2026-10-07 T-3260/D-0149）
+
+第二十六轮收口 AI 批处理、候选迁移和 Protyle/阅读伴生区：AI 面板按说明、任务状态、预览和确认层级重排，并补忙碌/错误/窄屏分页反馈；候选治理提示、候选行、迁移/导入结果按来源、状态与操作分层；Protyle 加载/失败状态和阅读伴生区补标题关联及失败操作触控高度。只调整 UI、CSS 和可访问表达，未改变业务逻辑、数据、文章属性、端点或设置语义。
+
+- 当前改动文件：`src/index.scss`、`src/ui/AiBatchPanel.svelte`、`src/ui/DockPanel.svelte`、`src/ui/ProtyleHost.svelte`、`src/ui/ReaderTab.svelte`。
+- 已生成静态回归截图：`output/playwright/round26-desktop.png`、`output/playwright/round26-mobile.png`；截图包含现有工作台/阅读基线和本轮 AI/候选静态 fixture，非真实思源内核运行验收。
+- `pnpm run check` 0 错误/0 警告；定向回归 119/119；`pnpm test` 1146/1146、`pnpm build`、`pnpm task:ledger -- --check`、`git diff --check` 已通过。
+- 版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 package.zip。
+
+## 当前有效交接（2026-10-07 T-3260/D-0148）
+
+第二十五轮继续收口回顾、移动筛选和维护状态：统计/摘录/今日拾遗建立更清晰的内容起线、预览、忙碌和已开始状态层级；移动筛选抽屉在 420px 以下保留并排等宽动作，入口、抽屉和批量选择补齐可访问关联；首启、导入、备份和闪卡恢复处理窄屏边界与状态播报。未改变业务逻辑、数据、文章属性、端点或设置语义。
+
+- 当前改动文件：`src/index.scss`、`src/ui/DockPanel.svelte`、`src/ui/FlashcardRecoveryPanel.svelte`、`src/ui/ResurfaceView.svelte`、`public/i18n/zh_CN.json`、`public/i18n/en_US.json`。
+- 已通过：`pnpm run check` 0 错误/0 警告；定向回归 134/134；`pnpm test` 1146/1146；`pnpm build`、`pnpm task:ledger --check`、`git diff --check`。
+- 版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 package.zip。
+
+## 当前有效交接（2026-10-07 T-3260/D-0147）
+
+第二十四轮收口工作台、阅读和设置的响应式层级：筛选/rail/行表/看板统一低对比表面和选中边界；阅读工具栏、伴生栏标题、忙碌反馈与窄屏正文留白统一；设置页在 420px 容器内让控件按内容顺序落行，footer 状态与动作清晰分栏。静态桌面与 390px 预览复核无横向溢出。未改变业务逻辑、数据、文章属性、端点或设置语义。
+
+- 当前改动文件：`src/index.scss`、`src/ui/DockPanel.svelte`、`src/ui/ReaderTab.svelte`。
+- 已通过：`pnpm run check` 0 错误/0 警告；reader/accessibility 定向回归 12/12；静态截图为 `output/playwright/round24-desktop.png`、`output/playwright/round24-mobile.png`。
+- `pnpm test` 1146/1146、`pnpm build`、`pnpm task:ledger --check`、`git diff --check` 已通过；版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 package.zip。
+
+## 当前有效交接（2026-10-07 T-3260/D-0146）
+
+第二十三轮继续按原型收口统计、摘录与维护流程：统计指标卡、热图图例、日报表和完成列表建立更清晰的层级与边界，摘录根面板、首启进度和闪卡恢复补齐标题/状态语义；迁移、导入、备份和闪卡恢复在窄屏按内容顺序换行或堆叠，保留 44px 操作高度。暗色桌面和移动截图已复核，未发现需要继续改 CSS 的明显掉分项。未改变业务逻辑、数据、文章属性、端点或设置语义。
+
+- 当前改动文件：`src/index.scss`、`src/ui/StatsView.svelte`、`src/ui/HighlightView.svelte`、`src/ui/OnboardingDialog.svelte`、`src/ui/FlashcardRecoveryPanel.svelte`。
+- 已通过：`pnpm run check` 0 错误/0 警告；定向回归 147/147；`git diff --check`。截图：`output/playwright/round23-dark-desktop.png`、`output/playwright/round23-dark-mobile.png`。
+- `pnpm test` 1146/1146、`pnpm build`、`pnpm task:ledger --check`、`git diff --check` 已通过；版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 package.zip。
+
+## 当前有效交接（2026-10-07 T-3260/D-0145）
+
+第二十二轮继续打磨主题与状态细节：暗色宿主统一原生控件、控件阴影、状态徽章和 hover 表面；工作台加载、错误、空库、收件箱、Rail 无匹配、今日拾遗空态补齐状态容器、图标、读屏语义和 reduced-motion。阅读器在 720/420 断点对长中文动作做截断和等宽布局，侧栏标题与区域关联，320/390/720/1280 预览保持可操作。未改变业务逻辑、数据、文章属性、端点或设置语义。
+
+- `pnpm run check` 0 错误/0 警告；定向 UI 回归 67/67；`pnpm test`、`pnpm build`、`pnpm task:ledger --check`、`git diff --check` 通过；预览截图为 `output/playwright/round22-reader-1280.png`、`round22-reader-720.png`、`round22-reader-390.png`、`round22-reader-320.png`。版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 package.zip。
+
+## 当前有效交接（2026-10-07 T-3260/D-0144）
+
+第二十一轮继续打磨桌面与长页：宽屏工作台按原型收紧头部/视图切换和列表列宽，看板、主内容、预览拖拽边界分离；阅读页补正文主题背景、32/56/64px 留白、选区色、滚动隔离和 300px 伴生栏，工具栏显示载体/站点/状态副标题；设置页为 sticky footer 预留滚动空间，统一错误、备份结果、文件选择和 AI 日志的状态表面与窄屏换行。未改变业务逻辑、数据、文章属性、端点或设置语义。
+
+- `pnpm run check` 0 错误/0 警告；阅读/无障碍/i18n 定向回归 17/17；`pnpm test`、`pnpm build`、`pnpm task:ledger --check`、`git diff --check` 通过；预览截图为 `output/playwright/round21-desktop-before.png`、`output/playwright/round21-desktop-after.png`、`output/playwright/round21-reader-final.png`。版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 package.zip。
+
+## 当前有效交接（2026-10-07 T-3260/D-0143）
+
+第二十轮继续打磨窄屏与设置细节：阅读工具栏在窄容器中按“模式 → 侧栏 → 完成 → 辅助”排列，伴生栏状态动作统一宽度并补忙碌/分组语义；快捷键面板与侧栏补 `aria-controls`。移动更多菜单计算相对顶部偏移后的可视高度，极窄顶栏状态只保留固定胶囊。设置页统一工作区/数据标题标记、恢复卡表面、AI 开关尺寸及窄屏安全区。未改变业务逻辑、数据、文章属性、端点或设置语义。
+
+- `pnpm run check` 0 错误/0 警告；定向 UI 回归 67/67；`pnpm test` 1146/1146；`pnpm build`、`pnpm task:ledger --check`、`git diff --check` 通过；预览截图为 `output/playwright/round20-mobile-320.png`、`output/playwright/round20-mobile-landscape.png`。版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 package.zip。
+
+## 当前有效交接（2026-10-06 T-3260/D-0142）
+
+第十八轮将阅读主动作归位：工具栏承载“读完并下一篇”，伴生栏隐藏重复的“标记已读”，其他画布仍保留通用状态动作。设置页把导入入口做成与备份/恢复一致的内嵌卡片，窄屏统一内缩；移动更多菜单的迁移、导入、设置归入“维护工具”。移动批量条和菜单已在 390px/320px 截图中验证没有底栏遮挡或横向溢出。未改变业务逻辑、数据、文章属性、端点或设置语义。
+
+- `pnpm run check` 0 错误/0 警告；定向 UI 回归 67/67；`pnpm test` 1146/1146；`pnpm build`、`pnpm task:ledger --check`、`git diff --check` 通过。版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 package.zip。
+
+## 当前有效交接（2026-10-06 T-3260/D-0141）
+
+第十七轮继续收口新增能力的状态层级：移动批量操作条避开底部导航和安全区，按钮保持触控命中区并在窄屏换行；忙碌时有 `aria-busy` 与整体降噪。移动更多菜单的 Escape 会回到触发按钮，进入设置/弹窗/维护入口不抢回新窗口焦点。设置页提升数据与恢复、导入主动作，维护工具标题降权；阅读伴生栏补齐阅读时长胶囊、utility/enhanced 标题标记和 AI 卡片表面融合。未改变业务逻辑、数据、文章属性、端点或设置语义。
+
+- 预览截图：`output/playwright/round18-mobile-full.png`。真实思源宿主三画布、主题切换和移动设备仍待 B-0002。
+- `pnpm run check` 0 错误/0 警告；定向 UI 回归 74/74；`pnpm test` 1146/1146；`pnpm build`、`pnpm task:ledger --check`、`git diff --check` 通过。版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 package.zip。
+
+# 当前有效交接（2026-10-06 T-3260/D-0140）
+
+第十六轮继续按增量原型收口视觉层级：工作台列表/看板、保存视图、预览侧栏和批量 AI 降为紧凑次级层；阅读页将低频工具标为 utility，摘录/朗读/AI 归为 enhanced，正文完成动作保持主层级；移动更多菜单限制高度并滚动；设置页补齐工作区、数据与恢复、维护工具双语分组。未改变业务逻辑、数据、文章属性、端点或设置语义。
+
+- `pnpm run check` 0 错误/0 警告；定向 UI 回归 45/45；`pnpm test` 1146/1146；`pnpm build`、`pnpm task:ledger --check`、`git diff --check` 通过。版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 package.zip。
+- 预览截图：`output/playwright/round17-desktop.png`、`output/playwright/round17-mobile.png`；真实思源宿主三画布、主题切换和移动设备仍待 B-0002。
+
+# 当前有效交接（2026-10-06 T-3260/D-0139）
+
+已完成“代码新增功能是否超出原型”的对照与校准。新增 `design/prototype-v2-additions.html`，补画高级工作台批量任务、维护数据与恢复、阅读增强、统计次级回顾和平台入口归属。设置页将备份/恢复、闪卡恢复、外部导入从看板/危险区拆出；移动更多菜单把迁移/导入/设置归入维护组；批量 AI 使用次级色。主流程仍以继续阅读、候选确认、今日拾遗和最近收录为最高视觉层级。未改变业务逻辑、数据、属性、端点或 i18n。
+
+- `pnpm run check` 0 错误/0 警告；定向 UI 回归 45/45；`pnpm test` 1146/1146；`pnpm build`、`pnpm task:ledger --check`、`git diff --check` 通过。版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 package.zip。
+
+# 当前有效交接（2026-10-06 T-3260/D-0138）
+
+第十五轮视觉复核完成源码收口：筛选下拉、Action Popover、移动筛选抽屉统一 34px 控件密度、inset surface、焦点环、滚动槽和选中态，浮层在焦点移出时自动收起；统计完成列表、日报表和作者分布补齐长标题/长名称处理、日期与数字对齐、固定列宽和空态卡片。Dock、阅读、设置与今日拾遗的重试、保存、AI、导出、撤销和卡片动作补齐 `aria-busy`、等待光标和忙碌禁用反馈，视图/队列/排序补齐 `aria-pressed`，嵌入表单的动作按钮声明 `type=button`。功能逻辑、数据、文章属性、端点和 i18n 未变。
+
+- `pnpm run check` 0 错误/0 警告；定向回归 141/141；`pnpm test` 1146/1146；`pnpm build`、`pnpm task:ledger --check`、`git diff --check` 与桌面/移动/暗色截图复核通过。版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 package.zip。
+- 本轮截图：`actual-after-15-desktop.png`、`actual-after-15-mobile.png`、`actual-after-15-dark.png`（Codex 可视化目录）。真实思源三画布、移动设备、暗色主题仍待 B-0002。
+
+# 当前有效交接（2026-10-06 T-3260/D-0137）
+
+第十四轮视觉复核完成：Dock 刷新、阅读伴生栏上下文读取、设置页多类异步操作补齐忙碌/失败/重试反馈；按钮基线、焦点环、卡片描边和分组表面统一；移动端补齐 44px 横向命中区、safe-area、touch-action、滚动边界、无 hover 处理和暗色原生控件配色。功能逻辑、数据、文章属性、端点和 i18n 未变。
+
+- `pnpm run check` 0 错误/0 警告；定向回归 141/141；`pnpm test` 1146/1146；`pnpm build`、`pnpm task:ledger --check`、`git diff --check` 与桌面/移动/暗色截图复核通过。版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 package.zip。
+- 真实思源三画布、移动设备、暗色主题仍待 B-0002。
+
+# 当前有效交接（2026-10-06 T-3260/D-0136）
+
+第十三轮视觉复核完成源码收口：迁移/导入/备份/格式化/闪卡/首启弹窗补齐滚动边界、sticky 操作栏、窄屏安全区、标题描述语义、空态与忙碌反馈；Dock、重浮与高亮长文本增加提示；全局焦点、滚动条、错误色和动效时长继续按 b3/glean 令牌统一。功能逻辑、数据、文章属性、端点和 i18n 未变。
+
+- `pnpm run check` 0 错误/0 警告；定向回归 213/213；`pnpm test` 1146/1146；`pnpm build`、`pnpm task:ledger --check`、`git diff --check` 与桌面/移动/暗色截图复核通过。版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 package.zip。
+- 真实思源三画布、移动设备、暗色主题仍待 B-0002。
+
+# 当前有效交接（2026-10-06 T-3260/D-0135）
+
+第十二轮视觉复核完成：设置与统计长页补齐分组扫描、主题化开关、筛选周期、表头滚动和移动指标；移动顶栏更多菜单和收件箱补齐图标、长状态与展开语义；候选、首启、导入和批量 AI 面板补齐进度轨道、阶段状态、字段聚焦、重复行、忙碌与错误反馈。功能逻辑、数据、文章属性、端点和 i18n 未变。
+
+- `pnpm run check` 0 错误/0 警告；定向回归 147/147；`pnpm test` 1146/1146；`pnpm build`、`pnpm task:ledger --check`、`git diff --check` 通过。版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 package.zip。
+- 真实思源三画布、移动设备、暗色主题仍待 B-0002。
+
+# 当前有效交接（2026-10-06 T-3260/D-0134）
+
+第十一轮视觉复核完成：工作台看板、库列表、侧栏和预览面板补齐空列、拖拽、选中、长内容、滚动与窄屏层级；阅读页和伴读工具统一 AI 加载、来源、摘录、阅读位置与主动作反馈；备份、作者、格式化、闪卡、恢复和 Protyle 宿主补齐标题头、状态、错误/成功/忙碌和移动触控密度。功能逻辑、数据、文章属性、端点和 i18n 未变。
+
+- `pnpm run check` 0 错误/0 警告；`pnpm test` 1146/1146；`pnpm build`、`pnpm task:ledger --check`、`git diff --check` 和桌面/移动/暗色截图复核均通过。版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 package.zip。
+- 真实思源三画布、移动设备、暗色主题仍待 B-0002。
+
+# 当前有效交接（2026-10-06 T-3260/D-0133）
+
+第十轮视觉复核完成：设置/迁移/导入维护面板统一分组、焦点、按钮、日志空态、进度和移动命中区；统计页指标、字段、热力图、分布和完成列表补齐层级反馈；今日拾遗卡片与空态调整摘要和操作层级；移动顶栏、更多菜单、底部导航及收件箱补齐任务状态、选中、忙碌、失败和空态表达。功能逻辑、数据、文章属性、端点和 i18n 未变。
+
+- 本轮需收尾验证 `pnpm check`、统计/重浮/设置/迁移/移动定向回归、全量测试、构建、任务账本和最终截图；版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 package.zip。
+- 真实思源三画布、移动设备、暗色主题仍待 B-0002。
+
+# 当前有效交接（2026-10-06 T-3260/D-0132）
+
+第九轮视觉复核完成：摘录墙补齐标题与范围胶囊、筛选 surface、引用卡标签/序号/标签胶囊、footer 操作、状态 surface 和移动触控密度；候选预览将证据/缺失字段变为 signal/missing 胶囊；导入与 onboarding 统一表单、分页、空态和错误态并移除局部内联尺寸。功能逻辑、收录确认、导入迁移、文章属性、索引、端点和 i18n 未变。
+
+- 本轮需收尾验证 `pnpm check`、摘录/候选/导入/无障碍定向回归、全量测试、构建、任务账本和最终截图；版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 package.zip。
+- 真实思源三画布、移动设备、暗色主题仍待 B-0002。
+
+# 当前有效交接（2026-10-06 T-3260/D-0131）
+
+第八轮视觉复核完成：阅读页工具栏、快捷键、目录、摘录和 AI 结果统一表面层级，窄容器下正文与伴生栏纵向排列；工作台 rail 固定 216px，库列表、预览分隔、看板和浮层统一选中/悬浮/焦点状态；批量 AI 预览补齐滚动、错误和移动触控密度。功能逻辑、文章属性、索引、AI 请求、端点和 i18n 未变。
+
+- 本轮需收尾验证 `pnpm check`、阅读/工作台定向回归、全量测试、构建、任务账本和最终截图；版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 package.zip。
+- 真实阅读页签、三画布、移动设备、暗色思源主题仍待 B-0002。
+
+# 当前有效交接（2026-10-06 T-3260/D-0130）
+
+第七轮视觉复核完成：统计长页分成总览、活跃、分布和完成四个区块，热力图可横向滚动并适配移动网格；设置、迁移、导入弹窗统一标题头、进度卡、错误块和未保存状态；新增表面令牌让暗色主题下的骨架、选中态、指标和卡片阴影保持层级。统计口径、导出、设置保存、迁移写入及 i18n 未变。
+
+- 本轮需收尾验证 `pnpm check`、定向回归、全量测试、构建、任务账本和最终截图；版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 package.zip。
+- 真实移动设备、三画布和暗色主题仍待 B-0002。
+
+# 当前有效交接（2026-10-06 T-3260/D-0129）
+
+第六轮视觉复核完成：移动更多菜单具备外部点击、失焦和 Escape 收起；高亮加载有骨架卡和工具组语义；统计热力图、完成列表空态、无效日期和执行状态更易读；排序、清除、导入和设置提示统一 SVG 图标，统计主次指标层级更清晰。功能、数据、属性、端点和 i18n 保持不变。
+
+- 本轮需收尾验证 `pnpm check`、定向回归、全量测试、构建、任务账本和最终截图；版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 package.zip。
+- 真实移动设备、三画布和暗色主题仍待 B-0002。
+
+# 当前有效交接（2026-10-06 T-3260/D-0128）
+
+第五轮视觉复核完成：重浮内嵌视图去掉重复标题栏，移动副标题显示当前重浮数量；来源、搜索、关闭、编辑、制卡和迁移动作统一 SVG 图标；统计、候选、摘录空状态和选中工具条补齐轻层级；移动筛选、收件箱、治理操作统一 44px 命中区并明确禁用态。功能逻辑、数据聚合、文章属性、端点和 i18n 保持不变。
+
+- `pnpm check` 0 错误/0 警告；定向 UI/a11y/视觉/阅读/迁移回归 69/69；全量测试、构建、任务账本和截图复核需在本轮收尾继续完成。
+- 真实移动设备、三画布和暗色主题仍待 B-0002；版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 package.zip。
+
+# 当前有效交接（2026-10-06 T-3260/D-0127）
+
+第四轮视觉精修完成：队列激活态和候选卡更接近原型的轻层级表达，统计分布变为独立面板，完成列表日期对齐；摘录卡补充琥珀侧标、引用层级和选中反馈；迁移、来源、制卡动作统一为 SVG 图标。未改变功能、数据聚合、属性、端点或 i18n。
+
+- 定向 UI/a11y 与视觉契约 45/45、`pnpm check` 0 错误/0 警告、全量测试 1146/1146、构建和任务账本门禁均已通过。
+- 真实移动设备、三画布和暗色主题仍待 B-0002；版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 package.zip。
+
+# 当前有效交接（2026-10-06 T-3260/D-0126）
+
+第三轮视觉精修完成：移动首页的返回位置显示品牌麦穗锚点，子视图返回箭头和逻辑不变；候选卡编辑、本地收录、排除动作改用统一 SVG 图标。未改变功能、属性、端点或 i18n。
+
+- 定向 UI/a11y 40/40、`pnpm check` 0 错误/0 警告、全量测试 1146/1146、构建和任务账本门禁均已通过。
+- 真实移动设备、三画布和暗色主题仍待 B-0002；版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 package.zip。
+
+# 当前有效交接（2026-10-06 T-3260/D-0125）
+
+第二轮视觉复核已完成：降低卡片边框重量，补齐思源暗色根选择器和状态徽章对比度；桌面摘录控件恢复紧凑 32px，移动端维持 44px；Dock/收件箱/今日拾遗/阅读页的操作图标统一为 SVG symbol。所有交互、属性、端点和 i18n 保持不变。
+
+- `pnpm check`、`pnpm test` 1146/1146、`pnpm build`、定向 UI/a11y 40/40 均通过；第二轮 localhost 截图已完成，临时页面/浏览器目录已清理。
+- 真实思源暗色主题、三画布密度和移动触控仍需 B-0002；版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 package.zip。
+
+# 当前有效交接（2026-10-06 T-3260/D-0124）
+
+本轮完成 `design/prototype-v2.html` 对照下的 v2 视觉精修：新增共享 `glean-*` 间距/字号/圆角/描边令牌，统一 Dock/Tab/浮窗/移动视图的层级、卡片、统计指标、滚动条和交互反馈；摘录、统计、设置的局部样式已集中进 `src/index.scss`，功能逻辑、文章属性、端点和 i18n 未变。
+
+- 本地 localhost 预览已截取改前/改后对照；`pnpm check` 0 错误/0 警告、`pnpm test` **1146/1146**、`pnpm build` 通过。临时预览文件和浏览器临时目录已清理。
+- 浏览器预览只证明 CSS/组件结构可渲染；真实思源三画布、主题切换、移动触控和 3×8 状态截图仍待 B-0002。版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 package.zip。
+
+# 当前有效交接（2026-10-06 T-3292）
+
+本轮继续开发 T-3292：窄 Dock 搜索打开后自动聚焦；输入关键词时出现双语清空按钮，清空后焦点回到输入框，移动端命中区保持 44px。新增 `panel.searchClear` 双语键与无障碍静态回归。
+
+- 定向无障碍/i18n 测试 14/14、`pnpm check` 0 错误/0 警告通过；真实 Dock 宽度、键盘和移动触控仍待 B-0002。
+- 版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 package.zip。
+
+# 当前有效交接（2026-10-06 T-3293 脚本与文档收口）
+
+T-3293 的写型冒烟/E2E 安全加固已补齐运行约定与验收归属：真实隔离靶场全套实跑单列为 **B-0012**；B-0008 继续只表示小驴打卡双插件桥联调。`docs/SMOKE-E2E.md` 已明确辅助流程的临时库前缀注册、目录 spike 命令、同内核串行和结束 `lsNotebooks` 清扫证据要求；事务探针包含重启步骤，检测到附着参数会在写入前拒绝；`docs/DECISIONS.md` 记录 D-0123。
+
+- 作者执行 T-3293 时须使用独立 workspace、6807 起的回环端口、与主工作区不同的 token，并只安装本插件；先验证主工作区被 `lsNotebooks` 防呆拒绝，再在空靶场串行跑全套，最后复跑 `lsNotebooks` 确认无残留。
+- 本轮完成脚本参数语义收口与文档同步；全量 `pnpm test` 1146/1146、`pnpm check`、`pnpm build`、`pnpm check:release` 和任务账本门禁通过。未触碰作者主工作区、未打 tag、未创建 Release、未上传 package.zip。代码侧仍需作者按 B-0012 在隔离靶场实跑并核对最终 `lsNotebooks` 无残留。
+
+# 当前有效交接（2026-10-06 T-3274–T-3291）
+
+本轮完成综合状态评审和精品化下一阶段执行板，详见 `docs/STATUS-REVIEW-2026-10-06.md`。当前定位是“思源剪藏阅读库与每日拾遗”：核心收录、五态分拣、阅读、摘录、回顾、AI 和生态入口已有较完整代码及隔离证据，但不能把它们写成真实宿主/真机/模型已验收。
+
+- 新增 T-3274–T-3291：先复跑全量门禁，随后按 P0 关闭桌面主链、Android 主链、真实剪藏和数据主权，再做视觉、无障碍、交互、性能、AI、外部集成、品牌和发布闭环。
+- 本轮发现并修正导入进度测试的时间脆弱性：固定历史 `updatedAt` 早于运行时 `createdAt` 会被严格解析器正确判为 `invalid`；定向 `tests/import-service.test.mjs` 已 22/22 通过。文档更新后全量 `pnpm test` **1138/1138**、`pnpm check`、构建、发布门禁和任务账本检查均通过。
+- 当前版本保持 `1.1.0`。视觉矩阵 24 个真实宿主截图槽位、B-0001/B-0002/B-0004–B-0008 仍未关闭；不要用浏览器窄视口、服务 E2E 或隔离 spike 代替真机/真实服务证据。
+- 不打 tag、不创建 Release、不上传 `package.zip`、不提交集市，直到作者逐次授权；头像、README/GitHub 头图与五张真实截图依赖真实验收后的素材。
+
+# 当前有效交接（2026-10-05 T-3273/D-0122）
+
+本轮完成选区事件宿主快速门禁：ReaderTab 与 WorkbenchPreview 的全局 `selectionchange` 回调先调用 `selectionBelongsToHost` 检查非折叠选区的 anchor/focus 是否在当前正文宿主内，宿主外或缺失节点直接清空摘录；完整 `excerptFromSelection` 仍复核所有 Range 端点、文本和块 ID。
+
+- 该优化只减少无关编辑器选区触发的 DOM/range 工作，不改变跨块摘录、复制降级或引述插入语义；新增端点、折叠、异常/跨宿主回归和 UI 接入断言。
+- T-3273 全量 `pnpm test`、`pnpm check`、构建、性能基线和发布门禁已通过；`pnpm task:ledger --write && pnpm task:ledger --check` 已同步并保持 14 项当前任务。
+- 真实 Protyle 多窗口选区事件、移动端频率和布局仍待 B-0002；版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 package.zip。
+
+# 当前有效交接（2026-10-05 T-3272/D-0121）
+
+本轮完成真实阅读计时：新增独立 `custom-clip-read-minutes`，阅读页签仅在可见、获焦、阅读模式且正文宿主已渲染时累计；链接、缺失正文、隐藏、失焦、切文、销毁和宿主不可用均不计时。秒余数只存在当前页签会话，显式标记已读成功后才写回完整分钟。
+
+- `clip-store` 以原始阅读分钟属性、状态和文档位置为预期值，同文串行写入并写后读回；并发修改、移动、写入失败或读回不一致均拒绝覆盖，状态成功后计时写失败不会回滚状态，也不自动重试。
+- 预计分钟与实际分钟独立；备份/CSV 原样携带，桥接只读投影增加 `readMinutes`，索引不作为事实源。计时纯函数、服务并发/位置回归、CSV/桥接/i18n、全量 `pnpm test` **1137/1137**、`pnpm check` 0 错误/0 警告已通过。
+- 真实宿主前台焦点判定、切文、触控和窄屏布局仍待 B-0002；版本保持 `1.1.0`，不打 tag、不创建 Release、不上传 package.zip。
+
+# 当前有效交接（2026-10-05 T-3271）
+
+本轮完成会话内最近阅读历史：打开阅读文档时按确切 ID 去重并置顶，最多保留 8 条；阅读上下文成功读回后补充标题，伴生栏显示可点击列表，相关旧文切换也记录。历史只存在插件内存，未写文章属性、索引、设置或偏好，卸载/重启自然清空。
+
+- T-3271 纯函数、i18n、全量 `pnpm test` **1131/1131**、`pnpm check` 0 错误/0 警告和 `git diff --check` 已通过；真实阅读页签切文、触控和窄屏布局仍待 B-0002。
+- T-1801 候选分组暂缓：候选当前不能批量选择，完整分组确认还需逐条冲突/失败语义，不能只加 UI 分组。
+
+# 当前有效交接（2026-10-05 T-3270）
+
+本轮补充自定义 AI 通道明文 `http://` 地址提示：设置页显示双语 HTTPS 建议，不拦截保存、不改写地址、不触碰密钥或请求协议。真实 TLS、服务可达性和模型效果仍待 B-0004。
+
+- T-3270 定向 i18n/无障碍回归、全量 `pnpm test` **1129/1129**、`pnpm check` 0 错误/0 警告、生产构建、性能基线、发布门禁和任务账本均通过。
+
+# 当前有效交接（2026-10-05 T-3268/T-3269）
+
+本轮完成 T-3268 收录后自动快照与 T-3269 Dock 治理统计优化。自动快照由默认关闭的 `snapshotOnCapture` 控制，统一收录入口在属性/索引成功后生成 HTML 资产；失败保留收录并可手动重试，备份恢复强制关闭自动写。Dock 状态 rail、收件箱配额和超龄池共享一次索引遍历，筛选、排序和治理语义不变。
+
+- 自动快照服务回归、全量 `pnpm test` **1129/1129**、`pnpm check` 0 错误/0 警告、生产构建、性能基线、发布门禁和任务账本均通过；README、能力矩阵、PROGRESS、TODO 与 D-0117/D-0118 已同步。
+- 真实思源 assets、图片/链接保真、移动端、大文档和三画布性能仍待 B-0002/B-0006；本轮不触碰作者常驻实例，不打 tag、不创建 Release、不上传 package.zip。
+
+# 当前有效交接（2026-10-05 T-3220 隔离事务探针复跑）
+
+本轮继续推进 `T-3220`：`pnpm spike:transactions` 在独立临时工作区 `C:\Users\sunku\AppData\Local\Temp\siyuan-glean-t3220-1791149318797-404`、思源 `3.8.6` 和动态端口 `52987` 通过，15 项验收检查全部为真。证据覆盖复杂树/嵌套列表/标题事务、跨父级移动、双 API 客户端并发、真实 PNG 字节、块嵌入、失败事务、插入删除、响应丢失读回和重启后正文保持。
+
+- 结果已同步 `docs/PROGRESS.md`、`docs/FORMATTING-RESEARCH.md` 和 `TODO.md`；这次仍只证明隔离 API 服务边界，不替代真实编辑器。
+- 双 Protyle、用户中间编辑、真实网络故障、资源权限/删除、编辑器渲染和真实宿主撤销仍待 B-0002/B-0006/B-0008 等真实环境；继续禁止原文排版生产入口和插件专属撤销。
+- 本轮没有修改生产代码；版本保持 `1.1.0`，不合并主线、不打 tag、不发布。
+
+# 当前有效交接（2026-10-05 T-3267/D-0116）
+
+本轮完成 T-3267：制卡跨重载恢复。服务在插入前、插入后和 riff 登记后分别保存最小派生检查点；重载恢复按确切卡片块 ID 核验类型和宿主归属，设置页可打开宿主、重试登记或清理缺失记录。检查点不保存正文、引文、模型输出、文章属性或密钥；新制卡不会覆盖已有未完成恢复。
+
+- 定向恢复/服务回归通过；全量 `pnpm test` **1114/1114**，`pnpm check` 类型与 Svelte 均 0 错误/0 警告，生产构建成功，`git diff --check` 通过。
+- TODO 与 `docs/TASK-LEDGER.md` 已将 T-3267 标记为代码完成、隔离验证完成、真实验收待 B-0002/B-0006；真实 riff 牌组、宿主重载和删除/缺失确切卡片仍需作者操作。
+- 版本保持 `1.1.0`，阶段提交保留在 `codex/e2e-session-isolation-20261005`；不合并主线、不打 tag、不发布。
+
+# 当前有效交接（2026-10-05 T-3266/D-0115）
+
+本轮完成 T-3266：`launch-e2e` 与 `prepare-workspace` 支持 `--plugin-dir`/manifest 校验，从目标插件的 `plugin.json` 与 `dist` 派生插件名/版本/产物，manifest 保存身份；`manage-e2e` 与验收账本接受通用插件会话标识并兼容旧小驴 manifest。每个插件仍使用独立工作区、回环端口、标记、manifest、日志和 PID；不能把跨插件并行服务 E2E 当成真实桌面/设备验收，当前继续保持不触碰作者思源实例。
+
+上一轮待办审计完成 T-3263/T-3264/T-3265：s1-flow 与 launch-e2e 已支持独立工作区/端口；新增 manage-e2e 以 manifest、PID 和回环 API 安全停止。本轮两个 3.8.6 会话已并行启动并分别就绪后停止。新增 `scripts/e2e/acceptance-session.mjs`，把隔离内核、桌面宿主、Android/iOS 设备或模拟器、AI、外部文件和双插件联调分别记账；逐项结果要求证据 SHA-256，ready manifest 不能单独登记通过。M0/AV spike 已改为独立临时工作区、动态端口和独立结果文件；不能把浏览器窄视口、服务 E2E 或桌面截图当真机证据，当前继续保持不触碰作者思源实例。
+
+验收账本默认写入系统临时目录。示例：先运行 `pnpm e2e:acceptance create --kind isolated-kernel --name s1 --workspace <workspace>`，再用 `link --session <session> --manifest <e2e-manifest>` 关联后台 E2E；真实 Android/iOS 会话必须补 `--real-device-confirmed true` 和证据后才能 `close --status passed`。该工具只管理证据元数据，不启动作者设备、不操作作者实例。
+
+T-3262 的大库列表分批挂载代码与本地门禁已完成。筛选、排序、分面、结果数、批量选择和看板列计数仍使用完整索引；Dock 卡片、工作台行表和看板首批挂载 80 条，用户点击“加载更多”后继续挂载；工作台定位到窗口外文章会自动扩展到目标行。版本保持 `1.1.0`，不合并主线、不打 tag 或发布；阶段提交保留在 `codex/e2e-session-isolation-20261005`。
+
+- 定向账本回归 `2/2`，M0/AV 隔离 spike `9/9`、`6/6`；本轮全量测试 `1110/1110`、类型检查、生产构建、性能基线和发布门禁均已通过。本轮 spike 仍只证明隔离内核契约；真实宿主性能归 B-0002。
+- 窗口只影响 DOM 数量，不写 `custom-clip-*`、不改索引和选择语义；真实滚动/内存收益归 B-0002。
+- T-3265 已收口任务账本：`TODO.md` 当前执行板是唯一开发承诺源，7 项任务全部具备代码、隔离验证、真实验收和延后/阻塞原因四栏；`pnpm task:ledger --check` 通过，历史重复编号只保留来源，旧交接下一任务不再作为当前计划。
+- T-3266 已完成跨插件会话身份契约：目标插件由 `--plugin-dir` 指定，manifest 记录名称/版本/目录；新旧会话标识均可安全链接和停止，跨插件身份回归通过。
+
+# 当前有效交接（2026-10-05 T-3261/D-0108）
+
+T-3261 的今日拾遗置顶代码与隔离验证已完成。契约为独立 `custom-clip-pinned=YYYYMMDD`：用户明确钉住后当天优先，次日自然失效；今日拾遗、库卡片和工作台行表均可操作；不复用 priority，不改变状态、last-surfaced 或每日数量。版本保持 1.1.0，不提交、建分支、打 tag 或发布。
+
+- schema/索引/重浮算法、双语文案、服务回归、全量测试、生产构建和发布门禁均已通过。
+- 所有属性写入继续经 `src/services/clip-store.ts`；真实三画布观感归 B-0002。
+
+# 当前有效交接（2026-10-05 T-3260/D-0107）
+
+T-3260 的宽画布全视图审计和容器响应式统一已完成代码。统计页在宽工作台使用四列指标、双列分布；Dock、Tab、独立浮窗根面板共用 `glean-workbench` 容器名，库列表 600px 起按容器查询切换；设置、迁移和导入保持标准 560–760px 对话框与内部滚动。版本保持 1.1.0，不提交、建分支、打 tag 或发布。
+
+- 宽画布静态/类型定向回归、全量测试、生产构建和发布门禁均已通过。
+- 真实三画布密度、弹窗观感、触控与主题仍归 B-0002；下一步继续执行板中的未实现代码差额。
+
+# 当前有效交接（2026-10-04 T-3258/D-0105）
+
+T-3258 的治理提醒按日免打扰代码与静态回归已完成。配额、超龄和候选提醒分别可“今天不再显示”，日期写入 `ui-prefs.json`，次日自动恢复；保存失败恢复提示并反馈。版本保持 1.1.0，不提交、建分支、打 tag 或发布。
+
+- 静默只影响展示，不写 `custom-clip-*`、不改变候选/归档/查看动作，也不改派生索引。
+- 偏好/i18n/治理定向回归 24/24；真实三画布密度、触控和主题观感仍归 B-0002，继续处理当前任务板中的未实现代码差额。
+
+# 当前有效交接（2026-10-04 T-3259/D-0106）
+
+T-3259 的头部信息架构代码与静态回归已完成。桌面、工作台和独立浮窗副题显示当前视图与真实读库数量，图书馆筛选时追加筛选项数；移动端保留紧凑副题和同步状态。当前代码没有独立红色角标，候选数继续由治理提示表达。版本保持 1.1.0，不提交、建分支、打 tag 或发布。
+
+- 变更只改显示投影，不新增文章属性、插件设置或索引字段。
+- 真实宽窄画布观感、移动密度和触控仍归 B-0002；继续处理任务板中的未实现代码差额。
+
+# 当前有效交接（2026-10-04 T-3257/D-0104）
+
+T-3257 的治理横幅动作代码与静态回归已完成。候选检测提示增加“查看候选”，统一切到图书馆待分拣列表；宽工作台看板会自动切到列表。超龄提醒继续复用同一清单展开和显式归档流程。版本保持 1.1.0，不提交、建分支、打 tag 或发布。
+
+- 入口只改变当前视图和会话筛选，不写文章属性、插件设置或派生索引。
+- 真实三画布动作触控、焦点与观感仍归 B-0002；继续处理当前任务板中的未实现代码差额。
+
+# 当前有效交接（2026-10-04 T-3256/D-0103）
+
+T-3256 的首轮 icon-only 审计与代码已完成。宽工作台显示紧凑“更多操作”和排序方向的图标+文字；Dock 与移动端保持图标，所有入口继续提供完整 `title`/`aria-label`，状态主动作不重复加标签。版本保持 1.1.0，不提交、建分支、打 tag 或发布。
+
+- 变更只涉及显示层与静态规则，不改变按钮动作、文章属性、插件设置或索引。
+- 真实逐项桌面/移动可读性和触控观感仍归 B-0002；继续处理任务板中的未实现代码差额。
+
+# 当前有效交接（2026-10-04 T-3255/D-0102）
+
+T-3255 的摘录宽画布代码与静态回归已完成。工作台 Tab 与独立浮窗宽度达到 760px 时，摘录卡片区域使用 360px 最小宽度的自适应双栏/多栏，工具栏、预览和分页保持整行，空态居中；Dock 与移动端保持单列。版本保持 1.1.0，不提交、建分支、打 tag 或发布。
+
+- 仅新增卡片容器和容器查询，不改变摘录保存、导出、选择或数据契约。
+- 真实三画布密度、焦点、触控和主题观感仍归 B-0002；继续处理当前任务板中的未实现代码差额。
+
+# 当前有效交接（2026-10-04 T-3254/D-0101）
+
+T-3254 的宽画布代码与静态回归已完成。工作台 Tab 与独立浮窗宽度达到 760px 时，今日拾遗使用 310px 最小宽度的 2–3 列自适应卡片网格；动作可换行，Dock 与移动端保持单列。版本保持 1.1.0，不提交、建分支、打 tag 或发布。
+
+- 布局使用 `glean-workbench` 容器查询，不新增设置、文章属性或索引字段；数据、动作和来源规则不变。
+- 真实三画布的卡片密度、触控和主题观感仍归 B-0002；下一步继续处理当前任务板中的未实现代码差额。
+
+# 当前有效交接（2026-10-04 T-3253/D-0100）
+
+T-3253 的代码与静态回归已完成。多条配额、超龄候选和待确认候选提醒默认收纳为一条可展开摘要，单条提醒仍直接显示；展开后复用原有治理动作。版本保持1.1.0，不提交、建分支、打 tag 或发布。
+
+- 收纳状态是组件会话状态，不进入文章属性、插件设置或派生索引；提醒计数只按当前实际可见提醒计算。
+- 定向治理/i18n/a11y 回归 **16/16**，`pnpm check` 零错误/零警告；最终全量门禁将在本条之后重跑。
+- T-3252/T-3253 的真实宽窄画布、三画布密度和触控观感仍归 B-0002；继续选择当前任务板中尚未实现的代码差额。
+
+# 当前有效交接（2026-10-04 T-3252/D-0099）
+
+T-3252 的代码与静态回归已完成。Dock 维持图标入口；Tab 和独立浮窗在 760px 容器阈值上显示图标+短文字，较窄时收起文字。版本保持1.1.0，不提交、建分支、打 tag 或发布。
+
+- 三个头部动作使用既有双语完整名称作为 title/aria-label，显示短文案另有中英键；样式使用容器查询与 b3 变量，不增加偏好或属性。
+- `tests/header-actions.test.ts` 覆盖短标签/无障碍名称、760px 容器断点、主题变量和浮窗/Tab 共用容器；真实桌面宽窄布局目视验收仍待 B-0002。
+- 下一步继续从 TODO 的未承接代码差额中选最高优先级主任务；历史池已由 T-32xx 覆盖的功能按映射核对，避免重复实现。
+
+# 当前有效交接（2026-10-04 T-3250 质量审计）
+
+T-3250 的代码与隔离服务验收已完成；真实模型效果、真实 Protyle 选区和多端并发仍保留在 B-0002/B-0004。版本保持1.1.0，不提交、建分支、打 tag 或发布。
+
+- 本文问答服务在调用前核验选区正文包含关系、长度、块 ID 和 SQL `root_id`；调用后再次核验块归属与文章属性/位置，变化时丢弃答案，已发生的模型用量仍保留。
+- `tests/reader-ai.test.mjs` 与 `tests/article-question.test.ts` 定向回归 **52/52**；全量 `pnpm test` **1085/1085**、`pnpm check` 零错误/零警告、`pnpm build` 与 `pnpm check:release` 通过。T-3242–T-3250 的代码/隔离完成状态已同步到 `TODO.md`，剩余内容均为真实宿主、模型或跨客户端限制。
+- 下一步审计 S0–S6 与旧任务池，只把尚未实现且属于当前规划的开发项转成新的明确主任务；不以旧交接中的“待开发”描述覆盖当前状态。
+
+# 当前有效交接（2026-10-04 T-3251/D-0098 用户反馈修复）
+
+T-3251 本轮代码和本地门禁完成，真实宿主大库体验仍需在作者设备确认。版本保持1.1.0，不提交、建分支、打 tag 或发布。
+
+- 来源 URL：未知/缺失旧 `contentType` 下，只要 `custom-clip-url` 是有效 http(s) 就保留来源动作；`local` 不从正文偶然链接推断来源。中文路径和无效入口回退均有测试。
+- 周报：`weekly_digest` 使用可信期间回顾口径，文本列出完成文章标题，结构化结果包含确切文档 ID、标题、站点和完成时间；internal、候选与未知完成时间不混入。
+- 性能：DockPanel 先显示派生索引缓存，随后继续全量对账；同一插件并发对账合并，模板 Markdown 探测最多4路并发。三类扫描、完整性和失败保护未跳过。
+- 验证：定向回归69/69；`pnpm check` 0错误/0警告；`pnpm test` 1082/1082；`pnpm build`、`pnpm check:release`、`pnpm perf:check` 通过。合成 10k 索引重建约107ms；隔离思源3.8.6 E2E 56/56，证据工作区 `C:\Users\sunku\AppData\Local\Temp\siyuan-glean-s1-1791120731749-7888`。真实宿主大库体验仍需在作者设备测量。
+
+# 当前有效交接（2026-10-04 T-3239/T-3240/T-1815交付，继续备份恢复）
+
+本条优先于历史记录。版本1.1.0，累计未提交工作保留，不提交/建分支/tag/发布/集市。
+
+- T-3239/D-0085：author单行/控制字符/120码点校验，旧非法值只读不修写；作者含清空受手填保护。显式编辑读取原始值，同插件同文串行、写入点再次核对资格/值、写后读回；失败保留草稿并重读当前属性，不自动重发。列表/移动卡片Popover、工作台预览、阅读伴生栏共用AuthorEditor；切文/销毁丢弃旧结果。独立作者rail、移动筛选草稿、条件chip、保存视图、全五态作者时间线和完整属性CSV接线，不能以作者判候选资格。跨客户端无原子CAS限制保留。
+- T-3240/D-0086：可信期间完成作者分布、站点→作者/缺失二级计数，站点/作者/两类标签Top8+其他项/次数可展开；报告保持全量和作者列，公式/Markdown转义。修复显式internal且已有状态的文档混入回顾：索引投影既有标记，不抹除原状态。作者缺失不推断，标签次数之和不当去重文章数。
+- T-1815/D-0087：官方扩展1.15.15/00182d4b固定源码核查与真实模板函数探针通过。Readability可能有byline，但content消息/background模板未传署名，不支持DOM选择器。见CLIPPER-AUTHOR-RESEARCH与scripts/spike/clipper-author-probe.mjs；源码在临时目录glean-clipper-research-1791109884660，不改作者扩展、不发上游消息。
+- 门禁：pnpm test **698/698**、pnpm check **0错误/0警告**，构建/产物检查、合成性能、视觉登记通过（仍0/24宿主图）。最近一次代码构建zip280025B、mtime2026-10-04 18:37:25；之后README/交接同步，后续产物需再次构建。不把这些数字当宿主/模型验收。
+- 隔离3.8.6 E2E **29条**全通过：`C:\Users\sunku\AppData\Local\Temp\siyuan-glean-s1-1791110240454-29660`，author-evidence.json记录属性保护、重建/筛选/CSV、站点钻取、internal排除。只启动/关闭本任务内核，没有作者窗口操作。
+- 下一主任务：T-1780版本化备份/恢复（新号T-3241、D-0088尚未使用），先契约，属性包只读导出、恢复preview/diff/冲突/逐条读回，经clip-store写入，索引只能重建。后续T-1813默认关闭AI建议/逐条确认、制卡编辑预览、批量AI/长任务恢复、阅读位置/计时仍待开发。真实109篇回填未执行；B-0001/B-0002/B-0004–B-0010、T-1832、T-3220/3221继续保留。
+
+# 当前有效交接（2026-10-04 T-3236–T-3238交付，真实宿主待验收）
+
+本条优先于下方历史交接。版本保持1.1.0，累计未提交工作全部保留，未提交/建分支/tag/发布/集市提交。
+
+- T-3236/D-0082：工作台/浮窗列表就地原生Protyle preview，候选显示来源证据/缺失项，可确认、排除、转本地和补URL；已收录文章可分拣并继续本次可见列表。快速引述先复查文章和原块归属，无定位仅复制；旧目标操作完成不推进已切换的文章/筛选。拖条和原生range方向键/Home/End，比例扣除rail宽度；开关/比例仅写ui-prefs，移动全屏sheet、窄画布关闭入口均接线。
+- 共用ProtyleHost/libs/protyle-controller：同文模式切换不重建、每文独立子宿主、迟到ready清理旧实例、resize观察及销毁、加载失败重试/原文入口。ReaderTab保留上下文/大纲/专注/快捷键。首启确认通过窗口会话参数直达候选，默认保存视图不能覆盖明确定位。修复公共模态Esc抢先关闭外层浮窗：当前Popover/预览优先，注册销毁幂等，IME/重复/宿主外部弹窗不接管；有实际事件分发回归，真实DOM仍待B-0002。
+- T-3237/D-0083：桌面常用3项下拉/4项更多筛选，已应用条件chip可独立移除；移动保留草稿/应用sheet。行表常驻开始读/标记已读，低频动作和多选放原生顶层Popover，避免滚动容器裁切。AI与用户标签独立；看板收纳策略仍待实际评估。
+- T-3238/D-0084：[x]代码/隔离修复。E2E复现属性已经URL/status而SQL IAL仍旧，查重先用派生索引已知ID补读当前属性，再取全SQL，缓存字段不作判定；严格索引读取失败和属性请求失败拒绝无冲突，满页都在已知ID中仍读取后续页。所有生产查重调用传插件实例。外部未知文档和多客户端并发没有原子唯一保证，不增加固定等待掩盖问题。
+- 门禁：pnpm test **685/685**，pnpm check **0错误/0警告**，生产构建/产物检查、合成性能和视觉登记通过；视觉仍0/24真实宿主图。最新zip **275389B**，mtime **2026-10-04 17:59:48**，没有真实模型调用和作者实例操作。
+- 隔离3.8.6服务E2E **26条**全部通过：`C:\Users\sunku\AppData\Local\Temp\siyuan-glean-s1-1791107059434-33716`；`preview-lookup-evidence.json`记录sqlKnown=false/conflictFromKnownIds=true，含补来源/确认/完成/归档/排除/本地/查重与引述归属链。原文正文保留，显式引述除外。
+- 下一主任务：来源作者字段T-1811起（先契约和手填保护，旧T-1813“AI非手填”必须纠正，不能自动覆盖作者）、版本化只读备份与恢复preview/diff/冲突T-1780；后续AI制卡编辑预览、批量AI/长任务恢复和阅读位置/计时各自立主任务。仍有开发待办，不宣称全部清零。B-0002/B-0004–B-0010、T-1832真实Protyle性能、T-3220/3221研究继续保留；不开放原地排版或插件专属撤销。
+
+# 当前有效交接（2026-10-04 T-3233–T-3235 代码完成，T-3220 证据校正）
+
+本条是当前续跑入口；下方旧交接保留当时记录，以本条和执行板为准。
+
+- T-3233/D-0079：阅读页签 j/k/e/m/x/?、可见键盘帮助与焦点入口、伴生栏收起/恢复偏好已实现；不接管输入/编辑/IME/菜单/弹窗。修复上下文、状态/评分、快照、AI 结果和下一篇操作的跨文章竞态，旧操作只完成原目标，不能污染当前文章。大纲定位失败打开原块。
+- T-3234/D-0080：侧栏四组折叠记忆，站点/用户标签/AI 标签显示全部/Top8，当前项超出Top8或已消失仍可清除，超过15项可会话内过滤；按组增量串行保存，用户/AI 标签不混合。
+- T-3235/D-0081：发现并修复同 sort 标题按随机 ID 乱序。SQL 游标只取全，原生 getChildBlocks 顺序决定大纲，非标题容器遍历、源变化/缺项/循环/预算/切文失效均拒绝部分结果，失败可重试。只读 spike 及生产服务验证通过：3.8.6，`C:\Users\sunku\AppData\Local\Temp\siyuan-glean-outline-1791103982652-23200`。该只读 API 不解除原文事务限制。
+- T-3220 探针修复：删除虚构 SQL 邻接列，不再覆盖 SQL parent_id；原生 `.sy` 父级/邻接、SQL 章节父级与 API 列表投影分别记录，ID 集合比较与顺序分开。固定普通叶段落/标题样本，undo/redo 内层失败、同块恰好一个标记、HTTP 状态及代理清理均严格校验；真实PNG替代旧版伪图片字节。
+- 严格探针通过：3.8.6，`C:\Users\sunku\AppData\Local\Temp\siyuan-glean-t3220-1791103361350-5936`，结果在 `transaction-report.json`，尾日志在 `kernel-tail.log`。源列表保留其他项时，嵌套项跨父级移动/恢复保持原生树关系、ID/IAL/根属性；真实PNG写入/覆盖/恢复按字节读回，跨笔记本引用列出。同块冲突本次为B，但胜者不保证。更深子树、最后一项导致空列表删除、权限/删除、双编辑器和真实宿主撤销未验证。
+- 工程门禁：`pnpm test` **666/666**；`pnpm check` **0错误/0警告**；生产构建及产物门禁通过；合成性能和视觉登记通过，视觉仍 **0/24** 真宿主图。本地 `package.zip` **266970B**，构建时间 **2026-10-04 16:55:17**，版本保持1.1.0，未提交/发布。
+- 下一步仍有可开发主任务：工作台就地只读预览（T-1827–T-1832）、筛选操作密度（T-1807/T-1808）、来源作者手填保护（T-1811起，先契约）、只读备份与受冲突保护的恢复（T-1780）。真实宿主/模型/外部导入/双插件/发布仍回填 B-0002/B-0004–B-0010；不要把历史池或本轮代码状态当作全部验收完成。
+
+# 当前有效交接（2026-10-04 T-3220 并发、嵌套重排与资源写入样本完成）
+
+- `pnpm spike:transactions` 最新通过：隔离思源 `3.8.6`、独立工作区 `C:\Users\sunku\AppData\Local\Temp\siyuan-glean-t3220-1791075966705-12088`，未触碰作者实例；新增两个 API 客户端更新不同叶块并发，双方均可读回并完成 undo/redo，并验证 `/api/file/putFile` 资源字节读回及两个笔记本的引用列表。
+- 同块并发从同一旧 DOM 出发，最终只保留一个标记（本次为客户端 B），已记录为必须读回核对、禁止自动重发/覆盖的冲突边界。嵌套 `NodeList` 间单个列表项移动保持 ID、根属性和用户 IAL，直接 `moveBlock` 不进 undo。
+- 该样本不等价于双 Protyle 编辑器；恢复到原嵌套位置、更深子树重排、用户中间编辑、真实网络故障、资源权限/覆盖/删除和真实宿主撤销仍未证实。继续不新增生产原文事务 API、不开放原地排版和插件专属撤销。
+- 证据已同步 `D-0077`、`D-0078`、`DATA-CONTRACT §5.3`、`FORMATTING-RESEARCH §2.6`、`PROGRESS` 和 `TODO`；下一步优先处理剩余可独立验证的 T-3220 边界，真实宿主/模型/双插件验收继续归 B-0002/B-0004/B-0008。
+
+# 当前有效交接（2026-10-04 T-3221 图片隐私边界同步，T-3220 事务研究继续）
+
+- T-3221 代码侧边界已闭合：排版 AI prompt 对图片只发送 `[image]`，不发送 URL、alt、文件名、外链参数、图片字节或 base64；AI 计划不能直接提交图片清理，默认候选仍需用户手动选择并只作用于独立整理稿。
+- 已同步 D-0076、DATA-CONTRACT §3.4、TODO、PROGRESS；排版定向测试 **46/46**、全量 `pnpm test` **650/650**、`pnpm check` 0 错误/0 警告，未调用真实模型。
+- T-3221 仍待真实多模态通道、资源权限和模型效果验收；不能用文本模型、静态测试或图片文件名推断“无意义图片”。
+- T-3220 探针辅助函数现准确保留块端点返回的空 `rootID`；撤销调用仍明确使用文档根 ID。最新隔离样本确认同级 `moveBlock` 保留块 ID/根属性但不进 undo，本地 PNG、块引用和查询嵌入在叶块事务 undo/redo 后保持，响应丢失后读回确认服务端已写入且不自动重发，重启后正文/块 ID 保持而内存 undo/redo 清空；邻接经 `getBlockSiblingID` 读取，未再把 SQL 列名当作字段。双编辑器、并发、真实网络故障、复杂重排、资源写入和真实宿主撤销继续未验证，不新增生产原文事务 API。
+
+# 当前有效交接（2026-10-04 T-3220 事务 spike 扩展完成，生产原文应用仍禁止）
+
+- `scripts/spike/transaction-spike.mjs` 已扩展并通过 `pnpm spike:transactions`：隔离思源 `3.8.6`、独立临时工作区 `C:\Users\sunku\AppData\Local\Temp\siyuan-glean-t3220-1791069788060-17848`、回环端口，未触碰作者实例。
+- 新证据：`insertBlock`/`deleteBlock` 直接落盘但不改变文档 `undoState`；使用其返回的原生操作和显式逆操作包装成单个 `/api/transactions` 后，插入/删除可撤销/重做且既有块 ID 保持；已有标题 `h1→h3` 事务保留标题 ID/用户 IAL 并可撤销/重做；普通段落请求标题层级端点返回空事务。
+- 原有证据仍通过：叶块与嵌套列表容器更新、复杂结构身份/引用、同事务失败、请求级部分提交、跨 session 栈顶撤销。最新探针完整输出已同步 DATA-CONTRACT §5.3、D-0075、FORMATTING-RESEARCH §2.6、PROGRESS 和 TODO。
+- T-3220 仍进行中：容器重排、块嵌入/真实资源、双编辑器/并发、响应丢失、重启和真实宿主撤销待验证；不新增生产 API，不开放原地排版，不提供插件专属撤销按钮。
+
+# 当前有效交接（2026-10-04 T-3220 首轮事务 spike 完成，复杂样本待续）
+
+- 新增 `scripts/spike/transaction-spike.mjs` 与 `pnpm spike:transactions`；隔离内核 `3.8.6`、独立临时工作区、回环端口，未触碰作者实例。
+- 实证：`updateBlock` 保留普通叶块 ID/根属性但不进入撤销栈；在含嵌套列表、代码、公式、表格、图片引用、块引用和跨文档引用的复杂文档中，原生 `/api/transactions` 只更新一个叶块时保留复杂树 ID 集合、根属性、叶块用户 IAL 和引用，并可撤销/重做；嵌套列表容器单独更新时 11 个块的 ID、邻接和用户 IAL 也保持；同事务有效更新加不存在块的样本未留下首个更新，但同一请求的多个 Transaction 出现第一个有效更新已落盘、第二个非法更新未落盘；跨 session 仍按文档栈顶撤销。
+- 契约/决策/研究/任务/进度已同步：DATA-CONTRACT §5.3、D-0075、FORMATTING-RESEARCH §2.6、T-3220。没有新增生产 API 或原地排版入口。
+- T-3220 仍进行中：复杂容器、引用/资源、双编辑器、并发、响应丢失、重启和真实宿主撤销待验证；继续沿用 T-3219 独立整理稿，不提供插件专属撤销按钮。
+
+# 当前有效交接（2026-10-04 T-3229–T-3232 代码完成，真实宿主/文件验收待回填）
+
+- 阅读页签新增真实标题块大纲：`api/client.ts` 以 `sort,id` 游标读取 `h1`–`h6`，`services/outline-service.ts` 分页，`ReaderTab.svelte` 在真实 Protyle DOM 中定位，找不到节点时打开原文；旧文档/销毁结果会丢弃。
+- 阅读外观只作用于页签宿主，`ui-prefs.json` 记录字号、行距、栏宽、主题；保存视图记录最多 20 个白名单筛选和 list/kanban 布局，默认/删除/重载已接入，偏好保存按插件实例串行化。
+- 设置页新增完整对账 CSV 和匿名诊断下载。CSV 只包含有效非 internal 文章属性，标签分列、未知为空、公式防护；诊断没有标题、路径、ID、URL、标签内容、正文、密钥或模型地址。
+- 本轮本地回归为 `pnpm test` **649/649**、`pnpm check` 0 错误/0 警告；隔离内核 `s1-flow.mjs` **23 条主链通过**，包含 heading SQL、CSV 与匿名诊断；未提交、未打 tag、未发布、未提交集市。
+- 生产构建已通过，`package.zip` **262410B**，真实构建时间 **2026-10-04 06:16:18**；仅有既有 `inlineDynamicImports` 弃用提示。
+- 下一步：在隔离 3.8.6 内核确认 heading SQL 返回/游标和导出入口可用；作者真实验收大纲滚动、页签样式、保存视图重载、下载文件及移动/读屏仍归 B-0002/B-0005。
+
+# 当前有效交接（2026-10-04 T-3222–T-3228 代码与隔离验证完成，真实验收待回填）
+
+- 全库摘录、阅读回顾和对外桥接已实现：入口分别在 `HighlightView.svelte`、`StatsView.svelte`、`services/bridge.ts`；契约为 D-0064–D-0066，使用说明见 `docs/HIGHLIGHTS.md`、`docs/READING-REVIEW.md`、`docs/BRIDGE.md`。
+- 全库摘录只收已确认非 internal 文章，根 ID 分批 ≤200、块页 ≤500，导出前校验源块；回顾按可信完成时间提供周/月/年和逐日热力图；桥接读投影脱离引用，写入默认关闭。
+- AI 总结/翻译/富化/排版共享队列和额度，语义建议回读属性排除候选、普通笔记、internal；新用户查重、相关旧文、预置动作和排版均默认关闭，非法开关不放行。选区校验完整正文宿主边界，三画布配额/超龄/候选提示共用。
+- 隔离内核 `scripts/e2e/s1-flow.mjs` 通过 **21** 条主链，包含桥接真实读写/卸载、摘录源变更阻断、回顾报告、501 条摘录跨页；`pnpm test` **641/641**、`pnpm check` 0 错误/0 警告。
+- 仍未关闭：B-0002 真实宿主/移动 UI，B-0004 真实模型，B-0008 双插件联调；T-3220 原文事务/撤销和 T-3221 图片语义仅完成研究，不能伪标完成。未提交、未打 tag、未发布。
+
+# 当前有效交接（2026-10-04 T-3219 排版优化代码与隔离验证完成，真实宿主/模型待验收）
+
+- 新功能入口在原生阅读上下文与桌面阅读页签的“排版优化”。基础整理可直接使用；设置新增 `ai.formattingEnabled=false`，开启并保存后，弹窗可手动执行 AI 结构排版。契约见 DATA-CONTRACT §3.4、D-0063，完整使用/失败/验收边界见 `docs/FORMATTING.md`。
+- 域层 `formatting.ts` 保护复杂导出 Markdown，仅缩短链接显示/收束普通空行；推广/重复图片/无说明图片默认不选，乱码只提示。AI 严格校验标题/清理编号 JSON，不生成替换正文；使用已有通道、共享串行队列、额度和日志，全文超 24k 字符/400 段明确降级。
+- 服务层 `formatting-service.ts` 只在用户确认后保存独立普通整理稿，原文/属性不改；原文/元数据变更校验，建稿后保留 ID 重试标记/索引，创建结果未知不再建。预览/选择/恢复令牌仅存本次弹窗；关闭后应先检查原笔记本已有整理稿。
+- 真实内核曾暴露默认导出附带 YAML/标题和块链转换问题；已先验证再固定 `{yfm:false, addTitle:false, refMode:2}`，不改全局配置。新稿不复制原生块 ID/IAL，不宣称无损原生复制。根块标题读取的 SQL 别名错误也已修正。
+- 最终门禁：新增排版回归 **45/45**，全量 **500/500**、`pnpm check` 0 错误/0 警告、`pnpm build`、性能/视觉登记/产物门禁与 diff 检查通过；隔离内核 `3.8.6` 服务 E2E **17 条主链通过**。本地 `package.zip` **240343B**，构建时间 **2026-10-04 04:48:48**；版本保持 `1.1.0`。
+- T-3219 保持三态中的真实验收待办：B-0002 主机/移动端入口、对照、焦点、图片/稿件显示；B-0004 真实官方/自定义模型计划与降级。视觉矩阵 24 个宿主截图仍未采集。当前环境没有真实模型证据，不把单测或内核结果当作真实 AI 效果。
+- 下一步按执行板回填真实验收/修复实际反馈；T-3220 研究块级事务应用与撤销，T-3221 研究视觉模型图片语义清理，两者需各自契约/实证，不能用全文字符串替换或文件名猜测绕过。前轮未提交工作保留；本轮未提交、未打 tag、未发布、未提交集市。
+
+# 当前有效交接（2026-10-04 T-3216–T-3218 失败恢复修复完成，真实故障验收待回填）
+
+- 已完成三个主任务的代码与本地回归：六类恢复矩阵/导入失败项重试（T-3216）、宿主异步传输与外部响应校验（T-3217）、后台刷新和未成功选择保留（T-3218）。决策为 D-0060–D-0062。
+- 导入保留失败 URL 与已返回文档 ID，收录失败复用原文档，索引失败只修复缓存；笔记本加载可保留预览重试。失败记录只在当前弹窗内存中，关闭后应核对目标笔记本半成品。
+- 所有 JSON/multipart 请求统一经 SDK 异步 `fetchSyncPost` 与 `kernelPost` 校验；非零/异常响应正常拒绝，云列表内层错误不会伪装为空列表，云删除/资产失败不会显示成功。已核对思源 v3.8.6 源码，没有新增端点或文章/saveData 字段。
+- 已有索引时刷新保留列表/看板/收集箱 DOM；并发请求串行合并补跑；批量部分成功只移除成功选择且防重入。云端删除失败保留条目，并提供单独删除重试和本地文章入口。
+- 最终门禁：`pnpm test` **455/455**、`pnpm check` 0 错误/0 警告、`pnpm build`、`pnpm perf:check`、`pnpm visual:check`、`pnpm check:release` 与 `git diff --check` 通过；隔离内核 `3.8.6` 的 S1–S4 服务级 E2E **16 条主链全部通过**。当前 `package.zip` **231615B**，真实构建时间 `2026-10-04 04:01:27`（本地）。
+- 视觉登记仍为 **0 张已采集/24 张待真实宿主**；真实断网、权限、焦点/滚动、AI、外部文件、订阅、assets 和双插件结果继续回填 B-0001/B-0002/B-0004–B-0008。T-3194 代码修复已并入 T-3218，真实滚动/草稿结果未关闭。
+- 后续按当前执行板处理真实验收反馈和失败根因；历史需求池不是已交付功能。工作区包含前轮未提交修改，保留它们；本轮未提交、未打 tag、未发布、未提交集市。
+
+# 当前有效交接（2026-10-04 T-3214 摘录制卡闭环修复完成，真实闪卡复习待验收）
+
+- 根因已修复：`insertBlock` 不保证返回嵌套列表项 ID，旧实现依赖最终一致性 SQL 找回列表项，导致隔离尖刺出现 `8/9` 假失败。
+- 当前制卡为外层列表项预分配合法 `data-node-id`；API 层提取全部事务 ID，服务优先采用事务回传的目标 ID，否则使用已提交 DOM 的显式 ID，并保留 SQL 兼容回退。
+- 新增 `node scripts/spike/glean-spike.mjs --only=flashcard`；定向制卡 `1/1`，完整 `pnpm spike` 已恢复 `9/9`。决策记录为 D-0058，任务记录为 T-3214。
+- 本轮仍未提交、未打 tag、未发布、未提交集市；作者需在真实闪卡复习界面核对正背面、来源和重复制卡，归属 B-0002。
+- 文档同步前的最终门禁已通过；本次记录同步只更新验证数字，不改变代码。门禁结果为 `pnpm test` 425/425、`pnpm check` 0 错误/0 警告、`pnpm build`、`pnpm perf:check`、`pnpm visual:check`、`pnpm check:release` 和 `git diff --check` 全部通过。
+
+# 当前有效交接（2026-10-04 T-3215 状态表达与无障碍偏好完成，真实系统走查待验收）
+
+- 状态徽章现在同时表达颜色、图形和文字；面板/页签统一有键盘 `:focus-visible` 轮廓，并支持 `prefers-reduced-motion`、`prefers-contrast` 和 `forced-colors`。
+- 定向无障碍回归 25/25，全量 `pnpm test` 425/425，`pnpm check` 0 错误/0 警告，`pnpm build` 通过；未新增文章属性、saveData 字段、端点或 i18n 键。
+- 决策记录为 D-0059，旧待办 T-3191/T-3192 已并入 T-3215；真实系统主题、读屏和键盘-only 走查归 B-0002。
+
+# 当前有效交接（2026-10-04 T-3213 发布候选静态复核完成，等待真实验收与授权）
+
+- 本轮完成主任务 `T-3213` 的本地候选复核：新增 `docs/RELEASE-CANDIDATE.md` 与 `tests/release-candidate.test.ts`，核对版本 `1.1.0`、CHANGELOG、构建/发布门禁、媒体手册和能力矩阵口径。
+- `pnpm check:release` 通过，当前构建 `package.zip` 为 230507B，`dist` 资源、图标和预览尺寸均通过；修正媒体手册旧的 `v1.0.0` 版本命令。
+- 真实截图/GIF、隔离工作区覆盖安装/重启、卸载重装属性保留和 B-0001/B-0002/B-0004–B-0008 仍需作者操作；tag、GitHub Release、集市 PR 未执行，必须逐次授权。
+- 当前执行板无可独立完成的代码主任务；若继续自动推进，应先处理作者真实验收结果，或在新需求进入后建立下一主任务。不提交、不打 tag、不发布、不提交集市。
+
+# 当前有效交接（2026-10-04 T-3212 外部联调矩阵完成，真实环境待操作）
+
+- 本轮完成主任务 `T-3212` 的联调准备：新增 `docs/INTEGRATION-ACCEPTANCE.md`，固定 `INT-01`–`INT-04` 四条外部链路、`INT-F01`–`INT-F08` 失败样本、结果记录模板和数据主权边界。
+- 新增 `tests/integration-acceptance.test.ts` 并加入 `pnpm test`，锁定导入、收集箱、快照和打卡桥的实际服务/API/domain 入口与去重、失败、恢复语义。
+- 已同步 `docs/ACCEPTANCE.md`、`docs/BLOCKERS.md`、`docs/PROGRESS.md`、`docs/DECISIONS.md` 和 `TODO.md`；B-0005–B-0008 仍活跃，真实导出文件、订阅、assets 和双插件操作需作者回填。
+- 下一主任务为 `T-3213` 发布候选复核；不提交、不打 tag、不发布、不提交集市。
+
+# 当前有效交接（2026-10-04 T-3211 AI 验收矩阵与失败样本库完成，真实模型待验收）
+
+- 本轮完成主任务 `T-3211` 的代码侧验收准备：新增 `docs/AI-ACCEPTANCE.md`，固定 `AI-01`–`AI-09` 主流程、`AI-F01`–`AI-F09` 失败样本、结果模板、数据主权抽查和官方/自定义通道前置条件。
+- 新增 `tests/ai-acceptance.test.ts` 并加入 `pnpm test`，锁定文档与富化、伴读、自定义通道、预置动作、智能体工具和 AI 设置入口的对应关系；没有把隔离测试写成真实模型质量证据。
+- 已同步 `docs/ACCEPTANCE.md`、`docs/BLOCKERS.md`、`docs/PROGRESS.md`、`docs/DECISIONS.md` 和 `TODO.md`；B-0004 仍活跃，真实模型、嵌入、自定义通道和额度操作需作者按矩阵执行。
+- 下一主任务为 `T-3212` 导入/收集箱/快照/打卡桥真实联调准备；不提交、不打 tag、不发布、不提交集市。
+
+# 当前有效交接（2026-10-04 T-3210 阅读器与摘录线逐页验收完成）
+
+- 本轮完成主任务 `T-3210`：新增 `docs/READER-ACCEPTANCE.md` 与 `tests/reader-acceptance.test.ts`，覆盖正文缺失、原文降级、选区摘录、制卡、回跳、移动动作面和快照/状态边界。
+- 修复 `ReaderTab.svelte` 重复渲染“读完并下一篇”；快照图标补可访问名称；`ReadingContext` 移动动作条补 44px 命中区，核心动作仍默认可见。
+- 定向阅读器回归 9/9、`pnpm check` 0 错误/0 警告；真实 Protyle/riff/移动设备/assets 验收继续归 B-0002/B-0006。
+- 下一主任务为 `T-3211` AI 真实模型验收与失败样本库；不提交、不打 tag、不发布、不提交集市。
+
+# 当前有效交接（2026-10-04 T-3209 中英文文案与术语终审完成）
+
+- 本轮完成主任务 `T-3209`：新增 `docs/TERMINOLOGY.md` 与 `tests/terminology.test.ts`，锁定五态、候选/来源证据、移动端、撤销、失败、离线、重试和今日拾遗的双语语义。
+- 修正英文统计 `0k`、完成统计单位 `done`、过时 M3 能力提示、`Glean` 视图名和 `Dusting` 超龄文案；中英文 i18n 键集合仍一致。
+- 下一主线为 `T-3210` 阅读器与摘录真实/逐页验收；代码侧 T-3208/T-3209 已完成，真实桌面/移动文案走查继续归 B-0002。
+- 真实环境 blocker 仍未代替作者执行；不提交、不打 tag、不发布、不提交集市。
+
+# 当前有效交接（2026-10-04 T-3208 对外能力承诺审查完成）
+
+- 本轮完成主任务 `T-3208`：新增 `docs/CAPABILITY-MATRIX.md`，覆盖代码完成、隔离验证、真实状态、前置条件、失败降级和对外口径。
+- `README.md`、`README.en-US.md`、`plugin.json`、中英文设置/首启能力卡和 `docs/RELEASE-MEDIA.md` 已收紧；AI 明确为可选、默认手动、需配置模型，收集箱/导入/快照/打卡桥/移动端均保留真实验收边界。
+- 新增 `tests/capability-matrix.test.ts` 并纳入 `pnpm test`；下一步先跑完整门禁，再推进 `T-3209` 中英文术语终审。
+- 真实环境仍由 `B-0001/B-0002/B-0004–B-0008/B-0009/B-0010` 覆盖；不提交、不打 tag、不发布、不提交集市。
+
+## 当前有效交接（2026-10-04 T-3207 数据主权与错误路径审计完成，真实宿主复测待验收）
+
+- 本轮修复智能体超龄归档的真实成功数误报：现在返回 `attempted`、`archived`、`failed` 和 `succeeded`，失败项不会被报告为已归档。
+- 命令入口手动状态、手动收录、右键收录和设置重建索引增加异常反馈；新增静态门禁确认属性写端点不绕过 `clip-store`，新增清空派生索引后属性恢复回归。
+- 代码/静态测试通过后，仍需作者在真实宿主做卸载/重装、清空 saveData、内核断开和批量部分失败复测；下一主任务为 `T-3208` 对外能力承诺审查。
+
+## 当前有效交接（2026-10-04 T-3206 大库性能基线完成，真实宿主性能待验收）
+
+- 本轮完成主任务 `T-3206` 的代码和合成基线：`pnpm perf:baseline`/`pnpm perf:check` 覆盖 1k、5k、10k 文档的扫描、索引重建、筛选/分面、导入解析和今日拾遗。
+- 最近一次 `perf:check` 通过；10k 规模扫描约 32ms、重建约 365ms、筛选/分面约 24ms、导入解析约 569ms、重浮约 17ms。结果只作当前机器回归护栏，不承诺作者机器同样毫秒数。
+- 分页上界、200 条属性批量上界、结果完整性和中位耗时均有自动校验；真实思源 UI 渲染、长文切换和外部导出文件导入仍分别归 B-0002/B-0005。
+- 下一主任务为 `T-3207` 数据主权与错误路径审计；若作者先回传大库实测数据，先对照报告定位退化再调整阈值或实现。
+
+## 当前有效交接（2026-10-03 T-3205 视觉回归矩阵完成，真实宿主截图待验收）
+
+- 本轮完成主任务 `T-3205` 的代码与协议部分：固定 3 种视口 × 8 种状态的 24 个视觉案例，登记文件为 `docs/visual-regression/baseline.json`，校验器为 `pnpm visual:check`。
+- 普通检查允许案例保持 `pending-host`，严格检查 `pnpm visual:check -- --strict` 要求截图已由真实思源桌面宿主或作者真机采集，并验证 PNG 尺寸；设计原型不被当作实现截图。
+- 录屏只补充滑动、焦点、加载、失败和撤销等动态路径，临时文件放 `output/visual-regression/`；真实采集和视觉差异审阅仍归 B-0002，纯浏览器限制见 B-0009/B-0010。
+- 下一主任务为 `T-3206` 大库性能基线；若作者先回传视觉截图，则先回填 manifest、运行严格检查并记录差异。
+
+## 当前有效交接（2026-10-03 T-3183 触控目标完成，待真机验收）
+
+- 本轮完成主任务 `T-3183`：窄屏和移动弹窗的主要交互控件统一补齐 44×44px 命中区；设置开关保留 36×21px 视觉轨道，使用 44px 命中盒承载。
+- 变更集中在 `src/index.scss` 与 `tests/mobile-nav.test.ts`，不新增文章属性、saveData 字段、端点或 i18n；定向测试 18/18，`pnpm check` 0 错误、0 警告。
+- 真机仍需验证相邻控件误触、开关视觉密度、系统大字/显示缩放、320–420px 窄屏和弹窗内实际触控范围，继续并入 B-0002。
+- 随后已完成 `T-3202` 隔离内核 S1–S4 主链重跑；下一主任务为 `T-3185`，真实环境验收继续由 B-0001/B-0002/B-0004–B-0008 覆盖。
+
+## 当前有效交接（2026-10-03 T-3184 与 T-3202 完成，待真实环境验收）
+
+- 本轮补充移动端候选卡默认显示收录、补 URL、本地收录、排除和选择动作；选择框容器使用 44×44px 命中区，桌面端 hover 收束保持不变。决策见 `D-0046`。
+- 隔离内核 `3.8.6` 主链 E2E 已通过，覆盖候选、迁移、状态、导入、四载体、今日拾遗、筛选、索引重建和数据主权；当前完整测试 **382/382**，`pnpm check`、`pnpm build`、`git diff --check` 通过。
+- 下一主任务为 `T-3185`：补齐移动端网络/内核不可用时的提示、重试、缓存降级和不伪造成功路径。作者真机/真实服务验收仍由 B-0001/B-0002/B-0004–B-0008 覆盖。
+
+## 当前有效交接（2026-10-03 T-3185 移动端离线反馈完成，待真机验收）
+
+- 本轮补充移动端 `online`/`offline` 状态监听：离线时顶部显示离线，已有索引内容继续可查看，并提供重试入口；读库扫描失败保留旧索引。
+- 收录、状态、优先级和评分写入失败时，离线状态显示连接恢复后重试；不新增文章属性、saveData 字段或端点。决策见 `D-0047`。
+- 定向测试 24/24、i18n 回归、`pnpm check` 通过；完整测试/构建待最终门禁收尾。下一主任务为 `T-3186`，整理真机/真内核验收阻塞项。
+
+## 当前有效交接（2026-10-03 T-3186 验收分工完成，等待作者真实环境操作）
+
+- `docs/BLOCKERS.md` 已增加验收分工表：移动端、桌面主链、官方剪藏、真实 AI、外部导入、快照/收集箱/打卡桥分别列出“我已完成”和“作者仍需操作”。
+- 推荐的下一步已经全部落地：T-3183 触控区、T-3184 非 hover 动作、T-3185 离线反馈、T-3202 隔离主链、T-3186 验收分工均已完成代码/文档工作。
+- 最终门禁：`pnpm test` **384/384**、`pnpm check` 0 错误/0 警告、`pnpm build` 通过、`git diff --check` 通过；build 仅有既有 `inlineDynamicImports` 弃用提示。
+- 现在主要等待作者执行 B-0001、B-0002、B-0004–B-0008；未收到真实结果前不发布、不打 tag、不提交集市。收到反馈后按“根因→修复→回归→记录”继续推进。
+
+## 当前有效交接（2026-10-03 质量审查与待办重排完成）
+
+- 本轮完成主任务 `T-3203`：审查当前实现质量，确认 `pnpm test` **380/380**、`pnpm check`、`pnpm build`、`git diff --check` 通过；新增 `docs/QUALITY-AUDIT-2026-10-03.md`。
+- 当前实现的主要优点是数据主权、分层边界、候选/迁移/导入/AI 回归和移动端静态契约覆盖完整；主要缺口是作者真实环境三态验收、移动触控 44px、离线恢复、无障碍运行时、视觉回归和大库性能证据。
+- `TODO.md` 顶部新增当前执行板：先做 T-3183–T-3186，再做 T-3202–T-3209，最后才推进 T-3210–T-3213；旧 T-18xx–T-30xx 保留为需求池，不作为下一轮隐含承诺。
+- 决策记录为 `D-0044`：任务关闭必须分开记录代码、隔离验证、作者真实环境验收，不能用静态测试替代真机/真实内核/真实 AI。
+- 下一主任务：`T-3183` 验证所有触控目标不小于 44×44px；随后应完成 `T-3202` 隔离主链重跑。继续不提交、不打 tag、不发布、不提交集市。
+
+## 当前有效交接（2026-10-03 T-3182 移动端响应式布局完成，待真机验收）
+
+- 本轮完成主任务 `T-3182`：移动 Dock 集中定义 `env(safe-area-inset-*)` 安全区变量，顶部栏、底栏、内容滚动区、筛选抽屉和移动弹窗按边缘分别避让；底栏空间继续合并 D-0042 的键盘 inset。
+- 横屏且高度不超过 560px 时收紧顶部与筛选抽屉纵向占用，并限制更多菜单滚动高度；420px 窄屏时压缩间距、收窄任务状态和操作区，长标题/摘要/行标题/设置说明/筛选标签允许换行，不隐藏业务状态。
+- 本轮只改 `src/index.scss` 和 `tests/mobile-nav.test.ts`，不新增文章属性、saveData、端点或 i18n；决策见 `docs/DECISIONS.md` 的 D-0043。定向测试 12/12，完整 `pnpm test` 380/380，`pnpm check`、`pnpm build`、`git diff --check` 已通过；build 仅有既有 `inlineDynamicImports` 弃用提示。
+- 真机核对加入 B-0002/`docs/ACCEPTANCE.md` 2.25；下一主任务候选为 `T-3183`（验证所有触控目标不小于 44×44px）。不发布、不打 tag、不提交集市。
+
+## 当前有效交接（2026-10-03 T-3181 移动端键盘视口避让完成，待真机验收）
+
+- 本轮完成主任务 `T-3181`：新增纯视口计算和共享 `visualViewport` 适配器，键盘高度只作为临时 CSS 变量，不进入文章属性、saveData 或端点。
+- 移动 Dock 底栏随键盘上移；图书馆列表、统计、今日拾遗和工作台滚动区预留安全余量；筛选抽屉整体抬升并保留内部滚动。
+- `simpleDialog` 统一给设置、导入、迁移、首启和其他插件弹窗挂载视口监听；弹窗内容限制到可见视口高度，设置底部操作栏和各滚动容器增加键盘余量。无 `visualViewport` 时退回原有安全区与滚动行为。
+- 移动入口仍由 `getFrontend()` 判定，桌面端不启用；决策见 `docs/DECISIONS.md` 的 D-0042。完整 `pnpm test` **378/378**，`pnpm check` 0 错误/0 告警，`pnpm build`、`git diff --check` 通过；build 仅有既有 `inlineDynamicImports` 弃用提示。
+- 真机核对加入 B-0002/`docs/ACCEPTANCE.md` 2.24；下一主任务候选为 `T-3182`（安全区、横屏、窄屏和大字体布局）。不发布、不打 tag、不提交集市。
+
+## 当前有效交接（2026-10-03 T-3180 移动端卡片滑动与撤销完成，待真机验收）
+
+- 本轮完成主任务 `T-3180`：移动端今日拾遗卡增加可发现的横向手势，向右执行“改天”，向左执行“归档”；原有“标记已读 / 改天 / 归档”显式按钮保持不变，桌面端不启用手势。
+- 手势只在 `facade.isMobile` 分支生效，垂直位移更大或未达到阈值时交还滚动；卡片位移、方向标签、双语提示、撤销条和 44px 触控目标均使用现有 b3/`glean-*` 主题体系。
+- `actOnSurface` 现在通过 `readClip` 捕获动作前状态并返回前后令牌；`undoSurfaceAction` 回读当前文档，状态未被外部改变才恢复，否则静默保留新状态并显示不可撤销提示。所有属性写入仍经 `clip-store`，没有新增数据契约、saveData 或端点。
+- 静态回归加入 `tests/mobile-nav.test.ts`；完整 `pnpm test` **376/376**，`pnpm check` 0 错误/0 告警，`pnpm build`、`git diff --check` 通过；build 仅有既有 `inlineDynamicImports` 弃用提示。
+- 真机核对加入 B-0002/`docs/ACCEPTANCE.md` 2.23；下一主任务候选为 `T-3181`（键盘弹出时输入框、按钮和底部导航不遮挡）。不发布、不打 tag、不提交集市。
+
+## 当前有效交接（2026-10-03 T-3179 移动端筛选抽屉完成，待真机验收）
+
+- 本轮完成主任务 `T-3179`：移动端图书馆筛选改为底部抽屉，抽屉内编辑独立草稿，提供明确的应用、清空、关闭和遮罩退出路径，并显示当前已应用结果数。
+- 抽屉草稿复用既有站点、用户标签、AI 标签、入口来源、时间来源、内容类型、排序和方向；只有点击应用才写回现有筛选状态，清空只重置草稿，关闭/遮罩不会丢弃已应用条件。关键词搜索仍由顶部搜索框独立控制。
+- 结果计数始终来自当前 `rows`，不根据未应用草稿预演；筛选继续只改变内存视图，不写 `custom-clip-*`、saveData 或新端点，桌面即时筛选逻辑未复制或改写。决策见 `docs/DECISIONS.md` 的 D-0040。
+- 抽屉使用双语 i18n、原生控件、ARIA dialog/status、b3 主题变量、安全区内边距、内部滚动和 44px 触控目标；静态回归加入 `tests/mobile-nav.test.ts`。代码验证：完整 `pnpm test` **374/374**，`pnpm check` 0 错误/0 告警，`pnpm build`、`git diff --check` 通过；build 仅有既有 `inlineDynamicImports` 弃用提示。
+- 真机核对加入 B-0002/`docs/ACCEPTANCE.md` 2.22；下一主任务候选为 `T-3180`（卡片滑动操作的可发现性和撤销）。不发布、不打 tag、不提交集市。
+
+## 当前有效交接（2026-10-02 T-3178 移动端顶部操作完成，待真机验收）
+
+- 本轮完成主任务 `T-3178`：移动端 Dock 顶部显示当前视图标题、读库数量、返回入口、更多菜单和同步状态。
+- 返回只在已有子视图时回到 `resurface`，不接管思源系统历史；更多菜单只调用现有刷新、工作台、整理剪藏库、外部导入和设置 facade，不新增流程或存储。
+- 同步状态来自真实 `loading`/`loadError`/就绪分支，并保留原有缓存降级与重试横幅；没有新增文章属性、saveData 字段或端点。
+- 顶部操作使用双语 i18n、原生按钮、ARIA menu/status、b3 主题变量和 44px 触控目标；静态回归继续归入 `tests/mobile-nav.test.ts`。决策见 `docs/DECISIONS.md` 的 D-0039。
+- 代码验证：完整 `pnpm test` **372/372**，`pnpm check` 0 错误/0 告警，`pnpm build`、`git diff --check` 通过；build 仅有既有 `inlineDynamicImports` 弃用提示。真机核对加入 B-0002/`docs/ACCEPTANCE.md` 2.21；下一主任务候选为 `T-3179`。不发布、不打 tag、不提交集市。
+
+## 当前有效交接（2026-10-02 T-3177 移动端底部导航完成，待真机验收）
+
+- 本轮完成主任务 `T-3177`：移动端 Dock 显示首页、图书馆、摘录、设置四项底部导航；桌面端继续使用原有四视图分段控件。
+- 首页映射 `resurface`，图书馆映射 `library`，摘录映射 `highlights`；设置直接复用 `facade.openSettings()` 和既有 `SettingsView` 草稿弹窗，不复制状态、不写文章属性或新增插件存储。
+- 底栏按 `facade.isMobile` 渲染，移动判定仍来自 `getFrontend()`；原生按钮带 `aria-current`，最小触控高度 48px，预留底部安全区。决策见 `docs/DECISIONS.md` 的 D-0038。
+- 静态契约见 `tests/mobile-nav.test.ts`；验证：完整 `pnpm test` **370/370**，`pnpm check` 0 错误/0 告警，`pnpm build` 通过（仅有既有 `inlineDynamicImports` 弃用提示），`git diff --check` 通过。
+- 作者真机核对加入 B-0002/`docs/ACCEPTANCE.md` 2.20；本轮后续主任务为 `T-3179`（移动端筛选抽屉、应用、清空和结果计数）。不发布、不打 tag、不提交集市。
+
+## 当前有效交接（2026-10-02 T-3176 设置与首启可访问性/窄屏路径完成，待真机验收）
+
+- 本轮完成主任务 `T-3176`：设置页和首启向导补齐标题/分组语义、笔记本选中态、扫描失败/进行中/保存状态播报，以及根容器忙碌态。
+- 设置数值、文本和打卡选择控件补充 `aria-label`；分段控件标为命名 group；首启步骤进度通过双语隐藏 live region 播报。
+- 窄屏 CSS 让首启操作区和设置底部操作栏换行，宽输入框按容器收缩；移动端自动首启仍由 `getFrontend()` 守门，没有改变数据契约或存储。
+- 决策见 `docs/DECISIONS.md` 的 D-0037；静态门禁见 `tests/accessibility.test.ts`；真机键盘/读屏/触控检查加入 B-0002 与 `docs/ACCEPTANCE.md` 2.19。
+- 验证：完整 `pnpm test` **368/368**，`pnpm check` 0 错误/0 告警，`pnpm build` 通过（仅有既有 `inlineDynamicImports` 弃用提示），`git diff --check` 通过；不发布、不打 tag、不提交集市。
+- 下一主任务候选为 `T-3177`（移动端底部导航），但先保留 T-3176 真机验收项，不以静态门禁冒称平台验证。
+
+## 当前有效交接（2026-10-02 T-3175 首次使用后的引导收束完成，待真机验收）
+
+- 本轮完成主任务 `T-3175`：首启完成/跳过会自动隐藏设置页新手提示；尚未完成时可点击“隐藏提示”，状态增量写入 `ui-prefs.json`。
+- `onboardingHintDismissed` 由偏好规范化统一补齐；完成状态强制归一化为已隐藏，旧偏好不会因缺字段反复打扰；没有修改 `settings.json`、文章属性或扫描恢复语义。
+- 设置页异步读取偏好后再显示提示，隐藏操作有保存失败反馈；提示使用 b3 主题变量和 `glean-` 类名，双语键集合保持一致。
+- 决策见 `docs/DECISIONS.md` 的 D-0036；真机检查加入 B-0002/`docs/ACCEPTANCE.md`，下一主任务候选为 `T-3176`。
+- 验证：完整 `pnpm test` 364/364，`pnpm check` 0 错误/0 告警，`pnpm build` 通过（仅有既有 `inlineDynamicImports` 弃用提示），`git diff --check` 通过；不发布、不打 tag、不提交集市。
+
+## 当前有效交接（2026-10-02 T-3174 首启中断恢复、退出与重新扫描完成，待真机验收）
+
+- 本轮完成主任务 `T-3174`：首启进度只写 `ui-prefs.json` 的 `onboardingStep`/`onboardingInterrupted`，扫描预览不落盘。
+- 欢迎、选库、扫描预览和能力卡均可“稍后继续”；原生弹窗关闭也会由销毁钩子保存当前步骤。显式跳过/完成清除恢复标记。
+- 插件重载时若已有锚点但引导仍未完成，仍会自动恢复；能力卡恢复统一回到扫描步，按当前设置重新扫描，避免持久化过期预览。
+- “重新扫描”只读当前文档并重建派生索引，不写 `custom-clip-*`；未新增 `docs/DATA-CONTRACT.md` 字段。决策见 `docs/DECISIONS.md` 的 D-0035。
+- 验证：偏好/i18n 定向 8/8；完整 `pnpm test` 363/363；`pnpm check` 0 错误/0 告警；`pnpm build` 通过（仅有既有 `inlineDynamicImports` 弃用提示）。下一主任务候选为 `T-3175`，真机验收并入 B-0002。
+
+## 当前有效交接（2026-10-02 T-3173 首启笔记本选择、状态映射与导入确认完成，待真机验收）
+
+- 本轮完成主任务 `T-3173`：首启选择显示已选笔记本数量；不选笔记本仍可完成只读扫描，但外部导入必须指定当前有效目标笔记本。
+- 首启“导入”链接已改为 `facade.openImport()`，不再误开旧文迁移；导入器会校验首选笔记本是否仍存在，失效时回退到当前列表首项。
+- 导入预览新增去重后状态汇总：外部未读/未知、已读、归档分别映射为 `inbox`、`done`、`archived`；确认勾选前不会调用 `runImport`，切换目标笔记本会清掉确认。
+- 决策见 `docs/DECISIONS.md` 的 D-0034；没有新增存储字段，不需改 `docs/DATA-CONTRACT.md`。相关验收已加入 `docs/ACCEPTANCE.md` 2.12/2.16，作者真机项并入 B-0002/B-0005。
+- 本轮定向导入/i18n 回归 18/18；完整 `pnpm test` 359/359，`pnpm check` 0 错误/0 告警，`pnpm build` 通过（仅有既有 `inlineDynamicImports` 弃用提示）。下一主任务候选为 `T-3174`，不以代码门禁替代作者真机验收。
+
+## 当前有效交接（2026-10-02 T-3172 首启扫描四类预览完成，待真机验收）
+
+- 本轮完成主任务 `T-3172`：首启扫描把范围内文档按真实属性/来源证据分为已确认读库、待确认候选、候选缺来源和普通/不纳入候选，并展示有限示例。
+- 新增 `scanPreview` 服务只更新可重建的 `glean-index.json`；测试证明扫描不调用文章属性写入，候选仍须到工作台逐篇确认。决策见 `docs/DECISIONS.md` 的 D-0033。
+- 首启预览补充扫描总量、四类计数、示例卡片、候选 URL/缺来源提示和窄屏布局；双语 i18n 已同步。
+- 验证：首启扫描/i18n 定向回归 24/24；完整 `pnpm test` 358/358；`pnpm check` 0 错误/0 告警；`pnpm build` 通过；`git diff --check` 通过。真机 UI 仍待作者验收。
+- 作者验收新增 `docs/ACCEPTANCE.md` 2.12 的四类预览核对；下一主任务候选为首启笔记本选择与导入确认（`T-3173`），不以代码通过替代真机验收。
+
+## 当前有效交接（2026-10-02 T-3165 设置草稿闭环完成，待真机验收）
+
+- 本轮完成主任务 `T-3165`：设置页所有偏好先进入弹窗草稿，只有显式点击保存才写入 `settings.json`；取消或直接关闭不写入。
+- 恢复默认只重置草稿；测试自定义 AI、重建索引和挂载看板消费草稿，不隐式持久化设置。决策见 `docs/DECISIONS.md` 的 D-0032。
+- 新增 `cloneSettings` / `mergeSettingsDraft` / `settingsEqual`，覆盖嵌套对象隔离与并发保留；中英文文案、底部 sticky 操作栏和未保存状态反馈已接入。
+- 验证：设置/i18n 单测 13/13；完整 `pnpm test` 357/357；`pnpm check` 0 错误/0 告警；`pnpm build` 通过；`git diff --check` 通过。真机 UI 仍待作者验收。
+- 作者验收新增 `docs/ACCEPTANCE.md` B-0002 的 2.15；下一主任务候选为首启笔记本选择与导入确认（`T-3173`），不以本轮代码通过替代真机验收。
+
+## 当前有效交接（2026-10-02 T-1744 TTS 代码完成，等待桌面真机验收）
+
+- 作者明确说“开发吧”，本轮按推荐顺序启动 `T-1744`；未发布新版本、未打 tag、未提交集市。
+- 阅读页签已接入 Web Speech API：全文/选区朗读、暂停/继续、停止后从当前分段继续、语速 `0.75×–1.5×` 调节；移动端或无 `speechSynthesis` 时隐藏。
+- TTS 仅消费当前 Protyle 正文/选区，状态是页签内存；不新增 `custom-clip-*`、不写 `saveData`、不改变五态/完成时间/正文。决策见 `docs/DECISIONS.md` 的 D-0031。
+- 验证：阅读单测 6/6；完整 `pnpm test` 135/135；`pnpm check` 0 错误/39 条 Svelte 告警；`pnpm build` 通过；`git diff --check` 通过。
+- 待作者验收：`docs/ACCEPTANCE.md` B-0002 的 2.14——桌面系统 voice、中文/英文发音、长文连续朗读、暂停续读、切换文档清理、移动端隐藏。当前 `T-1744` 保持 ◐，不宣称平台验收完成。
 
 ## 当前有效交接（2026-09-30 **v1.1.0 已发布**——产品重整 S1–S4 与阅读体验全链）
 
@@ -395,13 +947,6 @@
 - **集市未提交**（需作者单独授权，流程见 RELEASE.md：fork bazaar → plugins.txt → PR）。
 - 发布后仍开放的事项：作者按 ACCEPTANCE.md 真机走查（发现问题走 v1.1.1+ 补丁）；T-1601 截图/GIF（集市材料，若要提交集市才需要）。
 - 注意：E2E 持久工作区 ~/SiYuan-Glean-E2E 有历史遗留空父文档「剪藏」（四篇演示文档的父），无害保留勿删。
-
-## 当前有效交接（2026-09-30 `siyuan-comment` 联动调研）
-
-- 已完成只读审计，调研文档为 [RESEARCH-siyuan-comment-integration-2026-09.md](RESEARCH-siyuan-comment-integration-2026-09.md)；未修改功能代码。
-- `siyuan-comment` v2.9.4 没有稳定跨插件公开 API。当前可用的研究结论是：未来只能通过内核只读查询读取 `custom-siyuan-comment`、`custom-comment-source`、来源块 `custom-comment-refs` 和批注块 Markdown；不能调用私有函数、私有 DOM/事件或写 `custom-comment-*`。
-- 批注可落在原文档、今日日记、指定文档和子文档，T-1917–T-1934 已登记版本/契约/spike、跨 root adapter、ReaderTab 路由、缺席降级、刷新、生命周期、性能、安全、上游 bridge 和现有宿主排除任务；本轮不启动开发。
-- 关键风险：`reading-context-controller.ts` 对 Protyle 事件广泛挂载，需优先验证外部批注弹层排除（T-1934）；内嵌 ReaderTab 是否能被外部插件识别必须真机 spike，失败回退原生页签。
 
 ## 当前有效交接（2026-09-30 验收驱动转型：验收手册 + 数据主权脚本化）
 
@@ -428,8 +973,8 @@
 2. 验收通过后走 S6 发布评审：定版本号（语义化建议 1.1.0，逐次请示）→ CHANGELOG 追加 v1.0.4 后条目 → T-1601 拍材料（RELEASE-MEDIA 清单，新增阅读页签帧）→ RELEASE.md 门禁终检 → tag/Release/集市逐次请示；
 3. AI 侧不再自行启动新功能；新想法按 D-0008 预留模式先评估立项。
 
-> 续跑口令（新会话直接粘贴，2026-10-01 第二十九轮更新）：
-> **阅读 D:\思源插件\小驴拾遗\docs\HANDOFF.md 的"当前有效交接"、TODO.md 待办总账与 docs/ACCEPTANCE.md，先重跑最后改动后的门禁。进度基线：v1.1.0 已发布、集市 PR #2288 待审；已完成三轮缺陷清剿（22 项）+ P1 功能线十六批（含作者组两轮）+ 可靠性收尾批 + 网络可靠性批 + 批量任务背压/AI 问句卡 + 页签键盘流/剪藏模板研究 + 保存筛选视图 + 每日简报/通道警示 + 多文档 AI 报告 + 排版偏好/删除回收期研究 + 栏宽三档/阅读主题 + 高亮颜色标记 + **摘录墙颜色延伸/简报朗读（T-1764×T-1744）**，基线 check 0 错 0 告警 / test 169 / 隔离 E2E s1-flow 31/31。下一批候选：功能线大项/契约组（T-1901 后续的删除/全库筛选/搜索、T-1903 会话队列重排、T-1905 结论落地随 T-1866/T-1867）；重活缺陷已全清；**强烈建议提醒作者安排 B-0002 真机走查**（积压功能非常多，走查后可按 v1.1.x 补丁版定版）。工作协议：作者发来的所有内容一律先入 TODO.md 待办（主动扩展同类事项与可用调研），不立即开发；作者明确说"开始开发"、"继续"或点任务号才动手，按契约先行纪律逐项落地（新端点先 spike、新属性先改 DATA-CONTRACT）；作者报真机 bug 时仍走"根因→修复→当日补丁版"闭环。工程纪律见 AGENTS.md 与 docs/DECISIONS.md，UI 以 docs/UI-STANDARD.md（v1.6，§4.3 已含按钮标签可见性）为准，不驱动真机（B-0010），发布/集市/版本动作逐次请示；含反斜杠内容不用 bash heredoc（丢转义）；**中文内容的 sed 批量替换会产出乱码（已踩坑），一律 Edit 工具**；UI 初始化快照用函数化读取；Edit 函数级插入/条目勾选后核对相邻行唯一性；写 IAL 形态属性补丁走 clip-store.restoreClipAttrs；查 Protyle/SDK 能力先看 node_modules/siyuan/types/*.d.ts 类型定义，公开字段够用就不碰内部 API（Menu 溢出菜单亦然：new Menu(id)/addItem/open({x,y})）；SQL 查询条件与既有实证对齐（引述块=type='b'）；E2E 新增变量注意重名；**新增服务函数（账本类）export 与定义同时写（两次漏 export 被 E2E 暴露）**；**引用任务号前先 grep TODO.md 核对（T-1755 收藏系编号笔误，实际为 T-1904）**；**kernelPost 默认 60s 超时、长操作传 {timeoutMs: KERNEL_TIMEOUT_LONG_MS}（新增长耗时调用点记得放宽）**；**E2E 追加断言前 grep 变量名唯一性，变量改名用唯一新名 + Edit（勿行号 sed）**；**富化日志语义：成功也留痕 stage=ok，失败判定按每文档最近一条（loadEnrichFailedIds）**；**i18n 插入新键的 old_string 要含锚点行并保留（曾丢键被键集合测试暴露）；Svelte 5 嵌套块 null 收窄用 {@const} 局部变量**；**阅读断点 reading-pos 不进派生索引（单文档阅读状态，契约 §3.1a）；Svelte effect 内变量勿与外层重名**；**阅读计时 read-minutes 增量累加不足 1 分钟不写（settleReadingMinutes）；mount effect cleanup 闭包捕获旧依赖值在切文场景正是所需语义（svelte-ignore 抑制告警）**；**LibraryFacet 字段名是 value 不是 name（作者分面单测曾写错）**；**新增纯函数先确认落点域文件再 import；同轮多次编辑同文件前 grep 函数名唯一性（重复定义与放错域文件均已踩坑）**；**编辑函数体后立即 pnpm check 验证闭合结构（showHotkeyHelp 曾丢闭合括号）**；**新类型需显式 import；与字面量联合类型无重叠的比较直接删除（QueueKey 不含 all）**；**Edit 写入后 grep 复查实际落盘内容（曾报成功实未写入/写入损坏，均靠复查发现）**；**接口加字段时同步检查模块内所有字面量构造点（DEFAULTS 曾漏新增字段被 TS 暴露）**；**引述块颜色走块级 IAL custom-clip-hl-color（HL_COLORS 枚举），SQL ial 列不含自定义键——读取必须走 getBlockAttrs 属性端点**。**
+> 续跑口令（新会话直接粘贴）：
+> **阅读 D:\思源插件\小驴拾遗\docs\HANDOFF.md 的"当前有效交接"、TODO.md 精品化路线图（T-1740–T-1803）与 docs/ACCEPTANCE.md，先重跑最后改动后的门禁。工作协议：作者发来的所有内容一律先入 TODO.md 待办（主动扩展同类事项与可用调研），不立即开发；作者明确说"开始开发"或点任务号才动手，按契约先行纪律逐项落地；作者报真机 bug 时仍走"根因→修复→当日补丁版"闭环（bug 修复不属新功能开发）；工程纪律见 AGENTS.md 与 docs/DECISIONS.md，UI 以 docs/UI-STANDARD.md（v1.6）为准，不驱动真机（B-0010）。**
 
 ## 历史交接存档
 
@@ -601,3 +1146,24 @@ D-0016 S0–S4 主线代码全部关闭，作者 v1.0.4 反馈由 S1–S4 覆盖
 # 历史速记索引
 
 - 第八轮 导入器 / 第九轮 快照 / 第十轮 制卡 / 第十一轮 收集箱 / 第十二轮 打卡桥（各轮速记见 git 历史）。
+
+## 当前有效交接（2026-10-03 T-3204 无障碍运行时质量完成，待真实环境验收）
+
+- 本轮完成主任务 `T-3204`：公共 `simpleDialog` 复用思源真实 `.b3-dialog__container`，新增 `src/libs/modal-focus.ts` 统一处理首次入焦、Tab 循环、Esc、嵌套弹层和关闭后回焦点；移动筛选抽屉也复用该管理器。
+- Dock、今日拾遗、迁移器、候选卡、阅读上下文的图标动作补齐 `aria-label`；导入/迁移标题、控件名称、忙碌态和进度播报补齐；标题样式已保持原有视觉密度。
+- 新增无障碍与移动焦点静态契约，当前完整 `pnpm test` **388/388**、`pnpm check` 0 错误/0 告警、`pnpm build` 通过、`git diff --check` 通过；build 仅有既有 `inlineDynamicImports` 弃用提示。
+- 重要边界：思源宿主已自带 Dialog 焦点规则，本轮没有另造外层 dialog；宿主/移动端/读屏真实操作仍待 `B-0002`。不提交、不打 tag、不发布、不提交集市。
+- 下一主任务按执行板推进 `T-3205` UI 状态截图/视觉回归；随后是 `T-3206` 大库性能基线、`T-3207` 数据主权与错误路径审计、`T-3208` 对外能力承诺审查、`T-3209` 中英文术语终审。
+
+## 当前有效交接（2026-10-05 T-3220 边界补测与报告结构化）
+
+- 本轮继续推进主任务 `T-3220`，未修改生产代码、未接入原文排版入口、未触碰作者真实工作区；事务探针仍使用独立临时工作区、动态回环端口和真实思源 `3.8.6` 内核。
+- `scripts/spike/transaction-spike.mjs` 新增深层嵌套子树跨父级移动/恢复和唯一列表项移入目标列表样本。实测深层子树 5 个块保持内部原生父级/邻接并恢复；唯一源列表项移动后源空列表从索引消失，旧列表 `getBlockDOM` 为 `code=0` 空内容，脚本已按内容分类而非只看 code。
+- 块删除后读回现在明确记录 `readable/empty/rejected/transport-error`；当前插入块删除后为 `code=-1 block not found`。资源删除/权限没有经实证的端点形状，仍记录为未测试，不臆造接口。
+- `transaction-report.json` 升为 `reportVersion: 2`，包含 `kernelVersion`、`pluginVersion`、回环 `host/port`、逐项布尔 `results`、完整 `probes` 和 `limitations`，可导入 `e2e:acceptance report`。本轮隔离探针通过，报告路径为 `C:\Users\sunku\AppData\Local\Temp\siyuan-glean-t3220-1791143874720-21700\transaction-report.json`。
+- 报告已导入独立验收账本并以 `passed` 关闭，共 15 项隔离证据；本地 `pnpm test` 为 1107/1107，`pnpm check`、`pnpm build`、`pnpm perf:check` 和 `pnpm check:release` 均通过。本轮已提交当前 `codex/` 分支 `bd3df9a`，未合并主线。仍未关闭：双 Protyle、用户中间编辑、真实网络故障、资源权限/删除、编辑器渲染和真实宿主撤销；跨 session undo 无插件归属隔离，因此不提供插件专属撤销。
+## 当前有效交接（2026-10-08：同步分支合入准备完成）
+
+本机 `dev/thispc-1002` 正在合并远端 `origin/codex/main-sync-20261008`。同步内容已按当前契约接入：生命周期归档/恢复、摘录墙与颜色投影、CSV/会话排序/朗读与阅读计时、收藏字段、索引损坏保护和内核请求超时。阅读断点保持 `custom-clip-reading-position` JSON 为唯一新写入事实源，历史 `custom-clip-reading-pos` 不再新写。
+
+当前合并现场尚未提交或推送；已通过 `pnpm check`，新增定向测试已通过，正在继续跑完整测试、构建、发布门禁和 `git diff --check`。不得触碰 `main`、升版本、打 tag、创建 Release 或上传集市。

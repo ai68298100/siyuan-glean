@@ -17,6 +17,13 @@ test("全文和仅链接且为有效 http(s) 时提供来源次级动作", () =>
     assert.equal(openTargetForCarrier("fulltext", "https://example.com/a"), "document");
 });
 
+test("旧文档缺少 contentType 时仍识别有效中文来源 URL", () => {
+    const url = "https://blog.effie.co/渐进式写作/";
+    assert.equal(sourceUrlForCarrier(undefined, url), url);
+    assert.equal(hasSourceAction(undefined, url), true);
+    assert.equal(openTargetForCarrier(undefined, url), "document");
+});
+
 test("本地文档和无效来源始终打开思源文档", () => {
     assert.equal(hasSourceAction("local", "https://example.com/a"), false);
     assert.equal(hasSourceAction("link", "javascript:alert(1)"), false);

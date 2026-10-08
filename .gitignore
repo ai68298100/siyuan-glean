@@ -8,3 +8,9 @@ Thumbs.db
 scripts/e2e/shots/
 scripts/spike/*-results.json
 scripts/spike/*.log
+output/visual-regression/
+output/performance/
+output/visual-regression/
+.mimosa/
+output/
+.codex-*.log

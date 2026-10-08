@@ -5,7 +5,7 @@
  * “开始阅读”只进入 reading；读完必须由用户明确执行“标记已读”。
  */
 import type { Plugin } from "siyuan";
-import { parseClipAttrs } from "../domain/schema";
+import { parseClipAttrs, type ClipStatus } from "../domain/schema";
 import {
     pickDaily,
     recentlySurfaced,
@@ -18,7 +18,7 @@ import {
     type SurfaceReason,
 } from "../domain/resurface";
 import { loadIndex, type GleanIndex } from "./index-store";
-import { writeClip } from "./clip-store";
+import { readClip, writeClip } from "./clip-store";
 import type { GleanSettings } from "./settings";
 
 function indexToSurfaceItems(index: GleanIndex): SurfaceItem[] {
@@ -30,8 +30,8 @@ function indexToSurfaceItems(index: GleanIndex): SurfaceItem[] {
         time: clip.time,
         aiTags: clip.aiTags,
         lastSurfaced: clip.surfaced,
+        pinned: clip.pinned ?? "",
         summary: clip.summary,
-        pinned: clip.pinned,
         contentType: clip.contentType,
         url: clip.url,
         site: clip.site,
@@ -65,20 +65,53 @@ export async function computeDaily(plugin: Plugin, settings: GleanSettings): Pro
     return computeDailyFromIndex(await loadIndex(plugin), settings);
 }
 
-export type SurfaceAction = "read" | "later" | "archive" | "pin";
+export type SurfaceAction = "read" | "later" | "archive";
 
-/** 重浮卡行动：落状态 + 写 last-surfaced（当天幂等），返回下一位（由视图重算）。
- * "pin"（T-1797）：写 pinned=今日（YYYYMMDD），当日重浮置顶；隔日自然回池，无需取消。 */
-export async function actOnSurface(plugin: Plugin, docId: string, action: SurfaceAction): Promise<void> {
-    const patch =
-        action === "read"
-            ? { status: "reading" as const, lastSurfaced: todayStamp() }
-            : action === "archive"
-              ? { status: "archived" as const, lastSurfaced: todayStamp() }
-              : action === "pin"
-                ? { pinned: todayStamp().slice(0, 8) }
-                : { lastSurfaced: todayStamp() };
+export interface SurfaceStateSnapshot {
+    status: ClipStatus;
+    lastSurfaced: string;
+}
+
+export interface SurfaceUndoToken {
+    before: SurfaceStateSnapshot;
+    after: SurfaceStateSnapshot;
+}
+
+export async function actOnSurface(plugin: Plugin, docId: string, action: SurfaceAction): Promise<SurfaceUndoToken> {
+    const current = await readClip(docId);
+    if (!current.status) throw new Error("文章状态缺失，无法执行重浮动作");
+    const before: SurfaceStateSnapshot = {
+        status: current.status,
+        lastSurfaced: current.lastSurfaced ?? "",
+    };
+    const after: SurfaceStateSnapshot = {
+        status: action === "read" ? "reading" : action === "archive" ? "archived" : before.status,
+        lastSurfaced: todayStamp(),
+    };
+    const patch = { status: after.status, lastSurfaced: after.lastSurfaced };
     await writeClip(plugin, docId, patch, { force: true });
+    return { before, after };
+}
+
+export async function setSurfacePinned(plugin: Plugin, docId: string, pinned: boolean): Promise<string> {
+    const current = await readClip(docId);
+    if (!current.status) throw new Error("文章状态缺失，无法修改今日置顶");
+    const next = pinned ? todayStamp() : "";
+    await writeClip(plugin, docId, { pinned: next || null }, { force: true });
+    return next;
+}
+
+export async function undoSurfaceAction(plugin: Plugin, docId: string, token: SurfaceUndoToken): Promise<void> {
+    const current = await readClip(docId);
+    if (current.status !== token.after.status || (current.lastSurfaced ?? "") !== token.after.lastSurfaced) {
+        throw new Error("文章状态已变化，无法撤销");
+    }
+    await writeClip(
+        plugin,
+        docId,
+        { status: token.before.status, lastSurfaced: token.before.lastSurfaced },
+        { force: true },
+    );
 }
 
 /** 超龄归档候选（T-1401/T-1710）：在对账后的索引上列清单，归档前供用户勾选。 */
@@ -88,16 +121,14 @@ export function staleCandidatesFromIndex(index: GleanIndex, settings: GleanSetti
 
 /**
  * 按用户勾选的显式清单批量归档（T-1710）。逐篇写并统计真实成功数；
- * 不再"先扫后全归"，清单之外的篇目不受影响。T-1842：支持取消（部分结算保留）。
+ * 不再"先扫后全归"，清单之外的篇目不受影响。
  */
 export async function archiveStaleCandidates(
     plugin: Plugin,
-    docIds: string[],
-    options: { signal?: { aborted: boolean } } = {}
+    docIds: string[]
 ): Promise<{ ok: number; succeeded: string[] }> {
     const succeeded: string[] = [];
     for (const docId of docIds) {
-        if (options.signal?.aborted) break;
         try {
             await writeClip(plugin, docId, { status: "archived" }, { force: true });
             succeeded.push(docId);
@@ -136,6 +167,7 @@ export function surfaceItemsFromAttrs(pairs: Array<{ id: string; attrs: Record<s
             time: attrs.time ?? "",
             aiTags: attrs.aiTags,
             lastSurfaced: attrs.lastSurfaced ?? "",
+            pinned: attrs.pinned ?? "",
             summary: attrs.summary ?? "",
             contentType: attrs.contentType,
             url: attrs.url,

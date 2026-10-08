@@ -1,56 +1,49 @@
 <script lang="ts">
+    import AuthorEditor from "./AuthorEditor.svelte";
     /**
      * 内嵌阅读页签（D-0029/T-1730）：左 = 真实思源编辑器（Protyle 实例），右 = 伴生栏。
      * 页签打开文档是"打开动作"，不写五态（D-0021）；伴生栏动作与三画布共用同一服务，
      * 按真实成功数反馈。编辑/标注经 Protyle 走内核事务，插件不另存正文副本。
      */
     import { showMessage, openTab } from "siyuan";
-    import { Protyle } from "siyuan";
+    import type { ProtyleController } from "../libs/protyle-controller";
+    import ProtyleHost from "./ProtyleHost.svelte";
+    import ReadingPositionControls from "./ReadingPositionControls.svelte";
+    import { onMount } from "svelte";
     import { untrack } from "svelte";
     import type { GleanFacade } from "../types";
     import { t } from "../libs/i18n";
     import { fulltextBodyState } from "../domain/content";
+    import { canCountReading, createReadingTimer, readingTimerMinutes, setReadingTimerActive, type ReadingTimerState } from "../domain/reading-timer";
     import { hasSourceAction, resolveCarrier, sourceUrlForCarrier } from "../domain/carrier";
+    import { chunkSpeechText, clampSpeechRate, speechLanguage } from "../domain/speech";
     import type { ClipStatus } from "../domain/schema";
+    import { DEFAULT_SETTINGS } from "../services/settings";
     import {
         batchSetStatus,
         measureClipBody,
         readClipContext,
+        saveReadingMinutes,
         writeClip,
         type ReadingClipContext,
     } from "../services/clip-store";
-    /** 伴生栏收藏星标的本地态（context.favorite 由 readClipContext 投影） */
-    let favorite = $state(false);
-
-    /** T-1755：伴生栏收藏切换（favorite 非手填保护字段）。 */
-    async function toggleFavoriteFlag(): Promise<void> {
-        if (!context) return;
-        const next = !favorite;
-        try {
-            await writeClip(facade.pluginInstance, context.id, { favorite: next });
-            favorite = next;
-            facade.notifyDataChanged();
-        } catch (error) {
-            console.warn("[glean] 收藏切换失败:", error);
-            showMessage(t(i18n, "msg.actionFailed"), 3000);
-        }
-    }
     import { snapshotClip } from "../services/snapshot-service";
     import { recordReadingDone } from "../services/checkin-bridge";
-    import { excerptFromSelection, insertQuoteExcerpt } from "../services/excerpt-service";
-    import { makeQuoteCard } from "../services/flashcard-service";
+    import { excerptFromSelection, insertQuoteExcerpt, selectionBelongsToHost } from "../services/excerpt-service";
+    import { makeQuoteCardPreview } from "./flashcard-dialog";
     import { findRelated } from "../services/enrich-service";
     import { pickNextUnread } from "../services/resurface-service";
-    import { readerAiEnabled, readerAsk, readerSummarize, readerTranslate, readerTranslateFull, inferQuestionCard, saveReaderSummary } from "../services/reader-ai";
-    import { clampAskQuestion } from "../domain/reader";
-    import { fetchDocOutline, outlineIndent, type OutlineHeading } from "../services/outline";
-    import { nextSpeechRate } from "../domain/tts";
-    import { speakText, stopSpeaking, ttsAvailable } from "../services/tts";
-    import { anchorBlockInViewport, blockPosition, countDocBlocks, saveReadingPos } from "../services/reading-position";
-    import { settleReadingMinutes } from "../services/reading-time";
-    import { loadUiPrefs, saveUiPrefs, type ReaderTypography } from "../services/prefs";
+    import { articleQuestionEnabled, readerAiEnabled, readerArticleQuestion, readerSummarize, readerTranslate, saveReaderSummary } from "../services/reader-ai";
     import ClipStatusActions from "./ClipStatusActions.svelte";
     import ClipRankControls from "./ClipRankControls.svelte";
+    import { openFormattingDialog } from "./formatting-dialog";
+    import { loadUiPrefs, saveUiPrefs } from "../services/prefs";
+    import { normalizeReaderAppearance, type ReaderAppearance } from "../domain/ui-prefs";
+    import { loadReadingOutline } from "../services/outline-service";
+    import type { OutlineItem } from "../domain/outline";
+    import { readerShortcut } from "../domain/reader-shortcuts";
+    import { createLatestRequestGate } from "../libs/latest-request";
+    import type { RecentReadingEntry } from "../domain/recent-reading";
 
     interface Props {
         facade: GleanFacade;
@@ -58,57 +51,144 @@
 
     let { facade }: Props = $props();
     const i18n = $derived(facade.i18n);
+    const instanceId = $props.id();
+    const idFor = (part: string) => `glean-reader-${instanceId}-${part}`;
+    const sidebarId = idFor("sidebar");
+    const shortcutsId = idFor("shortcuts");
+    const sidebarTitleId = idFor("sidebar-title");
+    const moreToolsId = idFor("more-tools");
+    const moreToolsTitleId = idFor("more-tools-title");
+    const recentTitleId = idFor("recent-title");
+    const appearancePanelId = idFor("appearance-panel");
+    const appearanceTitleId = idFor("appearance-title");
+    const outlineTitleId = idFor("outline-title");
+    const excerptTitleId = idFor("excerpt-title");
+    const speechTitleId = idFor("speech-title");
+    const speechRateId = idFor("speech-rate");
+    const aiTitleId = idFor("ai-title");
+    const rankTitleId = idFor("rank-title");
 
-    /** 页签初值 = 挂载时刻的会话状态快照（T-1790：经函数读取 props，消除顶层本地引用）。 */
-    function readerInitState() {
-        return {
-            docId: facade.consumeReaderFocus(),
-            defaultMode: facade.settings.reader.defaultMode,
-        };
-    }
-    const readerInit = readerInitState();
-    let docId = $state(readerInit.docId);
-    let mode = $state<"read" | "edit">(readerInit.defaultMode);
+    let docId = $state<string | null>(null);
+    let mode = $state<"read" | "edit">(DEFAULT_SETTINGS.reader.defaultMode);
     let protyleHost = $state<HTMLDivElement | null>(null);
+    let readerRoot = $state<HTMLDivElement | null>(null);
+    let sidebarCollapsed = $state(false);
+    let sidebarBusy = $state(false);
+    let shortcutHelp = $state(false);
+    let moreToolsOpen = $state(false);
+    let appearanceOpen = $state(false);
+    let excerptBusy = $state(false);
+    let appearanceTouched = false;
+    let sidebarTouched = false;
+    const contextRequests = createLatestRequestGate();
+    let sessionGeneration = 0;
+    let mounted = false;
     let context = $state<ReadingClipContext | null>(null);
+    // 上下文与正文宿主是两条独立的读取链：正文已经挂载时，伴生栏仍需要明确区分读取中与读取失败。
+    let contextLoading = $state(false);
+    let contextError = $state(false);
     let measuring = $state(false);
     let snapping = $state(false);
     let statusBusy = $state(false);
-    let protyle: Protyle | null = null;
+    let protyle = $state<ProtyleController | null>(null);
+    let readerAppearance = $state<ReaderAppearance>(normalizeReaderAppearance(undefined));
+    let appearanceBusy = $state(false);
+    let outline = $state<OutlineItem[]>([]);
+    let outlineLoading = $state(false);
+    let outlineError = $state(false);
+    let outlineGeneration = 0;
+    let recentReadings = $state<RecentReadingEntry[]>([]);
+    let readingTimer = $state<ReadingTimerState>(createReadingTimer());
+    let readingTimerDocId = "";
+    let readingTimerExpectedRaw: string | null = null;
+    let readingTimerExpectedLocation: { box: string; hpath: string } | null = null;
+    const displayedReadMinutes = $derived(Math.max(context?.readMinutes ?? 0, readingTimerMinutes(readingTimer)));
 
-    const bodyState = $derived(context ? fulltextBodyState(context.contentType, context.words) : "na");
+    function readingTimerHostReady(): boolean {
+        const host = protyleHost;
+        if (!host || !host.isConnected || host.getClientRects().length === 0) return false;
+        return Boolean(host.querySelector(".protyle-wysiwyg, .protyle-content, .protyle-preview"));
+    }
 
-    // T-1742 排版偏好：字号/行距三档（ui-prefs 持久化，纯视图状态）
-    let typography = $state<ReaderTypography>({ fontSize: "md", lineHeight: "normal", width: "medium", theme: "follow" });
-    $effect(() => {
+    function readingTimerEligible(): boolean {
+        return Boolean(docId && context && mode === "read" && typeof document !== "undefined" && canCountReading({
+            visible: document.visibilityState === "visible",
+            focused: typeof document.hasFocus !== "function" || document.hasFocus(),
+            hostReady: readingTimerHostReady(),
+            contentType: context.contentType,
+            bodyState,
+        }));
+    }
+
+    function syncReadingTimer(): void {
+        if (!readingTimerDocId) return;
+        readingTimer = setReadingTimerActive(readingTimer, readingTimerEligible(), Date.now());
+    }
+
+    async function flushReadingMinutes(id: string, generation: number): Promise<boolean> {
+        if (readingTimerDocId !== id || !readingTimerExpectedLocation) return true;
+        readingTimer = setReadingTimerActive(readingTimer, false, Date.now());
+        const minutes = readingTimerMinutes(readingTimer);
+        const persisted = context?.id === id ? context.readMinutes ?? 0 : 0;
+        if (minutes <= persisted || minutes <= 0) return true;
+        try {
+            const saved = await saveReadingMinutes(facade.pluginInstance, id, {
+                raw: readingTimerExpectedRaw,
+                location: readingTimerExpectedLocation,
+            }, minutes);
+            readingTimerExpectedRaw = saved.raw;
+            if (currentSession(id, generation) && context?.id === id) {
+                context = { ...context, readMinutes: saved.minutes, readMinutesRaw: saved.raw };
+            }
+            return true;
+        } catch (error) {
+            console.debug("[glean] 真实阅读分钟写回失败:", error);
+            showMessage(t(i18n, "reader.readMinutesSaveFailed"), 3500);
+            return false;
+        }
+    }
+
+    function refreshRecentReadings(): void {
+        recentReadings = facade.recentReadingDocuments().map((entry) => ({ ...entry }));
+    }
+
+    function openRecentReading(entry: RecentReadingEntry): void {
+        if (entry.id === docId) return;
+        facade.openReader(entry.id);
+    }
+
+    onMount(() => {
+        mounted = true;
+        docId = facade.consumeReaderFocus();
+        refreshRecentReadings();
+        mode = facade.settings.reader.defaultMode;
         void loadUiPrefs(facade.pluginInstance).then((prefs) => {
-            typography = prefs.readerTypography;
-        });
+            if (!mounted) return;
+            if (!appearanceTouched) readerAppearance = prefs.readerAppearance;
+            if (!sidebarTouched) sidebarCollapsed = prefs.readerSidebarCollapsed;
+        }).catch(() => undefined);
+        const root = readerRoot;
+        root?.addEventListener("keydown", onReaderKey);
+        return () => {
+            readingTimer = setReadingTimerActive(readingTimer, false, Date.now());
+            mounted = false;
+            sessionGeneration += 1;
+            contextRequests.invalidate();
+            root?.removeEventListener("keydown", onReaderKey);
+        };
     });
 
-    function cycleFontSize(): void {
-        const order: ReaderTypography["fontSize"][] = ["sm", "md", "lg"];
-        typography = { ...typography, fontSize: order[(order.indexOf(typography.fontSize) + 1) % order.length] };
-        void saveUiPrefs(facade.pluginInstance, { readerTypography: typography });
-    }
+    type SpeechState = "idle" | "playing" | "paused";
+    type SpeechScope = "full" | "selection";
+    let speechState = $state<SpeechState>("idle");
+    let speechScope = $state<SpeechScope | null>(null);
+    let speechRate = $state(1);
+    let speechChunks = $state<string[]>([]);
+    let speechChunkIndex = $state(0);
+    let speechGeneration = 0;
+    const speechSupported = $derived(!facade.isMobile && typeof window !== "undefined" && "speechSynthesis" in window);
 
-    function cycleLineHeight(): void {
-        const order: ReaderTypography["lineHeight"][] = ["compact", "normal", "relaxed"];
-        typography = { ...typography, lineHeight: order[(order.indexOf(typography.lineHeight) + 1) % order.length] };
-        void saveUiPrefs(facade.pluginInstance, { readerTypography: typography });
-    }
-
-    function cycleWidth(): void {
-        const order: ReaderTypography["width"][] = ["narrow", "medium", "wide"];
-        typography = { ...typography, width: order[(order.indexOf(typography.width) + 1) % order.length] };
-        void saveUiPrefs(facade.pluginInstance, { readerTypography: typography });
-    }
-
-    function cycleTheme(): void {
-        const order: ReaderTypography["theme"][] = ["follow", "paper", "sepia"];
-        typography = { ...typography, theme: order[(order.indexOf(typography.theme) + 1) % order.length] };
-        void saveUiPrefs(facade.pluginInstance, { readerTypography: typography });
-    }
+    const bodyState = $derived(context ? fulltextBodyState(context.contentType, context.words) : "na");
 
     // 摘录段（D-0030）：selectionchange 限定正文宿主内；blockId 空=定位失败，仅可复制。
     let excerpt = $state<{ text: string; blockId: string } | null>(null);
@@ -116,169 +196,293 @@
     // AI 伴读段（D-0030）：显式动作 + 结果卡；额度与富化共享。
     const aiOn = $derived(readerAiEnabled(facade.settings));
     const relatedOn = $derived(aiOn && facade.settings.ai.relatedWhileReading);
+    const articleQuestionOn = $derived(articleQuestionEnabled(facade.settings));
     const channelLabel = $derived(
         facade.settings.ai.channel === "custom"
             ? facade.settings.ai.customModel || "custom"
             : t(i18n, "reader.aiChannelSiyuan")
     );
     let aiBusy = $state("");
-    let aiResult = $state<{ kind: "summarize" | "translate" | "ask" | "translateFull"; action: string; text: string } | null>(null);
+    let aiResult = $state<{ kind: "summarize" | "translate"; action: string; text: string } | null>(null);
+    let question = $state("");
+    let questionMode = $state<"full" | "selection">("full");
+    let questionResult = $state<{ answer: string; evidence: string[]; truncated: boolean } | null>(null);
     let relatedItems = $state<Array<{ id: string; title: string }>>([]);
     let relatedShown = $state(false);
 
-    // T-1760 问这篇文章：单轮动作（无追问、不做聊天窗）；问题文本只是输入，不落任何存储
-    let askInput = $state("");
-    let askActionLabel = $derived(t(i18n, "reader.aiAsk"));
-
-    // T-1740 本文大纲：标题树 + 点击滚动定位（DOM scrollIntoView；真机滚动随 B-0002）
-    let outline = $state<OutlineHeading[]>([]);
-    let outlineOpen = $state(false);
-    let outlineSeq = 0;
-    const outlineIndents = $derived(outlineIndent(outline));
-
-    // T-1744 TTS 朗读：Web Speech 能力探测降级；移动端隐藏入口（facade.isMobile）；
-    // 朗读源 = 正文 DOM 文本（公开字段），选区优先用摘录捕获；纯会话行为不落任何存储。
-    const ttsOn = $derived(ttsAvailable() && !facade.isMobile);
-    let speaking = $state(false);
-    let speechRate = $state(1);
-    let speechHandle: { stop: () => void; active: () => boolean } | null = null;
-
-    function bodyTextForSpeech(): string {
-        return (protyle?.protyle?.element?.textContent ?? "").replace(/\s+/g, " ").trim();
+    function speechSynthesis(): SpeechSynthesis | null {
+        return speechSupported ? window.speechSynthesis : null;
     }
 
-    function startSpeech(text: string): void {
-        if (!ttsOn || !text) return;
-        stopSpeech(false);
-        speaking = true;
-        speechHandle = speakText(text, speechRate, () => {
-            speaking = false;
-            speechHandle = null;
-        });
+    function stopSpeech(): void {
+        speechGeneration += 1;
+        speechSynthesis()?.cancel();
+        speechState = "idle";
     }
 
-    function stopSpeech(notify = true): void {
-        speechHandle?.stop();
-        speechHandle = null;
-        stopSpeaking();
-        speaking = false;
-        if (notify) showMessage(t(i18n, "reader.ttsStopped"), 1500);
+    function speechBodyText(): string {
+        const root = protyleHost?.querySelector<HTMLElement>(".protyle-wysiwyg") ?? protyleHost;
+        return root?.innerText ?? "";
     }
 
-    function toggleSpeechRate(): void {
-        speechRate = nextSpeechRate(speechRate);
-        showMessage(t(i18n, "reader.ttsRate", { n: speechRate }), 1500);
-        if (speaking) {
-            // 换速即重启当前朗读（简单可预期；断点续读随真机反馈再议）
-            const text = bodyTextForSpeech();
-            startSpeech(text);
-        }
-    }
-
-    async function loadOutline(id: string): Promise<void> {
-        const seq = ++outlineSeq;
-        try {
-            const next = await fetchDocOutline(id);
-            if (seq !== outlineSeq) return;
-            outline = next;
-        } catch {
-            if (seq !== outlineSeq) return;
-            outline = [];
-        }
-    }
-
-    function scrollToHeading(blockId: string): void {
-        const host = protyle?.protyle?.element;
-        if (!host) return;
-        const target = host.querySelector(`[data-node-id="${blockId}"]`);
-        if (!target) {
-            showMessage(t(i18n, "reader.outlineMiss"), 2500);
+    function speakCurrent(generation: number): void {
+        if (generation !== speechGeneration || speechState !== "playing") return;
+        const api = speechSynthesis();
+        const chunk = speechChunks[speechChunkIndex];
+        if (!api || !chunk) {
+            speechState = "idle";
             return;
         }
-        target.scrollIntoView({ behavior: "smooth", block: "start" });
+
+        const utterance = new SpeechSynthesisUtterance(chunk);
+        utterance.lang = speechLanguage(chunk);
+        utterance.rate = speechRate;
+        utterance.onend = () => {
+            if (generation !== speechGeneration || speechState !== "playing") return;
+            speechChunkIndex += 1;
+            if (speechChunkIndex >= speechChunks.length) {
+                speechState = "idle";
+                return;
+            }
+            speakCurrent(generation);
+        };
+        utterance.onerror = (event) => {
+            if (generation !== speechGeneration || event.error === "canceled" || event.error === "interrupted") return;
+            speechState = "idle";
+            showMessage(t(i18n, "reader.speechFailed"), 3000);
+        };
+        api.speak(utterance);
+    }
+
+    function startSpeech(scope: SpeechScope, continueCurrent = false): void {
+        const api = speechSynthesis();
+        if (!api) return;
+        if (!continueCurrent) {
+            const text = scope === "selection" ? excerpt?.text ?? "" : speechBodyText();
+            speechChunks = chunkSpeechText(text);
+            speechChunkIndex = 0;
+            speechScope = scope;
+        }
+        if (speechChunkIndex >= speechChunks.length) {
+            showMessage(t(i18n, "reader.speechNoText"), 2500);
+            return;
+        }
+        api.cancel();
+        speechGeneration += 1;
+        speechState = "playing";
+        speakCurrent(speechGeneration);
+    }
+
+    function toggleSpeechPause(): void {
+        const api = speechSynthesis();
+        if (!api) return;
+        if (speechState === "playing") {
+            api.pause();
+            speechState = "paused";
+        } else if (speechState === "paused") {
+            api.resume();
+            speechState = "playing";
+        }
+    }
+
+    function setSpeechRate(value: number): void {
+        const next = clampSpeechRate(value);
+        if (next === speechRate) return;
+        speechRate = next;
+        if (speechState !== "playing" && speechState !== "paused") return;
+        const api = speechSynthesis();
+        if (!api) return;
+        const resumePaused = speechState === "paused";
+        api.cancel();
+        speechGeneration += 1;
+        speechState = "playing";
+        const generation = speechGeneration;
+        window.setTimeout(() => {
+            speakCurrent(generation);
+            if (resumePaused && generation === speechGeneration) {
+                api.pause();
+                speechState = "paused";
+            }
+        }, 0);
     }
 
     function modeValue(value: "read" | "edit"): "preview" | "wysiwyg" {
         return value === "edit" ? "wysiwyg" : "preview";
     }
 
-    // T-1839：请求代次守卫——快速切换文章时丢弃晚到的旧上下文，旧结果不覆盖新文档
-    let contextSeq = 0;
-
     async function loadContext(id: string): Promise<void> {
-        const seq = ++contextSeq;
+        const isCurrent = contextRequests.begin();
+        if (mounted && docId === id) {
+            contextLoading = true;
+            contextError = false;
+        }
         try {
             const next = await readClipContext(id);
-            if (seq !== contextSeq) return;
-            context = next;
-            favorite = next?.favorite === true;
+            if (mounted && isCurrent() && docId === id) {
+                context = next;
+                contextError = false;
+                if (next && readingTimerDocId !== id) {
+                    readingTimerDocId = id;
+                    readingTimerExpectedRaw = next.readMinutesRaw;
+                    readingTimerExpectedLocation = next.location;
+                    readingTimer = createReadingTimer(next.readMinutes ?? 0);
+                }
+                if (next) facade.recordRecentReading(id, next.title);
+            }
         } catch (error) {
-            if (seq !== contextSeq) return;
+            if (!mounted || !isCurrent() || docId !== id) return;
             console.debug("[glean] 阅读页签读取上下文失败:", error);
             context = null;
+            readingTimerDocId = "";
+            readingTimerExpectedRaw = null;
+            readingTimerExpectedLocation = null;
+            readingTimer = createReadingTimer();
+            contextError = true;
+        }
+        if (mounted && isCurrent() && docId === id) contextLoading = false;
+    }
+
+    function retryContext(): void {
+        if (docId) void loadContext(docId);
+    }
+
+    async function loadOutline(id: string): Promise<void> {
+        const generation = ++outlineGeneration;
+        outlineLoading = true;
+        outlineError = false;
+        try {
+            const next = await loadReadingOutline(id, () => mounted && generation === outlineGeneration && docId === id);
+            if (generation !== outlineGeneration || docId !== id) return;
+            outline = next;
+        } catch (error) {
+            if (generation !== outlineGeneration || docId !== id) return;
+            console.debug("[glean] 阅读大纲读取失败:", error);
+            outline = [];
+            outlineError = true;
+        } finally {
+            if (generation === outlineGeneration) outlineLoading = false;
         }
     }
+
+    function scrollToOutline(item: OutlineItem): void {
+        const escaped = typeof CSS !== "undefined" && typeof CSS.escape === "function" ? CSS.escape(item.id) : item.id;
+        const target = protyleHost?.querySelector<HTMLElement>(`[data-node-id="${escaped}"]`);
+        if (target) {
+            target.scrollIntoView({ block: "center", behavior: "smooth" });
+            target.focus({ preventScroll: true });
+            return;
+        }
+        if (docId) void openTab({ app: facade.pluginInstance.app, doc: { id: item.id }, keepCursor: false });
+    }
+
+    async function updateAppearance(key: keyof ReaderAppearance, value: string): Promise<void> {
+        appearanceTouched = true;
+        const next = normalizeReaderAppearance({ ...readerAppearance, [key]: value });
+        readerAppearance = next;
+        appearanceBusy = true;
+        try {
+            await saveUiPrefs(facade.pluginInstance, { readerAppearance: next });
+        } catch (error) {
+            console.debug("[glean] 阅读外观保存失败:", error);
+            showMessage(t(i18n, "settings.saveFailed"), 3000);
+        } finally {
+            appearanceBusy = false;
+        }
+    }
+
+    async function toggleSidebar(): Promise<void> {
+        if (sidebarBusy) return;
+        sidebarTouched = true;
+        sidebarCollapsed = !sidebarCollapsed;
+        sidebarBusy = true;
+        try {
+            await saveUiPrefs(facade.pluginInstance, { readerSidebarCollapsed: sidebarCollapsed });
+        } catch {
+            showMessage(t(i18n, "settings.saveFailed"), 3000);
+        } finally {
+            sidebarBusy = false;
+        }
+    }
+
+    function openAppearance(): void {
+        moreToolsOpen = true;
+        appearanceOpen = true;
+        if (sidebarCollapsed) void toggleSidebar();
+    }
+
+    function currentSession(id: string, generation: number): boolean {
+        return mounted && docId === id && sessionGeneration === generation;
+    }
+
+    function onReaderKey(event: KeyboardEvent): void {
+        const root = readerRoot;
+        const target = event.target instanceof Element ? event.target : null;
+        const active = document.activeElement;
+        const blockedTarget = target?.closest('input, textarea, select, button, a, [role="textbox"], [role="combobox"], [role="menu"], [role="menuitem"], [role="dialog"], [contenteditable]:not([contenteditable="false"])');
+        const modalOpen = Array.from(document.querySelectorAll<HTMLElement>('.b3-dialog, .b3-menu, [role="dialog"], [aria-modal="true"]'))
+            .some((element) => element.getClientRects().length > 0);
+        const action = readerShortcut({
+            key: event.key, mode, focused: Boolean(root && active && root.contains(active) && root.getClientRects().length),
+            blocked: Boolean(blockedTarget || modalOpen), defaultPrevented: event.defaultPrevented,
+            isComposing: event.isComposing, keyCode: event.keyCode, ctrlKey: event.ctrlKey,
+            altKey: event.altKey, metaKey: event.metaKey, shiftKey: event.shiftKey, repeat: event.repeat,
+        });
+        if (!action || !docId) return;
+        if (action === "done" && (!context || context.id !== docId || statusBusy || context.status === "done")) return;
+        if (action === "excerpt") {
+            excerpt = excerptFromSelection(protyleHost, window.getSelection());
+            if (!excerpt?.blockId || !context || context.id !== docId || excerptBusy) return;
+        }
+        event.preventDefault();
+        event.stopPropagation();
+        if (action === "scrollDown" || action === "scrollUp") {
+            const scroller = Array.from(protyleHost?.querySelectorAll<HTMLElement>(".protyle-content, .protyle-preview") ?? [])
+                .find((element) => element.clientHeight > 0 && element.scrollHeight > element.clientHeight + 1) ?? protyleHost;
+            scroller?.scrollBy({ top: (action === "scrollDown" ? 1 : -1) * Math.max(80, (scroller.clientHeight || 500) / 4), behavior: "auto" });
+        } else if (action === "edit") setMode("edit");
+        else if (action === "done") void writeStatus("done");
+        else if (action === "excerpt") void quoteExcerpt();
+        else shortcutHelp = !shortcutHelp;
+    }
+
+    $effect(() => {
+        void sidebarCollapsed;
+        untrack(() => protyle?.resize());
+    });
 
     // 挂载效果只依赖 docId 与宿主节点；模式切换走 switchMode，不重建实例（保留位置）。
     $effect(() => {
         const id = docId;
         const host = protyleHost;
         if (!id || !host) return;
-        const initialMode = untrack(() => mode);
-        protyle?.destroy();
-        protyle = null;
-        untrack(() => host.replaceChildren());
-        protyle = new Protyle(facade.pluginInstance.app, host, {
-            blockId: id,
-            rootId: id,
-            mode: modeValue(initialMode),
-            render: { breadcrumb: false, background: false },
-        });
+        sessionGeneration += 1;
+        contextRequests.invalidate();
+        context = null;
+        contextLoading = true;
+        contextError = false;
+        readingTimerDocId = "";
+        readingTimerExpectedRaw = null;
+        readingTimerExpectedLocation = null;
+        readingTimer = createReadingTimer();
+        moreToolsOpen = false;
+        appearanceOpen = false;
+        outline = [];
+        aiResult = null;
+        questionResult = null;
+        question = "";
+        questionMode = "full";
+        relatedShown = false;
+        relatedItems = [];
+        excerpt = null;
+        stopSpeech();
         void untrack(() => loadContext(id));
         void untrack(() => loadOutline(id));
-        // T-1746：恢复上次阅读断点（轻延迟等 Protyle 渲染首屏）
-        window.setTimeout(() => void untrack(() => restoreReadingPos(id)), 600);
-        // T-1746：滚动捕获阶段监听防抖写断点；离开/销毁立即落盘
-        const scrollHost = protyle?.protyle?.element;
-        const onScroll = () => scheduleReadingPos();
-        scrollHost?.addEventListener("scroll", onScroll, true);
         return () => {
-            scrollHost?.removeEventListener("scroll", onScroll, true);
-            if (posSaveTimer) {
-                clearTimeout(posSaveTimer);
-                posSaveTimer = null;
-            }
-            void untrack(() => flushReadingPos());
-            // T-1747：页签销毁结算本次阅读时长（cleanup 闭包捕获的 docId 是本文档初值——正确：
-            // effect 依赖 docId，切文时旧 cleanup 先结算旧文档，新 effect 为新文档开新会话）
-            // svelte-ignore state_referenced_locally
-            void untrack(() => settleSessionFor(untrack(() => docId)));
-            resetSession();
-            protyle?.destroy();
-            protyle = null;
-            // T-1744：页签销毁时停止朗读，不留悬挂的语音队列
-            stopSpeech(false);
+            sessionGeneration += 1;
+            contextRequests.invalidate();
+            stopSpeech();
+            outlineGeneration += 1;
         };
-    });
-
-    // T-1747：切文结算由 mount effect 的 docId 依赖处理（旧 cleanup 结算旧文档）；
-    // 这里只挂 visibilitychange 暂停/恢复与显示刷新。
-    $effect(() => {
-        const onVisibility = () => (document.hidden ? pauseSession() : resumeSession());
-        document.addEventListener("visibilitychange", onVisibility);
-        const timer = setInterval(() => {
-            sessionDisplay = Math.floor(sessionElapsedMs() / 60_000);
-        }, 30_000);
-        return () => {
-            document.removeEventListener("visibilitychange", onVisibility);
-            clearInterval(timer);
-        };
-    });
-
-    $effect(() => {
-        // T-1748 键盘流：document 级监听 + isReaderFocused 限定（仅焦点在阅读宿主时生效）
-        document.addEventListener("keydown", handleHotkey);
-        return () => document.removeEventListener("keydown", handleHotkey);
     });
 
     // 页签聚焦与尺寸事件由壳派发；数据变化后只刷新伴生栏，不动正文实例。
@@ -287,37 +491,63 @@
             const id = facade.consumeReaderFocus();
             if (id) docId = id;
         };
+        const onRecentReading = () => refreshRecentReadings();
         const onResize = () => protyle?.resize();
         const onData = () => {
-            if (docId) void loadContext(docId);
+            if (docId) {
+                void loadContext(docId);
+                void loadOutline(docId);
+            }
         };
+        const onVisibility = () => syncReadingTimer();
+        const onWindowFocus = () => syncReadingTimer();
+        const onWindowBlur = () => syncReadingTimer();
         const onSelect = () => {
-            excerpt = excerptFromSelection(protyleHost, window.getSelection());
+            const selection = window.getSelection();
+            excerpt = selectionBelongsToHost(protyleHost, selection) ? excerptFromSelection(protyleHost, selection) : null;
         };
         document.addEventListener("glean:focus-reader", onFocus);
+        document.addEventListener("glean:recent-reading-changed", onRecentReading);
         document.addEventListener("glean:reader-resize", onResize);
         document.addEventListener("glean:data-changed", onData);
         document.addEventListener("selectionchange", onSelect);
+        document.addEventListener("visibilitychange", onVisibility);
+        window.addEventListener("focus", onWindowFocus);
+        window.addEventListener("blur", onWindowBlur);
         return () => {
             document.removeEventListener("glean:focus-reader", onFocus);
+            document.removeEventListener("glean:recent-reading-changed", onRecentReading);
             document.removeEventListener("glean:reader-resize", onResize);
             document.removeEventListener("glean:data-changed", onData);
             document.removeEventListener("selectionchange", onSelect);
+            document.removeEventListener("visibilitychange", onVisibility);
+            window.removeEventListener("focus", onWindowFocus);
+            window.removeEventListener("blur", onWindowBlur);
         };
     });
 
-    function openRelatedDoc(id: string): void {
+    $effect(() => {
+        void docId;
+        void context;
+        void protyleHost;
+        void mode;
+        void bodyState;
+        untrack(syncReadingTimer);
+    });
+
+    function openRelatedDoc(id: string, title = ""): void {
+        stopSpeech();
+        facade.recordRecentReading(id, title);
         docId = id;
         aiResult = null;
         relatedShown = false;
         relatedItems = [];
         excerpt = null;
-        askInput = "";
-        outline = [];
     }
 
     async function quoteExcerpt(): Promise<void> {
-        if (!excerpt?.blockId || !context) return;
+        if (!excerpt?.blockId || !context || context.id !== docId || excerptBusy) return;
+        excerptBusy = true;
         try {
             await insertQuoteExcerpt(excerpt.blockId, excerpt.text);
             showMessage(t(i18n, "reader.excerptDone"), 2500);
@@ -325,14 +555,15 @@
         } catch (error) {
             console.warn("[glean] 摘录插入失败:", error);
             showMessage(t(i18n, "reader.actionFailed"), 3000);
+        } finally {
+            excerptBusy = false;
         }
     }
 
     async function cardFromExcerpt(): Promise<void> {
-        if (!excerpt?.text || !context) return;
+        if (!excerpt?.text || !context || context.id !== docId) return;
         try {
-            await makeQuoteCard(facade.settings, context.title, excerpt.text, facade.pluginInstance);
-            showMessage(t(i18n, "flashcard.done"), 3000);
+            makeQuoteCardPreview(facade, { title: context.title, quote: excerpt.text, docId: context.id, blockId: excerpt.blockId });
         } catch (error) {
             console.warn("[glean] 摘录制卡失败:", error);
             showMessage(t(i18n, "reader.actionFailed"), 3000);
@@ -349,10 +580,13 @@
     }
 
     async function runSummarize(): Promise<void> {
-        if (!context || aiBusy) return;
+        if (!context || context.id !== docId || aiBusy) return;
+        const current = context;
+        const generation = sessionGeneration;
         aiBusy = "summarize";
         try {
-            const outcome = await readerSummarize(facade.pluginInstance, context.id, facade.settings);
+            const outcome = await readerSummarize(facade.pluginInstance, current.id, facade.settings);
+            if (!currentSession(current.id, generation)) return;
             if (outcome.ok && outcome.text) {
                 aiResult = { kind: "summarize", action: t(i18n, "reader.aiSummarize"), text: outcome.text };
             } else if (outcome.skipped === "cap") {
@@ -366,10 +600,13 @@
     }
 
     async function runTranslate(): Promise<void> {
-        if (!context || aiBusy || !excerpt?.text) return;
+        if (!context || context.id !== docId || aiBusy || !excerpt?.text) return;
+        const current = context;
+        const generation = sessionGeneration;
         aiBusy = "translate";
         try {
-            const outcome = await readerTranslate(facade.pluginInstance, context.id, excerpt.text, facade.settings);
+            const outcome = await readerTranslate(facade.pluginInstance, current.id, excerpt.text, facade.settings);
+            if (!currentSession(current.id, generation)) return;
             if (outcome.ok && outcome.text) {
                 aiResult = { kind: "translate", action: t(i18n, "reader.aiTranslate"), text: outcome.text };
             } else if (outcome.skipped === "cap") {
@@ -382,241 +619,47 @@
         }
     }
 
-    /** T-1745 双语对照：全文翻译（租约/额度共享），结果入对照块（可折叠、可复制）。 */
-    let translateFullOpen = $state(false);
-
-    // T-1746 阅读断点与进度：滚动防抖写锚定块 + 细进度条（结构估计无百分比）+ 续读定位
-    let readingPercent = $state(0);
-    let posSaveTimer: ReturnType<typeof setTimeout> | null = null;
-    let lastSavedPos = "";
-
-    function currentAnchorId(): string {
-        const host = protyle?.protyle?.element;
-        if (!host) return "";
-        return anchorBlockInViewport(host);
-    }
-
-    async function flushReadingPos(): Promise<void> {
-        const id = docId;
-        const anchor = currentAnchorId();
-        if (!id || !anchor || anchor === lastSavedPos) return;
-        lastSavedPos = anchor;
+    async function runArticleQuestion(): Promise<void> {
+        if (!context || context.id !== docId || aiBusy || !articleQuestionOn) return;
+        const current = context;
+        const generation = sessionGeneration;
+        const source = questionMode === "selection" && excerpt?.blockId ? excerpt.text : "";
+        if (questionMode === "selection" && !source) {
+            showMessage(t(i18n, "reader.articleQuestion.invalid"), 3000);
+            return;
+        }
+        aiBusy = "question";
+        questionResult = null;
         try {
-            await saveReadingPos(id, anchor, facade.pluginInstance);
-            const [position, total] = await Promise.all([blockPosition(id, anchor), countDocBlocks(id)]);
-            if (total > 0) readingPercent = Math.min(100, Math.round((position / total) * 100));
-        } catch (error) {
-            console.debug("[glean] 阅读断点写入失败:", error);
-        }
-    }
-
-    function scheduleReadingPos(): void {
-        if (posSaveTimer) clearTimeout(posSaveTimer);
-        posSaveTimer = setTimeout(() => void flushReadingPos(), 30_000);
-    }
-
-    async function restoreReadingPos(id: string): Promise<void> {
-        try {
-            const restored = await readClipContext(id);
-            const pos = restored?.readingPos ?? "";
-            if (!pos || !protyle?.protyle?.element) return;
-            protyle.protyle.element.querySelector(`[data-node-id="${pos}"]`)?.scrollIntoView({ block: "start" });
-        } catch (error) {
-            console.debug("[glean] 阅读断点恢复失败:", error);
-        }
-    }
-
-    // T-1747 阅读计时：页签前台累计（visibilitychange 暂停），切文/销毁/标记已读结算。
-    let sessionStart = Date.now();
-    let pausedElapsed = 0;
-    let sessionDisplay = $state(0);
-
-    function pauseSession(): void {
-        if (sessionStart > 0) {
-            pausedElapsed += Date.now() - sessionStart;
-            sessionStart = 0;
-        }
-    }
-
-    function resumeSession(): void {
-        if (sessionStart === 0) sessionStart = Date.now();
-    }
-
-    function sessionElapsedMs(): number {
-        return pausedElapsed + (sessionStart > 0 ? Date.now() - sessionStart : 0);
-    }
-
-    /** 结算指定文档：累计 ≥1 分钟才写（增量累加，不足不写）。 */
-    async function settleSessionFor(targetDocId: string): Promise<void> {
-        const elapsed = sessionElapsedMs();
-        pauseSession();
-        pausedElapsed = 0;
-        resumeSession();
-        if (elapsed < 60_000 || !targetDocId) return;
-        try {
-            await settleReadingMinutes(facade.pluginInstance, targetDocId, Date.now() - elapsed);
-        } catch (error) {
-            console.debug("[glean] 阅读计时结算失败:", error);
-        }
-    }
-
-    function resetSession(): void {
-        sessionStart = Date.now();
-        pausedElapsed = 0;
-        sessionDisplay = 0;
-    }
-
-    // T-1748 键盘流：宿主聚焦时 j/k 步进滚动、e 切模式、m 标记已读、x 摘录、? 帮助。
-    // 仅当焦点在阅读宿主内且不在输入控件时生效；与思源全局快捷键的冲突随 B-0002 真机核验。
-    function stepToNeighborBlock(direction: 1 | -1): void {
-        const host = protyle?.protyle?.element;
-        if (!host) return;
-        const blocks = Array.from(host.querySelectorAll("[data-node-id]"));
-        const anchorId = currentAnchorId();
-        const index = blocks.findIndex((block) => block.getAttribute("data-node-id") === anchorId);
-        const next = blocks[Math.min(blocks.length - 1, Math.max(0, index + direction))];
-        next?.scrollIntoView({ block: "start", behavior: "smooth" });
-    }
-
-    function showHotkeyHelp(): void {
-        const wrap = document.createElement("div");
-        const rows: Array<[string, string]> = [
-            ["j / k", t(i18n, "reader.hotkeyScroll")],
-            ["e", t(i18n, "reader.hotkeyMode")],
-            ["m", t(i18n, "action.markDone")],
-            ["x", t(i18n, "reader.excerptQuote")],
-            ["?", t(i18n, "reader.hotkeyHelp")],
-        ];
-        wrap.innerHTML = rows
-            .map(([key, label]) => `<div style="display:flex;gap:12px;padding:3px 0;font-size:12.5px"><span style="flex-shrink:0;font-weight:600">${key}</span><span>${label}</span></div>`)
-            .join("");
-        void import("../libs/dialog").then(({ simpleDialog: dialog }) => {
-            dialog({ title: t(i18n, "reader.hotkeyHelp"), ele: wrap, width: "420px" });
-        });
-    }
-
-    function isReaderFocused(): boolean {
-        const host = document.querySelector(".glean-reader");
-        if (!host) return false;
-        const active = document.activeElement;
-        const selection = window.getSelection();
-        const anchor = selection && !selection.isCollapsed ? selection.anchorNode : active;
-        return Boolean(anchor && host.contains(anchor));
-    }
-
-    function handleHotkey(event: KeyboardEvent): void {
-        if (!docId || !isReaderFocused()) return;
-        const target = event.target as HTMLElement | null;
-        if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) return;
-        switch (event.key) {
-            case "j":
-                event.preventDefault();
-                stepToNeighborBlock(1);
-                break;
-            case "k":
-                event.preventDefault();
-                stepToNeighborBlock(-1);
-                break;
-            case "e":
-                event.preventDefault();
-                setMode(mode === "read" ? "edit" : "read");
-                break;
-            case "m":
-                event.preventDefault();
-                void writeStatus("done");
-                break;
-            case "x":
-                event.preventDefault();
-                void quoteExcerpt();
-                break;
-            case "?":
-                event.preventDefault();
-                showHotkeyHelp();
-                break;
-        }
-    }
-
-    async function runTranslateFull(): Promise<void> {
-        if (!context || aiBusy) return;
-        aiBusy = "translateFull";
-        try {
-            const outcome = await readerTranslateFull(facade.pluginInstance, context.id, facade.settings);
-            if (outcome.ok && outcome.text) {
-                aiResult = { kind: "translateFull", action: t(i18n, "reader.aiTranslateFull"), text: outcome.text };
-                translateFullOpen = true;
+            const outcome = await readerArticleQuestion(facade.pluginInstance, current.id, question, facade.settings, source, questionMode === "selection" ? excerpt?.blockId ?? "" : "");
+            if (!currentSession(current.id, generation)) return;
+            if (outcome.ok && outcome.result) {
+                questionResult = { answer: outcome.result.answer, evidence: outcome.result.evidence, truncated: Boolean(outcome.truncated) };
             } else if (outcome.skipped === "cap") {
                 showMessage(t(i18n, "ai.capReached", { n: facade.settings.ai.enrichDailyCap }), 4000);
+            } else if (outcome.skipped === "changed") {
+                showMessage(t(i18n, "reader.articleQuestion.changed"), 3500);
+            } else if (outcome.skipped === "invalid") {
+                showMessage(t(i18n, "reader.articleQuestion.invalid"), 3000);
             } else if (outcome.skipped !== "off") {
                 showMessage(t(i18n, "ai.enrichFailed"), 3000);
             }
         } finally {
             aiBusy = "";
-        }
-    }
-
-    // T-1751 AI 问句制卡：AI 生成回忆问句 → 用户可改 → 确认入卡（写入由用户触发）。
-    let questionDraft = $state("");
-    let questionBusy = $state(false);
-
-    async function generateQuestion(): Promise<void> {
-        if (!excerpt?.text || questionBusy) return;
-        questionBusy = true;
-        try {
-            const outcome = await inferQuestionCard(facade.pluginInstance, excerpt.text, facade.settings);
-            if (outcome.ok && outcome.text) {
-                questionDraft = outcome.text;
-            } else if (outcome.skipped === "cap") {
-                showMessage(t(i18n, "ai.capReached", { n: facade.settings.ai.enrichDailyCap }), 4000);
-            } else if (outcome.skipped !== "off") {
-                showMessage(t(i18n, "ai.enrichFailed"), 3000);
-            }
-        } finally {
-            questionBusy = false;
-        }
-    }
-
-    async function makeQuestionCard(): Promise<void> {
-        if (!context || !excerpt?.text || !questionDraft.trim()) return;
-        try {
-            await makeQuoteCard(facade.settings, context.title, excerpt.text, facade.pluginInstance, questionDraft.trim());
-            showMessage(t(i18n, "flashcard.done"), 3000);
-            questionDraft = "";
-        } catch (error) {
-            showMessage(String(error).slice(0, 120), 4000);
         }
     }
 
     async function runRelated(): Promise<void> {
-        if (!context || aiBusy) return;
+        if (!context || context.id !== docId || aiBusy) return;
+        const current = context;
+        const generation = sessionGeneration;
         aiBusy = "related";
         try {
-            relatedItems = await findRelated(context.id, context.title);
+            const items = await findRelated(current.id, current.title, [], { plugin: facade.pluginInstance, settings: facade.settings });
+            if (!currentSession(current.id, generation)) return;
+            relatedItems = items;
             relatedShown = true;
             if (relatedItems.length === 0) showMessage(t(i18n, "reader.relatedNone"), 3000);
-        } finally {
-            aiBusy = "";
-        }
-    }
-
-    /** T-1760：单轮"问这篇文章"——本文全文为上下文，一次一问，结果卡可复制。 */
-    async function runAsk(): Promise<void> {
-        if (!context || aiBusy) return;
-        const question = clampAskQuestion(askInput);
-        if (!question) {
-            showMessage(t(i18n, "reader.askEmpty"), 2500);
-            return;
-        }
-        aiBusy = "ask";
-        try {
-            const outcome = await readerAsk(facade.pluginInstance, context.id, question, facade.settings);
-            if (outcome.ok && outcome.text) {
-                aiResult = { kind: "ask", action: askActionLabel, text: outcome.text };
-                askInput = "";
-            } else if (outcome.skipped === "cap") {
-                showMessage(t(i18n, "ai.capReached", { n: facade.settings.ai.enrichDailyCap }), 4000);
-            } else if (outcome.skipped !== "off") {
-                showMessage(t(i18n, "ai.enrichFailed"), 3000);
-            }
         } finally {
             aiBusy = "";
         }
@@ -633,7 +676,7 @@
     }
 
     async function keepSummary(): Promise<void> {
-        if (!aiResult || !context) return;
+        if (!aiResult || aiResult.kind !== "summarize" || !context || context.id !== docId) return;
         try {
             await saveReaderSummary(facade.pluginInstance, context.id, aiResult.text);
             showMessage(t(i18n, "reader.aiSummarySaved"), 2500);
@@ -645,17 +688,9 @@
 
     function setMode(next: "read" | "edit"): void {
         if (mode === next || !protyle) return;
-        const previous = mode;
         mode = next;
-        try {
-            protyle.switchMode(modeValue(next));
-            showMessage(t(i18n, next === "edit" ? "reader.editHint" : "reader.readHint"), 2500);
-        } catch (error) {
-            // T-2022 切换失败：回滚选中态并给可重试反馈，不静默
-            mode = previous;
-            console.warn("[glean] 阅读模式切换失败:", error);
-            showMessage(t(i18n, "msg.actionFailed"), 3000);
-        }
+        protyle.setMode(modeValue(next));
+        showMessage(t(i18n, next === "edit" ? "reader.editHint" : "reader.readHint"), 2500);
     }
 
     function openSource(): void {
@@ -669,18 +704,21 @@
 
     /** 显式"检测正文"（T-1727）：导出重算并写回，不改用户正文。 */
     async function checkBody(): Promise<void> {
-        if (!context || measuring) return;
+        if (!context || context.id !== docId || measuring) return;
+        const current = context;
+        const generation = sessionGeneration;
         measuring = true;
         try {
-            const measured = await measureClipBody(facade.pluginInstance, context.id);
-            if (context) context = { ...context, words: measured.words };
+            const measured = await measureClipBody(facade.pluginInstance, current.id);
+            facade.notifyDataChanged();
+            if (!currentSession(current.id, generation)) return;
+            if (context?.id === current.id) context = { ...context, words: measured.words };
             showMessage(
                 measured.missing
                     ? t(i18n, "clip.bodyMissingConfirm")
                     : t(i18n, "clip.bodyOk", { n: measured.words }),
                 3500
             );
-            facade.notifyDataChanged();
         } catch (error) {
             console.warn("[glean] 正文检测失败:", error);
             showMessage(t(i18n, "clip.bodyCheckFailed"), 3000);
@@ -701,21 +739,24 @@
     }
 
     async function writeStatus(status: ClipStatus): Promise<void> {
-        if (!context || statusBusy) return;
+        if (!context || context.id !== docId || statusBusy) return;
         const current = context;
+        const generation = sessionGeneration;
         statusBusy = true;
         try {
-            // T-1747：标记已读前结算本次阅读时长（read-minutes 含最后一次会话）
-            if (status === "done") await settleSessionFor(current.id);
             const changed = await batchSetStatus(facade.pluginInstance, [current.id], status);
             if (changed !== 1) {
                 showMessage(t(i18n, "msg.statusFailed"), 3000);
                 return;
             }
+            if (status === "done") await flushReadingMinutes(current.id, generation);
             if (status === "done" && facade.settings.integration.checkinEnabled && facade.settings.integration.checkinItemId) {
                 void recordReadingDone(facade.settings.integration.checkinItemId, current.id, current.title);
             }
-            context = { ...(context?.id === current.id ? context : current), status };
+            if (currentSession(current.id, generation)) {
+                contextRequests.invalidate();
+                context = { ...(context?.id === current.id ? context : current), status };
+            }
             facade.notifyDataChanged();
             showMessage(t(i18n, "msg.statusChanged"), 2500);
         } finally {
@@ -734,24 +775,26 @@
      * 完成写入成功后才切下一篇；没有下一篇时不回滚完成状态。
      */
     async function doneAndNext(): Promise<void> {
-        if (!context || statusBusy) return;
+        if (!context || context.id !== docId || statusBusy) return;
         const current = context;
+        const generation = sessionGeneration;
         statusBusy = true;
         try {
-            // T-1747：标记已读前结算本次阅读时长
-            await settleSessionFor(current.id);
             const changed = await batchSetStatus(facade.pluginInstance, [current.id], "done");
             if (changed !== 1) {
                 showMessage(t(i18n, "msg.statusFailed"), 3000);
                 return;
             }
+            await flushReadingMinutes(current.id, generation);
             if (facade.settings.integration.checkinEnabled && facade.settings.integration.checkinItemId) {
                 void recordReadingDone(facade.settings.integration.checkinItemId, current.id, current.title);
             }
             facade.notifyDataChanged();
             const next = await pickNextUnread(facade.pluginInstance, current.id);
+            if (!currentSession(current.id, generation)) return;
             if (!next) {
-                context = { ...current, status: "done" };
+                contextRequests.invalidate();
+                context = { ...(context?.id === current.id ? context : current), status: "done" };
                 showMessage(t(i18n, "reader.noNext"), 3000);
                 return;
             }
@@ -767,11 +810,16 @@
     }
 
     async function setPriority(value: number): Promise<void> {
-        if (!context || statusBusy) return;
+        if (!context || context.id !== docId || statusBusy) return;
+        const current = context;
+        const generation = sessionGeneration;
         statusBusy = true;
         try {
-            await writeClip(facade.pluginInstance, context.id, { priority: value }, { force: true });
-            context = { ...context, priority: value };
+            await writeClip(facade.pluginInstance, current.id, { priority: value }, { force: true });
+            if (currentSession(current.id, generation)) {
+                contextRequests.invalidate();
+                context = { ...(context?.id === current.id ? context : current), priority: value };
+            }
             facade.notifyDataChanged();
             showMessage(t(i18n, "msg.rankSaved"), 2500);
         } catch {
@@ -782,11 +830,16 @@
     }
 
     async function setRating(value: number): Promise<void> {
-        if (!context || statusBusy) return;
+        if (!context || context.id !== docId || statusBusy) return;
+        const current = context;
+        const generation = sessionGeneration;
         statusBusy = true;
         try {
-            await writeClip(facade.pluginInstance, context.id, { rating: value }, { force: true });
-            context = { ...context, rating: value };
+            await writeClip(facade.pluginInstance, current.id, { rating: value }, { force: true });
+            if (currentSession(current.id, generation)) {
+                contextRequests.invalidate();
+                context = { ...(context?.id === current.id ? context : current), rating: value };
+            }
             facade.notifyDataChanged();
             showMessage(t(i18n, "msg.rankSaved"), 2500);
         } catch {
@@ -797,15 +850,20 @@
     }
 
     async function takeSnapshot(): Promise<void> {
-        if (!context || snapping) return;
+        if (!context || context.id !== docId || snapping) return;
         if (context.snapshot) {
             void openTab({ app: facade.pluginInstance.app, asset: { path: context.snapshot } });
             return;
         }
+        const current = context;
+        const generation = sessionGeneration;
         snapping = true;
         try {
-            const { path } = await snapshotClip(facade.pluginInstance, context.id);
-            context = { ...context, snapshot: path };
+            const { path } = await snapshotClip(facade.pluginInstance, current.id);
+            if (currentSession(current.id, generation)) {
+                contextRequests.invalidate();
+                context = { ...(context?.id === current.id ? context : current), snapshot: path };
+            }
             showMessage(t(i18n, "snapshot.done"), 3000);
             facade.notifyDataChanged();
         } catch {
@@ -816,7 +874,8 @@
     }
 
     function backToLibrary(): void {
-        if (context) void facade.openLibraryArticle(context.id);
+        stopSpeech();
+        if (context?.id === docId) void facade.openLibraryArticle(context.id);
     }
 
     function carrierLabel(value: string | undefined): string {
@@ -824,10 +883,69 @@
     }
 </script>
 
-<div class="glean-reader glean-reader--font-{typography.fontSize} glean-reader--lh-{typography.lineHeight} glean-reader--w-{typography.width} glean-reader--theme-{typography.theme}">
+<div
+    class="glean-reader"
+    aria-busy={Boolean(aiBusy || sidebarBusy || statusBusy || appearanceBusy || measuring || snapping || contextLoading || outlineLoading)}
+    bind:this={readerRoot}
+    role="region"
+    tabindex="-1"
+    aria-label={t(i18n, "reader.title")}
+    data-reader-font-size={readerAppearance.fontSize}
+    data-reader-line-height={readerAppearance.lineHeight}
+    data-reader-width={readerAppearance.width}
+    data-reader-theme={readerAppearance.theme}
+>
+    {#if docId}
+        <div class="glean-reader__toolbar" role="group" aria-label={t(i18n, "reader.title")}>
+            <span class="glean-reader__toolbar-heading">
+                <span class="glean-reader__toolbar-title" title={context?.title}>{context?.title || t(i18n, "panel.untitled")}</span>
+                {#if context}
+                    <span class="glean-reader__toolbar-meta">
+                        {carrierLabel(context.contentType)}{#if context.site} · {context.site}{/if} · {t(i18n, `status.${context.status}`)}
+                    </span>
+                {/if}
+            </span>
+            <div class="glean-reader__mode" role="group" aria-label={t(i18n, "settings.readerMode")}>
+                <button class="glean-seg__btn" class:glean-seg__btn--on={mode === "read"} aria-pressed={mode === "read"} title={t(i18n, "reader.readHint")} onclick={() => setMode("read")}>{t(i18n, "reader.modeRead")}</button>
+                <button class="glean-seg__btn" class:glean-seg__btn--on={mode === "edit"} aria-pressed={mode === "edit"} title={t(i18n, "reader.editHint")} onclick={() => setMode("edit")}>{t(i18n, "reader.modeEdit")}</button>
+            </div>
+            <button class="glean-btn glean-btn--ghost glean-reader__toolbar-sidebar" aria-busy={sidebarBusy} disabled={sidebarBusy} aria-expanded={!sidebarCollapsed} aria-controls={sidebarId} title={t(i18n, sidebarCollapsed ? "reader.sidebarShow" : "reader.sidebarHide")} onclick={() => void toggleSidebar()}>{t(i18n, sidebarCollapsed ? "reader.sidebarShow" : "reader.sidebarHide")}</button>
+            <button class="glean-btn glean-btn--ghost glean-reader__toolbar-appearance" aria-expanded={appearanceOpen} aria-controls={appearancePanelId} title={t(i18n, "reader.appearanceTitle")} onclick={openAppearance}>{t(i18n, "reader.appearanceTitle")}</button>
+            {#if context && hasSourceAction(context.contentType, context.url)}
+                <button class="glean-btn glean-btn--ghost glean-reader__toolbar-source" title={t(i18n, "clip.openSource")} onclick={openSource}>{t(i18n, "clip.openSource")}</button>
+            {/if}
+            {#if context}
+                <button
+                    class="glean-btn glean-btn--pri glean-reader__toolbar-primary"
+                    aria-busy={statusBusy}
+                    disabled={statusBusy}
+                    title={t(i18n, "reader.doneNextHint")}
+                    onclick={() => void doneAndNext()}
+                >✓→ {t(i18n, "reader.doneNext")}</button>
+            {/if}
+            <div class="glean-reader__toolbar-secondary" role="group" aria-label={t(i18n, "reader.shortcuts")}>
+                <button class="glean-btn glean-btn--ghost glean-reader__toolbar-utility glean-reader__toolbar-focus" disabled={mode !== "read"} title={t(i18n, "reader.keyboardFocus")} onclick={() => readerRoot?.focus({ preventScroll: true })}>{t(i18n, "reader.keyboardFocus")}</button>
+                <button class="glean-btn glean-btn--ghost glean-reader__toolbar-utility glean-reader__toolbar-shortcut" aria-expanded={shortcutHelp} aria-controls={shortcutsId} onclick={() => shortcutHelp = !shortcutHelp}>{t(i18n, "reader.shortcuts")}</button>
+            </div>
+        </div>
+        {#if shortcutHelp}
+            <div id={shortcutsId} class="glean-reader__shortcuts" role="region" aria-label={t(i18n, "reader.shortcuts")}>
+                <p>{t(i18n, "reader.shortcutsHint")}</p>
+                <dl>
+                    <div><dt><kbd>j</kbd></dt><dd>{t(i18n, "reader.shortcutScrollDown")}</dd></div>
+                    <div><dt><kbd>k</kbd></dt><dd>{t(i18n, "reader.shortcutScrollUp")}</dd></div>
+                    <div><dt><kbd>e</kbd></dt><dd>{t(i18n, "reader.shortcutEdit")}</dd></div>
+                    <div><dt><kbd>m</kbd></dt><dd>{t(i18n, "reader.shortcutDone")}</dd></div>
+                    <div><dt><kbd>x</kbd></dt><dd>{t(i18n, "reader.shortcutExcerpt")}</dd></div>
+                    <div><dt><kbd>?</kbd></dt><dd>{t(i18n, "reader.shortcutHelp")}</dd></div>
+                </dl>
+            </div>
+        {/if}
+    {/if}
+    <div class="glean-reader__body">
     <div class="glean-reader__main">
         {#if docId}
-            <div class="glean-reader__host" bind:this={protyleHost}></div>
+            <ProtyleHost app={facade.pluginInstance.app} {docId} mode={modeValue(mode)} {i18n} bind:host={protyleHost} bind:controller={protyle} className="glean-reader__host" onOpenDocument={() => { if (docId) void openTab({ app: facade.pluginInstance.app, doc: { id: docId } }); }} />
         {:else}
             <div class="glean-reader__empty">
                 <div class="glean-reader__empty-art">📖</div>
@@ -837,113 +955,165 @@
         {/if}
     </div>
     {#if docId}
-        <aside class="glean-reader__side" aria-label={t(i18n, "reader.title")}>
-            {#if readingPercent > 0}
-                <!-- T-1746：结构估计进度条（无百分比数字，遵守 T-1728 反伪精确纪律） -->
-                <div class="glean-reader__progress" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={readingPercent} aria-label={t(i18n, "reader.readingProgress")}>
-                    <i style={`width:${readingPercent}%`}></i>
-                </div>
-            {/if}
-            <div class="glean-reader__titleline">
-                <div class="glean-reader__title" title={context?.title}>{context?.title || t(i18n, "panel.untitled")}</div>
-                {#if context}
-                    <!-- T-1755 收藏星标 -->
-                    <button
-                        class="glean-reader__fav"
-                        class:glean-reader__fav--on={favorite}
-                        role="switch"
-                        aria-checked={favorite}
-                        title={t(i18n, favorite ? "action.unfavorite" : "action.favorite")}
-                        onclick={() => void toggleFavoriteFlag()}
-                    >{favorite ? "★" : "☆"}</button>
-                {/if}
-            </div>
+        <aside id={sidebarId} class="glean-reader__side" hidden={sidebarCollapsed} aria-labelledby={sidebarTitleId}>
+            <div id={sidebarTitleId} class="glean-reader__title">{t(i18n, "reader.companionTitle")}</div>
             <div class="glean-reader__meta">
                 <span class={`glean-carrier-badge glean-carrier-badge--${resolveCarrier(context?.contentType)}`}>
                     {carrierLabel(context?.contentType)}
                 </span>
                 {#if context?.site}<span>{context.site}</span>{/if}
-                {#if sessionDisplay > 0}
-                    <!-- T-1747：本次会话阅读时长（会话状态，不落属性） -->
-                    <span>· {t(i18n, "reader.sessionMinutes", { n: sessionDisplay })}</span>
-                {/if}
+                {#if context?.author}<span>{context.author}</span>{/if}
             </div>
-            {#if outline.length > 0}
-                <!-- T-1740 本文大纲：标题树 + 点击滚动定位 -->
-                {#if outlineOpen}
-                    <nav class="glean-reader__outline" aria-label={t(i18n, "reader.outline")}>
-                        {#each outline as heading, index (heading.id)}
-                            <button
-                                class="glean-reader__outline-item"
-                                style={`padding-left:${6 + outlineIndents[index] * 12}px`}
-                                title={heading.text}
-                                onclick={() => scrollToHeading(heading.id)}
-                            >{heading.text}</button>
-                        {/each}
-                    </nav>
-                {/if}
-                <button
-                    class="glean-btn glean-btn--ghost glean-reader__outline-toggle"
-                    aria-expanded={outlineOpen}
-                    onclick={() => (outlineOpen = !outlineOpen)}
-                >{outlineOpen ? "▾" : "▸"} {t(i18n, "reader.outline")}</button>
+            {#if contextLoading}
+                <div class="glean-reader__context-state glean-reader__context-state--loading" role="status" aria-live="polite">
+                    <span class="glean-reader__ai-status-dot" aria-hidden="true"></span>{t(i18n, "panel.loading")}
+                </div>
+            {:else if contextError}
+                <div class="glean-reader__context-state glean-reader__context-state--error" role="alert">
+                    <span>{t(i18n, "reader.actionFailed")}</span>
+                    {#if docId}<button class="glean-btn glean-btn--ghost" aria-busy={contextLoading} disabled={contextLoading} onclick={retryContext}>{t(i18n, "action.retry")}</button>{/if}
+                </div>
             {/if}
-            <!-- T-2022 parity：挂 .glean-seg 容器（胶囊轨道/padding），与 Settings/Dock 同一控件形态 -->
-            <div class="glean-seg glean-reader__mode" role="group" aria-label={t(i18n, "settings.readerMode")}>
-                <button
-                    class="glean-seg__btn"
-                    class:glean-seg__btn--on={mode === "read"}
-                    title={t(i18n, "reader.readHint")}
-                    onclick={() => setMode("read")}
-                >{t(i18n, "reader.modeRead")}</button>
-                <button
-                    class="glean-seg__btn"
-                    class:glean-seg__btn--on={mode === "edit"}
-                    title={t(i18n, "reader.editHint")}
-                    onclick={() => setMode("edit")}
-                >{t(i18n, "reader.modeEdit")}</button>
-                <!-- T-1742/T-1743 排版偏好：字号/行距/栏宽/主题循环（纯视图状态，ui-prefs 持久化） -->
-                <button
-                    class="glean-seg__btn"
-                    title={t(i18n, "reader.typographyFont")}
-                    onclick={() => cycleFontSize()}
-                >A</button>
-                <button
-                    class="glean-seg__btn"
-                    title={t(i18n, "reader.typographyLine")}
-                    onclick={() => cycleLineHeight()}
-                >{typography.lineHeight === "compact" ? "≡" : typography.lineHeight === "normal" ? "≣" : "☰"}</button>
-                <button
-                    class="glean-seg__btn"
-                    title={t(i18n, "reader.typographyWidth")}
-                    onclick={() => cycleWidth()}
-                >{typography.width === "narrow" ? "⇥⇤" : typography.width === "medium" ? "⇹" : "⟷"}</button>
-                <button
-                    class="glean-seg__btn"
-                    title={t(i18n, "reader.typographyTheme")}
-                    onclick={() => cycleTheme()}
-                >{typography.theme === "paper" ? "📄" : typography.theme === "sepia" ? "☕" : "◐"}</button>
-            </div>
+            {#if displayedReadMinutes > 0}
+                <div class="glean-reader__hint glean-reader__reading-time" aria-live="polite">{t(i18n, "reader.readMinutes", { n: displayedReadMinutes })}</div>
+            {/if}
             {#if context}
-                {@const activeDocId = context.id}
-                <ClipStatusActions
-                    {i18n}
-                    status={context.status}
-                    disabled={statusBusy}
-                    onStartReading={() => void startReading()}
-                    onSetStatus={(status) => void writeStatus(status)}
-                    onArchive={() => facade.openArchiveDialog(activeDocId)}
-                    onRestore={() => facade.openRestoreDialog(activeDocId)}
-                />
-                <button
-                    class="glean-btn glean-btn--ghost"
-                    disabled={statusBusy}
-                    title={t(i18n, "reader.doneNextHint")}
-                    onclick={() => void doneAndNext()}
-                >✓→ {t(i18n, "reader.doneNext")}</button>
+                <div class="glean-reader__status-actions">
+                    <ClipStatusActions
+                        {i18n}
+                        status={context.status}
+                        disabled={statusBusy}
+                        showDone={false}
+                        onStartReading={() => void startReading()}
+                        onSetStatus={(status) => void writeStatus(status)}
+                    />
+                </div>
+                <div class="glean-reader__section glean-reader__section--utility" aria-labelledby={rankTitleId}>
+                    <div id={rankTitleId} class="glean-reader__section-title" role="heading" aria-level="3">{t(i18n, "panel.rankTitle")}</div>
+                    <ClipRankControls
+                        {i18n}
+                        priority={context.priority}
+                        rating={context.rating}
+                        disabled={statusBusy}
+                        onPriority={(value) => void setPriority(value)}
+                        onRating={(value) => void setRating(value)}
+                    />
+                </div>
+            {/if}
+            <details id={moreToolsId} class="glean-reader__section glean-reader__section--utility glean-reader__more-tools glean-reader__fold" aria-labelledby={moreToolsTitleId} bind:open={moreToolsOpen}>
+                <summary id={moreToolsTitleId} class="glean-reader__section-title">{t(i18n, "reader.moreTools")}</summary>
+                <div class="glean-reader__more-tools-body">
+                    <div class="glean-reader__section glean-reader__section--utility glean-reader__recent" aria-labelledby={recentTitleId}>
+                        <div id={recentTitleId} class="glean-reader__section-title" role="heading" aria-level="3">{t(i18n, "reader.recentTitle")}</div>
+                        <div class="glean-reader__recent-list">
+                            {#each recentReadings as item (item.id)}
+                                <button
+                                    class="glean-reader__recent-item"
+                                    class:glean-reader__recent-item--current={item.id === docId}
+                                    aria-current={item.id === docId ? "page" : undefined}
+                                    title={item.title || item.id}
+                                    onclick={() => openRecentReading(item)}
+                                >{item.title || item.id}</button>
+                            {:else}
+                                <div class="glean-reader__hint">{t(i18n, "reader.recentEmpty")}</div>
+                            {/each}
+                        </div>
+                    </div>
+                    {#if context?.id === docId}<AuthorEditor {facade} {docId} onSaved={() => { if (docId) return loadContext(docId); }} />{/if}
+                    <ReadingPositionControls {facade} {docId} host={protyleHost} instanceId={idFor("reading-position")} />
+                    {#if context && speechSupported}
+                        <div class="glean-reader__section glean-reader__section--utility glean-reader__speech" aria-labelledby={speechTitleId}>
+                            <div id={speechTitleId} class="glean-reader__section-title" role="heading" aria-level="3">{t(i18n, "reader.speechTitle")}</div>
+                            <div class="glean-reader__speech-rate">
+                                <label for={speechRateId}>{t(i18n, "reader.speechRate")}</label>
+                                <input
+                                    id={speechRateId}
+                                    type="range"
+                                    min="0.75"
+                                    max="1.5"
+                                    step="0.25"
+                                    value={speechRate}
+                                    aria-label={t(i18n, "reader.speechRate")}
+                                    oninput={(event) => setSpeechRate(Number((event.currentTarget as HTMLInputElement).value))}
+                                />
+                                <span>{speechRate}×</span>
+                            </div>
+                            <div class="glean-reader__ops">
+                                {#if excerpt?.text}
+                                    <button class="glean-btn glean-btn--ghost" disabled={speechState === "playing" || speechState === "paused"} onclick={() => startSpeech("selection")}>
+                                        🔊 {t(i18n, "reader.speechSelection")}
+                                    </button>
+                                {/if}
+                                <button class="glean-btn glean-btn--ghost" disabled={speechState === "playing" || speechState === "paused"} onclick={() => startSpeech("full")}>
+                                    🔊 {t(i18n, "reader.speechFull")}
+                                </button>
+                                {#if speechState === "playing" || speechState === "paused"}
+                                    <button class="glean-btn glean-btn--ghost" onclick={toggleSpeechPause}>
+                                        {speechState === "playing" ? t(i18n, "reader.speechPause") : t(i18n, "reader.speechResume")}
+                                    </button>
+                                    <button class="glean-btn glean-btn--ghost" onclick={stopSpeech}>{t(i18n, "reader.speechStop")}</button>
+                                {:else if speechChunks.length > 0 && speechChunkIndex < speechChunks.length}
+                                    <button class="glean-btn glean-btn--ghost" onclick={() => startSpeech(speechScope ?? "full", true)}>
+                                        {t(i18n, "reader.speechContinue")}
+                                    </button>
+                                {/if}
+                            </div>
+                        </div>
+                    {/if}
+                    <details id={appearancePanelId} class="glean-reader__section glean-reader__section--utility glean-reader__appearance glean-reader__fold" aria-labelledby={appearanceTitleId} bind:open={appearanceOpen}>
+                        <summary id={appearanceTitleId} class="glean-reader__section-title">{t(i18n, "reader.appearanceTitle")}</summary>
+                        <label>{t(i18n, "reader.appearanceFontSize")}
+                            <select class="b3-select" disabled={appearanceBusy} value={readerAppearance.fontSize} onchange={(event) => void updateAppearance("fontSize", (event.currentTarget as HTMLSelectElement).value)}>
+                                <option value="small">{t(i18n, "reader.appearanceSmall")}</option>
+                                <option value="normal">{t(i18n, "reader.appearanceNormal")}</option>
+                                <option value="large">{t(i18n, "reader.appearanceLarge")}</option>
+                            </select>
+                        </label>
+                        <label>{t(i18n, "reader.appearanceLineHeight")}
+                            <select class="b3-select" disabled={appearanceBusy} value={readerAppearance.lineHeight} onchange={(event) => void updateAppearance("lineHeight", (event.currentTarget as HTMLSelectElement).value)}>
+                                <option value="compact">{t(i18n, "reader.appearanceCompact")}</option>
+                                <option value="normal">{t(i18n, "reader.appearanceNormal")}</option>
+                                <option value="relaxed">{t(i18n, "reader.appearanceRelaxed")}</option>
+                            </select>
+                        </label>
+                        <label>{t(i18n, "reader.appearanceWidth")}
+                            <select class="b3-select" disabled={appearanceBusy} value={readerAppearance.width} onchange={(event) => void updateAppearance("width", (event.currentTarget as HTMLSelectElement).value)}>
+                                <option value="narrow">{t(i18n, "reader.appearanceNarrow")}</option>
+                                <option value="normal">{t(i18n, "reader.appearanceNormal")}</option>
+                                <option value="wide">{t(i18n, "reader.appearanceWide")}</option>
+                            </select>
+                        </label>
+                        <label>{t(i18n, "reader.appearanceTheme")}
+                            <select class="b3-select" disabled={appearanceBusy} value={readerAppearance.theme} onchange={(event) => void updateAppearance("theme", (event.currentTarget as HTMLSelectElement).value)}>
+                                <option value="follow">{t(i18n, "reader.appearanceFollow")}</option>
+                                <option value="paper">{t(i18n, "reader.appearancePaper")}</option>
+                                <option value="eye">{t(i18n, "reader.appearanceEye")}</option>
+                            </select>
+                        </label>
+                    </details>
+                    <details class="glean-reader__section glean-reader__section--utility glean-reader__fold" aria-labelledby={outlineTitleId}>
+                        <summary id={outlineTitleId} class="glean-reader__section-title">{t(i18n, "reader.outlineTitle")}</summary>
+                        {#if outlineLoading}
+                            <div class="glean-reader__hint" role="status" aria-live="polite">{t(i18n, "reader.outlineLoading")}</div>
+                        {:else if outlineError}
+                            <div class="glean-reader__issue" role="alert">{t(i18n, "reader.outlineFailed")}</div>
+                            <button class="glean-btn glean-btn--ghost" onclick={() => docId && void loadOutline(docId)}>{t(i18n, "reader.outlineRetry")}</button>
+                        {:else if outline.length === 0}
+                            <div class="glean-reader__hint">{t(i18n, "reader.outlineEmpty")}</div>
+                        {:else}
+                            <nav class="glean-reader__outline" aria-label={t(i18n, "reader.outlineTitle")}>
+                                {#each outline as item (item.id)}
+                                    <button class="glean-reader__outline-item" style={`--glean-outline-level:${item.level}`} title={item.title} onclick={() => scrollToOutline(item)}>{item.title}</button>
+                                {/each}
+                            </nav>
+                        {/if}
+                    </details>
+                </div>
+            </details>
+            {#if context}
                 {#if docId}
-                    <div class="glean-reader__section">
-                        <div class="glean-reader__section-title">{t(i18n, "reader.excerptTitle")}</div>
+                    <div class="glean-reader__section glean-reader__section--enhanced" aria-labelledby={excerptTitleId}>
+                        <div id={excerptTitleId} class="glean-reader__section-title" role="heading" aria-level="3">{t(i18n, "reader.excerptTitle")}</div>
                         {#if excerpt}
                             <div class="glean-reader__excerpt" title={excerpt.text}>
                                 {excerpt.text.slice(0, 80)}{excerpt.text.length > 80 ? "…" : ""}
@@ -953,99 +1123,63 @@
                             {/if}
                             <div class="glean-reader__ops">
                                 <button
-                                    class="glean-btn glean-btn--ghost"
-                                    disabled={!excerpt.blockId}
+                                    class="glean-btn glean-btn--pri"
+                                    aria-busy={excerptBusy}
+                                    disabled={!excerpt.blockId || excerptBusy}
                                     title={excerpt.blockId ? "" : t(i18n, "reader.excerptNoBlock")}
                                     onclick={() => void quoteExcerpt()}
                                 >{t(i18n, "reader.excerptQuote")}</button>
                                 <button class="glean-btn glean-btn--ghost" onclick={() => void cardFromExcerpt()}>
                                     {t(i18n, "flashcard.make")}
                                 </button>
-                                {#if aiOn}
-                                    <!-- T-1751 AI 问句制卡：生成回忆问句 → 可改 → 确认入卡 -->
-                                    <button
-                                        class="glean-btn glean-btn--ghost"
-                                        disabled={questionBusy || !excerpt.text}
-                                        title={t(i18n, "reader.questionCardHint")}
-                                        onclick={() => void generateQuestion()}
-                                    >{questionBusy ? "…" : "❓"} {t(i18n, "reader.questionCard")}</button>
-                                {/if}
                                 <button class="glean-btn glean-btn--ghost" onclick={() => void copyExcerpt()}>
                                     {t(i18n, "reader.copy")}
                                 </button>
                             </div>
-                            {#if questionDraft.trim()}
-                                <!-- T-1751：AI 问句草稿（可改）→ 确认入卡 -->
-                                <div class="glean-reader__ask">
-                                    <input
-                                        class="glean-mini-input glean-reader__ask-input"
-                                        type="text"
-                                        bind:value={questionDraft}
-                                        maxlength={120}
-                                        aria-label={t(i18n, "reader.questionCard")}
-                                    />
-                                    <button class="glean-btn glean-btn--ghost" onclick={() => void makeQuestionCard()}>
-                                        {t(i18n, "reader.questionCardMake")}
-                                    </button>
-                                </div>
-                            {/if}
                         {:else}
                             <div class="glean-reader__hint">{t(i18n, "reader.excerptHint")}</div>
                         {/if}
                     </div>
-                    <div class="glean-reader__section">
-                        <div class="glean-reader__section-title">{t(i18n, "reader.aiTitle")}</div>
+                    <div class="glean-reader__section glean-reader__section--enhanced" aria-labelledby={aiTitleId}>
+                        <div id={aiTitleId} class="glean-reader__section-title" role="heading" aria-level="3">{t(i18n, "reader.aiTitle")}</div>
                         {#if !aiOn}
                             <div class="glean-reader__hint">{t(i18n, "reader.aiOff")}</div>
                         {:else}
                             <div class="glean-reader__ops">
-                                <button class="glean-btn glean-btn--ghost" disabled={Boolean(aiBusy)} onclick={() => void runSummarize()}>
-                                    ✨ {t(i18n, "reader.aiSummarize")}
+                                <button class="glean-btn glean-btn--pri" aria-busy={Boolean(aiBusy)} disabled={Boolean(aiBusy)} onclick={() => void runSummarize()}>
+                                    <svg class="glean-icon" aria-hidden="true"><use href="#iconGleanSpark" /></svg>{t(i18n, "reader.aiSummarize")}
                                 </button>
                                 <button
                                     class="glean-btn glean-btn--ghost"
+                                    aria-busy={Boolean(aiBusy)}
                                     disabled={Boolean(aiBusy) || !excerpt?.text}
                                     title={excerpt?.text ? "" : t(i18n, "reader.excerptHint")}
                                     onclick={() => void runTranslate()}
                                 >文A {t(i18n, "reader.aiTranslate")}</button>
-                                <!-- T-1745 双语对照：全文翻译入对照块 -->
-                                <button
-                                    class="glean-btn glean-btn--ghost"
-                                    disabled={Boolean(aiBusy)}
-                                    onclick={() => void runTranslateFull()}
-                                >文A+ {t(i18n, "reader.aiTranslateFull")}</button>
                                 {#if relatedOn}
-                                    <button class="glean-btn glean-btn--ghost" disabled={Boolean(aiBusy)} onclick={() => void runRelated()}>
+                                    <button class="glean-btn glean-btn--ghost" aria-busy={Boolean(aiBusy)} disabled={Boolean(aiBusy)} onclick={() => void runRelated()}>
                                         🔗 {t(i18n, "reader.aiRelated")}
                                     </button>
                                 {/if}
+                                {#if articleQuestionOn}
+                                    <div class="glean-reader__question">
+                                        <input class="glean-mini-input" maxlength="1000" placeholder={t(i18n, "reader.articleQuestion.placeholder")} aria-label={t(i18n, "reader.articleQuestion.action")} bind:value={question} onkeydown={(event) => event.key === "Enter" && void runArticleQuestion()} />
+                                        <div class="glean-reader__ops">
+                                            <button class="glean-btn glean-btn--ghost" class:glean-seg__btn--on={questionMode === "full"} onclick={() => { questionMode = "full"; }}>{t(i18n, "reader.articleQuestion.full")}</button>
+                                            <button class="glean-btn glean-btn--ghost" disabled={!excerpt?.blockId} class:glean-seg__btn--on={questionMode === "selection"} onclick={() => { questionMode = "selection"; }}>{t(i18n, "reader.articleQuestion.selection")}</button>
+                                            <button class="glean-btn glean-btn--pri" aria-busy={Boolean(aiBusy)} disabled={Boolean(aiBusy) || !question.trim()} onclick={() => void runArticleQuestion()}>{t(i18n, "reader.articleQuestion.ask")}</button>
+                                        </div>
+                                    </div>
+                                {/if}
                             </div>
-                            {#if aiOn}
-                                <!-- T-1760 问这篇文章：单轮输入，无会话、无追问（不做聊天窗） -->
-                                <div class="glean-reader__ask">
-                                    <input
-                                        class="glean-mini-input glean-reader__ask-input"
-                                        type="text"
-                                        placeholder={t(i18n, "reader.askPlaceholder")}
-                                        aria-label={t(i18n, "reader.aiAsk")}
-                                        bind:value={askInput}
-                                        maxlength={500}
-                                        onkeydown={(event) => {
-                                            if (event.key === "Enter" && !aiBusy) {
-                                                event.preventDefault();
-                                                void runAsk();
-                                            }
-                                        }}
-                                    />
-                                    <button
-                                        class="glean-btn glean-btn--ghost"
-                                        disabled={Boolean(aiBusy)}
-                                        onclick={() => void runAsk()}
-                                    >{t(i18n, "reader.aiAsk")}</button>
+                            {#if aiBusy}
+                                <div class="glean-reader__ai-status" role="status" aria-live="polite">
+                                    <span class="glean-reader__ai-status-dot" aria-hidden="true"></span>
+                                    {t(i18n, "panel.loading")}
                                 </div>
                             {/if}
                             {#if aiResult}
-                                <div class="glean-reader__ai-card">
+                                <div class="glean-reader__ai-card" role="status" aria-live="polite">
                                     <div class="glean-reader__ai-src">
                                         {t(i18n, "reader.aiSource", { channel: channelLabel, action: aiResult.action })}
                                     </div>
@@ -1062,29 +1196,22 @@
                                     </div>
                                 </div>
                             {/if}
-                            {#if aiResult?.kind === "translateFull"}
-                                <!-- T-1745 双语对照块：全文译文折叠展示，可复制；AI 来源同标记 -->
-                                <div class="glean-reader__bilingual">
-                                    <button
-                                        class="glean-btn glean-btn--ghost glean-reader__bilingual-toggle"
-                                        aria-expanded={translateFullOpen}
-                                        onclick={() => (translateFullOpen = !translateFullOpen)}
-                                    >{translateFullOpen ? "▾" : "▸"} {t(i18n, "reader.bilingualTitle")}</button>
-                                    {#if translateFullOpen}
-                                        {@const fullText = aiResult.text}
-                                        <div class="glean-reader__bilingual-text">{fullText}</div>
-                                        <div class="glean-reader__ops">
-                                            <button class="glean-btn glean-btn--ghost" onclick={() => void copyText(fullText)}>
-                                                {t(i18n, "reader.copy")}
-                                            </button>
-                                        </div>
-                                    {/if}
+                            {#if questionResult}
+                                <div class="glean-reader__ai-card" role="status" aria-live="polite">
+                                    <div class="glean-reader__ai-src">{t(i18n, "reader.articleQuestion.action")}</div>
+                                    <div class="glean-reader__ai-text">{questionResult.answer}</div>
+                                    {#if questionResult.truncated}<div class="glean-reader__hint">{t(i18n, "reader.articleQuestion.truncated")}</div>{/if}
+                                    {#if questionResult.evidence.length > 0}
+                                        <div class="glean-reader__ai-src">{t(i18n, "reader.articleQuestion.evidence")}</div>
+                                        {#each questionResult.evidence as evidence}<blockquote>{evidence}</blockquote>{/each}
+                                    {:else}<div class="glean-reader__hint">{t(i18n, "reader.articleQuestion.insufficient")}</div>{/if}
+                                    <button class="glean-btn glean-btn--ghost" onclick={() => void copyText(`${questionResult!.answer}\n\n${questionResult!.evidence.join("\n")}`)}>{t(i18n, "reader.copy")}</button>
                                 </div>
                             {/if}
                             {#if relatedShown && relatedItems.length > 0}
                                 <div class="glean-reader__related">
                                     {#each relatedItems as item (item.id)}
-                                        <button class="glean-reader__related-item" title={item.title} onclick={() => openRelatedDoc(item.id)}>
+                                        <button class="glean-reader__related-item" title={item.title} onclick={() => openRelatedDoc(item.id, item.title)}>
                                             {item.title}
                                         </button>
                                     {/each}
@@ -1093,22 +1220,10 @@
                         {/if}
                     </div>
                 {/if}
-                {#if context}
-                    <div class="glean-reader__section">
-                        <div class="glean-reader__section-title">{t(i18n, "panel.rankTitle")}</div>
-                        <ClipRankControls
-                            {i18n}
-                            priority={context.priority}
-                            rating={context.rating}
-                            disabled={statusBusy}
-                            onPriority={(value) => void setPriority(value)}
-                            onRating={(value) => void setRating(value)}
-                        />
-                    </div>
-                {/if}
                 <div class="glean-reader__ops">
+                    <button class="glean-btn glean-btn--ghost" onclick={() => openFormattingDialog(facade, context!.id)}>{t(i18n, "formatting.open")}</button>
                     {#if hasSourceAction(context.contentType, context.url)}
-                        <button class="glean-btn glean-btn--ghost" onclick={openSource}>↗ {t(i18n, "clip.openSource")}</button>
+                        <button class="glean-btn glean-btn--ghost" onclick={openSource}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanExternal" /></svg>{t(i18n, "clip.openSource")}</button>
                     {:else if resolveCarrier(context.contentType) === "link"}
                         <span class="glean-source-missing">{t(i18n, "clip.sourceMissing")}</span>
                     {/if}
@@ -1116,42 +1231,29 @@
                         class="glean-btn glean-btn--ghost"
                         disabled={snapping}
                         title={context.snapshot ? t(i18n, "snapshot.open") : t(i18n, "snapshot.take")}
+                        aria-label={context.snapshot ? t(i18n, "snapshot.open") : t(i18n, "snapshot.take")}
                         onclick={() => void takeSnapshot()}
                     >
-                        {context.snapshot ? "⟐" : "📷"}
+                        <svg class="glean-icon glean-icon--sm" aria-hidden="true"><use href={context.snapshot ? "#iconGleanArchive" : "#iconGleanCamera"} /></svg>
                     </button>
-                    {#if ttsOn}
-                        <!-- T-1744 TTS：选区（摘录捕获）优先，其次全文；能力缺失/移动端整行隐藏 -->
-                        {#if speaking}
-                            <button class="glean-btn glean-btn--ghost" onclick={() => stopSpeech()}>{t(i18n, "reader.ttsStop")}</button>
-                        {:else}
-                            <button
-                                class="glean-btn glean-btn--ghost"
-                                title={excerpt?.text ? t(i18n, "reader.ttsSelection") : t(i18n, "reader.ttsFull")}
-                                onclick={() => startSpeech(excerpt?.text || bodyTextForSpeech())}
-                            >▶ {t(i18n, "reader.ttsSpeak")}</button>
-                        {/if}
-                        <button class="glean-btn glean-btn--ghost" title={t(i18n, "reader.ttsRateTitle")} onclick={toggleSpeechRate}>
-                            {speechRate}×
-                        </button>
-                    {/if}
                 </div>
                 {#if bodyState === "unmeasured"}
                     <button class="glean-btn glean-btn--ghost" disabled={measuring} title={t(i18n, "clip.bodyCheckHint")} onclick={() => void checkBody()}>
-                        ⌕ {t(i18n, "clip.bodyCheck")}
+                        <svg class="glean-icon" aria-hidden="true"><use href="#iconGleanSearch" /></svg>{t(i18n, "clip.bodyCheck")}
                     </button>
                 {:else if bodyState === "missing"}
                     <div class="glean-reader__issue">
                         <span title={t(i18n, "clip.bodyMissingHint")}>{t(i18n, "clip.bodyMissing")}</span>
                         {#if hasSourceAction(context.contentType, context.url)}
-                            <button class="glean-btn glean-btn--ghost" onclick={recapture}>↻ {t(i18n, "clip.reclip")}</button>
+                            <button class="glean-btn glean-btn--ghost" onclick={recapture}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanRefresh" /></svg>{t(i18n, "clip.reclip")}</button>
                         {/if}
                     </div>
                 {/if}
                 <button class="glean-reader__back" onclick={backToLibrary}>{t(i18n, "reading.backToLibrary")}</button>
-            {:else}
+            {:else if !contextLoading && !contextError}
                 <div class="glean-reader__issue"><span>{t(i18n, "reader.emptyHint")}</span></div>
             {/if}
         </aside>
     {/if}
+    </div>
 </div>

@@ -2,20 +2,14 @@
  * 阅读页签 AI 伴读（T-1730e，D-0030 落点 T-1726）：总结（全文）、翻译（选区）。
  * 显式动作；结果临时显示不落属性，仅用户显式"保存为 AI 摘要"写 custom-clip-summary；
  * 额度与富化共享（aiQuotaAvailable/recordAiUsage），关闭模式与失败静默降级。
- * 额度原子性（T-1883）：检查→调用→计数全程包进 AI 串行租约队列（runAiTask）。
  */
 import type { Plugin } from "siyuan";
-import { exportMdContent } from "../api/client";
+import { exportMdContent, querySql } from "../api/client";
 import { stripMarkdown } from "../domain/migrate";
-import {
-    buildAskPrompt,
-    buildSummarizePrompt,
-    buildTranslatePrompt,
-    clampAskQuestion,
-} from "../domain/reader";
-import { buildDailyDigestPrompt, buildMultiReportPrompt, buildQuestionCardPrompt } from "../domain/enrich";
-import { aiQuotaAvailable, callLLM, logAiEvent, recordAiUsage, runAiTask } from "./enrich-service";
-import { writeClip } from "./clip-store";
+import { ARTICLE_QUESTION_CONTEXT_MAX_LENGTH, buildArticleQuestionPrompt, buildSummarizePrompt, buildTranslatePrompt, clampArticleQuestion, parseArticleQuestionResponse, type ArticleQuestionResult } from "../domain/reader";
+import { parseClipAttrs } from "../domain/schema";
+import { activeAiSettings, aiQuotaAvailable, callLLM, enqueueEnrich, logAiEvent, recordAiUsage } from "./enrich-service";
+import { readClipAttributeSnapshot, writeClip } from "./clip-store";
 import type { GleanSettings } from "./settings";
 
 export interface ReaderAiOutcome {
@@ -24,218 +18,149 @@ export interface ReaderAiOutcome {
     skipped?: "off" | "cap" | "error";
 }
 
+export interface ArticleQuestionOutcome {
+    ok: boolean;
+    result?: ArticleQuestionResult;
+    truncated?: boolean;
+    skipped?: "off" | "cap" | "error" | "changed" | "invalid";
+}
+
+const NODE_ID_PATTERN = /^\d{14}-[0-9a-z]{7}$/;
+
 /** AI 伴读总开关与富化模式一致（D-0013）：off 即整段禁用。 */
 export function readerAiEnabled(settings: GleanSettings): boolean {
     return settings.ai.enrichMode !== "off";
 }
 
-export function readerSummarize(plugin: Plugin, docId: string, settings: GleanSettings): Promise<ReaderAiOutcome> {
-    if (!readerAiEnabled(settings)) return Promise.resolve({ ok: false, skipped: "off" });
-    return runAiTask(() => readerSummarizeInner(plugin, docId, settings));
-}
-
-async function readerSummarizeInner(plugin: Plugin, docId: string, settings: GleanSettings): Promise<ReaderAiOutcome> {
-    if (!(await aiQuotaAvailable(plugin, settings))) return { ok: false, skipped: "cap" };
-    try {
+export async function readerSummarize(plugin: Plugin, docId: string, settings: GleanSettings): Promise<ReaderAiOutcome> {
+    return readerCall(plugin, docId, settings, "reader-summarize", async () => {
         const exported = await exportMdContent(docId);
         const markdown = exported?.content ?? "";
         const title = markdown.match(/^#\s+(.+)$/m)?.[1]?.trim() ?? "";
-        const llm = await callLLM(plugin, settings, buildSummarizePrompt(title, stripMarkdown(markdown)));
-        if (!llm.ok) {
-            await logAiEvent(plugin, docId, "reader-summarize", llm.reason || "调用失败");
-            return { ok: false, skipped: "error" };
-        }
-        await recordAiUsage(plugin);
-        return { ok: true, text: String(llm.text ?? "").trim() };
-    } catch (error) {
-        await logAiEvent(plugin, docId, "reader-summarize", String((error as Error)?.message ?? error));
-        return { ok: false, skipped: "error" };
-    }
+        const plain = stripMarkdown(markdown).trim();
+        return plain ? buildSummarizePrompt(title, plain) : "";
+    });
 }
 
-export function readerTranslate(plugin: Plugin, docId: string, text: string, settings: GleanSettings): Promise<ReaderAiOutcome> {
-    if (!readerAiEnabled(settings)) return Promise.resolve({ ok: false, skipped: "off" });
-    return runAiTask(() => readerTranslateInner(plugin, docId, text, settings));
+export async function readerTranslate(plugin: Plugin, docId: string, text: string, settings: GleanSettings): Promise<ReaderAiOutcome> {
+    return readerCall(plugin, docId, settings, "reader-translate", () => text.trim() ? buildTranslatePrompt(text) : "");
 }
 
-async function readerTranslateInner(plugin: Plugin, docId: string, text: string, settings: GleanSettings): Promise<ReaderAiOutcome> {
-    if (!(await aiQuotaAvailable(plugin, settings))) return { ok: false, skipped: "cap" };
-    try {
-        const llm = await callLLM(plugin, settings, buildTranslatePrompt(text));
-        if (!llm.ok) {
-            await logAiEvent(plugin, docId, "reader-translate", llm.reason || "调用失败");
+export function articleQuestionEnabled(settings: GleanSettings): boolean {
+    return settings.ai.enrichMode !== "off" && settings.ai.articleQuestionEnabled === true;
+}
+
+export async function readerArticleQuestion(
+    plugin: Plugin,
+    docId: string,
+    question: string,
+    settings: GleanSettings,
+    selectionText = "",
+    selectionBlockId = "",
+): Promise<ArticleQuestionOutcome> {
+    const requestedQuestion = clampArticleQuestion(question);
+    if (!requestedQuestion) return { ok: false, skipped: "invalid" };
+    const hasSelection = Boolean(selectionText || selectionBlockId);
+    if (hasSelection && (!selectionText.trim() || Array.from(selectionText).length > ARTICLE_QUESTION_CONTEXT_MAX_LENGTH || !NODE_ID_PATTERN.test(selectionBlockId))) return { ok: false, skipped: "invalid" };
+    if (!articleQuestionEnabled(activeAiSettings(plugin, settings))) return { ok: false, skipped: "off" };
+    return enqueueEnrich(async () => {
+        let before: Awaited<ReturnType<typeof readClipAttributeSnapshot>>;
+        try { before = await readClipAttributeSnapshot(docId); } catch { return { ok: false, skipped: "error" as const }; }
+        const beforeAttrs = before.attrs;
+        const beforeLocation = { box: before.meta.box, hpath: before.meta.hpath };
+        const parsedAttrs = parseClipAttrs(beforeAttrs);
+        if (!parsedAttrs.status || parsedAttrs.internal || parsedAttrs.excluded) return { ok: false, skipped: "invalid" as const };
+        let currentSettings = activeAiSettings(plugin, settings);
+        if (!articleQuestionEnabled(currentSettings)) return { ok: false, skipped: "off" as const };
+        try {
+            if (!(await aiQuotaAvailable(plugin, currentSettings))) return { ok: false, skipped: "cap" as const };
+            let context = "";
+            if (hasSelection) {
+                const exported = await exportMdContent(docId);
+                const documentText = stripMarkdown(exported?.content ?? "").replace(/\s+/g, " ").trim();
+                const selectedText = selectionText.replace(/\s+/g, " ").trim();
+                if (!documentText.includes(selectedText) || !(await selectionBlockBelongsToDoc(selectionBlockId, docId))) return { ok: false, skipped: "invalid" as const };
+                context = selectionText.trim();
+            } else {
+                const exported = await exportMdContent(docId);
+                context = stripMarkdown(exported?.content ?? "").trim();
+            }
+            if (!context) return { ok: false, skipped: "invalid" as const };
+            const truncated = context.length > ARTICLE_QUESTION_CONTEXT_MAX_LENGTH;
+            const prompt = buildArticleQuestionPrompt(before.meta.title, context, requestedQuestion, truncated);
+            currentSettings = activeAiSettings(plugin, settings);
+            if (!articleQuestionEnabled(currentSettings) || !(await aiQuotaAvailable(plugin, currentSettings))) return { ok: false, skipped: articleQuestionEnabled(currentSettings) ? "cap" as const : "off" as const };
+            const llm = await callLLM(plugin, currentSettings, prompt);
+            if (!llm.ok) return { ok: false, skipped: "error" as const };
+            await recordAiUsage(plugin);
+            if (hasSelection && !(await selectionBlockBelongsToDoc(selectionBlockId, docId))) return { ok: false, skipped: "changed" as const };
+            const after = await readClipAttributeSnapshot(docId);
+            const same = after.meta.box === beforeLocation.box && after.meta.hpath === beforeLocation.hpath
+                && Object.keys(beforeAttrs).every((key) => after.attrs[key] === beforeAttrs[key])
+                && Object.keys(after.attrs).every((key) => after.attrs[key] === beforeAttrs[key]);
+            if (!same) return { ok: false, skipped: "changed" as const };
+            currentSettings = activeAiSettings(plugin, settings);
+            if (!articleQuestionEnabled(currentSettings)) return { ok: false, skipped: "off" as const };
+            const result = parseArticleQuestionResponse(typeof llm.text === "string" ? llm.text : "", context.slice(0, ARTICLE_QUESTION_CONTEXT_MAX_LENGTH));
+            if (!result) return { ok: false, skipped: "error" as const };
+            return { ok: true, result, truncated };
+        } catch {
+            await logAiEvent(plugin, docId, "article-question", "本文问答不可用，已跳过");
+            return { ok: false, skipped: "error" as const };
+        }
+    });
+}
+
+async function selectionBlockBelongsToDoc(blockId: string, docId: string): Promise<boolean> {
+    if (!NODE_ID_PATTERN.test(blockId) || !NODE_ID_PATTERN.test(docId)) return false;
+    const rows = await querySql<{ id: string; root_id: string }>(`SELECT id, root_id FROM blocks WHERE id = '${blockId}' LIMIT 1`);
+    return rows.length === 1 && rows[0].id === blockId && rows[0].root_id === docId;
+}
+
+async function readerCall(
+    plugin: Plugin,
+    docId: string,
+    settings: GleanSettings,
+    stage: string,
+    getPrompt: () => string | Promise<string>
+): Promise<ReaderAiOutcome> {
+    if (!readerAiEnabled(activeAiSettings(plugin, settings))) return { ok: false, skipped: "off" };
+    return enqueueEnrich(async () => {
+        let currentSettings = activeAiSettings(plugin, settings);
+        if (!readerAiEnabled(currentSettings)) return { ok: false, skipped: "off" };
+        try {
+            if (!(await aiQuotaAvailable(plugin, currentSettings))) return { ok: false, skipped: "cap" };
+            const prompt = await getPrompt();
+            if (!prompt) {
+                await logAiEvent(plugin, docId, stage, "输入文本为空，已跳过");
+                return { ok: false, skipped: "error" };
+            }
+            currentSettings = activeAiSettings(plugin, settings);
+            if (!readerAiEnabled(currentSettings)) return { ok: false, skipped: "off" };
+            if (!(await aiQuotaAvailable(plugin, currentSettings))) return { ok: false, skipped: "cap" };
+            currentSettings = activeAiSettings(plugin, settings);
+            if (!readerAiEnabled(currentSettings)) return { ok: false, skipped: "off" };
+            const llm = await callLLM(plugin, currentSettings, prompt);
+            if (!llm.ok) {
+                await logAiEvent(plugin, docId, stage, "模型调用失败，已跳过");
+                return { ok: false, skipped: "error" };
+            }
+            await recordAiUsage(plugin);
+            if (!readerAiEnabled(activeAiSettings(plugin, settings))) return { ok: false, skipped: "off" };
+            const text = typeof llm.text === "string" ? llm.text.trim() : "";
+            if (!text) {
+                await logAiEvent(plugin, docId, stage, "模型响应为空，已跳过");
+                return { ok: false, skipped: "error" };
+            }
+            return { ok: true, text };
+        } catch {
+            await logAiEvent(plugin, docId, stage, "阅读 AI 不可用，已跳过");
             return { ok: false, skipped: "error" };
         }
-        await recordAiUsage(plugin);
-        return { ok: true, text: String(llm.text ?? "").trim() };
-    } catch (error) {
-        await logAiEvent(plugin, docId, "reader-translate", String((error as Error)?.message ?? error));
-        return { ok: false, skipped: "error" };
-    }
+    });
 }
 
 /** 用户显式保存总结为 AI 摘要（既有 custom-clip-summary 属性；summary 非手填保护字段）。 */
 export async function saveReaderSummary(plugin: Plugin, docId: string, text: string): Promise<void> {
     await writeClip(plugin, docId, { summary: text });
-}
-
-/**
- * "问这篇文章"（T-1760）：限定上下文=本文全文的单轮动作，不做追问、不做聊天窗
- * （铁律 8/D-0030）。额度与富化/伴读共享（T-1883 租约），失败静默降级。
- */
-export function readerAsk(plugin: Plugin, docId: string, question: string, settings: GleanSettings): Promise<ReaderAiOutcome> {
-    const normalized = clampAskQuestion(question);
-    if (!readerAiEnabled(settings)) return Promise.resolve({ ok: false, skipped: "off" });
-    if (!normalized) return Promise.resolve({ ok: false, skipped: "error" });
-    return runAiTask(() => readerAskInner(plugin, docId, normalized, settings));
-}
-
-async function readerAskInner(plugin: Plugin, docId: string, question: string, settings: GleanSettings): Promise<ReaderAiOutcome> {
-    if (!(await aiQuotaAvailable(plugin, settings))) return { ok: false, skipped: "cap" };
-    try {
-        const exported = await exportMdContent(docId);
-        const markdown = exported?.content ?? "";
-        const title = markdown.match(/^#\s+(.+)$/m)?.[1]?.trim() ?? "";
-        const llm = await callLLM(plugin, settings, buildAskPrompt(title, stripMarkdown(markdown), question));
-        if (!llm.ok) {
-            await logAiEvent(plugin, docId, "reader-ask", llm.reason || "调用失败");
-            return { ok: false, skipped: "error" };
-        }
-        await recordAiUsage(plugin);
-        return { ok: true, text: String(llm.text ?? "").trim() };
-    } catch (error) {
-        await logAiEvent(plugin, docId, "reader-ask", String((error as Error)?.message ?? error));
-        return { ok: false, skipped: "error" };
-    }
-}
-
-/**
- * 全文翻译（T-1745 双语对照）：与选区翻译（readerTranslate）不同——上下文=本文全文，
- * 结果供伴生栏"对照阅读"块展示。租约队列、额度共享、失败静默，与伴读动作同纪律。
- */
-export function readerTranslateFull(
-    plugin: Plugin,
-    docId: string,
-    settings: GleanSettings
-): Promise<ReaderAiOutcome> {
-    if (!readerAiEnabled(settings)) return Promise.resolve({ ok: false, skipped: "off" });
-    return runAiTask(() => readerTranslateFullInner(plugin, docId, settings));
-}
-
-async function readerTranslateFullInner(
-    plugin: Plugin,
-    docId: string,
-    settings: GleanSettings
-): Promise<ReaderAiOutcome> {
-    if (!(await aiQuotaAvailable(plugin, settings))) return { ok: false, skipped: "cap" };
-    try {
-        const exported = await exportMdContent(docId);
-        const markdown = exported?.content ?? "";
-        const llm = await callLLM(plugin, settings, buildTranslatePrompt(stripMarkdown(markdown).slice(0, 8000)));
-        if (!llm.ok) {
-            await logAiEvent(plugin, docId, "reader-translate-full", llm.reason || "调用失败");
-            return { ok: false, skipped: "error" };
-        }
-        await recordAiUsage(plugin);
-        return { ok: true, text: String(llm.text ?? "").trim() };
-    } catch (error) {
-        await logAiEvent(plugin, docId, "reader-translate-full", String((error as Error)?.message ?? error));
-        return { ok: false, skipped: "error" };
-    }
-}
-
-/**
- * AI 问句制卡（T-1751）：基于摘录生成回忆问句卡面。
- * 只生成建议——用户在确认输入框可改后调用 makeQuoteCard 入卡（写入由用户触发）。
- */
-export function inferQuestionCard(
-    plugin: Plugin,
-    quote: string,
-    settings: GleanSettings
-): Promise<ReaderAiOutcome> {
-    if (!readerAiEnabled(settings)) return Promise.resolve({ ok: false, skipped: "off" });
-    return runAiTask(async () => {
-        if (!(await aiQuotaAvailable(plugin, settings))) return { ok: false, skipped: "cap" };
-        try {
-            const llm = await callLLM(plugin, settings, buildQuestionCardPrompt(quote));
-            if (!llm.ok) {
-                await logAiEvent(plugin, quote.slice(0, 20), "question-card", llm.reason || "调用失败");
-                return { ok: false, skipped: "error" };
-            }
-            await recordAiUsage(plugin);
-            return { ok: true, text: String(llm.text ?? "").trim() };
-        } catch (error) {
-            await logAiEvent(plugin, quote.slice(0, 20), "question-card", String((error as Error)?.message ?? error));
-            return { ok: false, skipped: "error" };
-        }
-    });
-}
-
-/**
- * AI 每日简报（T-1764）：基于今日拾遗前 3 篇的标题/来源/摘要生成串联速览。
- * 租约队列/额度共享/失败静默；结果为会话状态，仅复制不落属性。
- */
-export interface DigestInputItem {
-    title: string;
-    site: string;
-    summary: string;
-}
-
-export function dailyDigest(
-    plugin: Plugin,
-    items: DigestInputItem[],
-    settings: GleanSettings
-): Promise<ReaderAiOutcome> {
-    if (!readerAiEnabled(settings)) return Promise.resolve({ ok: false, skipped: "off" });
-    if (items.length === 0) return Promise.resolve({ ok: false, skipped: "error" });
-    return runAiTask(async () => {
-        if (!(await aiQuotaAvailable(plugin, settings))) return { ok: false, skipped: "cap" };
-        try {
-            const llm = await callLLM(plugin, settings, buildDailyDigestPrompt(items.slice(0, 3)));
-            if (!llm.ok) {
-                await logAiEvent(plugin, "daily-digest", "daily-digest", llm.reason || "调用失败");
-                return { ok: false, skipped: "error" };
-            }
-            await recordAiUsage(plugin);
-            return { ok: true, text: String(llm.text ?? "").trim() };
-        } catch (error) {
-            await logAiEvent(plugin, "daily-digest", "daily-digest", String((error as Error)?.message ?? error));
-            return { ok: false, skipped: "error" };
-        }
-    });
-}
-
-/**
- * 多文档 AI 报告（T-1902）：勾选篇单次调用生成综述报告（额度一次）。
- * 租约队列/额度共享/失败静默；结果为会话状态（弹窗展示+复制），不落属性。
- */
-export interface MultiReportItem {
-    title: string;
-    site: string;
-    summary: string;
-    status: string;
-}
-
-export function generateMultiReport(
-    plugin: Plugin,
-    items: MultiReportItem[],
-    settings: GleanSettings
-): Promise<ReaderAiOutcome> {
-    if (!readerAiEnabled(settings)) return Promise.resolve({ ok: false, skipped: "off" });
-    if (items.length === 0) return Promise.resolve({ ok: false, skipped: "error" });
-    return runAiTask(async () => {
-        if (!(await aiQuotaAvailable(plugin, settings))) return { ok: false, skipped: "cap" };
-        try {
-            const llm = await callLLM(plugin, settings, buildMultiReportPrompt(items));
-            if (!llm.ok) {
-                await logAiEvent(plugin, "multi-report", "multi-report", llm.reason || "调用失败");
-                return { ok: false, skipped: "error" };
-            }
-            await recordAiUsage(plugin);
-            return { ok: true, text: String(llm.text ?? "").trim() };
-        } catch (error) {
-            await logAiEvent(plugin, "multi-report", "multi-report", String((error as Error)?.message ?? error));
-            return { ok: false, skipped: "error" };
-        }
-    });
 }

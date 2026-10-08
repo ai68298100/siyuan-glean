@@ -5,6 +5,7 @@
  */
 import { stripMarkdown } from "./migrate.ts";
 import { inspectCandidate } from "./candidate-policy.ts";
+import { normalizeUrl } from "./url.ts";
 import { countWords, estimateMinutes, siteFromUrl, type ClipContentType } from "./schema.ts";
 
 export interface ClipMarkdownMetadata {
@@ -52,7 +53,9 @@ function articleBody(markdown: string): string {
 /** 统一计算 URL、站点、正文长度、预计时长和阅读载体类型。 */
 export function inspectClipMarkdown(markdown: string, options: InspectMarkdownOptions = {}): ClipMarkdownMetadata {
     // 与候选资格规则共用精确模板判定；普通正文内联链接不是来源。
-    const url = String(options.url ?? inspectCandidate({ markdown }).url).trim();
+    const suppliedUrl = String(options.url ?? "").trim();
+    const candidateUrl = inspectCandidate({ markdown }).url;
+    const url = (suppliedUrl && normalizeUrl(suppliedUrl) ? suppliedUrl : candidateUrl).trim();
     const body = articleBody(markdown);
     const rawWords = countWords(body);
     const contentType = options.contentType ?? (url ? (rawWords > 0 ? "fulltext" : "link") : "local");

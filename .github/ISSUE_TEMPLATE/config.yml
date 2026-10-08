@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 先看安装与能力边界
+    url: https://github.com/ai68298100/siyuan-glean#readme
+    about: 先确认版本、安装方式和当前已验证能力，再提交问题。
+  - name: 查看能力矩阵与已知阻塞
+    url: https://github.com/ai68298100/siyuan-glean/blob/HEAD/docs/CAPABILITY-MATRIX.md
+    about: 真实宿主、移动端和外部服务的验收状态集中记录在这里。
+  - name: 报告安全问题
+    url: https://github.com/ai68298100/siyuan-glean/security/policy
+    about: 不要在公开 issue 中发布漏洞细节、令牌或私有文档内容。

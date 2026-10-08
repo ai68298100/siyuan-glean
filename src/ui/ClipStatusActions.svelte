@@ -5,7 +5,6 @@
      * 状态动作只通过父组件传入的回调落到 clip-store；这个组件不读写属性，
      * 因而可以在 Dock、桌面行表、看板和移动端共用同一套语义。
      */
-    import { showMessage } from "siyuan";
     import type { ClipStatus } from "../domain/schema";
     import type { I18nBundle } from "../libs/i18n";
     import { t } from "../libs/i18n";
@@ -14,15 +13,17 @@
         i18n: I18nBundle;
         status: ClipStatus;
         disabled?: boolean;
+        /** 阅读页签将完成动作提升到顶栏；其他画布保持默认显示。 */
+        showDone?: boolean;
         onStartReading: () => void | Promise<void>;
         onSetStatus: (status: ClipStatus) => void | Promise<void>;
-        /** T-1866：提供时归档按钮弹三选对话框（保留原位置/移入【归档】/删除文章）；缺省回落直写 archived */
+        /** 提供时弹出归档策略；缺省回落到直接写入 archived。 */
         onArchive?: () => void | Promise<void>;
-        /** T-1872：提供时恢复按钮按宿主位置分流（宿主内弹两选项）；缺省回落直写 later */
+        /** 提供时按宿主位置分流恢复；缺省回落到直接写入 later。 */
         onRestore?: () => void | Promise<void>;
     }
 
-    let { i18n, status, disabled = false, onStartReading, onSetStatus, onArchive, onRestore }: Props = $props();
+    let { i18n, status, disabled = false, showDone = true, onStartReading, onSetStatus, onArchive, onRestore }: Props = $props();
     let pending = $state(false);
 
     async function invoke(action: () => void | Promise<void>) {
@@ -30,10 +31,6 @@
         pending = true;
         try {
             await action();
-        } catch (error) {
-            // T-1978：动作失败给可重试提示，不产生 unhandled rejection
-            console.warn("[glean] 状态动作失败:", error);
-            showMessage(t(i18n, "msg.actionFailed"), 3000);
         } finally {
             pending = false;
         }
@@ -50,13 +47,13 @@
     }
 </script>
 
-<div class="glean-status-actions" aria-label={t(i18n, "action.statusActions")}>
+<div class="glean-status-actions" role="group" aria-label={t(i18n, "action.statusActions")} aria-busy={pending}>
     {#if status === "archived"}
         <button
             class="glean-status-actions__btn glean-status-actions__btn--restore"
             disabled={disabled || pending}
             title={t(i18n, "action.restore")}
-            onclick={(event) => { stop(event); void invoke(() => (onRestore ? onRestore() : onSetStatus("later"))); }}
+            onclick={(event) => { stop(event); void invoke(() => onRestore ? onRestore() : onSetStatus("later")); }}
         ><span aria-hidden="true">↩</span><span>{t(i18n, "action.restore")}</span></button>
     {:else}
         <button
@@ -73,18 +70,20 @@
             onclick={(event) => { stop(event); void invoke(() => onSetStatus("later")); }}
         ><span aria-hidden="true">↷</span><span>{t(i18n, "action.moveToLater")}</span></button>
 
-        <button
-            class="glean-status-actions__btn"
-            disabled={disabled || pending || status === "done"}
-            title={t(i18n, "action.markDone")}
-            onclick={(event) => { stop(event); void invoke(() => onSetStatus("done")); }}
-        ><span aria-hidden="true">✓</span><span>{t(i18n, "action.markDone")}</span></button>
+        {#if showDone}
+            <button
+                class="glean-status-actions__btn"
+                disabled={disabled || pending || status === "done"}
+                title={t(i18n, "action.markDone")}
+                onclick={(event) => { stop(event); void invoke(() => onSetStatus("done")); }}
+            ><span aria-hidden="true">✓</span><span>{t(i18n, "action.markDone")}</span></button>
+        {/if}
 
         <button
             class="glean-status-actions__btn glean-status-actions__btn--archive"
             disabled={disabled || pending}
             title={t(i18n, "action.archive")}
-            onclick={(event) => { stop(event); void invoke(() => (onArchive ? onArchive() : onSetStatus("archived"))); }}
+            onclick={(event) => { stop(event); void invoke(() => onArchive ? onArchive() : onSetStatus("archived")); }}
         ><span aria-hidden="true">⤓</span><span>{t(i18n, "action.archive")}</span></button>
     {/if}
 </div>

@@ -1,75 +1,203 @@
 <script lang="ts">
 /** 读库 Dock 面板 v2（T-1104/T-1201/T-1202/T-1300/T-1400c）：库 / 统计 / 高亮 三视图；tab 画布 rail+行表/看板。 */
-import { tick } from "svelte";
+import { onMount, tick } from "svelte";
 import { openTab, showMessage } from "siyuan";
 import type { GleanFacade } from "../types";
 import { t } from "../libs/i18n";
+import { isActivationKey } from "../domain/keyboard";
 import type { ClipStatus } from "../domain/schema";
 import { normalizeUrl } from "../domain/url";
 import { batchSetStatus, batchSetStatusDetailed, captureDocument, findClipUrlConflict, reconcileIndex, writeClip } from "../services/clip-store";
-import { autoEnrich, enrichClip, loadEnrichFailedIds } from "../services/enrich-service";
-import { generateMultiReport } from "../services/reader-ai";
+import { autoEnrich, enrichClip } from "../services/enrich-service";
 import { snapshotClip } from "../services/snapshot-service";
 import { filterAndSortLibrary, libraryFacets, type LibraryItem, type LibrarySortDirection, type LibrarySortKey } from "../domain/library-view.ts";
 import { loadIndex, type ClipIndexEntry, type CandidateEntry, type GleanIndex } from "../services/index-store";
 import StatsView from "./StatsView.svelte";
 import HighlightView from "./HighlightView.svelte";
-import QuotesView from "./QuotesView.svelte";
+import LibraryRailGroup from "./LibraryRailGroup.svelte";
+import WorkbenchPreview from "./WorkbenchPreview.svelte";
+import LibraryBatchBar from "./LibraryBatchBar.svelte";
+import LibraryFilters from "./LibraryFilters.svelte";
+import ActionPopover from "./ActionPopover.svelte";
+import AuthorEditor from "./AuthorEditor.svelte";
+import AiBatchPanel from "./AiBatchPanel.svelte";
+import { libraryFilterChips, removeLibraryFilter, type FilterChipKey } from "../domain/library-filter-chips.ts";
+import { nextPreviewId, normalizePreviewRatio, previewRatioFromPointer } from "../domain/workbench-preview.ts";
 import InboxSection from "./InboxSection.svelte";
 import ResurfaceView from "./ResurfaceView.svelte";
-import { archiveStaleCandidates } from "../services/resurface-service";
-import { loadUiPrefs, saveUiPrefs, type SavedFilter } from "../services/prefs";
-import { pinToSessionTop, moveWithinSession, shuffleIds } from "../domain/session-order";
-import { ageDays } from "../domain/resurface.ts";
+import { archiveStaleCandidates, setSurfacePinned } from "../services/resurface-service";
+import { computeDailyFromIndex } from "../services/resurface-service";
+import { loadUiPrefs, saveUiPrefs } from "../services/prefs";
+import { ageDays, todayStamp } from "../domain/resurface.ts";
 import { recordReadingDone } from "../services/checkin-bridge";
 import { hasSourceAction, openTargetForCarrier, resolveCarrier, sourceUrlForCarrier } from "../domain/carrier";
 import ClipStatusActions from "./ClipStatusActions.svelte";
 import ClipRankControls from "./ClipRankControls.svelte";
+import { installMobileViewportVars } from "../libs/mobile-viewport";
+import { installEscapeHandler, installModalFocus } from "../libs/modal-focus";
+import { createRefreshQueue } from "../libs/refresh-queue";
+import { applySavedView, createSavedView, deleteSavedView, governanceCueMuted, localDateStamp, setDefaultSavedView, type GovernanceCueKey, type GovernanceMuted, type SavedView } from "../domain/ui-prefs";
 
 interface Props {
     facade: GleanFacade;
+    initialPreviewId?: string;
 }
 
-let { facade }: Props = $props();
+let { facade, initialPreviewId = "" }: Props = $props();
 
 const i18n = $derived(facade.i18n);
 
-type PanelView = "resurface" | "library" | "stats" | "highlights" | "quotes";
+type PanelView = "resurface" | "library" | "stats" | "highlights";
 let view = $state<PanelView>("resurface");
 let loading = $state(true);
+let quickCaptureBusy = $state(false);
 let loadError = $state(false);
+let offline = $state(false);
 let index = $state<GleanIndex>({ version: 1, updatedAt: "", clips: {}, candidates: {} });
 let activeQueue = $state<ClipStatus>("inbox");
 let keyword = $state("");
-let onlyFavorite = $state(false);
 let sortBy = $state<LibrarySortKey>("time");
 let sortDirection = $state<LibrarySortDirection>("desc");
-/** T-1903 会话顺序状态（ui-prefs 持久化，跨画布共享、重启保留）。 */
-let sessionOrder = $state<{ order: string[]; seed: number }>({ order: [], seed: 0 });
 let selectedSite = $state("");
+let selectedAuthor = $state("");
+let authorTimeline = $state(false);
 let selectedTag = $state("");
 /** AI 标签分面（T-1729）：独立于用户 tag，UI 带 ✨ 来源标记。 */
 let selectedAiTag = $state("");
-let selectedAuthor = $state("");
 /** Dock 窄画布搜索默认折叠为图标（UX 审计 #8）；工作台/浮窗保持常驻。 */
 let searchOpen = $state(false);
+let searchInput = $state<HTMLInputElement | null>(null);
+let searchToggle = $state<HTMLButtonElement | null>(null);
 let selectedSource = $state("");
 let selectedTimeSource = $state("");
 let selectedContentType = $state("");
+let mobileFilterOpen = $state(false);
+
+type MobileFilterDraft = {
+    site: string;
+    author: string;
+    tag: string;
+    aiTag: string;
+    source: string;
+    timeSource: string;
+    contentType: string;
+    sortBy: LibrarySortKey;
+    direction: LibrarySortDirection;
+};
+
+let mobileFilterDraft = $state<MobileFilterDraft>({
+    site: "",
+    author: "",
+    tag: "",
+    aiTag: "",
+    source: "",
+    timeSource: "",
+    contentType: "",
+    sortBy: "time",
+    direction: "desc",
+});
+let mobileFilterSheet = $state<HTMLElement | null>(null);
+let mobileFilterReturnFocus: HTMLElement | null = null;
+let disposeMobileFilterFocus = () => {};
 let selection = $state<ReadonlySet<string>>(new Set());
+let batchBusy = $state(false);
+let aiBatchOpen = $state(false);
+let aiBatchIds = $state<string[]>([]);
 let rootEl = $state<HTMLElement | null>(null);
+let previewId = $state("");
+let previewRevision = $state(0);
+let previewEnabled = $state(true);
+let previewRatio = $state(normalizePreviewRatio(undefined));
+let previewPrefsTouched = false;
+let previewSplit = $state<HTMLDivElement | null>(null);
+let previewDialog = $state<HTMLDivElement | null>(null);
+let previewReturnFocus: HTMLElement | null = null;
+let draggingPointer: number | null = null;
+let dragStartRatio = normalizePreviewRatio(undefined);
+onMount(() => {
+    const cleanupViewport = installMobileViewportVars(rootEl, facade.isMobile);
+    if (initialPreviewId) void focusClipById(initialPreviewId, true);
+    if (!facade.isMobile || typeof window === "undefined") return cleanupViewport;
+    const syncOnlineState = () => (offline = !navigator.onLine);
+    syncOnlineState();
+    window.addEventListener("online", syncOnlineState);
+    window.addEventListener("offline", syncOnlineState);
+    return () => {
+        disposeMobileFilterFocus();
+        cleanupViewport();
+        window.removeEventListener("online", syncOnlineState);
+        window.removeEventListener("offline", syncOnlineState);
+    };
+});
 let layoutMode = $state<"list" | "kanban">("list");
 let isTabCanvas = $state(false);
+const previewEntry = $derived<Row | null>(index.clips[previewId]
+    ? { kind: "clip", ...index.clips[previewId] }
+    : index.candidates[previewId] ? { kind: "candidate", ...index.candidates[previewId] } : null);
 let dragOverCol = $state<ClipStatus | null>(null);
 let dragId = $state("");
 let enrichingId = $state("");
 let statusActionId = $state("");
 let pendingFocusId = $state("");
 let focusRequested = false;
+let popupOpen = $state(false);
+let mobileMoreOpen = $state(false);
+let mobileMoreTrigger = $state<HTMLButtonElement | null>(null);
+let mobileMoreMenu = $state<HTMLDivElement | null>(null);
+let savedViews = $state<SavedView[]>([]);
+let defaultSavedViewId = $state("");
+let savedViewId = $state("");
+let savedViewName = $state("");
+let prefsLoading = $state(true);
+let prefsUserTouched = false;
+let applyingPrefs = false;
+let governanceMuted = $state<GovernanceMuted>({ quota: "", stale: "", candidates: "" });
 
-/** 工作台弹出为独立浮窗；单实例由壳层守卫（T-1956：真实关闭回执，非定时器猜测）。 */
+/** 工作台弹出为独立浮窗（全宽画布，独立于 dock/tab）。 */
 function openPopup() {
+    if (popupOpen) return;
+    popupOpen = true;
     facade.openWorkbenchPopup();
+    // 弹窗关闭时机未知，保守复位
+    window.setTimeout(() => (popupOpen = false), 1500);
+}
+
+async function quickCapture(): Promise<void> {
+    if (quickCaptureBusy) return;
+    quickCaptureBusy = true;
+    try {
+        await facade.addCurrentDocToLibrary();
+    } finally {
+        quickCaptureBusy = false;
+    }
+}
+
+function closeMobileMore(returnFocus = false) {
+    mobileMoreOpen = false;
+    if (returnFocus) {
+        void tick().then(() => mobileMoreTrigger?.focus());
+    }
+}
+
+function openMobileMore() {
+    mobileMoreOpen = true;
+    void tick().then(() => mobileMoreMenu?.querySelector<HTMLElement>('[role="menuitem"]')?.focus());
+}
+
+/** 轻量菜单也遵循菜单键盘模型，避免窄屏用户只能靠触摸逐项寻找入口。 */
+function mobileMoreKeydown(event: KeyboardEvent) {
+    if (event.defaultPrevented || event.isComposing || event.ctrlKey || event.altKey || event.metaKey) return;
+    const items = mobileMoreMenu ? Array.from(mobileMoreMenu.querySelectorAll<HTMLElement>('[role="menuitem"]')) : [];
+    const current = document.activeElement instanceof HTMLElement ? items.indexOf(document.activeElement) : -1;
+    if (event.key === "ArrowDown" || event.key === "ArrowUp" || event.key === "Home" || event.key === "End") {
+        if (items.length === 0) return;
+        event.preventDefault();
+        event.stopPropagation();
+        const next = event.key === "Home" ? 0 : event.key === "End" ? items.length - 1 : (current + (event.key === "ArrowDown" ? 1 : -1) + items.length) % items.length;
+        items[next]?.focus();
+    } else if (event.key === "Tab") {
+        closeMobileMore();
+    }
 }
 let snappingId = $state("");
 let archivingStale = $state(false);
@@ -83,12 +211,51 @@ const views: { key: PanelView; labelKey: string }[] = [
     { key: "library", labelKey: "view.library" },
     { key: "stats", labelKey: "view.stats" },
     { key: "highlights", labelKey: "view.highlights" },
-    { key: "quotes", labelKey: "view.quotes" },
 ];
+
+type MobileNavKey = "home" | "library" | "highlights" | "settings";
+const mobileNavItems: { key: MobileNavKey; labelKey: string }[] = [
+    { key: "home", labelKey: "mobile.navHome" },
+    { key: "library", labelKey: "mobile.navLibrary" },
+    { key: "highlights", labelKey: "mobile.navHighlights" },
+    { key: "settings", labelKey: "mobile.navSettings" },
+];
+const mobileActive = $derived<MobileNavKey>(view === "library" ? "library" : view === "highlights" ? "highlights" : "home");
+const mobileTitleKey = $derived(views.find((item) => item.key === view)?.labelKey ?? "view.resurface");
+
+type MobileTaskState = "loading" | "error" | "offline" | "ready";
+const mobileTaskState = $derived<MobileTaskState>(loading ? "loading" : offline ? "offline" : loadError ? "error" : "ready");
+
+function mobileBack() {
+    if (view === "resurface") return;
+    view = "resurface";
+    mobileMoreOpen = false;
+}
+
+function selectMobileNav(key: MobileNavKey) {
+    markPrefsInteraction();
+    mobileMoreOpen = false;
+    if (key === "settings") {
+        facade.openSettings();
+        return;
+    }
+    if (key === "home") {
+        view = "resurface";
+        return;
+    }
+    view = key;
+}
+
+function markPrefsInteraction(): void {
+    if (prefsLoading && !applyingPrefs) prefsUserTouched = true;
+}
 
 type Row =
     | ({ kind: "candidate" } & CandidateEntry)
     | ({ kind: "clip" } & ClipIndexEntry);
+
+const LIBRARY_RENDER_PAGE = 80;
+let renderLimit = $state(LIBRARY_RENDER_PAGE);
 
 const libraryItems = $derived.by<LibraryItem[]>(() => [
     ...Object.values(index.clips).map((entry) => ({
@@ -100,6 +267,7 @@ const libraryItems = $derived.by<LibraryItem[]>(() => [
         status: entry.status || undefined,
         url: entry.url,
         site: entry.site,
+        author: entry.author,
         tags: entry.tags,
         aiTags: entry.aiTags,
         src: entry.src,
@@ -110,7 +278,6 @@ const libraryItems = $derived.by<LibraryItem[]>(() => [
         minutes: entry.minutes,
         priority: entry.priority,
         rating: entry.rating,
-        favorite: entry.favorite === true,
     })),
     ...Object.values(index.candidates).map((entry) => ({ kind: "candidate" as const, ...entry })),
 ]);
@@ -118,20 +285,18 @@ const libraryItems = $derived.by<LibraryItem[]>(() => [
 const facets = $derived.by(() => libraryFacets(libraryItems));
 
 const activeFilter = $derived({
-    status: activeQueue,
+    status: authorTimeline ? "all" as const : activeQueue,
     site: selectedSite,
+    author: selectedAuthor,
     tag: selectedTag,
     aiTag: selectedAiTag,
-    author: selectedAuthor,
     src: selectedSource,
     timeSource: selectedTimeSource,
     contentType: selectedContentType,
     keyword,
-    favoriteOnly: onlyFavorite,
     sortBy,
     direction: sortDirection,
-    includeCandidates: activeQueue === "inbox",
-    sessionOrder: sortBy === "session" ? sessionOrder.order : undefined,
+    includeCandidates: !authorTimeline && activeQueue === "inbox",
 });
 
 const rows = $derived.by<Row[]>(() => {
@@ -147,18 +312,84 @@ const rows = $derived.by<Row[]>(() => {
     });
 });
 
+const activeFilterKey = $derived(JSON.stringify(activeFilter));
+const visibleRows = $derived(rows.slice(0, renderLimit));
+const hasMoreRows = $derived(visibleRows.length < rows.length);
+
+function loadMoreRows(): void {
+    renderLimit = Math.min(rows.length, renderLimit + LIBRARY_RENDER_PAGE);
+}
+
+$effect(() => {
+    if (activeFilterKey !== "") renderLimit = LIBRARY_RENDER_PAGE;
+});
+
+// 窄 Dock 里搜索入口是折叠的；打开后立即聚焦，避免用户再点一次输入框。
+$effect(() => {
+    if (!searchOpen) return;
+    void tick().then(() => searchInput?.focus());
+});
+
+function closeSearch(): void {
+    if (!searchOpen) return;
+    searchOpen = false;
+    void tick().then(() => searchToggle?.focus());
+}
+
 const candidateCount = $derived(Object.keys(index.candidates).length);
 const totalClips = $derived(Object.keys(index.clips).length);
+const resurfaceCount = $derived(computeDailyFromIndex(index, facade.settings).picks.length);
+
+/**
+ * 治理提示和状态 rail 共用同一份索引扫描结果。
+ * staleDays 是设置项，改变它时会重新计算超龄池；文章索引变更时则只扫描一次。
+ */
+const queueStats = $derived.by<{
+    counts: Record<QueueKey, number>;
+    inboxTotal: number;
+    stalePool: ClipIndexEntry[];
+}>(() => {
+    const counts: Record<QueueKey, number> = {
+        inbox: 0,
+        later: 0,
+        reading: 0,
+        done: 0,
+        archived: 0,
+    };
+    const stalePool: ClipIndexEntry[] = [];
+    let inboxTotal = 0;
+    const limit = facade.settings.staleDays;
+    for (const entry of Object.values(index.clips)) {
+        if (entry.status && entry.status in counts) counts[entry.status] += 1;
+        if (entry.status === "inbox") inboxTotal += 1;
+        if ((entry.status === "inbox" || entry.status === "later") && ageDays(entry.time) >= limit) {
+            stalePool.push(entry);
+        }
+    }
+    return { counts, inboxTotal, stalePool };
+});
 
 // 待确认候选单独展示，不占 inbox 配额；只有已收录条目进入五态计数。
-const inboxTotal = $derived(Object.values(index.clips).filter((entry) => entry.status === "inbox").length);
+const inboxTotal = $derived(queueStats.inboxTotal);
 const overQuota = $derived(inboxTotal > facade.settings.inboxQuota);
-const stalePool = $derived.by(() => {
-    const limit = facade.settings.staleDays;
-    return Object.values(index.clips).filter((entry) =>
-        (entry.status === "inbox" || entry.status === "later") && ageDays(entry.time) >= limit
-    );
-});
+const stalePool = $derived(queueStats.stalePool);
+const governanceCueCount = $derived(
+    Number(overQuota && activeQueue === "inbox" && !authorTimeline && !governanceCueMuted("quota", governanceMuted))
+    + Number(stalePool.length > 0 && (activeQueue === "inbox" || activeQueue === "later") && !governanceCueMuted("stale", governanceMuted))
+    + Number(candidateCount > 0 && !governanceCueMuted("candidates", governanceMuted)),
+);
+let governanceExpanded = $state(false);
+const governanceDetailsVisible = $derived(governanceCueCount <= 1 || governanceExpanded);
+
+async function muteGovernanceCue(key: GovernanceCueKey): Promise<void> {
+    const next = { ...governanceMuted, [key]: localDateStamp() };
+    try {
+        const saved = await saveUiPrefs(facade.pluginInstance, { governanceMuted: next });
+        governanceMuted = saved.governanceMuted;
+    } catch {
+        showMessage(t(i18n, "settings.saveFailed"), 3000);
+    }
+}
 
 /** 超龄归档候选清单（T-1710）：先展示勾选，确认后按显式 ID 归档。 */
 let stalePreviewOpen = $state(false);
@@ -181,9 +412,7 @@ async function doArchiveStale() {
     archivingStale = true;
     try {
         const ids = stalePool.filter((entry) => staleSelected.has(entry.id)).map((entry) => entry.id);
-        const signal = batchAbortStart();
-        const result = await archiveStaleCandidates(facade.pluginInstance, ids, { signal });
-        if (batchAbort?.aborted) showMessage(t(i18n, "action.batchCancelled"), 2500);
+        const result = await archiveStaleCandidates(facade.pluginInstance, ids);
         showMessage(t(i18n, "panel.staleArchived", { n: result.ok }), 3000);
         stalePreviewOpen = false;
         await reload();
@@ -196,8 +425,7 @@ async function doArchiveStale() {
 const railStats = $derived(facets);
 
 function queueCount(key: QueueKey): number {
-    if (key === "inbox") return Object.values(index.clips).filter((entry) => entry.status === "inbox").length;
-    return Object.values(index.clips).filter((entry) => entry.status === key).length;
+    return queueStats.counts[key];
 }
 
 function queueLabel(key: QueueKey | ""): string {
@@ -217,30 +445,155 @@ function facetLabel(value: string, kind: "timeSource" | "contentType"): string {
 }
 
 function selectQueue(queue: QueueKey): void {
+    markPrefsInteraction();
     activeQueue = queue;
+    authorTimeline = false;
+    selectedAuthor = "";
     selectedSite = "";
     selectedTag = "";
     selectedAiTag = "";
-    selectedAuthor = "";
     selectedSource = "";
     selectedTimeSource = "";
     selectedContentType = "";
     keyword = "";
+}
+
+function openCandidateQueue(): void {
+    markPrefsInteraction();
+    view = "library";
+    activeQueue = "inbox";
+    authorTimeline = false;
+    selectedAuthor = "";
+    selectedSite = "";
+    selectedTag = "";
+    selectedAiTag = "";
+    selectedSource = "";
+    selectedTimeSource = "";
+    selectedContentType = "";
+    keyword = "";
+    searchOpen = false;
+    if (isTabCanvas) layoutMode = "list";
+}
+
+function openLibrarySearchFromHome(): void {
+    markPrefsInteraction();
+    view = "library";
+    clearFilters();
+    authorTimeline = true;
+    searchOpen = true;
 }
 
 function clearFilters(): void {
+    authorTimeline = false;
+    selectedAuthor = "";
     selectedSite = "";
     selectedTag = "";
     selectedAiTag = "";
-    selectedAuthor = "";
     selectedSource = "";
     selectedTimeSource = "";
     selectedContentType = "";
     keyword = "";
-    onlyFavorite = false;
 }
 
-const hasFilters = $derived(Boolean(selectedSite || selectedTag || selectedAiTag || selectedSource || selectedTimeSource || selectedContentType || keyword.trim()));
+const hasFilters = $derived(Boolean(authorTimeline || selectedAuthor || selectedSite || selectedTag || selectedAiTag || selectedSource || selectedTimeSource || selectedContentType || keyword.trim()));
+const filterChips = $derived(libraryFilterChips(activeFilter));
+
+function selectAuthor(value: string): void {
+    markPrefsInteraction();
+    const alreadySelected = authorTimeline && selectedAuthor.toLocaleLowerCase() === value.toLocaleLowerCase();
+    clearFilters();
+    if (alreadySelected) return;
+    selectedAuthor = value;
+    authorTimeline = true;
+    sortBy = "time";
+    sortDirection = "desc";
+}
+
+function filterChipText(key: FilterChipKey, value: string): string {
+    const labels: Record<FilterChipKey, string> = { author: "library.filterAuthor", site: "library.filterSite", tag: "library.filterTag", aiTag: "library.filterAiTag", src: "library.filterSource", timeSource: "library.filterTimeSource", contentType: "library.filterContentType", keyword: "action.search" };
+    const text = key === "tag" ? `#${value}` : key === "aiTag" ? `✨${value}` : key === "src" ? sourceLabel(value) : key === "timeSource" || key === "contentType" ? facetLabel(value, key) : value;
+    return `${t(i18n, labels[key])}: ${text}`;
+}
+
+function removeFilterChip(key: FilterChipKey): void {
+    markPrefsInteraction();
+    const next = removeLibraryFilter(activeFilter, key);
+    selectedSite = next.site ?? "";
+    selectedAuthor = next.author ?? "";
+    if (key === "author") authorTimeline = false;
+    selectedTag = next.tag ?? "";
+    selectedAiTag = next.aiTag ?? "";
+    selectedSource = next.src ?? "";
+    selectedTimeSource = next.timeSource ?? "";
+    selectedContentType = next.contentType ?? "";
+    keyword = next.keyword ?? "";
+}
+const activeFilterCount = $derived([selectedAuthor, selectedSite, selectedTag, selectedAiTag, selectedSource, selectedTimeSource, selectedContentType, keyword.trim()].filter(Boolean).length);
+const headerSubtitle = $derived.by(() => {
+    const viewLabel = t(i18n, views.find((item) => item.key === view)?.labelKey ?? "view.resurface");
+    return view === "library" && activeFilterCount > 0
+        ? t(i18n, "panel.headerFiltered", { view: viewLabel, n: totalClips, filters: activeFilterCount })
+        : t(i18n, "panel.headerView", { view: viewLabel, n: totalClips });
+});
+
+function openMobileFilters(): void {
+    mobileFilterDraft = {
+        site: selectedSite,
+        author: selectedAuthor,
+        tag: selectedTag,
+        aiTag: selectedAiTag,
+        source: selectedSource,
+        timeSource: selectedTimeSource,
+        contentType: selectedContentType,
+        sortBy,
+        direction: sortDirection,
+    };
+    mobileFilterReturnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    mobileFilterOpen = true;
+    void tick().then(() => {
+        if (!mobileFilterOpen) return;
+        if (!mobileFilterSheet) return;
+        disposeMobileFilterFocus = installModalFocus(mobileFilterSheet, {
+            onClose: closeMobileFilters,
+            returnFocus: mobileFilterReturnFocus,
+        });
+    });
+}
+
+function closeMobileFilters(): void {
+    mobileFilterOpen = false;
+    const dispose = disposeMobileFilterFocus;
+    disposeMobileFilterFocus = () => {};
+    dispose();
+    mobileFilterReturnFocus = null;
+}
+
+function clearMobileFilterDraft(): void {
+    mobileFilterDraft = {
+        ...mobileFilterDraft,
+        site: "",
+        author: "",
+        tag: "",
+        aiTag: "",
+        source: "",
+        timeSource: "",
+        contentType: "",
+    };
+}
+
+function applyMobileFilters(): void {
+    selectedSite = mobileFilterDraft.site;
+    selectedAuthor = mobileFilterDraft.author;
+    if (!selectedAuthor) authorTimeline = false;
+    selectedTag = mobileFilterDraft.tag;
+    selectedAiTag = mobileFilterDraft.aiTag;
+    selectedSource = mobileFilterDraft.source;
+    selectedTimeSource = mobileFilterDraft.timeSource;
+    selectedContentType = mobileFilterDraft.contentType;
+    sortBy = mobileFilterDraft.sortBy;
+    sortDirection = mobileFilterDraft.direction;
+    closeMobileFilters();
+}
 
 const kanbanCols = $derived.by(() => {
     const clips = filterAndSortLibrary(libraryItems, {
@@ -254,6 +607,10 @@ const kanbanCols = $derived.by(() => {
         items: clips.map((id) => index.clips[id]).filter((entry): entry is ClipIndexEntry => Boolean(entry && entry.status === status)),
     }));
 });
+const visibleKanbanCols = $derived(kanbanCols.map((column) => ({ ...column, items: column.items.slice(0, renderLimit) })));
+const renderedKanbanCount = $derived(visibleKanbanCols.reduce((total, column) => total + column.items.length, 0));
+const totalKanbanCount = $derived(kanbanCols.reduce((total, column) => total + column.items.length, 0));
+const hasMoreKanban = $derived(renderedKanbanCount < totalKanbanCount);
 
 async function moveTo(entry: ClipIndexEntry, status: ClipStatus) {
     if (entry.status === status) return;
@@ -271,16 +628,6 @@ function statusDotClass(status: string): string {
     return `glean-dot glean-dot--${status}`;
 }
 
-/** T-1790：可点击卡片的键盘等价（Enter/Space 激活），与 role="button" 配对。 */
-function activateOnKey(handler: () => void) {
-    return (event: KeyboardEvent) => {
-        if (event.key === "Enter" || event.key === " ") {
-            event.preventDefault();
-            handler();
-        }
-    };
-}
-
 function staleText(time: string): string | null {
     const days = staleDays(time);
     return days === null ? null : t(i18n, "panel.staleDays", { n: days });
@@ -293,26 +640,20 @@ function staleDays(time: string): number | null {
     return days >= 14 ? days : null;
 }
 
-let reloadSeq = 0;
-
-async function reload() {
-    // 请求代次守卫（T-1882）：快速连续刷新时丢弃晚到的旧结果，销毁后不再写状态
-    const seq = ++reloadSeq;
+const reload = createRefreshQueue(async () => {
     loading = true;
     try {
-        const next = await reconcileIndex(facade.pluginInstance, facade.settings);
-        if (seq !== reloadSeq) return;
-        index = next;
+        const cached = await loadIndex(facade.pluginInstance);
+        if (cached.updatedAt) index = cached;
+        index = await reconcileIndex(facade.pluginInstance, facade.settings);
         loadError = false;
     } catch (error) {
         console.warn("[glean] 读库对账失败:", error);
-        if (seq !== reloadSeq) return;
-        if (!index.updatedAt) index = await loadIndex(facade.pluginInstance);
         loadError = true;
     } finally {
-        if (seq === reloadSeq) loading = false;
+        loading = false;
     }
-}
+});
 
 $effect(() => {
     void reload();
@@ -322,96 +663,94 @@ $effect(() => {
     if (rootEl?.closest(".glean-tab-root")) {
         isTabCanvas = true;
         const pending = facade.consumeLibraryFocus();
-        if (pending) void focusClipById(pending);
+        if (pending && !initialPreviewId) void focusClipById(pending);
     }
 });
 
 // 视图偏好持久化：挂载恢复 + 切换保存
-// T-1955：加载完成前不得保存——否则初始默认视图会把磁盘上的真实偏好覆盖掉
-let prefsLoaded = $state(false);
-// T-1846 保存筛选视图
-let savedFilters = $state<SavedFilter[]>([]);
-let savingFilterName = $state("");
-
 $effect(() => {
     void loadUiPrefs(facade.pluginInstance).then((prefs) => {
         const valid = views.some((item) => item.key === prefs.lastView);
         // 返回读库定位优先于异步恢复的上次视图，避免把 library 切回旧视图。
-        if (valid && !focusRequested) view = prefs.lastView as PanelView;
-        savedFilters = prefs.savedFilters;
-        sessionOrder = prefs.sessionOrder;
-        prefsLoaded = true;
+        applyingPrefs = true;
+        if (!prefsUserTouched && valid && !focusRequested) view = prefs.lastView as PanelView;
+        savedViews = prefs.savedViews;
+        defaultSavedViewId = prefs.defaultSavedViewId;
+        governanceMuted = prefs.governanceMuted;
+        if (!previewPrefsTouched) {
+            previewEnabled = prefs.workbenchPreviewEnabled;
+            previewRatio = prefs.workbenchPreviewRatio;
+        }
+        if (!prefsUserTouched && !focusRequested && prefs.defaultSavedViewId) applySavedViewState(prefs.defaultSavedViewId, prefs.savedViews);
+        applyingPrefs = false;
+        prefsLoading = false;
     });
 });
 
-/** 写回会话顺序（prefsQueue 语义由 saveUiPrefs 内部锁保证）。 */
-async function persistSessionOrder(next: { order: string[]; seed: number }): Promise<void> {
-    sessionOrder = next;
-    await saveUiPrefs(facade.pluginInstance, { sessionOrder: next });
-}
-
-/** T-1903 会话洗牌：对当前筛选结果全集按新种子洗牌，order 中不在当前视图的条目保留追加尾部。 */
-async function shuffleSession(): Promise<void> {
-    const ids = rows.map((row) => row.id);
-    const seed = Date.now();
-    const kept = sessionOrder.order.filter((id) => !ids.includes(id));
-    await persistSessionOrder({ order: [...shuffleIds(ids, seed), ...kept], seed });
-}
-
-/** 当前激活筛选的投影（仅含非空条件；T-1846）。 */
-function activeFilterRecord(): Record<string, string | boolean> {
-    const record: Record<string, string | boolean> = {};
-    if (activeQueue) record.status = activeQueue;
-    if (selectedSite) record.site = selectedSite;
-    if (selectedTag) record.tag = selectedTag;
-    if (selectedAiTag) record.aiTag = selectedAiTag;
-    if (selectedAuthor) record.author = selectedAuthor;
-    if (selectedSource) record.src = selectedSource;
-    if (selectedTimeSource) record.timeSource = selectedTimeSource;
-    if (selectedContentType) record.contentType = selectedContentType;
-    if (keyword.trim()) record.keyword = keyword.trim();
-    if (onlyFavorite) record.favoriteOnly = true;
-    return record;
-}
-
-function hasActiveFilter(): boolean {
-    return Object.keys(activeFilterRecord()).length > 0;
-}
-
-async function saveCurrentFilter(): Promise<void> {
-    if (!savingFilterName.trim() || !hasActiveFilter()) return;
-    const next = savedFilters.filter((item) => item.name !== savingFilterName.trim());
-    next.push({ name: savingFilterName.trim(), filter: activeFilterRecord() });
-    const merged = await saveUiPrefs(facade.pluginInstance, { savedFilters: next });
-    savedFilters = merged.savedFilters;
-    savingFilterName = "";
-    showMessage(t(i18n, "library.filterSaved"), 2500);
-}
-
 $effect(() => {
-    if (!prefsLoaded) return;
-    void saveUiPrefs(facade.pluginInstance, { lastView: view });
+    if (prefsLoading) return;
+    void saveUiPrefs(facade.pluginInstance, { lastView: view, savedViews, defaultSavedViewId });
 });
 
-/** 应用保存的视图：把条件回填到筛选器（失效条件自然空结果，不报错）。 */
-function applySavedFilter(saved: SavedFilter): void {
-    const filter = saved.filter;
-    const status = typeof filter.status === "string" ? filter.status : "";
-    if (queues.includes(status as QueueKey)) activeQueue = status as QueueKey;
-    selectedSite = typeof filter.site === "string" ? filter.site : "";
-    selectedTag = typeof filter.tag === "string" ? filter.tag : "";
-    selectedAiTag = typeof filter.aiTag === "string" ? filter.aiTag : "";
-    selectedAuthor = typeof filter.author === "string" ? filter.author : "";
-    selectedSource = typeof filter.src === "string" ? filter.src : "";
-    selectedTimeSource = typeof filter.timeSource === "string" ? filter.timeSource : "";
-    selectedContentType = typeof filter.contentType === "string" ? filter.contentType : "";
-    keyword = typeof filter.keyword === "string" ? filter.keyword : "";
-    onlyFavorite = filter.favoriteOnly === true;
+function currentSavedFilter() {
+    return {
+        status: authorTimeline ? "all" as const : activeQueue,
+        site: selectedSite || undefined,
+        author: selectedAuthor || undefined,
+        tag: selectedTag || undefined,
+        aiTag: selectedAiTag || undefined,
+        src: selectedSource || undefined,
+        timeSource: selectedTimeSource || undefined,
+        contentType: selectedContentType || undefined,
+        keyword: keyword.trim() || undefined,
+        sortBy,
+        direction: sortDirection,
+    };
 }
 
-async function deleteSavedFilter(name: string): Promise<void> {
-    const merged = await saveUiPrefs(facade.pluginInstance, { savedFilters: savedFilters.filter((item) => item.name !== name) });
-    savedFilters = merged.savedFilters;
+function applySavedViewState(id: string, source = savedViews): void {
+    const selected = applySavedView(source, id);
+    if (!selected) return;
+    const filter = selected.filter;
+    applyingPrefs = true;
+    layoutMode = selected.layout;
+    if (filter.status && filter.status !== "all") activeQueue = filter.status;
+    selectedSite = filter.site ?? "";
+    selectedAuthor = filter.author ?? "";
+    authorTimeline = filter.status === "all";
+    selectedTag = filter.tag ?? "";
+    selectedAiTag = filter.aiTag ?? "";
+    selectedSource = filter.src ?? "";
+    selectedTimeSource = filter.timeSource ?? "";
+    selectedContentType = filter.contentType ?? "";
+    keyword = filter.keyword ?? "";
+    sortBy = filter.sortBy ?? "time";
+    sortDirection = filter.direction ?? (sortBy === "title" ? "asc" : "desc");
+    savedViewId = selected.id;
+    applyingPrefs = false;
+}
+
+function saveCurrentView(): void {
+    const name = savedViewName.trim();
+    if (!name || savedViews.length >= 20) return;
+    const id = `view-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const created = createSavedView(name, currentSavedFilter(), layoutMode, savedViews, id);
+    if (!created) return;
+    savedViews = [...savedViews, created];
+    savedViewId = created.id;
+    savedViewName = "";
+}
+
+function removeSavedView(): void {
+    if (!savedViewId) return;
+    const result = deleteSavedView(savedViews, savedViewId, defaultSavedViewId);
+    savedViews = result.views;
+    defaultSavedViewId = result.defaultSavedViewId;
+    savedViewId = "";
+}
+
+function makeDefaultSavedView(): void {
+    defaultSavedViewId = setDefaultSavedView(savedViews, savedViewId);
 }
 
 // 插件壳广播的数据变更（迁移完成、右键收录等）触发面板对账
@@ -421,27 +760,35 @@ $effect(() => {
     return () => document.removeEventListener("glean:data-changed", handler);
 });
 
-async function focusClipById(id: string): Promise<void> {
+async function focusClipById(id: string, openPreview = false): Promise<void> {
     focusRequested = true;
     pendingFocusId = id;
     view = "library";
     clearFilters();
-    const known = index.clips[id];
-    if (known) {
-        activeQueue = known.status || "inbox";
-        return;
-    }
-    await reload();
+    if (!index.clips[id] && !index.candidates[id]) await reload();
     if (pendingFocusId !== id) return;
-    const refreshed = index.clips[id];
-    if (!refreshed) return;
-    activeQueue = refreshed.status || "inbox";
+    if (!index.clips[id] && !index.candidates[id]) return;
+    activeQueue = index.clips[id]?.status || "inbox";
+    authorTimeline = false;
+    if (openPreview) {
+        layoutMode = "list";
+        previewPrefsTouched = true;
+        previewEnabled = true;
+        previewRevision += 1;
+        previewId = id;
+    }
 }
 
 // 工作台可能仍在对账或等待 Svelte 渲染；保留定位请求直到目标行真正出现。
 $effect(() => {
     const id = pendingFocusId;
-    if (!id || !isTabCanvas || loading || view !== "library" || !rootEl || !rows.some((row) => row.id === id)) return;
+    if (!id || !isTabCanvas || loading || view !== "library" || !rootEl) return;
+    const rowIndex = rows.findIndex((row) => row.id === id);
+    if (rowIndex < 0) return;
+    if (rowIndex >= renderLimit) {
+        renderLimit = rowIndex + 1;
+        return;
+    }
     void tick().then(() => {
         if (pendingFocusId !== id) return;
         const target = rootEl?.querySelector<HTMLElement>(`[data-glean-clip-id="${CSS.escape(id)}"]`);
@@ -485,7 +832,7 @@ async function capture(entry: CandidateEntry) {
         await reload();
     } catch (error) {
         console.warn("[glean] 收录失败:", error);
-        showMessage(t(i18n, "msg.captureFailed"), 3500);
+        showMessage(t(i18n, offline ? "msg.offlineRetry" : "msg.captureFailed"), 3500);
     }
 }
 
@@ -497,7 +844,7 @@ async function captureAsLocal(entry: CandidateEntry) {
         await reload();
     } catch (error) {
         console.warn("[glean] 本地文档收录失败:", error);
-        showMessage(t(i18n, "msg.captureFailed"), 3500);
+        showMessage(t(i18n, offline ? "msg.offlineRetry" : "msg.captureFailed"), 3500);
     }
 }
 
@@ -508,7 +855,7 @@ async function excludeCandidate(entry: CandidateEntry) {
         await reload();
     } catch (error) {
         console.warn("[glean] 忽略候选失败:", error);
-        showMessage(t(i18n, "msg.captureFailed"), 3500);
+        showMessage(t(i18n, offline ? "msg.offlineRetry" : "msg.captureFailed"), 3500);
     }
 }
 
@@ -524,7 +871,7 @@ async function saveCandidateUrl(entry: CandidateEntry) {
         return;
     }
     try {
-        const conflict = await findClipUrlConflict(url, entry.id);
+        const conflict = await findClipUrlConflict(url, entry.id, facade.pluginInstance);
         if (conflict) {
             showMessage(`${t(i18n, "inbox.duplicate")}: ${conflict.title || conflict.hpath}`, 4000);
             return;
@@ -534,7 +881,7 @@ async function saveCandidateUrl(entry: CandidateEntry) {
         await reload();
     } catch (error) {
         console.warn("[glean] 修正来源失败:", error);
-        showMessage(t(i18n, "msg.captureFailed"), 3500);
+        showMessage(t(i18n, offline ? "msg.offlineRetry" : "msg.captureFailed"), 3500);
     }
 }
 
@@ -588,7 +935,7 @@ async function enrich(entry: ClipIndexEntry) {
 }
 
 async function setStatus(entry: ClipIndexEntry, status: ClipStatus) {
-    if (statusActionId === entry.id) return false;
+    if (statusActionId) return false;
     statusActionId = entry.id;
     try {
         const ok = await batchSetStatus(facade.pluginInstance, [entry.id], status);
@@ -600,145 +947,11 @@ async function setStatus(entry: ClipIndexEntry, status: ClipStatus) {
         return ok === 1;
     } catch (error) {
         console.warn("[glean] 状态变更失败:", error);
-        showMessage(t(i18n, "msg.statusFailed"), 3000);
+        showMessage(t(i18n, offline ? "msg.offlineRetry" : "msg.statusFailed"), 3000);
         return false;
     } finally {
         statusActionId = "";
     }
-}
-
-/** T-1762 批量富化：多选逐篇入串行队列（额度统一把守），进度与结算真实反馈。 */
-let batchEnriching = $state(false);
-
-// T-1763：富化失败的文档集合（最近一条日志非 ok）——卡片/行表 ✨ 变 ⚠ 提示重试
-let enrichFailedIds = $state<Set<string>>(new Set());
-
-$effect(() => {
-    void loadEnrichFailedIds(facade.pluginInstance).then((ids) => (enrichFailedIds = ids));
-});
-
-/** T-1902 多文档 AI 报告：勾选篇单次调用生成综述报告（额度一次），结果弹窗展示+复制。 */
-let reportBusy = $state(false);
-
-async function generateReport(): Promise<void> {
-    if (selection.size === 0 || reportBusy) return;
-    reportBusy = true;
-    try {
-        const items = [...selection]
-            .map((id) => index.clips[id])
-            .filter((entry): entry is ClipIndexEntry => Boolean(entry))
-            .map((entry) => ({
-                title: entry.title || "",
-                site: entry.site || "",
-                summary: entry.summary || "",
-                status: entry.status || "inbox",
-            }));
-        const outcome = await generateMultiReport(facade.pluginInstance, items, facade.settings);
-        if (outcome.ok && outcome.text) {
-            const wrap = document.createElement("div");
-            const textEl = document.createElement("div");
-            textEl.style.cssText = "font-size:12.5px;line-height:1.7;white-space:pre-wrap;max-height:320px;overflow-y:auto";
-            textEl.textContent = outcome.text;
-            const copyBtn = document.createElement("button");
-            copyBtn.className = "glean-btn glean-btn--ghost";
-            copyBtn.style.marginTop = "8px";
-            copyBtn.textContent = t(i18n, "reader.copy");
-            copyBtn.onclick = () => {
-                void navigator.clipboard.writeText(outcome.text ?? "").then(() => showMessage(t(i18n, "reader.copied"), 2000));
-            };
-            wrap.appendChild(textEl);
-            wrap.appendChild(copyBtn);
-            const { simpleDialog } = await import("../libs/dialog");
-            simpleDialog({ title: t(i18n, "ai.reportTitle"), ele: wrap, width: "560px" });
-        } else if (outcome.skipped === "cap") {
-            showMessage(t(i18n, "ai.capReached", { n: facade.settings.ai.enrichDailyCap }), 4000);
-        } else if (outcome.skipped !== "off") {
-            showMessage(t(i18n, "ai.enrichFailed"), 3000);
-        }
-    } finally {
-        reportBusy = false;
-    }
-}
-
-async function batchEnrich(): Promise<void> {
-    if (selection.size === 0 || batchEnriching) return;
-    batchEnriching = true;
-    const signal = batchAbortStart();
-    const ids = [...selection];
-    let ok = 0;
-    let capped = 0;
-    let failed = 0;
-    try {
-        for (let index = 0; index < ids.length; index += 1) {
-            if (signal.aborted) break;
-            showMessage(t(i18n, "ai.batchProgress", { done: index, total: ids.length }), 2500);
-            const outcome = await enrichClip(facade.pluginInstance, ids[index], facade.settings);
-            if (outcome.ok) ok += 1;
-            else if (outcome.skipped === "cap") capped += 1;
-            else failed += 1;
-        }
-        showMessage(t(i18n, "ai.batchDone", { ok, capped, failed }), 4500);
-        await reload();
-    } catch (error) {
-        console.warn("[glean] 批量富化失败:", error);
-        showMessage(t(i18n, "ai.enrichFailed"), 3500);
-    } finally {
-        batchEnriching = false;
-    }
-}
-
-/** T-1755 收藏：星标切换（favorite 非手填保护字段，用户显式动作直写）。 */
-async function toggleFavorite(entry: ClipIndexEntry): Promise<void> {
-    const next = !(entry.favorite === true);
-    try {
-        await writeClip(facade.pluginInstance, entry.id, { favorite: next });
-        await reload();
-    } catch (error) {
-        console.warn("[glean] 收藏切换失败:", error);
-        showMessage(t(i18n, "msg.actionFailed"), 3000);
-    }
-}
-
-/** T-1808 行表溢出菜单：低频辅助动作（收藏/快照/富化/来源）收进 ⋯，高频流转留按钮。 */
-function openRowMenu(entry: ClipIndexEntry, event: MouseEvent): void {
-    void (async () => {
-        const { Menu } = await import("siyuan");
-        const menu = new Menu("glean-row-menu");
-        menu.addItem({
-            label: (entry.favorite ? "★ " : "☆ ") + t(i18n, entry.favorite ? "action.unfavorite" : "action.favorite"),
-            click: () => void toggleFavorite(entry),
-        });
-        menu.addItem({
-            label: (entry.snapshot ? "⟐ " : "📷 ") + snapshotLabel(entry),
-            click: () => void takeSnapshot(entry),
-        });
-        menu.addItem({
-            label: (enrichFailedIds.has(entry.id) ? "⚠ " : "✨ ") + t(i18n, "ai.actionEnrich"),
-            click: () => void enrich(entry),
-        });
-        if (hasSourceAction(entry.contentType, entry.url)) {
-            menu.addItem({
-                label: "↗ " + t(i18n, "clip.openSource"),
-                click: () => openSource(entry),
-            });
-        }
-        // T-1903 会话重排：仅自定义（会话）排序模式下显示；顺序只写 ui-prefs 不写文章属性
-        if (sortBy === "session") {
-            menu.addItem({
-                label: "📌 " + t(i18n, "action.sessionPin"),
-                click: () => void persistSessionOrder({ ...sessionOrder, order: pinToSessionTop(sessionOrder.order, entry.id) }),
-            });
-            menu.addItem({
-                label: "↑ " + t(i18n, "action.sessionUp"),
-                click: () => void persistSessionOrder({ ...sessionOrder, order: moveWithinSession(sessionOrder.order, entry.id, -1) }),
-            });
-            menu.addItem({
-                label: "↓ " + t(i18n, "action.sessionDown"),
-                click: () => void persistSessionOrder({ ...sessionOrder, order: moveWithinSession(sessionOrder.order, entry.id, 1) }),
-            });
-        }
-        menu.open({ x: event.clientX, y: event.clientY });
-    })();
 }
 
 async function startReading(entry: ClipIndexEntry) {
@@ -757,29 +970,26 @@ function toggleSelect(id: string, event: Event) {
     selection = next;
 }
 
-// T-1842：批量任务取消句柄（批量状态/批量富化/超龄归档共享一个取消态）
-let batchAbort = $state<{ aborted: boolean } | null>(null);
-
-function batchAbortStart(): { aborted: boolean } {
-    batchAbort = { aborted: false };
-    return batchAbort;
-}
-
-function batchAbortCancel(): void {
-    if (batchAbort) batchAbort.aborted = true;
-}
-
 async function batchApply(status: ClipStatus) {
+    if (batchBusy || selection.size === 0) return;
+    batchBusy = true;
+    try {
+        await applySelectedStatus(status);
+    } finally {
+        batchBusy = false;
+    }
+}
+
+async function applySelectedStatus(status: ClipStatus) {
     if (selection.size === 0) return;
     const total = selection.size;
     let result: { ok: number; succeeded: string[] };
     try {
-        const signal = batchAbortStart();
-        result = await batchSetStatusDetailed(facade.pluginInstance, [...selection], status, { signal });
+        result = await batchSetStatusDetailed(facade.pluginInstance, [...selection], status);
         await reload();
     } catch (error) {
         console.warn("[glean] 批量状态变更失败:", error);
-        showMessage(t(i18n, "msg.statusFailed"), 3500);
+        showMessage(t(i18n, offline ? "msg.offlineRetry" : "msg.statusFailed"), 3500);
         return;
     }
     if (status === "done" && result.ok > 0 && facade.settings.integration.checkinEnabled && facade.settings.integration.checkinItemId) {
@@ -793,13 +1003,151 @@ async function batchApply(status: ClipStatus) {
         )));
     }
     showMessage(t(i18n, "msg.statusBatchResult", { ok: result.ok, total }), 3500);
-    if (batchAbort?.aborted) showMessage(t(i18n, "action.batchCancelled"), 2500);
-    if (result.ok === total) selection = new Set();
+    const succeeded = new Set(result.succeeded);
+    selection = new Set([...selection].filter((id) => !succeeded.has(id)));
 }
 
 function openDoc(docId: string) {
     facade.openReadingDocument(docId);
 }
+
+function selectPreview(id: string): void {
+    if (!previewEnabled || (!isTabCanvas && !facade.isMobile)) { openDoc(id); return; }
+    previewReturnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    previewRevision += 1;
+    previewId = id;
+}
+
+function closePreview(): void {
+    previewRevision += 1;
+    previewId = "";
+    const target = previewReturnFocus;
+    previewReturnFocus = null;
+    void tick().then(() => {
+        const fallback = rootEl?.querySelector<HTMLElement>('[data-glean-clip-id], .glean-q, button');
+        (target?.isConnected ? target : fallback)?.focus({ preventScroll: true });
+    });
+}
+
+function processedCallback(id: string, revision: number): () => Promise<void> {
+    const before = rows.map((row) => row.id);
+    const filter = JSON.stringify(activeFilter);
+    return async () => {
+        await reload();
+        if (previewId !== id || previewRevision !== revision || view !== "library" || filter !== JSON.stringify(activeFilter)) return;
+        if (loadError) return;
+        const next = nextPreviewId(before, rows.map((row) => row.id), id);
+        previewRevision += 1;
+        if (next) previewId = next;
+        else closePreview();
+    };
+}
+
+async function savePreviewPrefs(patch: { workbenchPreviewEnabled?: boolean; workbenchPreviewRatio?: number }): Promise<void> {
+    previewPrefsTouched = true;
+    try { await saveUiPrefs(facade.pluginInstance, patch); }
+    catch { showMessage(t(i18n, "settings.saveFailed"), 3000); }
+}
+
+function togglePreview(): void {
+    previewEnabled = !previewEnabled;
+    if (!previewEnabled) closePreview();
+    void savePreviewPrefs({ workbenchPreviewEnabled: previewEnabled });
+}
+
+function resizePreview(event: PointerEvent): void {
+    if (draggingPointer !== event.pointerId || !previewSplit) return;
+    const rect = previewSplit.getBoundingClientRect();
+    const railWidth = previewSplit.querySelector(".glean-rail")?.getBoundingClientRect().width ?? 0;
+    const ratio = previewRatioFromPointer(event.clientX, rect.right, rect.width - railWidth);
+    if (ratio !== null) previewRatio = ratio;
+}
+
+function startPreviewResize(event: PointerEvent): void {
+    if (event.button !== 0 || draggingPointer !== null) return;
+    event.preventDefault();
+    const separator = event.currentTarget as HTMLElement;
+    separator.focus({ preventScroll: true });
+    separator.setPointerCapture(event.pointerId);
+    draggingPointer = event.pointerId;
+    dragStartRatio = previewRatio;
+    previewPrefsTouched = true;
+}
+
+function finishPreviewResize(event: PointerEvent, cancel = false): void {
+    if (draggingPointer !== event.pointerId) return;
+    draggingPointer = null;
+    if (cancel) previewRatio = dragStartRatio;
+    else void savePreviewPrefs({ workbenchPreviewRatio: previewRatio });
+    const separator = event.currentTarget as HTMLElement;
+    if (separator.hasPointerCapture(event.pointerId)) separator.releasePointerCapture(event.pointerId);
+}
+
+function previewResizeKey(event: KeyboardEvent): void {
+    if (event.defaultPrevented || event.isComposing || event.keyCode === 229 || event.ctrlKey || event.altKey || event.metaKey) return;
+    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    previewRatio = normalizePreviewRatio(event.key === "Home" ? 0.25 : event.key === "End" ? 0.65 : previewRatio + (event.key === "ArrowLeft" ? 0.02 : -0.02));
+    void savePreviewPrefs({ workbenchPreviewRatio: previewRatio });
+}
+
+$effect(() => {
+    if (view !== "library" || (!facade.isMobile && layoutMode !== "list")) {
+        if (previewId) closePreview();
+    }
+});
+
+$effect(() => {
+    if (!facade.isMobile || !previewId || !previewDialog) return;
+    return installModalFocus(previewDialog, { onClose: closePreview, returnFocus: previewReturnFocus });
+});
+
+$effect(() => {
+    const root = previewSplit;
+    if (!root || !previewId || facade.isMobile) return;
+    const onKey = (event: KeyboardEvent): boolean => {
+        if (event.ctrlKey || event.altKey || event.metaKey) return false;
+        const target = event.target instanceof Element ? event.target : null;
+        if (target?.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="menu"]')) return false;
+        const nestedDialog = target?.closest('[role="dialog"]');
+        if (nestedDialog && root.contains(nestedDialog)) return false;
+        const overlay = document.querySelectorAll<HTMLElement>('.b3-menu, .b3-dialog, [aria-modal="true"]');
+        if (Array.from(overlay).some((element) => element.getClientRects().length && !element.contains(root))) return false;
+        closePreview();
+        return true;
+    };
+    return installEscapeHandler(root, onKey);
+});
+
+/** 移动端更多菜单是轻量浮层：点击边界外或按 Escape 时收起，避免菜单残留在下一次视图里。 */
+$effect(() => {
+    if (!facade.isMobile || !mobileMoreOpen || !rootEl) return;
+    const onPointerDown = (event: PointerEvent) => {
+        const target = event.target;
+        if (target instanceof Element && target.closest(".glean-mobile-topbar__more")) return;
+        closeMobileMore();
+    };
+    const onFocusIn = (event: FocusEvent) => {
+        const target = event.target;
+        if (target instanceof Element && target.closest(".glean-mobile-topbar__more")) return;
+        closeMobileMore();
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+        if (event.key !== "Escape" || event.defaultPrevented || event.isComposing || event.repeat) return;
+        closeMobileMore(true);
+        event.preventDefault();
+        event.stopPropagation();
+    };
+    document.addEventListener("pointerdown", onPointerDown, true);
+    document.addEventListener("focusin", onFocusIn, true);
+    document.addEventListener("keydown", onKeyDown, true);
+    return () => {
+        document.removeEventListener("pointerdown", onPointerDown, true);
+        document.removeEventListener("focusin", onFocusIn, true);
+        document.removeEventListener("keydown", onKeyDown, true);
+    };
+});
 
 /** 全文/仅链接的有效来源是次级动作；打开来源不会改变文章状态。 */
 function openSource(entry: ClipIndexEntry) {
@@ -820,6 +1168,30 @@ function openReading(entry: ClipIndexEntry) {
     }
 }
 
+function isPinnedToday(entry: ClipIndexEntry): boolean {
+    return entry.pinned === todayStamp();
+}
+
+function surfacePinLabel(entry: ClipIndexEntry): string {
+    return t(i18n, isPinnedToday(entry) ? "resurface.unpinToday" : "resurface.pinToday");
+}
+
+async function toggleSurfacePin(entry: ClipIndexEntry) {
+    if (statusActionId) return;
+    const nextPinned = !isPinnedToday(entry);
+    statusActionId = entry.id;
+    try {
+        await setSurfacePinned(facade.pluginInstance, entry.id, nextPinned);
+        showMessage(t(i18n, nextPinned ? "resurface.pinToday" : "resurface.unpinToday"), 2500);
+        await reload();
+    } catch (error) {
+        console.warn("[glean] 今日置顶写入失败:", error);
+        showMessage(t(i18n, offline ? "msg.offlineRetry" : "msg.statusFailed"), 3000);
+    } finally {
+        statusActionId = "";
+    }
+}
+
 async function setPriority(entry: ClipIndexEntry, value: number) {
     if (statusActionId) return;
     statusActionId = entry.id;
@@ -829,7 +1201,7 @@ async function setPriority(entry: ClipIndexEntry, value: number) {
         await reload();
     } catch (error) {
         console.warn("[glean] 优先级写入失败:", error);
-        showMessage(t(i18n, "msg.statusFailed"), 3000);
+        showMessage(t(i18n, offline ? "msg.offlineRetry" : "msg.statusFailed"), 3000);
     } finally {
         statusActionId = "";
     }
@@ -844,7 +1216,7 @@ async function setRating(entry: ClipIndexEntry, value: number) {
         await reload();
     } catch (error) {
         console.warn("[glean] 评分写入失败:", error);
-        showMessage(t(i18n, "msg.statusFailed"), 3000);
+        showMessage(t(i18n, offline ? "msg.offlineRetry" : "msg.statusFailed"), 3000);
     } finally {
         statusActionId = "";
     }
@@ -901,135 +1273,220 @@ function metaLine(entry: Row): string {
 }
 </script>
 
-<div class="glean-panel" bind:this={rootEl}>
+<div class="glean-panel" class:glean-panel--mobile={facade.isMobile} bind:this={rootEl} onchange={markPrefsInteraction} aria-busy={loading}>
     <header class="glean-panel__head">
-        <div class="glean-brand">
-            <div class="glean-brand__mark"><svg><use href="#iconGleanWheat" /></svg></div>
-            <div>
-                <div class="glean-brand__name">{t(i18n, "pluginName")}</div>
-                <div class="glean-brand__sub">{t(i18n, "panel.libraryCount", { n: totalClips })}</div>
-            </div>
-            <div class="glean-head-actions">
-                <!-- T-1794（作者反馈）：宽画布（tab/浮窗）图标+文字提升可读性，Dock 窄栏保留图标+title -->
+        {#if facade.isMobile}
+            <div class="glean-mobile-topbar">
                 <button
-                    class="glean-icon-btn"
-                    class:glean-icon-btn--labeled={isTabCanvas}
-                    title={t(i18n, "panel.popup")}
-                    onclick={() => openPopup()}
+                    type="button"
+                    class="glean-mobile-topbar__back"
+                    class:glean-mobile-topbar__back--home={view === "resurface"}
+                    disabled={view === "resurface"}
+                    title={t(i18n, "mobile.back")}
+                    aria-label={t(i18n, "mobile.back")}
+                    onclick={() => mobileBack()}
                 >
-                    <svg><use href="#iconGleanPopup" /></svg>{#if isTabCanvas}<span>{t(i18n, "panel.popup")}</span>{/if}
+                    {#if view === "resurface"}
+                        <span class="glean-mobile-topbar__mark" aria-hidden="true"><svg><use href="#iconGleanWheat" /></svg></span>
+                    {:else}
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14.7 5.3-6.7 6.7 6.7 6.7 1.4-1.4-5.3-5.3 5.3-5.3-1.4-1.4Z" /></svg>
+                    {/if}
                 </button>
-                <button
-                    class="glean-icon-btn"
-                    class:glean-icon-btn--labeled={isTabCanvas}
-                    title={t(i18n, "panel.migrate")}
-                    onclick={() => facade.openMigrate()}
-                >🧹{#if isTabCanvas}<span>{t(i18n, "panel.migrate")}</span>{/if}</button>
-                <button
-                    class="glean-icon-btn"
-                    class:glean-icon-btn--labeled={isTabCanvas}
-                    title={t(i18n, "panel.settings")}
-                    onclick={() => facade.openSettings()}
+                <div class="glean-mobile-topbar__copy">
+                    <h1 class="glean-mobile-topbar__title">{t(i18n, mobileTitleKey)}</h1>
+                    <span class="glean-mobile-topbar__sub">{view === "resurface" ? t(i18n, "resurface.subtitle", { n: resurfaceCount }) : t(i18n, "panel.libraryCount", { n: totalClips })}</span>
+                </div>
+                <span
+                    class={`glean-mobile-task glean-mobile-task--${mobileTaskState}`}
+                    role="status"
+                    aria-live="polite"
+                    aria-busy={loading}
                 >
-                    <svg><use href="#iconGleanGear" /></svg>{#if isTabCanvas}<span>{t(i18n, "panel.settings")}</span>{/if}
-                </button>
+                    <span class="glean-mobile-task__dot" aria-hidden="true"></span>
+                    <span class="glean-mobile-task__label">
+                        {#if mobileTaskState === "loading"}
+                            {t(i18n, "mobile.taskLoading")}
+                        {:else if mobileTaskState === "error"}
+                            {t(i18n, "mobile.taskError")}
+                        {:else if mobileTaskState === "offline"}
+                            {t(i18n, "mobile.taskOffline")}
+                        {:else}
+                            {t(i18n, "mobile.taskReady")}
+                        {/if}
+                    </span>
+                </span>
+                <div class="glean-mobile-topbar__more">
+                    <button
+                        type="button"
+                        class="glean-mobile-topbar__more-btn"
+                        bind:this={mobileMoreTrigger}
+                        title={t(i18n, "mobile.more")}
+                        aria-label={t(i18n, "mobile.more")}
+                        aria-haspopup="menu"
+                        aria-controls="glean-mobile-more-menu"
+                        aria-expanded={mobileMoreOpen}
+                        onclick={() => mobileMoreOpen ? closeMobileMore() : openMobileMore()}
+                    >
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 10.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Zm7 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Zm7 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Z" /></svg>
+                    </button>
+                    {#if mobileMoreOpen}
+                        <div id="glean-mobile-more-menu" class="glean-mobile-more" bind:this={mobileMoreMenu} role="menu" tabindex="-1" aria-orientation="vertical" aria-label={t(i18n, "mobile.moreLabel")} onkeydown={mobileMoreKeydown}>
+                            <button type="button" class="glean-mobile-more__item" role="menuitem" onclick={() => { closeMobileMore(); void reload(); }}>
+                                <svg class="glean-mobile-more__icon" aria-hidden="true"><use href="#iconGleanRefresh" /></svg>
+                                {t(i18n, "action.refresh")}
+                            </button>
+                            <button type="button" class="glean-mobile-more__item" role="menuitem" onclick={() => { closeMobileMore(); openPopup(); }}>
+                                <svg class="glean-mobile-more__icon" aria-hidden="true"><use href="#iconGleanPopup" /></svg>
+                                {t(i18n, "panel.popup")}
+                            </button>
+                            <div class="glean-mobile-more__group" role="group" aria-label={t(i18n, "settings.maintenanceToolsGroup")}>
+                                <div class="glean-mobile-more__group-label">{t(i18n, "settings.maintenanceToolsGroup")}</div>
+                                <button type="button" class="glean-mobile-more__item" role="menuitem" onclick={() => { closeMobileMore(); facade.openMigrate(); }}>
+                                    <svg class="glean-mobile-more__icon" aria-hidden="true"><use href="#iconGleanRefresh" /></svg>
+                                    {t(i18n, "panel.migrate")}
+                                </button>
+                                <button type="button" class="glean-mobile-more__item" role="menuitem" onclick={() => { closeMobileMore(); facade.openImport(); }}>
+                                    <svg class="glean-mobile-more__icon" aria-hidden="true"><use href="#iconGleanInbox" /></svg>
+                                    {t(i18n, "import.title")}
+                                </button>
+                                <button type="button" class="glean-mobile-more__item" role="menuitem" onclick={() => { closeMobileMore(); facade.openSettings(); }}>
+                                    <svg class="glean-mobile-more__icon" aria-hidden="true"><use href="#iconGleanGear" /></svg>
+                                    {t(i18n, "panel.settings")}
+                                </button>
+                            </div>
+                        </div>
+                    {/if}
+                </div>
             </div>
-        </div>
+        {:else}
+            <div class="glean-brand">
+                <div class="glean-brand__mark"><svg><use href="#iconGleanWheat" /></svg></div>
+                <div>
+                    <div class="glean-brand__name">{t(i18n, "pluginName")}</div>
+                    <div class="glean-brand__sub">{headerSubtitle}</div>
+                </div>
+                <div class="glean-head-actions">
+                    {#if isTabCanvas && (view === "resurface" || view === "library")}
+                        <button
+                            type="button"
+                            class="glean-icon-btn glean-head-action glean-head-action--primary"
+                            title={t(i18n, view === "resurface" ? "action.quickCapture" : "action.addToInbox")}
+                            aria-label={t(i18n, view === "resurface" ? "action.quickCapture" : "action.addToInbox")}
+                            aria-busy={quickCaptureBusy}
+                            disabled={quickCaptureBusy}
+                            onclick={() => void quickCapture()}
+                        >
+                            <svg aria-hidden="true"><use href="#iconGleanPlus" /></svg>
+                            <span class="glean-head-action__label">{t(i18n, view === "resurface" ? "action.quickCapture" : "action.addToInbox")}</span>
+                        </button>
+                    {/if}
+                    <button type="button" class="glean-icon-btn glean-head-action" title={t(i18n, "panel.popup")} aria-label={t(i18n, "panel.popup")} onclick={() => openPopup()}>
+                        <svg aria-hidden="true"><use href="#iconGleanPopup" /></svg>
+                        <span class="glean-head-action__label">{t(i18n, "panel.popupShort")}</span>
+                    </button>
+                    <button type="button" class="glean-icon-btn glean-head-action" title={t(i18n, "panel.migrate")} aria-label={t(i18n, "panel.migrate")} onclick={() => facade.openMigrate()}>
+                        <svg aria-hidden="true"><use href="#iconGleanRefresh" /></svg>
+                        <span class="glean-head-action__label">{t(i18n, "panel.migrateShort")}</span>
+                    </button>
+                    <button type="button" class="glean-icon-btn glean-head-action" title={t(i18n, "panel.settings")} aria-label={t(i18n, "panel.settings")} onclick={() => facade.openSettings()}>
+                        <svg aria-hidden="true"><use href="#iconGleanGear" /></svg>
+                        <span class="glean-head-action__label">{t(i18n, "panel.settings")}</span>
+                    </button>
+                </div>
+            </div>
+        {/if}
 
-        <div class="glean-views">
-            {#each views as item (item.key)}
-                <button
-                    class="glean-views__btn"
-                    class:glean-views__btn--on={view === item.key}
-                    onclick={() => (view = item.key)}
-                >{t(i18n, item.labelKey)}</button>
-            {/each}
-        </div>
+        {#if !facade.isMobile}
+            <div class="glean-views">
+                {#each views as item (item.key)}
+                    <button
+                        class="glean-views__btn"
+                        class:glean-views__btn--on={view === item.key}
+                        aria-pressed={view === item.key}
+                        onclick={() => { markPrefsInteraction(); view = item.key; }}
+                    >{t(i18n, item.labelKey)}</button>
+                {/each}
+            </div>
+        {/if}
 
         {#if view === "library"}
             {#if isTabCanvas || searchOpen}
                 <div class="glean-search">
                     <svg class="glean-search__icon" viewBox="0 0 24 24"><path d="M10.5 3a7.5 7.5 0 0 1 5.9 12.1l4.2 4.2a1 1 0 0 1-1.4 1.4l-4.2-4.2A7.5 7.5 0 1 1 10.5 3zm0 2a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11z"/></svg>
                     <input
+                        bind:this={searchInput}
                         type="text"
+                        aria-label={t(i18n, "panel.searchPlaceholder")}
                         placeholder={t(i18n, "panel.searchPlaceholder")}
                         bind:value={keyword}
+                        onkeydown={(event) => { if (event.key === "Escape") closeSearch(); }}
                     />
-                    <!-- T-1755：仅看收藏 toggle -->
-                    <button
-                        class="glean-search__fav"
-                        class:glean-search__fav--on={onlyFavorite}
-                        role="switch"
-                        aria-checked={onlyFavorite}
-                        title={t(i18n, "panel.favoriteOnly")}
-                        onclick={() => (onlyFavorite = !onlyFavorite)}
-                    >{onlyFavorite ? "★" : "☆"}</button>
-                    <!-- T-1846：保存当前筛选为命名视图 -->
-                    {#if hasActiveFilter()}
-                        <input
-                            class="glean-mini-input"
-                            type="text"
-                            placeholder={t(i18n, "library.saveFilterName")}
-                            aria-label={t(i18n, "library.saveFilter")}
-                            bind:value={savingFilterName}
-                            maxlength={30}
-                            onkeydown={(event) => {
-                                if (event.key === "Enter") {
-                                    event.preventDefault();
-                                    void saveCurrentFilter();
-                                }
-                            }}
-                        />
+                    {#if keyword}
                         <button
-                            class="glean-op-btn"
-                            title={t(i18n, "library.saveFilter")}
-                            disabled={!savingFilterName.trim()}
-                            onclick={() => void saveCurrentFilter()}
-                        >💾</button>
+                            type="button"
+                            class="glean-search__clear"
+                            title={t(i18n, "panel.searchClear")}
+                            aria-label={t(i18n, "panel.searchClear")}
+                            onclick={() => { keyword = ""; searchInput?.focus(); }}
+                        ><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanClose" /></svg></button>
+                    {/if}
+                    {#if !isTabCanvas}
+                        <button
+                            type="button"
+                            class="glean-search__close"
+                            title={t(i18n, "panel.searchClose")}
+                            aria-label={t(i18n, "panel.searchClose")}
+                            onclick={closeSearch}
+                        ><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanClose" /></svg></button>
                     {/if}
                 </div>
-                {#if savedFilters.length > 0}
-                    <!-- T-1846：保存的筛选视图 chips（点击应用 / × 删除） -->
-                    <div class="glean-quotes__chips">
-                        {#each savedFilters as saved (saved.name)}
-                            <span class="glean-quotes__chip">
-                                <button class="glean-quotes__facet" class:glean-quotes__facet--on={false} onclick={() => applySavedFilter(saved)}>
-                                    {saved.name}
-                                </button>
-                                <button class="glean-quotes__chip-x" title={t(i18n, "library.deleteFilter")} onclick={() => void deleteSavedFilter(saved.name)}>×</button>
-                            </span>
-                        {/each}
-                    </div>
-                {/if}
             {:else}
                 <button
+                    bind:this={searchToggle}
                     class="glean-icon-btn"
                     title={t(i18n, "panel.searchPlaceholder")}
+                    aria-label={t(i18n, "panel.searchPlaceholder")}
                     onclick={() => (searchOpen = true)}
                 >
-                    <svg viewBox="0 0 24 24" style="width:14px;height:14px"><path d="M10.5 3a7.5 7.5 0 0 1 5.9 12.1l4.2 4.2a1 1 0 0 1-1.4 1.4l-4.2-4.2A7.5 7.5 0 1 1 10.5 3zm0 2a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11z"/></svg>
+                    <svg class="glean-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.5 3a7.5 7.5 0 0 1 5.9 12.1l4.2 4.2a1 1 0 0 1-1.4 1.4l-4.2-4.2A7.5 7.5 0 1 1 10.5 3zm0 2a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11z"/></svg>
                 </button>
             {/if}
         {/if}
     </header>
 
     {#if loadError}
-        <div class="glean-load-error" role="alert">
+        <div class="glean-load-error" role="alert" aria-live="assertive">
             <span>{t(i18n, "panel.reloadFailed")}</span>
-            <button class="glean-btn" onclick={() => void reload()}>{t(i18n, "action.retry")}</button>
+            <button class="glean-btn" aria-busy={loading} disabled={loading} onclick={() => void reload()}>{t(i18n, "action.retry")}</button>
         </div>
     {/if}
 
-    {#if view === "library" && !loading}
-        <InboxSection {facade} onMutated={() => void reload()} />
+    {#if facade.isMobile && offline}
+        <div class="glean-offline-notice" role="status" aria-live="polite">
+            <span>{t(i18n, "mobile.offlineHint")}</span>
+            <button class="glean-btn" aria-busy={loading} disabled={loading} onclick={() => void reload()}>{t(i18n, "action.retry")}</button>
+        </div>
+    {/if}
+
+    {#if loading && index.updatedAt && !facade.isMobile}
+        <div class="glean-panel__refreshing" role="status" aria-live="polite">
+            <span class="glean-panel__refreshing-dot" aria-hidden="true"></span>
+            {t(i18n, "panel.loading")}
+        </div>
     {/if}
 
     {#if view === "library"}
-        <nav class="glean-queues">
+        <InboxSection {facade} onMutated={() => void reload()} />
+        <AiBatchPanel {facade} bind:open={aiBatchOpen} docIds={aiBatchIds} />
+    {/if}
+
+    {#if view === "library"}
+        <nav class="glean-queues" aria-label={t(i18n, "view.library")}>
             {#each queues as queue (queue)}
                 <button
                     class="glean-q"
-                    class:glean-q--on={activeQueue === queue}
+                    class:glean-q--on={!authorTimeline && activeQueue === queue}
+                    aria-pressed={!authorTimeline && activeQueue === queue}
                     onclick={() => selectQueue(queue)}
                 >
                     {queueLabel(queue)}
@@ -1038,52 +1495,26 @@ function metaLine(entry: Row): string {
             {/each}
         </nav>
 
-        {#if !isTabCanvas}
-            <div class="glean-filters glean-filters--dock" aria-label={t(i18n, "library.filters")}>
-                <select class="b3-select glean-filter" aria-label={t(i18n, "library.filterSite")} bind:value={selectedSite}>
-                    <option value="">{t(i18n, "library.filterSite")}</option>
-                    {#each facets.sites as facet (facet.value)}<option value={facet.value}>{facet.value} · {facet.count}</option>{/each}
-                </select>
-                <select class="b3-select glean-filter" aria-label={t(i18n, "library.filterTag")} bind:value={selectedTag}>
-                    <option value="">{t(i18n, "library.filterTag")}</option>
-                    {#each facets.tags as facet (facet.value)}<option value={facet.value}>#{facet.value} · {facet.count}</option>{/each}
-                </select>
-                <select class="b3-select glean-filter" aria-label={t(i18n, "library.filterAiTag")} bind:value={selectedAiTag}>
-                <select class="b3-select glean-filter" aria-label={t(i18n, "library.filterAuthor")} bind:value={selectedAuthor}>
-                    <option value="">{t(i18n, "library.filterAuthor")}</option>
-                    {#each facets.authors as facet (facet.value)}<option value={facet.value}>{facet.value} · {facet.count}</option>{/each}
-                </select>
-                    <option value="">{t(i18n, "library.filterAiTag")}</option>
-                    {#each facets.aiTags as facet (facet.value)}<option value={facet.value}>✨{facet.value} · {facet.count}</option>{/each}
-                </select>
-                <select class="b3-select glean-filter" aria-label={t(i18n, "library.filterSource")} bind:value={selectedSource}>
-                    <option value="">{t(i18n, "library.filterSource")}</option>
-                    {#each facets.sources as facet (facet.value)}<option value={facet.value}>{sourceLabel(facet.value)} · {facet.count}</option>{/each}
-                </select>
-                <select class="b3-select glean-filter" aria-label={t(i18n, "library.filterTimeSource")} bind:value={selectedTimeSource}>
-                    <option value="">{t(i18n, "library.filterTimeSource")}</option>
-                    {#each facets.timeSources as facet (facet.value)}<option value={facet.value}>{facetLabel(facet.value, "timeSource")} · {facet.count}</option>{/each}
-                </select>
-                <select class="b3-select glean-filter" aria-label={t(i18n, "library.filterContentType")} bind:value={selectedContentType}>
-                    <option value="">{t(i18n, "library.filterContentType")}</option>
-                    {#each facets.contentTypes as facet (facet.value)}<option value={facet.value}>{facetLabel(facet.value, "contentType")} · {facet.count}</option>{/each}
-                </select>
-                <select class="b3-select glean-filter" aria-label={t(i18n, "library.sort")} bind:value={sortBy}>
-                    <option value="time">{t(i18n, "action.sortTime")}</option>
-                    <option value="updated">{t(i18n, "library.sortUpdated")}</option>
-                    <option value="words">{t(i18n, "action.sortWords")}</option>
-                    <option value="priority">{t(i18n, "action.sortPriority")}</option>
-                    <option value="rating">{t(i18n, "library.sortRating")}</option>
-                    <option value="title">{t(i18n, "library.sortTitle")}</option>
-                    <option value="session">{t(i18n, "library.sortSession")}</option>
-                </select>
-                {#if sortBy === "session"}
-                    <button class="glean-filter-dir" aria-label={t(i18n, "action.sessionShuffle")} title={t(i18n, "action.sessionShuffle")} onclick={() => void shuffleSession()}>🔀</button>
-                {:else}
-                    <button class="glean-filter-dir" aria-label={t(i18n, "library.toggleDirection")} title={t(i18n, "library.toggleDirection")} onclick={() => (sortDirection = sortDirection === "desc" ? "asc" : "desc")}>{sortDirection === "desc" ? "↓" : "↑"}</button>
-                {/if}
-                {#if hasFilters}<button class="glean-filter-clear" onclick={clearFilters}>{t(i18n, "library.clearFilters")}</button>{/if}
+        {#if facade.isMobile}
+            <div class="glean-mobile-filter-summary">
+                <button
+                    type="button"
+                    class="glean-mobile-filter-trigger"
+                    class:glean-mobile-filter-trigger--active={activeFilterCount > 0}
+                    aria-label={t(i18n, "library.filters")}
+                    aria-haspopup="dialog"
+                    aria-controls="glean-mobile-filter-sheet"
+                    aria-expanded={mobileFilterOpen}
+                    onclick={openMobileFilters}
+                >
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A1.5 1.5 0 0 1 5.5 4h13a1.5 1.5 0 0 1 1.2 2.4l-5.2 6.9v5.2a1.5 1.5 0 0 1-.8 1.3l-2.5 1.2a1.5 1.5 0 0 1-2.2-1.3v-6.4L3.3 6.4A1.5 1.5 0 0 1 4 5.5Zm1.5.5 5 6.7v5l1-.5v-4.5l5-6.7h-11Z" /></svg>
+                    <span>{t(i18n, "library.filters")}</span>
+                    {#if activeFilterCount > 0}<span class="glean-mobile-filter-badge">{activeFilterCount}</span>{/if}
+                </button>
+                <span class="glean-mobile-filter-results" role="status" aria-live="polite">{t(i18n, "library.resultCount", { n: rows.length })}</span>
             </div>
+        {:else if !isTabCanvas}
+            <LibraryFilters {i18n} {facets} bind:site={selectedSite} bind:author={selectedAuthor} bind:tag={selectedTag} bind:aiTag={selectedAiTag} bind:source={selectedSource} bind:timeSource={selectedTimeSource} bind:contentType={selectedContentType} bind:sortBy bind:direction={sortDirection} {hasFilters} onClear={clearFilters} {sourceLabel} {facetLabel} />
         {/if}
 
         {#if isTabCanvas}
@@ -1092,72 +1523,232 @@ function metaLine(entry: Row): string {
                     <button
                         class="glean-seg__btn"
                         class:glean-seg__btn--on={layoutMode === "list"}
-                        onclick={() => (layoutMode = "list")}
+                        aria-pressed={layoutMode === "list"}
+                        onclick={() => { markPrefsInteraction(); layoutMode = "list"; }}
                     >☰ {t(i18n, "view.modeList")}</button>
                     <button
                         class="glean-seg__btn"
                         class:glean-seg__btn--on={layoutMode === "kanban"}
-                        onclick={() => (layoutMode = "kanban")}
+                        aria-pressed={layoutMode === "kanban"}
+                        onclick={() => { markPrefsInteraction(); layoutMode = "kanban"; }}
                     >⇆ {t(i18n, "view.modeKanban")}</button>
                 </div>
                 <div class="glean-libbar__spacer"></div>
-                <div class="glean-filters" aria-label={t(i18n, "library.filters")}>
-                    <select class="b3-select glean-filter" aria-label={t(i18n, "library.filterSite")} bind:value={selectedSite}>
-                        <option value="">{t(i18n, "library.filterSite")}</option>
-                        {#each facets.sites as facet (facet.value)}<option value={facet.value}>{facet.value} · {facet.count}</option>{/each}
-                    </select>
-                    <select class="b3-select glean-filter" aria-label={t(i18n, "library.filterTag")} bind:value={selectedTag}>
-                        <option value="">{t(i18n, "library.filterTag")}</option>
-                        {#each facets.tags as facet (facet.value)}<option value={facet.value}>#{facet.value} · {facet.count}</option>{/each}
-                    </select>
-                    <select class="b3-select glean-filter" aria-label={t(i18n, "library.filterAiTag")} bind:value={selectedAiTag}>
-                        <option value="">{t(i18n, "library.filterAiTag")}</option>
-                    <select class="b3-select glean-filter" aria-label={t(i18n, "library.filterAuthor")} bind:value={selectedAuthor}>
-                        <option value="">{t(i18n, "library.filterAuthor")}</option>
-                        {#each facets.authors as facet (facet.value)}<option value={facet.value}>{facet.value} · {facet.count}</option>{/each}
-                    </select>
-                        {#each facets.aiTags as facet (facet.value)}<option value={facet.value}>✨{facet.value} · {facet.count}</option>{/each}
-                    </select>
-                    <select class="b3-select glean-filter" aria-label={t(i18n, "library.filterSource")} bind:value={selectedSource}>
-                        <option value="">{t(i18n, "library.filterSource")}</option>
-                        {#each facets.sources as facet (facet.value)}<option value={facet.value}>{sourceLabel(facet.value)} · {facet.count}</option>{/each}
-                    </select>
-                    <select class="b3-select glean-filter" aria-label={t(i18n, "library.filterTimeSource")} bind:value={selectedTimeSource}>
-                        <option value="">{t(i18n, "library.filterTimeSource")}</option>
-                        {#each facets.timeSources as facet (facet.value)}<option value={facet.value}>{facetLabel(facet.value, "timeSource")} · {facet.count}</option>{/each}
-                    </select>
-                    <select class="b3-select glean-filter" aria-label={t(i18n, "library.filterContentType")} bind:value={selectedContentType}>
-                        <option value="">{t(i18n, "library.filterContentType")}</option>
-                        {#each facets.contentTypes as facet (facet.value)}<option value={facet.value}>{facetLabel(facet.value, "contentType")} · {facet.count}</option>{/each}
-                    </select>
-                    <select class="b3-select glean-filter" aria-label={t(i18n, "library.sort")} bind:value={sortBy}>
-                        <option value="time">{t(i18n, "action.sortTime")}</option>
-                        <option value="updated">{t(i18n, "library.sortUpdated")}</option>
-                        <option value="words">{t(i18n, "action.sortWords")}</option>
-                        <option value="priority">{t(i18n, "action.sortPriority")}</option>
-                        <option value="rating">{t(i18n, "library.sortRating")}</option>
-                        <option value="title">{t(i18n, "library.sortTitle")}</option>
-                        <option value="session">{t(i18n, "library.sortSession")}</option>
-                    </select>
-                    {#if sortBy === "session"}
-                        <button class="glean-filter-dir" aria-label={t(i18n, "action.sessionShuffle")} title={t(i18n, "action.sessionShuffle")} onclick={() => void shuffleSession()}>🔀</button>
-                    {:else}
-                        <button class="glean-filter-dir" aria-label={t(i18n, "library.toggleDirection")} title={t(i18n, "library.toggleDirection")} onclick={() => (sortDirection = sortDirection === "desc" ? "asc" : "desc")}>{sortDirection === "desc" ? "↓" : "↑"}</button>
-                    {/if}
-                    {#if hasFilters}<button class="glean-filter-clear" onclick={clearFilters}>{t(i18n, "library.clearFilters")}</button>{/if}
+                <button class="glean-btn glean-btn--ghost" aria-pressed={previewEnabled} onclick={togglePreview}>{t(i18n, "preview.enabled")}</button>
+                <LibraryFilters {i18n} {facets} bind:site={selectedSite} bind:author={selectedAuthor} bind:tag={selectedTag} bind:aiTag={selectedAiTag} bind:source={selectedSource} bind:timeSource={selectedTimeSource} bind:contentType={selectedContentType} bind:sortBy bind:direction={sortDirection} {hasFilters} onClear={clearFilters} {sourceLabel} {facetLabel} />
+            </div>
+        {/if}
+
+        {#if view === "library" && !facade.isMobile}
+            <div class="glean-saved-views" aria-label={t(i18n, "library.savedViews")}>
+                <select class="b3-select" aria-label={t(i18n, "library.savedViews")} value={savedViewId} onchange={(event) => applySavedViewState((event.currentTarget as HTMLSelectElement).value)}>
+                    <option value="">{t(i18n, "library.savedViews")}</option>
+                    {#each savedViews as saved (saved.id)}<option value={saved.id}>{saved.name}</option>{/each}
+                </select>
+                <input class="b3-text-field" maxlength="40" value={savedViewName} placeholder={t(i18n, "library.savedViewName")} oninput={(event) => (savedViewName = (event.currentTarget as HTMLInputElement).value)} />
+                <button class="glean-btn" disabled={!savedViewName.trim() || savedViews.length >= 20} onclick={saveCurrentView}>{t(i18n, "library.savedViewSave")}</button>
+                <button class="glean-btn glean-btn--ghost" disabled={!savedViewId} onclick={makeDefaultSavedView}>{t(i18n, "library.savedViewDefault")}</button>
+                <button class="glean-btn glean-btn--ghost" disabled={!savedViewId} onclick={removeSavedView}>{t(i18n, "library.savedViewDelete")}</button>
+            </div>
+        {/if}
+
+        {#if filterChips.length > 0}
+            <div class="glean-filter-chips" aria-label={t(i18n, "library.filters")}>
+                {#each filterChips as chip (chip.key)}
+                    <button class="glean-filter-chip" title={filterChipText(chip.key, chip.value)} aria-label={t(i18n, "library.removeFilter", { name: filterChipText(chip.key, chip.value) })} onclick={() => removeFilterChip(chip.key)}><span class="glean-filter-chip__label">{filterChipText(chip.key, chip.value)}</span><svg class="glean-icon glean-icon--xs" aria-hidden="true"><use href="#iconGleanClose" /></svg></button>
+                {/each}
+            </div>
+        {/if}
+        {#if facade.isMobile && mobileFilterOpen}
+            <div class="glean-mobile-filter-layer">
+                <button
+                    type="button"
+                    class="glean-mobile-filter-backdrop"
+                    aria-label={t(i18n, "library.filterClose")}
+                    onclick={closeMobileFilters}
+                ></button>
+                <div
+                    id="glean-mobile-filter-sheet"
+                    class="glean-mobile-filter-sheet"
+                    bind:this={mobileFilterSheet}
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="glean-mobile-filter-title"
+                    aria-describedby="glean-mobile-filter-results"
+                >
+                    <header class="glean-mobile-filter-sheet__head">
+                        <div>
+                            <h2 id="glean-mobile-filter-title">{t(i18n, "library.filters")}</h2>
+                            <span id="glean-mobile-filter-results">{t(i18n, "library.resultCount", { n: rows.length })}</span>
+                        </div>
+                        <button type="button" class="glean-mobile-filter-sheet__close" aria-label={t(i18n, "library.filterClose")} onclick={closeMobileFilters}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanClose" /></svg></button>
+                    </header>
+                    <div class="glean-mobile-filter-sheet__body">
+                        <label class="glean-mobile-filter-field">
+                            <span>{t(i18n, "library.filterAuthor")}</span>
+                            <select class="b3-select" bind:value={mobileFilterDraft.author}>
+                                <option value="">{t(i18n, "library.filterAuthor")}</option>
+                                {#each facets.authors as facet (facet.value)}<option value={facet.value}>{facet.value} · {facet.count}</option>{/each}
+                                {#if mobileFilterDraft.author && !facets.authors.some((facet) => facet.value === mobileFilterDraft.author)}<option value={mobileFilterDraft.author}>{mobileFilterDraft.author}</option>{/if}
+                            </select>
+                        </label>
+                        <label class="glean-mobile-filter-field">
+                            <span>{t(i18n, "library.filterSite")}</span>
+                            <select class="b3-select" bind:value={mobileFilterDraft.site}>
+                                <option value="">{t(i18n, "library.filterSite")}</option>
+                                {#each facets.sites as facet (facet.value)}<option value={facet.value}>{facet.value} · {facet.count}</option>{/each}
+                            </select>
+                        </label>
+                        <label class="glean-mobile-filter-field">
+                            <span>{t(i18n, "library.filterTag")}</span>
+                            <select class="b3-select" bind:value={mobileFilterDraft.tag}>
+                                <option value="">{t(i18n, "library.filterTag")}</option>
+                                {#each facets.tags as facet (facet.value)}<option value={facet.value}>#{facet.value} · {facet.count}</option>{/each}
+                            </select>
+                        </label>
+                        <label class="glean-mobile-filter-field">
+                            <span>{t(i18n, "library.filterAiTag")}</span>
+                            <select class="b3-select" bind:value={mobileFilterDraft.aiTag}>
+                                <option value="">{t(i18n, "library.filterAiTag")}</option>
+                                {#each facets.aiTags as facet (facet.value)}<option value={facet.value}>✨{facet.value} · {facet.count}</option>{/each}
+                            </select>
+                        </label>
+                        <label class="glean-mobile-filter-field">
+                            <span>{t(i18n, "library.filterSource")}</span>
+                            <select class="b3-select" bind:value={mobileFilterDraft.source}>
+                                <option value="">{t(i18n, "library.filterSource")}</option>
+                                {#each facets.sources as facet (facet.value)}<option value={facet.value}>{sourceLabel(facet.value)} · {facet.count}</option>{/each}
+                            </select>
+                        </label>
+                        <label class="glean-mobile-filter-field">
+                            <span>{t(i18n, "library.filterTimeSource")}</span>
+                            <select class="b3-select" bind:value={mobileFilterDraft.timeSource}>
+                                <option value="">{t(i18n, "library.filterTimeSource")}</option>
+                                {#each facets.timeSources as facet (facet.value)}<option value={facet.value}>{facetLabel(facet.value, "timeSource")} · {facet.count}</option>{/each}
+                            </select>
+                        </label>
+                        <label class="glean-mobile-filter-field">
+                            <span>{t(i18n, "library.filterContentType")}</span>
+                            <select class="b3-select" bind:value={mobileFilterDraft.contentType}>
+                                <option value="">{t(i18n, "library.filterContentType")}</option>
+                                {#each facets.contentTypes as facet (facet.value)}<option value={facet.value}>{facetLabel(facet.value, "contentType")} · {facet.count}</option>{/each}
+                            </select>
+                        </label>
+                        <div class="glean-mobile-filter-sort">
+                            <label class="glean-mobile-filter-field">
+                                <span>{t(i18n, "library.sort")}</span>
+                                <select class="b3-select" bind:value={mobileFilterDraft.sortBy}>
+                                    <option value="time">{t(i18n, "action.sortTime")}</option>
+                                    <option value="updated">{t(i18n, "library.sortUpdated")}</option>
+                                    <option value="words">{t(i18n, "action.sortWords")}</option>
+                                    <option value="priority">{t(i18n, "action.sortPriority")}</option>
+                                    <option value="rating">{t(i18n, "library.sortRating")}</option>
+                                    <option value="title">{t(i18n, "library.sortTitle")}</option>
+                                </select>
+                            </label>
+                            <button
+                                type="button"
+                                class="glean-mobile-filter-direction"
+                                aria-label={t(i18n, "library.toggleDirection")}
+                                aria-pressed={mobileFilterDraft.direction === "asc"}
+                                onclick={() => (mobileFilterDraft.direction = mobileFilterDraft.direction === "desc" ? "asc" : "desc")}
+                            >
+                                <svg class="glean-icon glean-icon--xs" aria-hidden="true"><use href={mobileFilterDraft.direction === "desc" ? "#iconGleanArrowDown" : "#iconGleanArrowUp"} /></svg>
+                            </button>
+                        </div>
+                    </div>
+                    <footer class="glean-mobile-filter-sheet__foot">
+                        <button type="button" class="glean-btn glean-btn--ghost" onclick={clearMobileFilterDraft}>{t(i18n, "library.filterClear")}</button>
+                        <button type="button" class="glean-btn glean-btn--pri" onclick={applyMobileFilters}>{t(i18n, "library.filterApply")}</button>
+                    </footer>
                 </div>
             </div>
         {/if}
 
-        {#if loading}
-            <div class="glean-panel__loading">{t(i18n, "panel.loading")}</div>
+        {#if authorTimeline && selectedAuthor}<p class="glean-author-timeline" role="status">{t(i18n, "author.timeline", { author: selectedAuthor })}</p>{/if}
+        {#if governanceCueCount > 1 && !governanceExpanded}
+            <div class="glean-governance-summary" role="status">
+                <span aria-hidden="true">💡</span>
+                <span style="flex:1">{t(i18n, "panel.governanceSummary", { n: governanceCueCount })}</span>
+                <button type="button" class="glean-cap-btn" aria-expanded={governanceExpanded} onclick={() => (governanceExpanded = true)}>
+                    {t(i18n, "panel.governanceExpand")}
+                </button>
+            </div>
+        {/if}
+        {#if governanceDetailsVisible}
+            {#if governanceCueCount > 1}
+                <div class="glean-governance-collapse">
+                    <button type="button" class="glean-linkish" aria-expanded={governanceExpanded} onclick={() => (governanceExpanded = false)}>
+                        {t(i18n, "panel.governanceCollapse")}
+                    </button>
+                </div>
+            {/if}
+            {#if overQuota && activeQueue === "inbox" && !authorTimeline && !governanceCueMuted("quota", governanceMuted)}
+                <div class="glean-quota">
+                    <span>⚖️</span>
+                    <span style="flex:1">{t(i18n, "panel.quotaOver", { total: inboxTotal, quota: facade.settings.inboxQuota })}</span>
+                    <button class="glean-linkish" onclick={() => void muteGovernanceCue("quota")}>{t(i18n, "panel.governanceMuteToday")}</button>
+                </div>
+            {/if}
+            {#if stalePool.length > 0 && (activeQueue === "inbox" || activeQueue === "later") && !governanceCueMuted("stale", governanceMuted)}
+            <div class="glean-quota">
+                <svg class="glean-icon glean-icon--sm" aria-hidden="true"><use href="#iconGleanArchive" /></svg>
+                <span style="flex:1">{t(i18n, "panel.staleCandidates", { n: stalePool.length })}</span>
+                <button class="glean-cap-btn" onclick={() => toggleStalePreview()}>
+                    {stalePreviewOpen ? t(i18n, "panel.staleHide") : t(i18n, "panel.archiveStale")}
+                </button>
+                <button class="glean-linkish" onclick={() => void muteGovernanceCue("stale")}>{t(i18n, "panel.governanceMuteToday")}</button>
+            </div>
+            {#if stalePreviewOpen}
+                <div class="glean-stale-preview">
+                    <div class="glean-stale-preview__hint">{t(i18n, "panel.staleHint", { n: facade.settings.staleDays })}</div>
+                    {#each stalePool as entry (entry.id)}
+                        <label class="glean-stale-preview__row">
+                            <input
+                                type="checkbox"
+                                checked={staleSelected.has(entry.id)}
+                                onchange={() => toggleStalePick(entry.id)}
+                            />
+                            <span class="glean-stale-preview__title" title={entry.title}>{entry.title || t(i18n, "panel.untitled")}</span>
+                            <span class="glean-stale-preview__meta">{entry.site || t(i18n, "panel.unknownSite")} · {t(i18n, "panel.staleDays", { n: ageDays(entry.time) })}</span>
+                        </label>
+                    {/each}
+                    <div class="glean-stale-preview__ops">
+                        <button class="glean-cap-btn" onclick={() => { staleSelected = new Set(stalePool.map((entry) => entry.id)); }}>
+                            {t(i18n, "panel.staleSelectAll")}
+                        </button>
+                        <button
+                            class="glean-cap-btn glean-cap-btn--pri"
+                            disabled={archivingStale || staleSelected.size === 0}
+                            onclick={() => void doArchiveStale()}
+                        >{t(i18n, "panel.staleConfirm", { n: staleSelected.size })}</button>
+                    </div>
+                </div>
+            {/if}
+            {/if}
+            {#if candidateCount > 0 && !governanceCueMuted("candidates", governanceMuted)}
+            <div class="glean-candidates" role="status" aria-live="polite" aria-atomic="true">
+                <svg class="glean-icon glean-icon--sm" aria-hidden="true"><use href="#iconGleanInbox" /></svg>
+                <span style="flex:1">{t(i18n, "panel.candidatesDetected", { n: candidateCount })}</span>
+                <button class="glean-cap-btn" onclick={openCandidateQueue}>{t(i18n, "panel.viewCandidates")}</button>
+                <button class="glean-linkish" onclick={() => void muteGovernanceCue("candidates")}>{t(i18n, "panel.governanceMuteToday")}</button>
+            </div>
+            {/if}
+        {/if}
+
+        {#if loading && !index.updatedAt}
+            <div class="glean-panel__loading" role="status" aria-live="polite">
+                <span class="glean-panel__loading-dot" aria-hidden="true"></span>
+                <span>{t(i18n, "panel.loading")}</span>
+            </div>
         {:else if isTabCanvas && layoutMode === "kanban"}
-            <div class="glean-kanban">
-                {#each kanbanCols as col (col.status)}
+            <div class="glean-kanban" class:glean-kanban--batch={selection.size > 0}>
+                {#each visibleKanbanCols as col (col.status)}
                     <div
                         class="glean-kcol"
+                        class:glean-kcol--empty={col.items.length === 0}
                         class:glean-kcol--over={dragOverCol === col.status}
-                        role="group"
+                        role="region"
                         aria-label={col.label}
                         ondragover={(e) => { e.preventDefault(); dragOverCol = col.status; }}
                         ondragleave={() => { if (dragOverCol === col.status) dragOverCol = null; }}
@@ -1172,32 +1763,47 @@ function metaLine(entry: Row): string {
                             {col.label}
                             <span class="glean-kcol__n">{col.items.length}</span>
                         </div>
+                        {#if col.items.length === 0}
+                            <div class="glean-kcol__empty" role="status">
+                                <svg class="glean-icon glean-icon--sm" aria-hidden="true"><use href="#iconGleanWheat" /></svg>
+                                <span>{t(i18n, "panel.empty")}</span>
+                            </div>
+                        {/if}
                         {#each col.items as entry (entry.id)}
                             <div
                                 class="glean-kcard"
-                                class:glean-dim--archived={entry.status === "archived"}
+                                class:glean-kcard--selected={selection.has(entry.id)}
                                 data-glean-clip-id={entry.id}
                                 draggable="true"
                                 ondragstart={(e) => { dragId = entry.id; e.dataTransfer?.setData("text/plain", entry.id); }}
                                 ondragend={() => { dragId = ""; dragOverCol = null; }}
                                 onclick={() => openDoc(entry.id)}
-                                onkeydown={activateOnKey(() => openDoc(entry.id))}
+                                onkeydown={(event) => {
+                                    if (event.target === event.currentTarget && isActivationKey(event.key)) {
+                                        event.preventDefault();
+                                        openDoc(entry.id);
+                                    }
+                                }}
                                 role="button"
                                 tabindex="0"
                             >
+                                <label class="glean-kcard__select" title={t(i18n, "library.selectArticle")}>
+                                    <input type="checkbox" checked={selection.has(entry.id)} aria-label={t(i18n, "library.selectArticle")} onclick={(event) => event.stopPropagation()} onchange={(event) => toggleSelect(entry.id, event)} />
+                                </label>
                                 <div class="glean-kcard__t">{entry.title || t(i18n, "panel.untitled")}</div>
                                 <div class="glean-kcard__m">
                                     <span class={carrierClass(entry)}>{carrierLabel(entry)}</span>
                                     {#if bodyPending(entry)}
                                         <span class="glean-body-pending" title={t(i18n, "clip.bodyPendingHint")}>{t(i18n, "clip.bodyPending")}</span>
                                     {/if}
-                                    {#if entry.site}<span>📰 {entry.site}</span>{/if}
+                                    {#if entry.site}<span class="glean-meta-icon"><svg class="glean-icon glean-icon--xs" aria-hidden="true"><use href="#iconGleanNews" /></svg>{entry.site}</span>{/if}
+                                    {#if entry.author}<button class="glean-source-author" onclick={(event) => { event.stopPropagation(); selectAuthor(entry.author!); }}>· {entry.author}</button>{/if}
                                     {#if entry.minutes > 0}<span>· {t(i18n, "panel.minutes", { n: entry.minutes })}</span>{/if}
                                     {#if (entry.status === "inbox" || entry.status === "later") && staleText(entry.time) !== null}
                                         <span class="glean-stale">{staleText(entry.time)}</span>
                                     {/if}
                                     {#if hasSourceAction(entry.contentType, entry.url)}
-                                        <button class="glean-op-btn" title={t(i18n, "clip.openSource")} aria-label={t(i18n, "clip.openSource")} onclick={(e) => { e.stopPropagation(); openSource(entry); }}>↗</button>
+                                        <button class="glean-op-btn" title={t(i18n, "clip.openSource")} aria-label={t(i18n, "clip.openSource")} onclick={(e) => { e.stopPropagation(); openSource(entry); }}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanExternal" /></svg></button>
                                     {:else if entry.contentType === "link"}
                                         <span class="glean-source-missing">{t(i18n, "clip.sourceMissing")}</span>
                                     {/if}
@@ -1208,66 +1814,47 @@ function metaLine(entry: Row): string {
                                     disabled={statusActionId === entry.id}
                                     onStartReading={() => void startReading(entry)}
                                     onSetStatus={(status) => void setStatus(entry, status)}
-                                    onArchive={() => facade.openArchiveDialog(entry.id)}
-                                    onRestore={() => facade.openRestoreDialog(entry.id)}
                                 />
                             </div>
                         {/each}
                     </div>
                 {/each}
+                <LibraryBatchBar
+                    {i18n}
+                    selectedCount={selection.size}
+                    busy={batchBusy}
+                    onApply={(status) => void batchApply(status)}
+                    onOpenAi={() => { aiBatchIds = [...selection]; aiBatchOpen = true; }}
+                    onClear={() => (selection = new Set())}
+                />
             </div>
+            {#if hasMoreKanban}
+                <div class="glean-list-more" role="status">
+                    <span>{t(i18n, "library.renderedCount", { shown: renderedKanbanCount, total: totalKanbanCount })}</span>
+                    <button class="glean-btn glean-btn--ghost" onclick={loadMoreRows}>{t(i18n, "library.loadMore")}</button>
+                </div>
+            {/if}
         {:else if isTabCanvas && layoutMode === "list"}
-            <div class="glean-lib">
-                <aside class="glean-rail">
-                    <div class="glean-rail__title">{t(i18n, "rail.queues")}</div>
-                    {#each queues as queue (queue)}
-                        <button
-                            class="glean-rail__item"
-                            class:glean-rail__item--on={activeQueue === queue}
-                            onclick={() => selectQueue(queue)}
-                        >
-                            <span class={statusDotClass(queue)}></span>{queueLabel(queue)}
-                            <span class="glean-rail__n">{queueCount(queue)}</span>
-                        </button>
-                    {/each}
-                    {#if railStats.sites.length > 0}
-                        <div class="glean-rail__title">{t(i18n, "rail.sites")}</div>
-                        {#each railStats.sites as site (site.value)}
-                            <button class="glean-rail__item" class:glean-rail__item--on={selectedSite === site.value} onclick={() => (selectedSite = selectedSite === site.value ? "" : site.value)}>
-                                {site.value}<span class="glean-rail__n">{site.count}</span>
-                            </button>
-                        {/each}
+            <div class="glean-lib" class:glean-lib--preview={Boolean(previewEntry)} bind:this={previewSplit}>
+                <aside class="glean-rail" aria-label={t(i18n, "view.library")}>
+                    <LibraryRailGroup plugin={facade.pluginInstance} {i18n} group="queues" label={t(i18n, "rail.queues")} items={queues.map((queue) => ({ value: queue, count: queueCount(queue) }))} selected={authorTimeline ? "" : activeQueue} itemLabel={(value) => queueLabel(value as ClipStatus)} dotClass={(value) => statusDotClass(value as ClipStatus)} onSelect={(value) => selectQueue(value as ClipStatus)} />
+                    {#if railStats.authors.length > 0 || selectedAuthor}
+                        <LibraryRailGroup plugin={facade.pluginInstance} {i18n} group="authors" label={t(i18n, "rail.authors")} items={railStats.authors} selected={selectedAuthor} onSelect={selectAuthor} />
                     {/if}
-                    {#if railStats.tags.length > 0}
-                        <div class="glean-rail__title">{t(i18n, "rail.tags")}</div>
-                        {#each railStats.tags.slice(0, 8) as tag (tag.value)}
-                            <button class="glean-rail__item" class:glean-rail__item--on={selectedTag === tag.value} onclick={() => (selectedTag = selectedTag === tag.value ? "" : tag.value)}>
-                                #{tag.value}<span class="glean-rail__n">{tag.count}</span>
-                            </button>
-                        {/each}
+                    {#if railStats.sites.length > 0 || selectedSite}
+                        <LibraryRailGroup plugin={facade.pluginInstance} {i18n} group="sites" label={t(i18n, "rail.sites")} items={railStats.sites} selected={selectedSite} onSelect={(value) => selectedSite = selectedSite.toLocaleLowerCase() === value.toLocaleLowerCase() ? "" : value} />
                     {/if}
-                    {#if railStats.authors.length > 0}
-                        <!-- T-1812 作者组（Top8）：与站点/标签组同款折叠省略 -->
-                        <div class="glean-rail__title">{t(i18n, "rail.authors")}</div>
-                        {#each railStats.authors.slice(0, 8) as author (author.value)}
-                            <button class="glean-rail__item" class:glean-rail__item--on={selectedAuthor === author.value} onclick={() => (selectedAuthor = selectedAuthor === author.value ? "" : author.value)}>
-                                ✍{author.value}<span class="glean-rail__n">{author.count}</span>
-                            </button>
-                        {/each}
+                    {#if railStats.tags.length > 0 || selectedTag}
+                        <LibraryRailGroup plugin={facade.pluginInstance} {i18n} group="tags" label={t(i18n, "rail.tags")} prefix="#" items={railStats.tags} selected={selectedTag} onSelect={(value) => selectedTag = selectedTag.toLocaleLowerCase() === value.toLocaleLowerCase() ? "" : value} />
                     {/if}
-                    {#if railStats.aiTags.length > 0}
-                        <div class="glean-rail__title" title={t(i18n, "library.filterAiTagHint")}>✨ {t(i18n, "rail.aiTags")}</div>
-                        {#each railStats.aiTags.slice(0, 8) as tag (tag.value)}
-                            <button class="glean-rail__item" class:glean-rail__item--on={selectedAiTag === tag.value} onclick={() => (selectedAiTag = selectedAiTag === tag.value ? "" : tag.value)}>
-                                ✨{tag.value}<span class="glean-rail__n">{tag.count}</span>
-                            </button>
-                        {/each}
+                    {#if railStats.aiTags.length > 0 || selectedAiTag}
+                        <LibraryRailGroup plugin={facade.pluginInstance} {i18n} group="aiTags" label={`✨ ${t(i18n, "rail.aiTags")}`} hint={t(i18n, "library.filterAiTagHint")} prefix="✨" items={railStats.aiTags} selected={selectedAiTag} onSelect={(value) => selectedAiTag = selectedAiTag.toLocaleLowerCase() === value.toLocaleLowerCase() ? "" : value} />
                     {/if}
                 </aside>
-                <div class="glean-lib__main">
+                <div class="glean-lib__main" class:glean-lib__main--batch={selection.size > 0}>
                     {#if rows.length === 0}
-                        <div class="glean-empty">
-                            <div class="glean-empty__art"><svg><use href="#iconGleanWheat" /></svg></div>
+                        <div class="glean-empty" role="status">
+                            <div class="glean-empty__art"><svg aria-hidden="true"><use href="#iconGleanWheat" /></svg></div>
                             <div class="glean-empty__title">{t(i18n, "panel.empty")}</div>
                             <div class="glean-empty__hint">
                                 {facade.settings.anchorNotebooks.length === 0
@@ -1282,21 +1869,29 @@ function metaLine(entry: Row): string {
                         </div>
                     {:else}
                         <div class="glean-dtable">
-                            {#each rows as entry (entry.id)}
+                            {#each visibleRows as entry (entry.id)}
                                 {#if entry.kind === "clip"}
                                     <div
                                         class="glean-drow"
                                         data-glean-clip-id={entry.id}
                                         class:glean-drow--selected={selection.has(entry.id)}
-                                        class:glean-dim--archived={entry.status === "archived"}
-                                        onclick={() => openDoc(entry.id)}
-                                        onkeydown={activateOnKey(() => openDoc(entry.id))}
+                                        class:glean-drow--preview={previewId === entry.id}
+                                        onclick={() => selectPreview(entry.id)}
+                                        onkeydown={(event) => {
+                                            if (event.target === event.currentTarget && isActivationKey(event.key)) {
+                                                event.preventDefault();
+                                                selectPreview(entry.id);
+                                            }
+                                        }}
                                         role="button"
                                         tabindex="0"
                                     >
+                                        <label class="glean-drow__select" title={t(i18n, "library.selectArticle")}>
+                                            <input type="checkbox" checked={selection.has(entry.id)} aria-label={t(i18n, "library.selectArticle")} onclick={(event) => event.stopPropagation()} onchange={(event) => toggleSelect(entry.id, event)} />
+                                        </label>
                                         <span class={statusDotClass(entry.status)}></span>
-                                        <span class="glean-drow__ti">{entry.title || t(i18n, "panel.untitled")}</span>
-                                        <span class="glean-drow__site" title={entry.author ? `${entry.site || ""} · ${entry.author}` : entry.site}>{entry.site || t(i18n, "panel.unknownSite")}{entry.author ? ` · ${entry.author}` : ""}</span>
+                                        <span class="glean-drow__ti" title={entry.title || t(i18n, "panel.untitled")}>{entry.title || t(i18n, "panel.untitled")}</span>
+                                        <span class="glean-drow__site">{entry.site || t(i18n, "panel.unknownSite")}{#if entry.author}<button class="glean-source-author" onclick={(event) => { event.stopPropagation(); selectAuthor(entry.author!); }}>· {entry.author}</button>{/if}</span>
                                          <span class={carrierClass(entry)} title={entry.contentType === "link" && !hasSourceAction(entry.contentType, entry.url) ? t(i18n, "clip.sourceMissing") : carrierLabel(entry)}>{carrierLabel(entry)}</span>
                                         {#if entry.contentType === "link" && !hasSourceAction(entry.contentType, entry.url)}
                                             <span class="glean-source-missing">{t(i18n, "clip.sourceMissing")}</span>
@@ -1309,44 +1904,54 @@ function metaLine(entry: Row): string {
                                             <span class="glean-st-badge glean-st-badge--{entry.status}">{queueLabel(entry.status)}</span>
                                         </span>
                                         <div class="glean-drow__ops">
-                                            <!-- T-1808：低频辅助动作收进 ⋯ 溢出菜单，高频流转（ClipStatusActions）保留 -->
-                                            <button
-                                                class="glean-op-btn"
-                                                title={t(i18n, "action.more")}
-                                                onclick={(e) => { e.stopPropagation(); openRowMenu(entry, e); }}
-                                            >⋯</button>
-                                            <ClipStatusActions
-                                                 {i18n}
-                                                 status={entry.status || "inbox"}
-                                                 disabled={statusActionId === entry.id}
-                                                 onStartReading={() => void startReading(entry)}
-                                                 onSetStatus={(status) => void setStatus(entry, status)}
-                                                 onArchive={() => facade.openArchiveDialog(entry.id)}
-                                                 onRestore={() => facade.openRestoreDialog(entry.id)}
-                                             />
-                                            <label>
-                                                <input
-                                                    type="checkbox"
-                                                    checked={selection.has(entry.id)}
-                                                    onclick={(e) => e.stopPropagation()}
-                                                    onchange={(e) => toggleSelect(entry.id, e)}
-                                                />
-                                            </label>
+                                            {#if entry.status === "archived"}
+                                                <button class="glean-btn glean-btn--ghost" disabled={Boolean(statusActionId)} onclick={(event) => { event.stopPropagation(); void setStatus(entry, "later"); }}>{t(i18n, "action.restore")}</button>
+                                            {:else}
+                                                <button class="glean-btn glean-btn--ghost" disabled={Boolean(statusActionId)} onclick={(event) => { event.stopPropagation(); void startReading(entry); }}>{t(i18n, entry.status === "reading" ? "action.continueReading" : entry.status === "done" ? "action.readAgain" : "action.startReading")}</button>
+                                                <button class="glean-btn glean-btn--ghost" disabled={Boolean(statusActionId) || entry.status === "done"} onclick={(event) => { event.stopPropagation(); void setStatus(entry, "done"); }}>{t(i18n, "action.markDone")}</button>
+                                            {/if}
+                                            <ActionPopover label={t(i18n, "library.moreActions")} compact>
+                                                <AuthorEditor {facade} docId={entry.id} onSaved={reload} />
+                                                {#if entry.status !== "archived"}
+                                                    <button class="glean-btn glean-btn--ghost" disabled={Boolean(statusActionId) || entry.status === "later"} onclick={() => void setStatus(entry, "later")}>{t(i18n, "action.moveToLater")}</button>
+                                                    <button class="glean-btn glean-btn--ghost" disabled={Boolean(statusActionId)} onclick={() => void setStatus(entry, "archived")}>{t(i18n, "action.archive")}</button>
+                                                {/if}
+                                                <button class="glean-btn glean-btn--ghost" disabled={snappingId === entry.id} onclick={() => void takeSnapshot(entry)}>{snapshotLabel(entry)}</button>
+                                                <button class="glean-btn glean-btn--ghost" disabled={enrichingId === entry.id} onclick={() => void enrich(entry)}>{t(i18n, "ai.actionEnrich")}</button>
+                                                <button class="glean-btn glean-btn--ghost" disabled={Boolean(statusActionId)} aria-pressed={isPinnedToday(entry)} onclick={() => void toggleSurfacePin(entry)}>{surfacePinLabel(entry)}</button>
+                                                {#if hasSourceAction(entry.contentType, entry.url)}
+                                                    <button class="glean-btn glean-btn--ghost" onclick={() => openSource(entry)}>{t(i18n, "clip.openSource")}</button>
+                                                {/if}
+                                            </ActionPopover>
                                         </div>
                                     </div>
                                 {:else}
-                                    <div class="glean-drow" onclick={() => openDoc(entry.id)} onkeydown={activateOnKey(() => openDoc(entry.id))} role="button" tabindex="0">
+                                    <div
+                                        class="glean-drow glean-drow--candidate"
+                                        data-glean-clip-id={entry.id}
+                                        class:glean-drow--preview={previewId === entry.id}
+                                        onclick={() => selectPreview(entry.id)}
+                                        onkeydown={(event) => {
+                                            if (event.target === event.currentTarget && isActivationKey(event.key)) {
+                                                event.preventDefault();
+                                                selectPreview(entry.id);
+                                            }
+                                        }}
+                                        role="button"
+                                        tabindex="0"
+                                    >
                                         <span class="glean-dot glean-dot--inbox"></span>
-                                        <span class="glean-drow__ti">{entry.title || t(i18n, "panel.untitled")}</span>
+                                        <span class="glean-drow__ti" title={entry.title || t(i18n, "panel.untitled")}>{entry.title || t(i18n, "panel.untitled")}</span>
                                         <span class="glean-drow__site" title={entry.url || entry.hpath}>{entry.site || candidateEvidence(entry)}</span>
-                                        <span class="glean-drow__len">{candidateMissing(entry) || t(i18n, "candidate.pending")}</span>
+                                        {#if candidateMissing(entry)}<span class="glean-drow__len">{candidateMissing(entry)}</span>{/if}
                                         <span class="glean-drow__st">
+                                            <span class="glean-candidate-state">{t(i18n, "candidate.pending")}</span>
                                             {#if entry.url}<button class="glean-card__capture" onclick={(e) => { e.stopPropagation(); void capture(entry); }}>{t(i18n, "action.addToInbox")}</button>{/if}
                                         </span>
                                         <div class="glean-drow__ops">
-                                            <button class="glean-op-btn" title={t(i18n, "candidate.fixUrl")} onclick={(e) => { e.stopPropagation(); startCandidateUrlEdit(entry); }}>✎</button>
-                                            {#if !entry.url}<button class="glean-op-btn" title={t(i18n, "candidate.captureLocal")} onclick={(e) => { e.stopPropagation(); void captureAsLocal(entry); }}>▤</button>{/if}
-                                            <button class="glean-op-btn" title={t(i18n, "candidate.exclude")} onclick={(e) => { e.stopPropagation(); void excludeCandidate(entry); }}>×</button>
+                                            <button class="glean-op-btn" title={t(i18n, "candidate.fixUrl")} aria-label={t(i18n, "candidate.fixUrl")} onclick={(e) => { e.stopPropagation(); startCandidateUrlEdit(entry); }}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanEdit" /></svg></button>
+                                            {#if !entry.url}<button class="glean-op-btn" title={t(i18n, "candidate.captureLocal")} aria-label={t(i18n, "candidate.captureLocal")} onclick={(e) => { e.stopPropagation(); void captureAsLocal(entry); }}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanLocal" /></svg></button>{/if}
+                                            <button class="glean-op-btn" title={t(i18n, "candidate.exclude")} aria-label={t(i18n, "candidate.exclude")} onclick={(e) => { e.stopPropagation(); void excludeCandidate(entry); }}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanClose" /></svg></button>
                                         </div>
                                     </div>
                                     {#if editingCandidateId === entry.id}
@@ -1359,61 +1964,36 @@ function metaLine(entry: Row): string {
                                 {/if}
                             {/each}
                         </div>
+                        {#if hasMoreRows}
+                            <div class="glean-list-more" role="status">
+                                <span>{t(i18n, "library.renderedCount", { shown: visibleRows.length, total: rows.length })}</span>
+                                <button class="glean-btn glean-btn--ghost" onclick={loadMoreRows}>{t(i18n, "library.loadMore")}</button>
+                            </div>
+                        {/if}
                     {/if}
+                    <LibraryBatchBar
+                        {i18n}
+                        selectedCount={selection.size}
+                        busy={batchBusy}
+                        onApply={(status) => void batchApply(status)}
+                        onOpenAi={() => { aiBatchIds = [...selection]; aiBatchOpen = true; }}
+                        onClear={() => (selection = new Set())}
+                    />
                 </div>
+                {#if previewEntry && !facade.isMobile}
+                    <input type="range" class="glean-preview-separator" min="25" max="65" step="1" value={Math.round(previewRatio * 100)} aria-label={t(i18n, "preview.resize")} oninput={(event) => { previewRatio = normalizePreviewRatio(Number(event.currentTarget.value) / 100); void savePreviewPrefs({ workbenchPreviewRatio: previewRatio }); }} onpointerdown={startPreviewResize} onpointermove={resizePreview} onpointerup={(event) => finishPreviewResize(event)} onpointercancel={(event) => finishPreviewResize(event, true)} onlostpointercapture={(event) => finishPreviewResize(event)} onkeydown={previewResizeKey} />
+                    <div class="glean-preview-pane" style:--glean-preview-ratio={previewRatio}>
+                        {#key previewId}
+                            <WorkbenchPreview {facade} entry={previewEntry} onClose={closePreview} onProcessed={processedCallback(previewId, previewRevision)} onRefresh={reload} />
+                        {/key}
+                    </div>
+                {/if}
             </div>
         {:else}
             <div class="glean-list">
-                {#if overQuota && activeQueue === "inbox"}
-                    <div class="glean-quota">
-                        <span>⚖️</span>
-                        <span style="flex:1">{t(i18n, "panel.quotaOver", { total: inboxTotal, quota: facade.settings.inboxQuota })}</span>
-                    </div>
-                {/if}
-                {#if stalePool.length > 0 && (activeQueue === "inbox" || activeQueue === "later")}
-                    <div class="glean-quota">
-                        <span>🧹</span>
-                        <span style="flex:1">{t(i18n, "panel.staleCandidates", { n: stalePool.length })}</span>
-                        <button class="glean-cap-btn" onclick={() => toggleStalePreview()}>
-                            {stalePreviewOpen ? t(i18n, "panel.staleHide") : t(i18n, "panel.archiveStale")}
-                        </button>
-                    </div>
-                    {#if stalePreviewOpen}
-                        <div class="glean-stale-preview">
-                            <div class="glean-stale-preview__hint">{t(i18n, "panel.staleHint", { n: facade.settings.staleDays })}</div>
-                            {#each stalePool as entry (entry.id)}
-                                <label class="glean-stale-preview__row">
-                                    <input
-                                        type="checkbox"
-                                        checked={staleSelected.has(entry.id)}
-                                        onchange={() => toggleStalePick(entry.id)}
-                                    />
-                                    <span class="glean-stale-preview__title" title={entry.title}>{entry.title || t(i18n, "panel.untitled")}</span>
-                                    <span class="glean-stale-preview__meta">{entry.site || t(i18n, "panel.unknownSite")} · {t(i18n, "panel.staleDays", { n: ageDays(entry.time) })}</span>
-                                </label>
-                            {/each}
-                            <div class="glean-stale-preview__ops">
-                                <button class="glean-cap-btn" onclick={() => { staleSelected = new Set(stalePool.map((entry) => entry.id)); }}>
-                                    {t(i18n, "panel.staleSelectAll")}
-                                </button>
-                                <button
-                                    class="glean-cap-btn glean-cap-btn--pri"
-                                    disabled={archivingStale || staleSelected.size === 0}
-                                    onclick={() => void doArchiveStale()}
-                                >{t(i18n, "panel.staleConfirm", { n: staleSelected.size })}</button>
-                            </div>
-                        </div>
-                    {/if}
-                {/if}
-                {#if candidateCount > 0}
-                    <div class="glean-candidates">
-                        <span>📥</span>
-                        <span style="flex:1">{t(i18n, "panel.candidatesDetected", { n: candidateCount })}</span>
-                    </div>
-                {/if}
-                {#if rows.length === 0 && !(candidateCount > 0 && activeQueue === "inbox")}
-                    <div class="glean-empty">
-                        <div class="glean-empty__art"><svg><use href="#iconGleanWheat" /></svg></div>
+                {#if rows.length === 0 && !(candidateCount > 0 && activeQueue === "inbox" && !authorTimeline)}
+                    <div class="glean-empty" role="status">
+                        <div class="glean-empty__art"><svg aria-hidden="true"><use href="#iconGleanWheat" /></svg></div>
                         <div class="glean-empty__title">{t(i18n, "panel.empty")}</div>
                         <div class="glean-empty__hint">
                             {facade.settings.anchorNotebooks.length === 0
@@ -1421,39 +2001,46 @@ function metaLine(entry: Row): string {
                                 : t(i18n, "panel.emptyHint")}
                         </div>
                         {#if facade.settings.anchorNotebooks.length === 0}
-                            <button class="glean-btn" style="margin-top:10px" onclick={() => facade.openSettings()}>
+                            <button class="glean-btn glean-empty__action" onclick={() => facade.openSettings()}>
                                 {t(i18n, "panel.setupAnchor")}
+                            </button>
+                        {:else if hasFilters}
+                            <button class="glean-btn glean-btn--ghost glean-empty__action" onclick={clearFilters}>
+                                {t(i18n, "library.clearFilters")}
                             </button>
                         {/if}
                     </div>
                 {:else}
-                    {#each rows as entry (entry.id)}
+                    {#each visibleRows as entry (entry.id)}
                         <article
                             class="glean-card"
                             data-glean-clip-id={entry.kind === "clip" ? entry.id : undefined}
                             class:glean-card--candidate={entry.kind === "candidate"}
                             class:glean-card--selected={selection.has(entry.id)}
                         >
-                            {#if entry.kind === "clip"}
-                                <!-- T-1755 收藏星标：卡片级直写 -->
-                                <button
-                                    class="glean-op-btn glean-card__fav"
-                                    class:glean-card__fav--on={entry.favorite}
-                                    title={t(i18n, entry.favorite ? "action.unfavorite" : "action.favorite")}
-                                    onclick={(e) => { e.stopPropagation(); void toggleFavorite(entry); }}
-                                >{entry.favorite ? "★" : "☆"}</button>
-                            {/if}
-                            <div class="glean-card__body" onclick={() => openDoc(entry.id)} onkeydown={activateOnKey(() => openDoc(entry.id))} role="button" tabindex="0">
-                                <div class="glean-card__title">{entry.title || t(i18n, "panel.untitled")}</div>
+                            <div
+                                class="glean-card__body"
+                                onclick={() => selectPreview(entry.id)}
+                                onkeydown={(event) => {
+                                    if (event.target === event.currentTarget && isActivationKey(event.key)) {
+                                        event.preventDefault();
+                                        selectPreview(entry.id);
+                                    }
+                                }}
+                                role="button"
+                                tabindex="0"
+                            >
+                                <div class="glean-card__title" title={entry.title || t(i18n, "panel.untitled")}>{entry.title || t(i18n, "panel.untitled")}</div>
                                 <div class="glean-card__meta">
                                     {#if entry.kind === "clip"}
                                         <span class={statusDotClass(entry.status)}></span>
                                     {/if}
                                     {#if entry.kind === "clip" && entry.site}
-                                        <span class="glean-card__site" title={entry.author ? `${entry.site} · ${entry.author}` : entry.site}>{entry.site}{entry.author ? ` · ${entry.author}` : ""}</span>
+                                        <span class="glean-card__site">{entry.site}</span>
                                     {:else if entry.kind === "candidate"}
                                         <span title={entry.url || entry.hpath}>{entry.site || candidateEvidence(entry)}</span>
                                     {/if}
+                                    {#if entry.kind === "clip" && entry.author}<button class="glean-source-author" onclick={(event) => { event.stopPropagation(); selectAuthor(entry.author!); }}>· {entry.author}</button>{/if}
                                      {#if entry.kind === "clip"}
                                          <span class={carrierClass(entry)}>{carrierLabel(entry)}</span>
                                          {#if entry.contentType === "link" && !hasSourceAction(entry.contentType, entry.url)}
@@ -1477,9 +2064,9 @@ function metaLine(entry: Row): string {
                             {#if entry.kind === "candidate"}
                                 <div class="glean-card__ops">
                                     {#if entry.url}<button class="glean-card__capture" onclick={() => void capture(entry)}>{t(i18n, "action.addToInbox")}</button>{/if}
-                                    <button class="glean-op-btn" title={t(i18n, "candidate.fixUrl")} onclick={() => startCandidateUrlEdit(entry)}>✎</button>
-                                    {#if !entry.url}<button class="glean-op-btn" title={t(i18n, "candidate.captureLocal")} onclick={() => void captureAsLocal(entry)}>▤</button>{/if}
-                                    <button class="glean-op-btn" title={t(i18n, "candidate.exclude")} onclick={() => void excludeCandidate(entry)}>×</button>
+                                    <button class="glean-op-btn" title={t(i18n, "candidate.fixUrl")} aria-label={t(i18n, "candidate.fixUrl")} onclick={() => startCandidateUrlEdit(entry)}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanEdit" /></svg></button>
+                                    {#if !entry.url}<button class="glean-op-btn" title={t(i18n, "candidate.captureLocal")} aria-label={t(i18n, "candidate.captureLocal")} onclick={() => void captureAsLocal(entry)}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanLocal" /></svg></button>{/if}
+                                    <button class="glean-op-btn" title={t(i18n, "candidate.exclude")} aria-label={t(i18n, "candidate.exclude")} onclick={() => void excludeCandidate(entry)}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanClose" /></svg></button>
                                 </div>
                                 <div class="glean-candidate-detail">
                                     <span>{t(i18n, "candidate.evidenceLabel")}: {candidateEvidence(entry)}</span>
@@ -1495,26 +2082,36 @@ function metaLine(entry: Row): string {
                                 {/if}
                             {:else}
                                 <div class="glean-card__ops">
+                                    <ActionPopover label={t(i18n, "author.edit")} compact><AuthorEditor {facade} docId={entry.id} onSaved={reload} /></ActionPopover>
                                     <button
                                         class="glean-op-btn"
                                         title={snapshotLabel(entry)}
+                                        aria-label={snapshotLabel(entry)}
                                         disabled={snappingId === entry.id}
                                         onclick={(e) => { e.stopPropagation(); void takeSnapshot(entry); }}
-                                    >{entry.snapshot ? "⟐" : "📷"}</button>
+                                    ><svg class="glean-icon" aria-hidden="true"><use href={entry.snapshot ? "#iconGleanArchive" : "#iconGleanCamera"} /></svg></button>
                                     <button
                                         class="glean-op-btn"
-                                        class:glean-op-btn--warn={enrichFailedIds.has(entry.id)}
-                                        title={enrichFailedIds.has(entry.id) ? t(i18n, "ai.retryHint") : t(i18n, "ai.actionEnrich")}
+                                        title={t(i18n, "ai.actionEnrich")}
+                                        aria-label={t(i18n, "ai.actionEnrich")}
                                         disabled={enrichingId === entry.id}
                                         onclick={(e) => { e.stopPropagation(); void enrich(entry); }}
-                                    >{enrichFailedIds.has(entry.id) ? "⚠" : "✨"}</button>
+                                    ><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanSpark" /></svg></button>
+                                    <button
+                                        class="glean-op-btn"
+                                        title={surfacePinLabel(entry)}
+                                        aria-label={surfacePinLabel(entry)}
+                                        aria-pressed={isPinnedToday(entry)}
+                                        disabled={statusActionId === entry.id}
+                                        onclick={(e) => { e.stopPropagation(); void toggleSurfacePin(entry); }}
+                                    ><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanPin" /></svg></button>
                                      {#if hasSourceAction(entry.contentType, entry.url)}
                                          <button
                                              class="glean-op-btn"
                                              title={t(i18n, "clip.openSource")}
                                              aria-label={t(i18n, "clip.openSource")}
                                              onclick={(e) => { e.stopPropagation(); openSource(entry); }}
-                                         >↗</button>
+                                         ><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanExternal" /></svg></button>
                                      {:else if entry.contentType === "link"}
                                          <span class="glean-source-missing">{t(i18n, "clip.sourceMissing")}</span>
                                      {/if}
@@ -1533,8 +2130,6 @@ function metaLine(entry: Row): string {
                                     disabled={statusActionId === entry.id}
                                     onStartReading={() => void startReading(entry)}
                                     onSetStatus={(status) => void setStatus(entry, status)}
-                                    onArchive={() => facade.openArchiveDialog(entry.id)}
-                                    onRestore={() => facade.openRestoreDialog(entry.id)}
                                 />
                             {/if}
                             {#if entry.kind === "clip"}
@@ -1542,7 +2137,7 @@ function metaLine(entry: Row): string {
                                     <input
                                         type="checkbox"
                                         checked={selection.has(entry.id)}
-                                        onclick={(e) => e.stopPropagation()}
+                                        onclick={(event) => event.stopPropagation()}
                                         onchange={(e) => toggleSelect(entry.id, e)}
                                     />
                                 </label>
@@ -1552,38 +2147,72 @@ function metaLine(entry: Row): string {
                 {/if}
             </div>
 
-            {#if selection.size > 0}
-                <footer class="glean-batchbar">
-                    <b>{t(i18n, "action.selected")} {selection.size}</b>
-                    <div class="glean-batchbar__ops">
-                        <button class="glean-bb" onclick={() => void batchApply("reading")}>{t(i18n, "status.reading")}</button>
-                        <button class="glean-bb" onclick={() => void batchApply("done")}>{t(i18n, "status.done")}</button>
-                        <button class="glean-bb glean-bb--pri" onclick={() => void batchApply("archived")}>{t(i18n, "action.batchArchive")}</button>
-                        <!-- T-1762 批量富化：串行队列 + 额度统一把守 + T-1842 可取消 -->
-                        {#if batchEnriching}
-                            <button class="glean-bb" onclick={() => batchAbortCancel()}>{t(i18n, "action.cancel")}</button>
-                        {:else}
-                            <button class="glean-bb" onclick={() => void batchEnrich()}>
-                                ✨ {t(i18n, "ai.batchEnrich")}
-                            </button>
-                        {/if}
-                        <!-- T-1902 多文档 AI 报告：勾选篇单次调用生成综述（额度一次） -->
-                        <button class="glean-bb" disabled={reportBusy} onclick={() => void generateReport()}>
-                            {reportBusy ? t(i18n, "panel.loading") : `📝 ${t(i18n, "ai.report")}`}
-                        </button>
-                        <button class="glean-bb" onclick={() => (selection = new Set())}>✕</button>
-                    </div>
-                </footer>
+            {#if hasMoreRows}
+                <div class="glean-list-more" role="status">
+                    <span>{t(i18n, "library.renderedCount", { shown: visibleRows.length, total: rows.length })}</span>
+                    <button class="glean-btn glean-btn--ghost" onclick={loadMoreRows}>{t(i18n, "library.loadMore")}</button>
+                </div>
             {/if}
+
+            <LibraryBatchBar
+                {i18n}
+                selectedCount={selection.size}
+                busy={batchBusy}
+                onApply={(status) => void batchApply(status)}
+                onOpenAi={() => { aiBatchIds = [...selection]; aiBatchOpen = true; }}
+                onClear={() => (selection = new Set())}
+            />
         {/if}
     {:else if view === "resurface"}
-        <ResurfaceView {facade} {index} onMutated={() => void reload()} />
+        <ResurfaceView
+            {facade}
+            {index}
+            embedded
+            onMutated={() => void reload()}
+            onQuickCapture={quickCapture}
+            onQuickSearch={openLibrarySearchFromHome}
+            onQuickCandidates={openCandidateQueue}
+            {quickCaptureBusy}
+        />
     {:else if view === "stats"}
         <StatsView {facade} {index} onCaptured={() => void reload()} />
-    {:else if view === "quotes"}
-        <QuotesView {facade} {index} />
     {:else}
         <HighlightView {facade} />
+    {/if}
+
+    {#if facade.isMobile && previewEntry && view === "library"}
+        <div class="glean-preview-sheet" bind:this={previewDialog} role="dialog" aria-modal="true" aria-label={t(i18n, "preview.title")} tabindex="-1">
+            {#key previewId}
+                <WorkbenchPreview {facade} entry={previewEntry} onClose={closePreview} onProcessed={processedCallback(previewId, previewRevision)} onRefresh={reload} />
+            {/key}
+        </div>
+    {/if}
+    {#if facade.isMobile}
+        <nav class="glean-mobile-nav" aria-label={t(i18n, "mobile.navLabel")}>
+            {#each mobileNavItems as item (item.key)}
+                <button
+                    type="button"
+                    class="glean-mobile-nav__item"
+                    class:glean-mobile-nav__item--on={mobileActive === item.key}
+                    aria-current={mobileActive === item.key ? "page" : undefined}
+                    aria-label={t(i18n, item.labelKey)}
+                    onclick={() => selectMobileNav(item.key)}
+                >
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        {#if item.key === "home"}
+                            <path d="M3 10.7 12 3l9 7.7v8.1a1.2 1.2 0 0 1-1.2 1.2h-5.1v-6.2H9.3V20H4.2A1.2 1.2 0 0 1 3 18.8v-8.1Z" />
+                        {:else if item.key === "library"}
+                            <path d="M5 4.2A2.2 2.2 0 0 1 7.2 2h10.6A2.2 2.2 0 0 1 20 4.2v15.6a2.2 2.2 0 0 1-2.2 2.2H7.2A2.2 2.2 0 0 1 5 19.8V4.2Zm2.4 0v15.6c0 .3.2.5.5.5h10.4V3.7H7.9c-.3 0-.5.2-.5.5Zm2.3 2.1h6.8v1.6H9.7V6.3Zm0 3.4h6.8v1.6H9.7V9.7Z" />
+                        {:else if item.key === "highlights"}
+                            <path d="M5 3.5h14A2.5 2.5 0 0 1 21.5 6v8A2.5 2.5 0 0 1 19 16.5h-7.1L7.2 20v-3.5H5A2.5 2.5 0 0 1 2.5 14V6A2.5 2.5 0 0 1 5 3.5Zm1.6 4.1v2.2h2.2V7.6H6.6Zm4.3 0v2.2h2.2V7.6h-2.2Zm4.3 0v2.2h2.2V7.6h-2.2Z" />
+                        {:else}
+                            <path d="M12 2.8a2 2 0 0 1 2 2v.5a7.6 7.6 0 0 1 2.2.9l.4-.4a2 2 0 1 1 2.8 2.8l-.4.4c.4.7.7 1.4.9 2.2h.5a2 2 0 1 1 0 4h-.5a7.6 7.6 0 0 1-.9 2.2l.4.4a2 2 0 1 1-2.8 2.8l-.4-.4a7.6 7.6 0 0 1-2.2.9v.5a2 2 0 1 1-4 0v-.5a7.6 7.6 0 0 1-2.2-.9l-.4.4a2 2 0 1 1-2.8-2.8l.4-.4a7.6 7.6 0 0 1-.9-2.2h-.5a2 2 0 1 1 0-4h.5c.2-.8.5-1.5.9-2.2l-.4-.4a2 2 0 1 1 2.8-2.8l.4.4A7.6 7.6 0 0 1 10 5.3v-.5a2 2 0 0 1 2-2Zm0 6.1a3.3 3.3 0 1 0 0 6.6 3.3 3.3 0 0 0 0-6.6Z" />
+                    {/if}
+                    </svg>
+                    <span>{t(i18n, item.labelKey)}</span>
+                </button>
+            {/each}
+        </nav>
     {/if}
 </div>
 

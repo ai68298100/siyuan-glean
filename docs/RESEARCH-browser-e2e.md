@@ -26,6 +26,27 @@
 走的是发布服务/独立前端路径，与桌面 stage 不是同一构建**——插件级 Web UI 自动化冒烟需要：
 (a) Electron 环境（真机客户端 + 计算机操作），或 (b) 内核侧提供 browser 构建的 stage（不存在）。
 
+## 并行后台会话（T-3263，2026-10-05）
+
+- pnpm e2e:background start --name plugin-a --port 0 会为本次会话创建唯一临时工作区、随机回环端口、运行 manifest、日志和后台 PID；多个插件仓库可按同一规则并行启动。
+- pnpm e2e:background list 查看会话；pnpm e2e:background stop --manifest <manifest> 只按 manifest 校验工作区标记、回环地址和 PID 后停止对应内核，不按进程名清理。
+- 本轮两个 3.8.6 会话已分别以端口 42203、41394 就绪，工作区和 GleanE2E 笔记本 ID 不同，随后均按 manifest 停止。
+- scripts/spike/glean-spike.mjs、scripts/spike/av-spike.mjs 仍是固定工作区或端口的历史 spike，不应与其他插件直接并行复用，统一改造列入 T-3264。
+- 该机制是服务级 E2E 或桌面隔离内核会话，不产生 Android/iOS 真机证据；真机仍需独立设备或独立模拟器，且要避开思源桌面单实例转发。
+
+## 历史 spike 的并行租约（T-3264/D-0112）
+
+- `node scripts/spike/glean-spike.mjs --port 0 --results <path>` 与 `node scripts/spike/av-spike.mjs --port 0 --results <path>` 每次默认创建独立系统临时工作区；也可显式传入带正确标记的 `--workspace`。两个脚本不会再默认使用同一个 `SiYuan-Glean-Spike` 工作区或固定端口。
+- 结果文件包含隔离工作区、回环 host/port、内核版本、插件版本和逐项结果；运行成功不等于真实宿主或设备验收。
+- 需纳入验收账本时，用 `pnpm e2e:acceptance report --session <session> --report <results>` 导入逐项结果；报告工作区、端口和插件版本不匹配会被拒绝。
+
+## 验收会话账本（T-3264/D-0111）
+
+- `pnpm e2e:acceptance create --kind isolated-kernel --name s1` 创建隔离内核会话；`--kind` 还支持 `desktop-host`、`android-device`、`ios-device`、`android-emulator`、`ios-simulator`、`ai`、`external-file` 和 `dual-plugin`。
+- `pnpm e2e:acceptance link --session <session> --manifest <manifest>` 把后台 E2E 的工作区、回环端口、内核版本和 PID 记入会话；该会话证据等级仍是 `service-e2e`。
+- `record` 追加证据和失败项；真实 Android/iOS 关闭为 `passed` 前必须有 `--real-device-confirmed true`，桌面宿主和双插件分别需要宿主/双插件确认。存在失败项或没有证据时，账本拒绝 `passed`。
+- 账本默认写在系统临时目录，不写文章属性或插件 `saveData`；`list/status` 只读取会话元数据。跨插件仓库可复用命令和字段约定，具体插件的行为证据仍独立保存。
+
 ## 现有替代覆盖（已足够）
 
 - 内核 API 面：spike 9/9（含快照闭环、制卡闭环）+ av-spike 6/6——插件全部数据通道已实证；

@@ -16,13 +16,39 @@ import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
 import { spawn } from "node:child_process";
+import { assertAiAllowed, cleanupScratch, prepareWriteSmoke, resolveTarget } from "../lib/smoke-kernel.mjs";
 
-const WORKSPACE = path.join(os.homedir(), "SiYuan-Glean-Spike");
+function parseOptions() {
+    const options = {};
+    for (let index = 2; index < process.argv.length; index += 1) {
+        const argument = process.argv[index];
+        if (argument.startsWith("--only=")) {
+            options.only = argument.slice("--only=".length);
+            continue;
+        }
+        if (!argument.startsWith("--")) throw new Error("未知参数: " + argument);
+        const key = argument.slice(2);
+        const value = process.argv[index + 1];
+        if (!value || value.startsWith("--")) throw new Error("参数缺少值: --" + key);
+        if (!["workspace", "port", "results", "base-url", "token"].includes(key)) throw new Error("未知参数: --" + key);
+        options[key] = value;
+        index += 1;
+    }
+    return options;
+}
+
+const options = parseOptions();
+const WORKSPACE = path.resolve(options.workspace || path.join(os.tmpdir(), `siyuan-glean-spike-${Date.now()}-${process.pid}`));
 const HOST = "127.0.0.1";
-const PORT = 6831;
-const BASE = `http://${HOST}:${PORT}`;
+let PORT = options.port === "0" || options.port === undefined ? 0 : Number(options.port);
+if (!Number.isInteger(PORT) || PORT < 0 || PORT > 65535) throw new Error("port 必须是 0 或 1-65535");
+let BASE = `http://${HOST}:${PORT}`;
 const MARKER = "glean-spike.json";
 const PLUGIN_NAME = "siyuan-glean";
+const API_TIMEOUT_MS = 60000;
+const RESULTS_PATH = path.resolve(options.results || path.join(WORKSPACE, "spike-results.json"));
+const PLUGIN_VERSION = JSON.parse(fs.readFileSync(path.join(process.cwd(), "package.json"), "utf8")).version;
+const ATTACHED_BASE = options["base-url"] || process.env.SIYUAN_BASE_URL || "";
 
 const results = [];
 const record = (name, ok, detail) => {
@@ -82,6 +108,19 @@ async function assertTestPortAvailable(host, port) {
     });
 }
 
+async function choosePort() {
+    for (let attempt = 0; attempt < 40; attempt += 1) {
+        const port = 30000 + Math.floor(Math.random() * 25000);
+        try {
+            await assertTestPortAvailable(HOST, port);
+            return port;
+        } catch (error) {
+            if (attempt === 39) throw error;
+        }
+    }
+    throw new Error("没有可用的回环测试端口");
+}
+
 function startKernel({ kernel, appDir }) {
     const child = spawn(kernel, ["--workspace", WORKSPACE, "serve", "--wd", appDir, "--port", String(PORT)], {
         stdio: ["ignore", "pipe", "pipe"],
@@ -107,7 +146,12 @@ async function api(route, body = {}) {
     assertKernelRunning?.();
     const headers = { "Content-Type": "application/json" };
     if (token) headers.Authorization = `Token ${token}`;
-    const response = await fetch(`${BASE}${route}`, { method: "POST", headers, body: JSON.stringify(body), signal: AbortSignal.timeout(15000) });
+    let response;
+    try {
+        response = await fetch(`${BASE}${route}`, { method: "POST", headers, body: JSON.stringify(body), signal: AbortSignal.timeout(API_TIMEOUT_MS) });
+    } catch (error) {
+        throw new Error(`${route} 请求失败：${error instanceof Error ? error.message : String(error)}`);
+    }
     const text = await response.text();
     assertKernelRunning?.();
     let payload;
@@ -284,6 +328,9 @@ async function verifyLikePerformance(notebookID) {
 /* ---------- ③ 语义搜索双态 ---------- */
 
 async function verifySemantic() {
+    if (!assertAiAllowed()) {
+        return { ok: true, skipped: true, detail: "默认跳过真实 AI 外发检查（SIYUAN_E2E_AI=1 才启用）" };
+    }
     let statCode = 0, statData = null, statErr = "";
     try {
         statData = await apiChecked("/api/ai/embeddingStat", {});
@@ -350,11 +397,13 @@ async function verifyPluginLoad(distDir) {
     if (!fs.existsSync(path.join(distDir, "index.js"))) {
         return { ok: false, detail: "dist/index.js 不存在，先 pnpm build" };
     }
-    // dist → 隔离工作区插件目录
-    const target = path.join(WORKSPACE, "data", "plugins", PLUGIN_NAME);
-    fs.rmSync(target, { recursive: true, force: true });
-    fs.mkdirSync(target, { recursive: true });
-    fs.cpSync(distDir, target, { recursive: true });
+    // 自建内核需要把 dist 拷入其 workspace；附着模式要求靶场预先安装本插件。
+    if (!ATTACHED_BASE) {
+        const target = path.join(WORKSPACE, "data", "plugins", PLUGIN_NAME);
+        fs.rmSync(target, { recursive: true, force: true });
+        fs.mkdirSync(target, { recursive: true });
+        fs.cpSync(distDir, target, { recursive: true });
+    }
 
     const load = await api("/api/petal/loadPetals", { frontend: "desktop" });
     let petals = load.code === 0 && Array.isArray(load.data) ? load.data : [];
@@ -448,9 +497,17 @@ async function verifyFlashcard(notebookID) {
         + '</div></div></div></div>';
     const inserted = await api("/api/block/insertBlock", { dataType: "dom", parentID: hostDoc, data: listDom });
     if (inserted.code !== 0) return { ok: false, detail: "insertBlock code=" + inserted.code + " msg=" + inserted.msg };
-    // 列表项 id 经 SQL 找回（type='i'，root 圈定）
-    let cardBlockId = "";
-    for (let attempt = 0; attempt < 6; attempt += 1) {
+    // DOM 操作按树的前序返回：列表根是第一个节点，外层列表项是第二个节点。
+    // 优先使用事务返回 ID，避免把最终一致性 SQL 索引当成写入确认。
+    const operationIds = (inserted.data || [])
+        .flatMap((transaction) => transaction?.doOperations || [])
+        .map((operation) => operation?.id)
+        .filter((id) => typeof id === "string" && id.length > 0);
+    // 嵌套列表项的显式 id 即使不出现在事务响应中，也已随 DOM 事务提交。
+    const transactionCardId = operationIds.find((id) => id === id2);
+    let cardBlockId = transactionCardId || id2;
+    // 兼容未返回嵌套操作 ID 的旧内核：此时才依赖 SQL 索引重试。
+    for (let attempt = 0; !cardBlockId && attempt < 6; attempt += 1) {
         const rows = await apiChecked("/api/query/sql", {
             stmt: "SELECT id FROM blocks WHERE root_id = '" + hostDoc + "' AND type = 'i' ORDER BY sort ASC LIMIT 1",
         });
@@ -475,22 +532,45 @@ async function verifyFlashcard(notebookID) {
 
 async function main() {
     assertLoopback();
-    const { kernel, appDir } = resolveKernel();
-    prepareWorkspace();
-    await assertTestPortAvailable(HOST, PORT);
-    const { child, lines } = startKernel({ kernel, appDir });
-    assertKernelRunning = () => {
-        if (child.exitCode !== null || child.signalCode !== null) throw new Error("测试内核已退出，停止请求");
-    };
+    let child = null;
+    let lines = [];
+    let kernel = null;
+    let appDir = null;
+    if (ATTACHED_BASE) {
+        fs.mkdirSync(WORKSPACE, { recursive: true });
+        const target = resolveTarget({ baseArg: ATTACHED_BASE, tokenArg: options.token });
+        BASE = target.base;
+        PORT = Number(new URL(BASE).port || 0);
+        token = target.token;
+        assertKernelRunning = () => {};
+        await apiChecked("/api/system/version", {});
+    } else {
+        ({ kernel, appDir } = resolveKernel());
+        prepareWorkspace();
+        if (PORT === 0) PORT = await choosePort();
+        BASE = `http://${HOST}:${PORT}`;
+        await assertTestPortAvailable(HOST, PORT);
+        const started = startKernel({ kernel, appDir });
+        child = started.child;
+        lines = started.lines;
+        assertKernelRunning = () => {
+            if (child.exitCode !== null || child.signalCode !== null) throw new Error("测试内核已退出，停止请求");
+        };
+    }
 
     let exitCode = 0;
     let booted = false;
     try {
-        const version = await waitForBoot(lines, assertKernelRunning);
+        const version = ATTACHED_BASE ? await apiChecked("/api/system/version", {}) : await waitForBoot(lines, assertKernelRunning);
         booted = true;
-        console.log(`内核 v${version.version} @ ${BASE}（隔离工作区: ${WORKSPACE}）\n`);
+        const kernelVersion = typeof version === "string" ? version : version.version;
+        console.log(`内核 v${kernelVersion} @ ${BASE}（隔离工作区: ${WORKSPACE}）\n`);
 
-        token = (JSON.parse(fs.readFileSync(path.join(WORKSPACE, "conf", "conf.json"), "utf8")).accessAuthCode) || "";
+        if (!ATTACHED_BASE) {
+            token = options.token || process.env.SIYUAN_TOKEN || (JSON.parse(fs.readFileSync(path.join(WORKSPACE, "conf", "conf.json"), "utf8")).accessAuthCode) || "";
+            if (!token) throw new Error("隔离内核未生成 token；请传入 --token 或设置 SIYUAN_TOKEN");
+        }
+        await prepareWriteSmoke(api, { base: BASE, log: console });
 
         // 桌面 std 容器要求集市信任后 loadPetals 才返回插件（kernel/model/plugin.go IsPetalsEnabled）
         const trust = await api("/api/setting/setBazaar", { trust: true, petalDisabled: false });
@@ -498,13 +578,27 @@ async function main() {
 
         // 准备笔记本
         const notebooks = await apiChecked("/api/notebook/lsNotebooks", {});
-        let notebookID = (notebooks.notebooks || []).find((n) => n.name === "GleanSpike")?.id;
+        const notebookName = `siyuan-glean-smoke-${process.pid}`;
+        let notebookID = (notebooks.notebooks || []).find((n) => n.name === notebookName)?.id;
         if (!notebookID) {
-            await apiChecked("/api/notebook/createNotebook", { name: "GleanSpike" });
+            await apiChecked("/api/notebook/createNotebook", { name: notebookName });
             const refreshed = await apiChecked("/api/notebook/lsNotebooks", {});
-            notebookID = (refreshed.notebooks || []).find((n) => n.name === "GleanSpike")?.id;
+            notebookID = (refreshed.notebooks || []).find((n) => n.name === notebookName)?.id;
         }
-        if (!notebookID) throw new Error("GleanSpike 笔记本创建失败");
+        if (!notebookID) throw new Error(`${notebookName} 笔记本创建失败`);
+
+        if (options.only === "flashcard") {
+            const step8 = await verifyFlashcard(notebookID);
+            record("⑧ 摘录制卡闭环 createDeck→insertBlock→addRiffCards", step8.ok, step8.detail);
+            exitCode = step8.ok ? 0 : 1;
+            fs.writeFileSync(
+                RESULTS_PATH,
+                `${JSON.stringify({ version: kernelVersion, kernelVersion, pluginVersion: PLUGIN_VERSION, workspace: WORKSPACE, host: HOST, port: PORT, at: new Date().toISOString(), results }, null, 2)}\n`
+            );
+            console.log(`\n== 制卡尖刺完成：${step8.ok ? 1 : 0}/1 通过，结果已写入 scripts/spike/spike-results.json ==`);
+            process.exitCode = exitCode;
+            return;
+        }
 
         const step1 = await verifyAttrLoop(notebookID);
         record("① 属性写读闭环 + tags落位 + 批量端点形状 + 删除语义", step1.ok, step1.detail);
@@ -536,19 +630,20 @@ async function main() {
         const failures = results.filter((r) => !r.ok);
         exitCode = failures.length > 0 ? 1 : 0;
         fs.writeFileSync(
-            path.join(process.cwd(), "scripts", "spike", "spike-results.json"),
-            `${JSON.stringify({ version: version.version, at: new Date().toISOString(), results, timings: step2.timings }, null, 2)}\n`
+            RESULTS_PATH,
+            `${JSON.stringify({ version: kernelVersion, kernelVersion, pluginVersion: PLUGIN_VERSION, workspace: WORKSPACE, host: HOST, port: PORT, at: new Date().toISOString(), results, timings: step2.timings }, null, 2)}\n`
         );
-        console.log(`\n== spike 完成：${results.length - failures.length}/${results.length} 通过，结果已写入 scripts/spike/spike-results.json ==`);
+        console.log(`\n== spike 完成：${results.length - failures.length}/${results.length} 通过，结果已写入 ${RESULTS_PATH} ==`);
     } finally {
-        if (booted && child.exitCode === null && child.signalCode === null) {
+        if (booted && (!child || (child.exitCode === null && child.signalCode === null))) await cleanupScratch(api, { log: console });
+        if (child && child.exitCode === null && child.signalCode === null) {
             await api("/api/system/exit", { force: true }).catch(() => undefined);
+            const exited = await Promise.race([
+                new Promise((resolve) => (child.exitCode !== null || child.signalCode !== null ? resolve(true) : child.once("exit", () => resolve(true)))),
+                new Promise((resolve) => setTimeout(() => resolve(false), 8000)),
+            ]);
+            if (!exited) child.kill("SIGKILL");
         }
-        const exited = await Promise.race([
-            new Promise((resolve) => (child.exitCode !== null || child.signalCode !== null ? resolve(true) : child.once("exit", () => resolve(true)))),
-            new Promise((resolve) => setTimeout(() => resolve(false), 8000)),
-        ]);
-        if (!exited) child.kill("SIGKILL");
     }
     process.exit(exitCode);
 }

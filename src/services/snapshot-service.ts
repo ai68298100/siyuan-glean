@@ -6,7 +6,7 @@ import type { Plugin } from "siyuan";
 import { exportDocHtml, putFile } from "../api/assets";
 import { querySql } from "../api/client";
 import { snapshotAssetPath } from "../domain/snapshot";
-import { writeClip } from "./clip-store";
+import { writeClip, type WriteClipOptions } from "./clip-store";
 
 /** 查文档所属笔记本（box）。 */
 async function docBox(docId: string): Promise<string> {
@@ -14,13 +14,13 @@ async function docBox(docId: string): Promise<string> {
     return rows[0]?.box ?? "";
 }
 
-export async function snapshotClip(plugin: Plugin, docId: string): Promise<{ path: string }> {
+export async function snapshotClip(plugin: Plugin, docId: string, options: Pick<WriteClipOptions, "expectedAttrs"> = {}): Promise<{ path: string }> {
     const box = await docBox(docId);
     const path = snapshotAssetPath(box, docId);
     const exported = await exportDocHtml(docId);
     const html = exported?.content ?? "";
     if (!html) throw new Error("快照导出为空");
     await putFile(path, new Blob([html], { type: "text/html" }), path.split("/").pop() ?? "snapshot.html");
-    await writeClip(plugin, docId, { snapshot: path }, { force: true });
+    await writeClip(plugin, docId, { snapshot: path }, { force: true, ...options });
     return { path };
 }

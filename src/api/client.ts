@@ -1,11 +1,8 @@
 /**
  * 内核 HTTP 传输层：api/ 是唯一允许发内核请求的地方（AGENTS.md 铁律）。
  * 端点形状以 docs/DATA-CONTRACT.md §5 与 scripts/spike 实证为准。
- *
- * T-1967 超时：默认 60s 兜底（本地内核 60s 无响应视为挂起），长操作调用点
- * （大库 SQL 分页/全文导出/批量属性）显式放宽；超时仅放弃等待，底层请求无法取消。
  */
-import { fetchPost } from "siyuan";
+import * as siyuan from "siyuan";
 
 export interface KernelResponse<T> {
     code: number;
@@ -18,29 +15,47 @@ export const KERNEL_TIMEOUT_LONG_MS = 180_000;
 
 function kernelPost<T>(
     route: string,
-    body: Record<string, unknown> = {},
-    options: { timeoutMs?: number } = {}
+    body: Record<string, unknown> | FormData = {},
+    options: { timeoutMs?: number } = {},
 ): Promise<T> {
-    const timeoutMs = options.timeoutMs ?? KERNEL_TIMEOUT_DEFAULT_MS;
-    return new Promise((resolve, reject) => {
-        let settled = false;
-        const timer = setTimeout(() => {
-            if (settled) return;
-            settled = true;
-            reject(new Error(`${route} 请求超时（${Math.round(timeoutMs / 1000)}s 无响应）`));
-        }, timeoutMs);
-        fetchPost(route, body, (response: { code?: number; msg?: string; data?: T }) => {
-            if (settled) return; // 超时后迟到的响应丢弃
-            settled = true;
-            clearTimeout(timer);
-            if (!response || typeof response.code !== "number") {
-                reject(new Error(`${route} 返回异常响应`));
-            } else if (response.code !== 0) {
-                reject(new Error(`${route} code=${response.code} msg=${response.msg || ""}`));
-            } else {
-                resolve(response.data as T);
+    const fetchPost = (siyuan as unknown as { fetchPost?: (route: string, body: unknown, callback: (response: KernelResponse<T>) => void) => void }).fetchPost;
+    if (typeof fetchPost === "function") {
+        const timeoutMs = options.timeoutMs ?? KERNEL_TIMEOUT_DEFAULT_MS;
+        return new Promise<T>((resolve, reject) => {
+            let settled = false;
+            const timer = setTimeout(() => {
+                if (settled) return;
+                settled = true;
+                reject(new Error(`${route} 请求超时（${Math.round(timeoutMs / 1000)}s 无响应）`));
+            }, timeoutMs);
+            try {
+                fetchPost(route, body, (response) => {
+                    if (settled) return;
+                    settled = true;
+                    clearTimeout(timer);
+                    if (!response || typeof response.code !== "number") reject(new Error(`${route} 返回异常响应`));
+                    else if (response.code !== 0) reject(new Error(`${route} code=${response.code} msg=${response.msg || ""}`));
+                    else resolve(response.data as T);
+                });
+            } catch (error) {
+                if (!settled) {
+                    settled = true;
+                    clearTimeout(timer);
+                    reject(error);
+                }
             }
         });
+    }
+    const fetchSyncPost = (siyuan as unknown as { fetchSyncPost?: (route: string, body: unknown) => Promise<KernelResponse<T>> }).fetchSyncPost;
+    if (typeof fetchSyncPost !== "function") return Promise.reject(new Error("思源内核请求接口不可用"));
+    return Promise.resolve(fetchSyncPost(route, body)).then((response) => {
+    if (!response || typeof response.code !== "number") {
+        throw new Error(`${route} 返回异常响应`);
+    }
+    if (response.code !== 0) {
+        throw new Error(`${route} code=${response.code} msg=${response.msg || ""}`);
+    }
+    return response.data as T;
     });
 }
 
@@ -79,7 +94,7 @@ export interface BlockAttrsPair {
  */
 export async function batchGetBlockAttrs(ids: string[]): Promise<BlockAttrsPair[]> {
     if (ids.length === 0) return [];
-    const data = await kernelPost<Record<string, Ial>>("/api/attr/batchGetBlockAttrs", { ids }, { timeoutMs: KERNEL_TIMEOUT_LONG_MS });
+    const data = await kernelPost<Record<string, Ial>>("/api/attr/batchGetBlockAttrs", { ids });
     const pairs: BlockAttrsPair[] = [];
     for (const [id, attrs] of Object.entries(data ?? {})) {
         pairs.push({ id, attrs: attrs ?? {} });
@@ -111,7 +126,7 @@ export interface DocRow {
 
 /** 跑一条只读 SQL；思源索引异步刷新，写后立刻查可能短暂滞后 */
 export async function querySql<T = Record<string, unknown>>(stmt: string): Promise<T[]> {
-    const data = await kernelPost<T[]>("/api/query/sql", { stmt }, { timeoutMs: KERNEL_TIMEOUT_LONG_MS });
+    const data = await kernelPost<T[]>("/api/query/sql", { stmt });
     return Array.isArray(data) ? data : [];
 }
 
@@ -129,8 +144,14 @@ export async function listNotebooks(): Promise<NotebookMeta[]> {
 }
 
 /** 导出文档为 markdown（迁移器读正文用；返回 content 已含正文 markdown） */
-export async function exportMdContent(id: string): Promise<{ hPath: string; content: string }> {
-    return kernelPost<{ hPath: string; content: string }>("/api/export/exportMdContent", { id }, { timeoutMs: KERNEL_TIMEOUT_LONG_MS });
+export interface ExportMarkdownOptions {
+    yfm?: boolean;
+    addTitle?: boolean;
+    refMode?: 2;
+}
+
+export async function exportMdContent(id: string, options: ExportMarkdownOptions = {}): Promise<{ hPath: string; content: string }> {
+    return kernelPost<{ hPath: string; content: string }>("/api/export/exportMdContent", { id, ...options });
 }
 
 /** 创建文档（同路径会再建新文档，不幂等——调用方先查重，人脉 D-0007 同款结论）。返回文档 ID。 */
@@ -138,18 +159,17 @@ export async function createDocWithMd(notebookId: string, hPath: string, markdow
     return kernelPost<string>("/api/filetree/createDocWithMd", { notebook: notebookId, path: hPath, markdown, ...(tags ? { tags } : {}) });
 }
 
-/**
- * 移动文档（T-1868 实证，DATA-CONTRACT §7.5）：toPath **必须是目标宿主文档完整 path（带 `.sy`）**，
- * 去掉 `.sy` 的目录形态报 block not found；fromPaths 各项同为 `/<id>.sy` 形态。
- * 移动保留根块 ID 与 IAL；重复移动幂等（code=0）。
- */
-export async function moveDocs(fromPaths: string[], toNotebookId: string, toHostPath: string): Promise<void> {
-    await kernelPost("/api/filetree/moveDocs", { fromPaths, toNotebook: toNotebookId, toPath: toHostPath });
+/** 移动文档到目标笔记本/文档路径；生命周期服务只通过此 API 调用内核。 */
+export async function moveDocs(fromPaths: string[], toNotebook: string, toPath: string): Promise<void> {
+    if (fromPaths.length === 0) return;
+    if (!fromPaths.every((path) => typeof path === "string" && path.length > 0)) throw new Error("Invalid move paths");
+    await kernelPost("/api/filetree/moveDocs", { fromPaths, toNotebook, toPath });
 }
 
-/** 删除文档（T-1868 实证）：path 为 `/<id>.sy`；索引异步清空；删除后 getBlockAttrs 返回空对象不报错——判存在性只能靠 SQL。 */
-export async function removeDoc(notebookId: string, docPath: string): Promise<void> {
-    await kernelPost("/api/filetree/removeDoc", { notebook: notebookId, path: docPath });
+/** 永久删除文档；调用方必须先完成路径与 ID 配对确认。 */
+export async function removeDoc(notebookId: string, path: string): Promise<void> {
+    if (!notebookId || !path) throw new Error("Invalid document removal target");
+    await kernelPost("/api/filetree/removeDoc", { notebook: notebookId, path });
 }
 
 /* ---------- block 子块（高亮聚合） ---------- */
@@ -161,24 +181,96 @@ export interface BlockRow {
     type: string;
     root_id: string;
     box: string;
-    /** 块更新时间 YYYYMMDDHHmmss（T-1753 摘录时间展示用） */
-    updated?: string;
-    /** 块级 IAL JSON 形文本（T-1901 颜色投影用） */
     ial?: string;
 }
 
-/**
- * 当前文档的引述块（DATA-CONTRACT §4 形态②：普通引述块 type='b'）。
- * content 为纯文本、markdown 保留行内标记；root_id 圈定文档。
- */
-export async function listQuoteBlocks(rootDocId: string, limit = 200): Promise<BlockRow[]> {
-    if (!/^(\d{14}-[0-9a-z]{7})$/.test(rootDocId)) return [];
-    const data = await kernelPost<BlockRow[]>("/api/query/sql", {
-        // T-1901：ial 列（JSON 形文本）供高亮颜色投影
-        stmt: `SELECT id, content, markdown, type, root_id, box, updated, ial FROM blocks
-               WHERE root_id = '${rootDocId.replace(/'/g, "''")}' AND type = 'b' ORDER BY sort ASC LIMIT ${limit}`,
+export interface HeadingRow {
+    id: string;
+    content: string;
+    type: string;
+    subtype?: string;
+    root_id: string;
+    sort: number;
+}
+
+export async function listHeadingBlocks(
+    rootDocId: string,
+    afterSort = -1,
+    afterId = "",
+    limit = 500,
+): Promise<HeadingRow[]> {
+    if (!/^\d{14}-[0-9a-z]{7}$/.test(rootDocId)) throw new Error("Invalid outline root ID");
+    if (!Number.isSafeInteger(afterSort) || afterSort < -1) throw new Error("Invalid outline cursor");
+    if (afterId && !/^\d{14}-[0-9a-z]{7}$/.test(afterId)) throw new Error("Invalid outline cursor ID");
+    const pageSize = Number.isSafeInteger(limit) && limit > 0 ? Math.min(limit, 500) : 500;
+    return querySql<HeadingRow>(
+        `SELECT id, content, type, subtype, root_id, sort FROM blocks WHERE root_id = '${rootDocId}' AND type = 'h' AND subtype IN ('h1','h2','h3','h4','h5','h6') AND (sort > ${afterSort} OR (sort = ${afterSort} AND id > '${afterId}')) ORDER BY sort ASC, id ASC LIMIT ${pageSize}`,
+    );
+}
+
+export interface ChildBlockRow {
+    id: string;
+    type: string;
+    subType?: string;
+    content?: string;
+}
+
+export async function listChildBlocks(id: string): Promise<ChildBlockRow[]> {
+    if (!/^\d{14}-[0-9a-z]{7}$/.test(id)) throw new Error("Invalid child block parent ID");
+    const rows = await kernelPost<unknown>("/api/block/getChildBlocks", { id });
+    if (!Array.isArray(rows) || rows.length > 50000) throw new Error("Invalid child block response");
+    const ids = new Set<string>();
+    return rows.map((raw) => {
+        const row = raw as Partial<ChildBlockRow> | null;
+        if (!row || typeof row.id !== "string" || !/^\d{14}-[0-9a-z]{7}$/.test(row.id)
+            || ids.has(row.id) || typeof row.type !== "string" || !row.type
+            || (row.subType !== undefined && typeof row.subType !== "string")
+            || (row.content !== undefined && typeof row.content !== "string")) throw new Error("Invalid child block row");
+        ids.add(row.id);
+        return { id: row.id, type: row.type, subType: row.subType, content: row.content };
     });
-    return Array.isArray(data) ? data : [];
+}
+
+function highlightSqlIds(ids: readonly string[]): string {
+    if (ids.length > 200 || ids.some((id) => !/^\d{14}-[0-9a-z]{7}$/.test(id))) throw new Error("Invalid highlight IDs");
+    return [...new Set(ids)].map((id) => `'${id}'`).join(",");
+}
+
+async function highlightQuery<T>(stmt: string): Promise<T[]> {
+    const data = await kernelPost<T[]>("/api/query/sql", { stmt });
+    if (!Array.isArray(data)) throw new Error("Invalid highlight query response");
+    return data;
+}
+
+export async function listHighlightBlocks(rootDocIds: readonly string[], afterId = "", limit = 500): Promise<BlockRow[]> {
+    const roots = highlightSqlIds(rootDocIds);
+    if (!roots) return [];
+    if (afterId && !/^\d{14}-[0-9a-z]{7}$/.test(afterId)) throw new Error("Invalid highlight cursor");
+    const pageSize = Number.isSafeInteger(limit) && limit > 0 ? Math.min(limit, 500) : 500;
+    const marker = 'custom-clip-highlight="';
+    const tail = `substr(ial, instr(ial, '${marker}') + ${marker.length})`;
+    return highlightQuery<BlockRow>(
+        `SELECT id, content, markdown, type, root_id, box, ial FROM blocks
+         WHERE root_id IN (${roots}) AND type <> 'd'
+         AND (type = 'b' OR (instr(ial, '${marker}') > 0 AND trim(substr(${tail}, 1, instr(${tail}, '"') - 1)) <> ''))
+         ${afterId ? `AND id > '${afterId}'` : ""}
+         ORDER BY id ASC LIMIT ${pageSize}`
+    );
+}
+
+export async function getHighlightBlocks(ids: readonly string[]): Promise<BlockRow[]> {
+    const blocks = highlightSqlIds(ids);
+    return blocks ? highlightQuery<BlockRow>(`SELECT id, content, markdown, type, root_id, box, ial FROM blocks WHERE id IN (${blocks}) ORDER BY id ASC`) : [];
+}
+
+export async function listHighlightDocuments(ids: readonly string[]): Promise<DocRow[]> {
+    const roots = highlightSqlIds(ids);
+    return roots ? highlightQuery<DocRow>(`SELECT id, content, hpath, box, updated FROM blocks WHERE type = 'd' AND id IN (${roots}) ORDER BY id ASC`) : [];
+}
+
+export async function listQuoteBlocks(rootDocId: string, limit = 200): Promise<BlockRow[]> {
+    if (!/^\d{14}-[0-9a-z]{7}$/.test(rootDocId)) return [];
+    return listHighlightBlocks([rootDocId], "", limit);
 }
 
 /* ---------- 搜索 ---------- */
@@ -227,32 +319,57 @@ export async function embeddingStat(): Promise<EmbeddingStat> {
     return kernelPost<EmbeddingStat>("/api/ai/embeddingStat", {});
 }
 
-/** 向父块插入 DOM 块（返回事务里首个节点 id；人脉 av 同款范式）。 */
-export async function insertBlockDom(parentBlockId: string, dom: string): Promise<string> {
-    const data = await kernelPost<Array<{ doOperations?: Array<{ id?: string }> }>>('/api/block/insertBlock', {
+interface InsertBlockTransaction {
+    doOperations?: Array<{ id?: unknown }>;
+}
+
+/** 从 insertBlock 事务响应中按操作顺序提取节点 ID。 */
+export function extractInsertBlockIds(data: unknown): string[] {
+    const transactions = Array.isArray(data) ? data : data ? [data] : [];
+    const ids: string[] = [];
+    const seen = new Set<string>();
+    for (const transaction of transactions as InsertBlockTransaction[]) {
+        for (const operation of transaction?.doOperations ?? []) {
+            if (typeof operation?.id === "string" && operation.id && !seen.has(operation.id)) {
+                seen.add(operation.id);
+                ids.push(operation.id);
+            }
+        }
+    }
+    return ids;
+}
+
+async function insertDomBlockIds(body: Record<string, unknown>): Promise<string[]> {
+    const data = await kernelPost<unknown>('/api/block/insertBlock', body);
+    const ids = extractInsertBlockIds(data);
+    if (ids.length === 0) throw new Error('insertBlock 未返回节点 ID');
+    return ids;
+}
+
+/** 向父块插入 DOM 块，返回事务中所有新节点 ID（按 DOM 操作顺序）。 */
+export async function insertBlockDomIds(parentBlockId: string, dom: string): Promise<string[]> {
+    return insertDomBlockIds({
         dataType: 'dom',
         parentID: parentBlockId,
         data: dom,
     });
-    const results = Array.isArray(data) ? data : data ? [data] : [];
-    for (const result of results) {
-        const id = result?.doOperations?.[0]?.id;
-        if (id) return id;
-    }
-    throw new Error('insertBlock 未返回节点 ID');
+}
+
+/** 向父块插入 DOM 块（返回事务里的首个节点 id；兼容既有调用方）。 */
+export async function insertBlockDom(parentBlockId: string, dom: string): Promise<string> {
+    return (await insertBlockDomIds(parentBlockId, dom))[0];
 }
 
 /** 在指定块之后插入同级 DOM 块（D-0030 摘录落点；与 insertBlockDom 同端点，previousID 参数变体）。 */
-export async function insertBlockAfter(previousBlockId: string, dom: string): Promise<string> {
-    const data = await kernelPost<Array<{ doOperations?: Array<{ id?: string }> }>>('/api/block/insertBlock', {
+export async function insertBlockAfterIds(previousBlockId: string, dom: string): Promise<string[]> {
+    return insertDomBlockIds({
         dataType: 'dom',
         previousID: previousBlockId,
         data: dom,
     });
-    const results = Array.isArray(data) ? data : data ? [data] : [];
-    for (const result of results) {
-        const id = result?.doOperations?.[0]?.id;
-        if (id) return id;
-    }
-    throw new Error('insertBlock 未返回节点 ID');
+}
+
+/** 在指定块之后插入同级 DOM 块（兼容既有调用方）。 */
+export async function insertBlockAfter(previousBlockId: string, dom: string): Promise<string> {
+    return (await insertBlockAfterIds(previousBlockId, dom))[0];
 }

@@ -156,7 +156,7 @@ export async function resolveMigrateRow(
             await persistResolvedRow(plugin, progress, skipped);
             return skipped;
         }
-        const conflict = await findClipUrlConflict(url, row.id);
+        const conflict = await findClipUrlConflict(url, row.id, plugin);
         if (conflict && !decision.allowDuplicate) {
             const unresolved: MigrateRow = {
                 ...row, url, site: siteFromUrl(url), state: "manual", conflictDocId: conflict.id,
@@ -406,7 +406,7 @@ export async function runBackfillBatch(
                     }
                 } else {
                     try {
-                        const conflict = await findClipUrlConflict(row.url, row.id);
+                        const conflict = await findClipUrlConflict(row.url, row.id, plugin);
                         if (conflict && !row.allowDuplicate) {
                             row.state = "manual";
                             row.conflictDocId = conflict.id;

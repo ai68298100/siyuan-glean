@@ -24,6 +24,10 @@ interface Props {
 let { facade, onClose }: Props = $props();
 
 const i18n = $derived(facade.i18n);
+const instanceId = $props.id();
+const idPrefix = `glean-migrate-${instanceId}`;
+const titleId = `${idPrefix}-title`;
+const descId = `${idPrefix}-desc`;
 
 /** 每批写入条数（UX 审计 #7）：控件从设置页迁到执行现场，回填前就近调整。 */
 async function updateBatchSize(input: HTMLInputElement): Promise<void> {
@@ -206,30 +210,30 @@ function rowStateLabel(row: MigrateRow): string {
 }
 </script>
 
-<div class="glean-migrate">
+<div class="glean-migrate" data-phase={phase} aria-labelledby={titleId} aria-describedby={descId} aria-busy={phase === "scanning" || phase === "running"}>
     <div class="glean-dlg-head">
-        <div class="glean-brand__mark" style="width:26px;height:26px;border-radius:9px">
-            <svg style="width:13px;height:13px"><use href="#iconGleanWheat" /></svg>
+        <div class="glean-brand__mark glean-dlg-head__mark">
+            <svg aria-hidden="true"><use href="#iconGleanWheat" /></svg>
         </div>
         <div>
-            <div class="glean-dlg-head__t">{t(i18n, "migrate.title")}</div>
-            <div class="glean-dlg-head__sub">{t(i18n, "migrate.intro")}</div>
+            <h2 id={titleId} class="glean-dlg-head__t">{t(i18n, "migrate.title")}</h2>
+            <div id={descId} class="glean-dlg-head__sub">{t(i18n, "migrate.intro")}</div>
         </div>
     </div>
 
     {#if phase !== "intro"}
-        <div class="glean-stepper">
-            <div class="glean-step" class:glean-step--done={step > 1} class:glean-step--on={step === 1}>
+        <div class="glean-stepper" role="list" aria-label={t(i18n, "migrate.title")}>
+            <div class="glean-step" role="listitem" aria-current={step === 1 ? "step" : undefined} class:glean-step--done={step > 1} class:glean-step--on={step === 1}>
                 <div class="glean-step__ball">{step > 1 ? "✓" : "1"}</div>
                 <div class="glean-step__lb">{t(i18n, "migrate.stepScan")}</div>
             </div>
             <div class="glean-stepper__line" class:glean-stepper__line--done={step > 2}></div>
-            <div class="glean-step" class:glean-step--done={step > 2} class:glean-step--on={step === 2}>
+            <div class="glean-step" role="listitem" aria-current={step === 2 ? "step" : undefined} class:glean-step--done={step > 2} class:glean-step--on={step === 2}>
                 <div class="glean-step__ball">{step > 2 ? "✓" : "2"}</div>
                 <div class="glean-step__lb">{t(i18n, "migrate.stepRun")}</div>
             </div>
             <div class="glean-stepper__line" class:glean-stepper__line--done={step > 2}></div>
-            <div class="glean-step" class:glean-step--on={step === 3}>
+            <div class="glean-step" role="listitem" aria-current={step === 3 ? "step" : undefined} class:glean-step--on={step === 3}>
                 <div class="glean-step__ball">3</div>
                 <div class="glean-step__lb">{t(i18n, "migrate.stepDone")}</div>
             </div>
@@ -238,7 +242,7 @@ function rowStateLabel(row: MigrateRow): string {
 
     {#if phase === "intro"}
         {#if resumeAvailable}
-            <div style="display:flex; gap:8px">
+            <div class="glean-migrate__resume">
                 <button class="glean-btn glean-btn--pri" onclick={() => void resume()}>
                     {t(i18n, "migrate.continue")}（{cursor}/{rows.length}）
                 </button>
@@ -253,7 +257,7 @@ function rowStateLabel(row: MigrateRow): string {
             </button>
         </div>
     {:else if phase === "scanning"}
-        <div class="glean-panel__loading">{t(i18n, "migrate.scanning")}</div>
+        <div class="glean-panel__loading" role="status" aria-live="polite">{t(i18n, "migrate.scanning")}</div>
     {:else if phase === "report"}
         <div class="glean-mstats">
             <!-- T-2027：语义染色 modifier（pending=待处理琥珀/skip=中性/manual=挂起紫/err=错误红），不按排位 -->
@@ -270,12 +274,12 @@ function rowStateLabel(row: MigrateRow): string {
                     <span class={rowStateClass(row)} title={row.detail || ""}>{rowStateLabel(row)}</span>
                         {#if row.state === "manual" || !!row.resolution}
                             <span class="glean-mrow__ops">
-                                <button class="glean-op-btn" title={t(i18n, "migrate.fixUrl")} onclick={() => editManual(row)}>✎</button>
-                                <button class="glean-op-btn" title={t(i18n, "migrate.asLocal")} onclick={() => void resolveManual(row, "local")}>▤</button>
-                                <button class="glean-op-btn" title={t(i18n, "migrate.exclude")} onclick={() => void resolveManual(row, "exclude")}>×</button>
+                                <button class="glean-op-btn" title={t(i18n, "migrate.fixUrl")} aria-label={t(i18n, "migrate.fixUrl")} onclick={() => editManual(row)}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanEdit" /></svg></button>
+                                <button class="glean-op-btn" title={t(i18n, "migrate.asLocal")} aria-label={t(i18n, "migrate.asLocal")} onclick={() => void resolveManual(row, "local")}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanLocal" /></svg></button>
+                                <button class="glean-op-btn" title={t(i18n, "migrate.exclude")} aria-label={t(i18n, "migrate.exclude")} onclick={() => void resolveManual(row, "exclude")}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanClose" /></svg></button>
                                 {#if row.conflictDocId}
-                                    <button class="glean-op-btn" title={t(i18n, "migrate.openExisting")} onclick={() => openExisting(row)}>↗</button>
-                                    <button class="glean-op-btn" title={t(i18n, "migrate.keepDuplicate")} onclick={() => void resolveManual(row, "url", true)}>＋</button>
+                                    <button class="glean-op-btn" title={t(i18n, "migrate.openExisting")} aria-label={t(i18n, "migrate.openExisting")} onclick={() => openExisting(row)}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanExternal" /></svg></button>
+                                    <button class="glean-op-btn" title={t(i18n, "migrate.keepDuplicate")} aria-label={t(i18n, "migrate.keepDuplicate")} onclick={() => void resolveManual(row, "url", true)}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanPlus" /></svg></button>
                                 {/if}
                             </span>
                         {/if}
@@ -298,10 +302,12 @@ function rowStateLabel(row: MigrateRow): string {
                             <button class="glean-btn glean-btn--ghost" onclick={() => (editingRowId = "")}>{t(i18n, "action.cancel")}</button>
                         </div>
                     {/if}
+            {:else}
+                <div class="glean-mtable__empty" role="status">{t(i18n, "panel.empty")}</div>
             {/each}
         </div>
-        <div class="glean-migrate__ops">
-            <select class="b3-select" style="font-size:12px" bind:value={filter}>
+        <div class="glean-migrate__ops glean-migrate__ops--footer">
+            <select class="b3-select glean-migrate__filter" aria-label={t(i18n, "migrate.filterAll")} bind:value={filter}>
                 <option value="all">{t(i18n, "migrate.filterAll")}</option>
                 <option value="pending">{t(i18n, "migrate.filterPending")}</option>
                 <option value="manual">{t(i18n, "migrate.needUrl")}</option>
@@ -309,14 +315,13 @@ function rowStateLabel(row: MigrateRow): string {
                 <option value="error">{t(i18n, "import.failed")}</option>
             </select>
             <button class="glean-btn glean-btn--ghost" onclick={() => void startScan()}>{t(i18n, "migrate.rescan")}</button>
-            <label style="display:inline-flex; align-items:center; gap:5px; font-size:11px; color:var(--b3-theme-on-surface)">
+            <label class="glean-migrate__batch-size">
                 {t(i18n, "migrate.batchSize")}
                 <input
-                    class="glean-mini-input"
                     type="number"
                     min="1"
                     max="50"
-                    style="width:64px"
+                    class="glean-mini-input glean-migrate__batch-input"
                     value={facade.settings.migrateBatchSize}
                     onchange={(e) => void updateBatchSize(e.currentTarget)}
                 />
@@ -326,9 +331,9 @@ function rowStateLabel(row: MigrateRow): string {
             </button>
         </div>
     {:else if phase === "running" || phase === "paused"}
-        <div>
-            <div class="glean-progress"><div class="glean-progress__bar" style={`width:${progressPct}%`}></div></div>
-            <div class="glean-prog-meta">
+        <div role="group" aria-label={t(i18n, "migrate.writing")}>
+            <div class="glean-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow={progressPct} aria-label={t(i18n, "migrate.writing")}><div class="glean-progress__bar" style={`width:${progressPct}%`}></div></div>
+            <div class="glean-prog-meta" role="status" aria-live="polite" aria-atomic="true">
                 <span>{t(i18n, "migrate.writing")} {cursor} / {rows.length}{phase === "paused" ? `（${t(i18n, "migrate.paused")}）` : ""}</span>
                 <span>{t(i18n, "migrate.batchNote", { n: facade.settings.migrateBatchSize })}</span>
             </div>
@@ -346,12 +351,12 @@ function rowStateLabel(row: MigrateRow): string {
                     <span class={rowStateClass(row)} title={row.detail || ""}>{rowStateLabel(row)}</span>
                         {#if (row.state === "manual" || (phase === "paused" && !!row.resolution)) && phase !== "running"}
                             <span class="glean-mrow__ops">
-                                <button class="glean-op-btn" title={t(i18n, "migrate.fixUrl")} onclick={() => editManual(row)}>✎</button>
-                                <button class="glean-op-btn" title={t(i18n, "migrate.asLocal")} onclick={() => void resolveManual(row, "local")}>▤</button>
-                                <button class="glean-op-btn" title={t(i18n, "migrate.exclude")} onclick={() => void resolveManual(row, "exclude")}>×</button>
+                                <button class="glean-op-btn" title={t(i18n, "migrate.fixUrl")} aria-label={t(i18n, "migrate.fixUrl")} onclick={() => editManual(row)}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanEdit" /></svg></button>
+                                <button class="glean-op-btn" title={t(i18n, "migrate.asLocal")} aria-label={t(i18n, "migrate.asLocal")} onclick={() => void resolveManual(row, "local")}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanLocal" /></svg></button>
+                                <button class="glean-op-btn" title={t(i18n, "migrate.exclude")} aria-label={t(i18n, "migrate.exclude")} onclick={() => void resolveManual(row, "exclude")}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanClose" /></svg></button>
                                 {#if row.conflictDocId}
-                                    <button class="glean-op-btn" title={t(i18n, "migrate.openExisting")} onclick={() => openExisting(row)}>↗</button>
-                                    <button class="glean-op-btn" title={t(i18n, "migrate.keepDuplicate")} onclick={() => void resolveManual(row, "url", true)}>＋</button>
+                                    <button class="glean-op-btn" title={t(i18n, "migrate.openExisting")} aria-label={t(i18n, "migrate.openExisting")} onclick={() => openExisting(row)}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanExternal" /></svg></button>
+                                    <button class="glean-op-btn" title={t(i18n, "migrate.keepDuplicate")} aria-label={t(i18n, "migrate.keepDuplicate")} onclick={() => void resolveManual(row, "url", true)}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanPlus" /></svg></button>
                                 {/if}
                             </span>
                         {/if}
@@ -370,9 +375,11 @@ function rowStateLabel(row: MigrateRow): string {
                             <button class="glean-btn glean-btn--ghost" onclick={() => (editingRowId = "")}>{t(i18n, "action.cancel")}</button>
                         </div>
                     {/if}
+            {:else}
+                <div class="glean-mtable__empty" role="status">{t(i18n, "panel.empty")}</div>
             {/each}
         </div>
-        <div class="glean-migrate__ops">
+        <div class="glean-migrate__ops glean-migrate__ops--footer">
             {#if phase === "running"}
                 <button class="glean-btn" onclick={() => (aborted = true)}>{t(i18n, "migrate.pause")}</button>
             {:else}
@@ -394,12 +401,12 @@ function rowStateLabel(row: MigrateRow): string {
                         <span class={rowStateClass(row)} title={row.detail || ""}>{rowStateLabel(row)}</span>
                         {#if row.state === "manual"}
                             <span class="glean-mrow__ops">
-                                <button class="glean-op-btn" title={t(i18n, "migrate.fixUrl")} onclick={() => editManual(row)}>✎</button>
-                                <button class="glean-op-btn" title={t(i18n, "migrate.asLocal")} onclick={() => void resolveManual(row, "local")}>▤</button>
-                                <button class="glean-op-btn" title={t(i18n, "migrate.exclude")} onclick={() => void resolveManual(row, "exclude")}>×</button>
+                                <button class="glean-op-btn" title={t(i18n, "migrate.fixUrl")} aria-label={t(i18n, "migrate.fixUrl")} onclick={() => editManual(row)}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanEdit" /></svg></button>
+                                <button class="glean-op-btn" title={t(i18n, "migrate.asLocal")} aria-label={t(i18n, "migrate.asLocal")} onclick={() => void resolveManual(row, "local")}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanLocal" /></svg></button>
+                                <button class="glean-op-btn" title={t(i18n, "migrate.exclude")} aria-label={t(i18n, "migrate.exclude")} onclick={() => void resolveManual(row, "exclude")}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanClose" /></svg></button>
                                 {#if row.conflictDocId}
-                                    <button class="glean-op-btn" title={t(i18n, "migrate.openExisting")} onclick={() => openExisting(row)}>↗</button>
-                                    <button class="glean-op-btn" title={t(i18n, "migrate.keepDuplicate")} onclick={() => void resolveManual(row, "url", true)}>＋</button>
+                                    <button class="glean-op-btn" title={t(i18n, "migrate.openExisting")} aria-label={t(i18n, "migrate.openExisting")} onclick={() => openExisting(row)}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanExternal" /></svg></button>
+                                    <button class="glean-op-btn" title={t(i18n, "migrate.keepDuplicate")} aria-label={t(i18n, "migrate.keepDuplicate")} onclick={() => void resolveManual(row, "url", true)}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanPlus" /></svg></button>
                                 {/if}
                             </span>
                         {/if}
@@ -414,7 +421,7 @@ function rowStateLabel(row: MigrateRow): string {
                 {/each}
             </div>
         {/if}
-        <div class="glean-migrate__ops">
+        <div class="glean-migrate__ops glean-migrate__ops--footer">
             {#if retryableErrors}
                 <button class="glean-btn glean-btn--ghost" onclick={() => void startRun(false)}>{t(i18n, "action.retry")}</button>
             {/if}

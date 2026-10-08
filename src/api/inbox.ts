@@ -4,7 +4,7 @@
  *   （云收件箱特有形状，防御式剥层）
  * - removeShorthands {ids[]}；未登录/无订阅时 code!=0（调用方降级隐藏 UI）
  */
-import { fetchPost } from "siyuan";
+import { kernelPost } from "./client";
 
 export interface Shorthand {
     /** 云端对象 ID */
@@ -35,80 +35,61 @@ interface RawShorthandsResponse {
     code?: number;
     msg?: string;
     data?: {
-        code?: number;
-        msg?: string;
-        data?: {
-            pagination?: { paginationRecordCount?: number; paginationPageCount?: number };
-            shorthands?: Array<Record<string, unknown>>;
-        };
+        pagination?: { paginationRecordCount?: number; paginationPageCount?: number };
+        shorthands?: unknown;
     };
 }
 
 export async function getShorthands(page = 1): Promise<InboxAvailability> {
-    return new Promise((resolve) => {
-        fetchPost("/api/inbox/getShorthands", { page }, (response: { code?: number; msg?: string; data?: unknown }) => {
-            if (!response || typeof response.code !== "number" || response.code !== 0) {
-                resolve({ page: null, error: response?.msg || "inbox unavailable" });
-                return;
-            }
-            // 双层剥包
-            const outer = response.data as RawShorthandsResponse | undefined;
-            const inner = (outer && typeof outer === "object" && "data" in outer ? outer.data : undefined) as
-                | { pagination?: { paginationRecordCount?: number; paginationPageCount?: number }; shorthands?: Array<Record<string, unknown>> }
-                | undefined;
-            const rawList = inner?.shorthands ?? [];
-            const shorthands: Shorthand[] = rawList
-                .filter((raw): raw is Record<string, string> => Boolean(raw && typeof raw === "object"))
-                .map((raw) => ({
-                    oId: String(raw.oId ?? ""),
-                    shorthandMd: String(raw.shorthandMd ?? ""),
-                    shorthandDesc: String(raw.shorthandDesc ?? ""),
-                    shorthandTitle: String(raw.shorthandTitle ?? ""),
-                    shorthandURL: String(raw.shorthandURL ?? ""),
-                    hCreated: String(raw.hCreated ?? ""),
-                }));
-            const pageCount = Number(inner?.pagination?.paginationPageCount ?? 1);
-            resolve({
-                page: {
-                    shorthands,
-                    recordCount: Number(inner?.pagination?.paginationRecordCount ?? shorthands.length),
-                    hasMore: page < pageCount,
-                },
-                error: "",
-            });
-        });
-    });
+    try {
+        const outer = await kernelPost<RawShorthandsResponse>("/api/inbox/getShorthands", { page });
+        if (!outer || outer.code !== 0 || !Array.isArray(outer.data?.shorthands)) {
+            return { page: null, error: "inbox unavailable" };
+        }
+        const shorthands: Shorthand[] = [];
+        for (const raw of outer.data.shorthands) {
+            const shorthand = parseShorthand(raw);
+            if (!shorthand) return { page: null, error: "invalid inbox item" };
+            shorthands.push(shorthand);
+        }
+        const pageCount = Number(outer.data.pagination?.paginationPageCount ?? 1);
+        const recordCount = Number(outer.data.pagination?.paginationRecordCount ?? shorthands.length);
+        if (!Number.isFinite(pageCount) || pageCount < 0 || !Number.isFinite(recordCount) || recordCount < 0) {
+            return { page: null, error: "invalid inbox pagination" };
+        }
+        return { page: { shorthands, recordCount, hasMore: page < pageCount }, error: "" };
+    } catch {
+        return { page: null, error: "inbox unavailable" };
+    }
 }
 
 export async function removeShorthands(ids: string[]): Promise<void> {
-    await new Promise<void>((resolve, reject) => {
-        fetchPost("/api/inbox/removeShorthands", { ids }, (response: { code?: number; msg?: string }) => {
-            if (response && typeof response.code === "number" && response.code !== 0) {
-                reject(new Error(`removeShorthands code=${response.code} msg=${response.msg || ""}`));
-            } else {
-                resolve();
-            }
-        });
-    });
+    await kernelPost<void>("/api/inbox/removeShorthands", { ids });
 }
 
 /** 按 ID 取单条收集箱条目（迁移菜单通道）。 */
 export async function getShorthand(id: string): Promise<Shorthand | null> {
-    return new Promise((resolve) => {
-        fetchPost('/api/inbox/getShorthand', { id }, (response: { code?: number; data?: unknown }) => {
-            if (!response || typeof response.code !== 'number' || response.code !== 0) {
-                resolve(null);
-                return;
-            }
-            const raw = (response.data ?? {}) as Record<string, unknown>;
-            resolve({
-                oId: String(raw.oId ?? id),
-                shorthandMd: String(raw.shorthandMd ?? ''),
-                shorthandDesc: String(raw.shorthandDesc ?? ''),
-                shorthandTitle: String(raw.shorthandTitle ?? ''),
-                shorthandURL: String(raw.shorthandURL ?? ''),
-                hCreated: String(raw.hCreated ?? ''),
-            });
-        });
-    });
+    try {
+        return parseShorthand(await kernelPost<unknown>("/api/inbox/getShorthand", { id }), id);
+    } catch {
+        return null;
+    }
+}
+
+function parseShorthand(value: unknown, fallbackId = ""): Shorthand | null {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+    const raw = value as Record<string, unknown>;
+    const fields = ["shorthandMd", "shorthandDesc", "shorthandTitle", "shorthandURL", "hCreated"] as const;
+    if (fields.some((field) => raw[field] != null && typeof raw[field] !== "string")) return null;
+    if (!("oId" in raw) && !fields.some((field) => field in raw)) return null;
+    const oId = raw.oId == null ? fallbackId : typeof raw.oId === "string" || (typeof raw.oId === "number" && Number.isFinite(raw.oId)) ? String(raw.oId) : "";
+    if (!oId.trim()) return null;
+    return {
+        oId,
+        shorthandMd: String(raw.shorthandMd ?? ""),
+        shorthandDesc: String(raw.shorthandDesc ?? ""),
+        shorthandTitle: String(raw.shorthandTitle ?? ""),
+        shorthandURL: String(raw.shorthandURL ?? ""),
+        hCreated: String(raw.hCreated ?? ""),
+    };
 }

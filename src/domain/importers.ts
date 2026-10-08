@@ -89,6 +89,39 @@ function normalizeStatus(value: unknown): ImportedItem["status"] {
     return "inbox";
 }
 
+function stripPocketHtmlTags(value: string): string {
+    let output = "";
+    let inTag = false;
+    let quote = "";
+    for (let index = 0; index < value.length; index += 1) {
+        const char = value[index];
+        if (!inTag) {
+            if (char === "<") {
+                const next = value[index + 1] ?? "";
+                if (/[A-Za-z/!?]/.test(next)) {
+                    inTag = true;
+                    quote = "";
+                } else {
+                    output += "&lt;";
+                }
+            } else if (char === ">") {
+                output += "&gt;";
+            } else {
+                output += char;
+            }
+            continue;
+        }
+        if (quote) {
+            if (char === quote) quote = "";
+        } else if (char === '"' || char === "'") {
+            quote = char;
+        } else if (char === ">") {
+            inTag = false;
+        }
+    }
+    return output.replace(/[\r\n]+/g, " ").replace(/\s+/g, " ").trim();
+}
+
 function dedupe(items: ImportedItem[]): { items: ImportedItem[]; dropped: number } {
     const seen = new Set<string>();
     const kept: ImportedItem[] = [];
@@ -118,7 +151,7 @@ export function parsePocketHtml(raw: string): ParseResult {
         const timeAdded = /time_added="([^"]*)"/i.exec(attrs)?.[1] ?? "";
         const timeRead = /time_read="([^"]*)"/i.exec(attrs)?.[1] ?? "";
         const tags = /tags="([^"]*)"/i.exec(attrs)?.[1] ?? "";
-        const title = match[2].replace(/<[^>]+>/g, "").trim();
+        const title = stripPocketHtmlTags(match[2]);
         if (!href) continue;
         items.push({
             title,

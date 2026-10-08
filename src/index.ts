@@ -20,17 +20,20 @@ import { svelteDialog } from "./libs/dialog";
 import { t, type I18nBundle } from "./libs/i18n";
 import { captureDocument, batchSetStatus, readClip, readClipContext } from "./services/clip-store";
 import { autoEnrich, enrichClip } from "./services/enrich-service";
-import { docUnderHostKind } from "./services/lifecycle-service";
 import { excerptFromSelection, insertQuoteExcerpt } from "./services/excerpt-service";
 import { pickNextUnread } from "./services/resurface-service";
 import { recordReadingDone } from "./services/checkin-bridge";
 import { sourceUrlForCarrier } from "./domain/carrier";
 import { ensurePresetActions } from "./services/ai-actions";
-import { makeQuoteCard } from "./services/flashcard-service";
+import { makeQuoteCardPreview } from "./ui/flashcard-dialog";
 import { migrateShorthand } from "./services/inbox-service";
 import { getShorthand } from "./api/inbox";
 import { DEFAULT_SETTINGS, loadSettings, saveSettings, type GleanSettings } from "./services/settings";
+import { installBridge } from "./services/bridge";
+import pluginManifest from "../plugin.json";
 import type { GleanFacade } from "./types";
+import { addRecentReading, type RecentReadingEntry } from "./domain/recent-reading";
+import { docUnderHostKind } from "./services/lifecycle-service";
 
 const DOCK_TYPE = "glean-dock";
 const TAB_TYPE = "glean-library";
@@ -45,13 +48,12 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
 
     private dockInstance: ReturnType<typeof mount> | null = null;
     private disposeReadingContext: (() => void) | null = null;
+    private disposeBridge: (() => void) | null = null;
+    private loaded = false;
     private lastReadingDocId = "";
+    private recentReadings: RecentReadingEntry[] = [];
     private pendingLibraryDocId = "";
     private pendingReaderDocId = "";
-    /** 打开中的插件弹窗（T-1968）：onunload 时统一销毁，Svelte 实例由 svelteDialog 回收 */
-    private openDialogs: Array<{ close: () => void }> = [];
-    /** 工作台浮窗单实例（T-1956）：关闭回执前重复点击不创建第二个 */
-    private workbenchPopup: { close: () => void } | null = null;
 
     constructor(options: { app: unknown; name: string; displayName: string; i18n: I18nBundle }) {
         super(options as never);
@@ -62,6 +64,7 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
     }
 
     async onload() {
+        this.loaded = true;
         const frontend = getFrontend();
         this.isMobile = frontend === "mobile" || frontend === "browser-mobile";
 
@@ -76,10 +79,29 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
 <path d="M15.2 12.8H29v13.6H15.2zM17.4 15v9.2h9.4V15z"/></symbol>
 <symbol id="iconGleanRefresh" viewBox="0 0 32 32">
 <path d="M16 6a10 10 0 0 1 8.6 4.9l-2.4 1.4A7.4 7.4 0 0 0 16 8.6 7.4 7.4 0 1 0 23.4 16h2.6A10 10 0 1 1 16 6z"/>
-<path d="M22 4h6v6h-2.4V6.4H22z"/></symbol>`);
+<path d="M22 4h6v6h-2.4V6.4H22z"/></symbol>
+<symbol id="iconGleanArchive" viewBox="0 0 32 32"><path d="M5 6h22v5H5zM7.5 13h17v13h-17zM12 16h8v2h-8zm0 4h8v2h-8z"/></symbol>
+<symbol id="iconGleanInbox" viewBox="0 0 32 32"><path d="M4 7h24l-3 18H7L4 7zm3 3 1.8 12h14.4L25 10H7zM5.5 19h6l1.8 3h5.4l1.8-3h6"/></symbol>
+<symbol id="iconGleanNews" viewBox="0 0 32 32"><path d="M5 5h22v19H8a3 3 0 0 1-3-3V5zm3 3v13c0 .6.4 1 1 1h15V8H8zm3 3h10v2H11zm0 4h10v2H11z"/></symbol>
+<symbol id="iconGleanCamera" viewBox="0 0 32 32"><path d="M6 9h5l2-3h6l2 3h5v17H6V9zm3 3v11h14V12H9zm7 2.5a4 4 0 1 1 0 8 4 4 0 0 1 0-8zm0 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4z"/></symbol>
+<symbol id="iconGleanSpark" viewBox="0 0 32 32"><path d="m16 3 2.2 8.8L27 14l-8.8 2.2L16 25l-2.2-8.8L5 14l8.8-2.2L16 3zm8 18 .8 3.2L28 25l-3.2.8L24 29l-.8-3.2L20 25l3.2-.8L24 21z"/></symbol>
+<symbol id="iconGleanPin" viewBox="0 0 32 32"><path d="m20 4 8 8-3 3-2-2-4 4v5l-3 3-3-7-6-3 3-3h5l4-4-2-2 3-3zM12 23l-5 5"/></symbol>
+<symbol id="iconGleanEdit" viewBox="0 0 32 32"><path d="m22 4 6 6-15 15-8 2 2-8L22 4zm-1 5-11 11-1 4 4-1 11-11-3-3z"/></symbol>
+<symbol id="iconGleanLocal" viewBox="0 0 32 32"><path d="M5 6h22v20H5V6zm3 3v14h16V9H8zm3 3h10v2H11zm0 4h7v2h-7z"/></symbol>
+<symbol id="iconGleanClose" viewBox="0 0 32 32"><path d="m8 6 8 8 8-8 2 2-8 8 8 8-2 2-8-8-8 8-2-2 8-8-8-8 2-2z"/></symbol>
+<symbol id="iconGleanExternal" viewBox="0 0 32 32"><path d="M18 5h9v9h-2.5V9.3L13.4 20.4l-1.8-1.8L22.7 7.5H18V5zM7 7h8v2.5H9.5v13h13V18H25v7H7V7z"/></symbol>
+<symbol id="iconGleanPlus" viewBox="0 0 32 32"><path d="M14.5 5h3v9.5H27v3h-9.5V27h-3v-9.5H5v-3h9.5V5z"/></symbol>
+<symbol id="iconGleanCard" viewBox="0 0 32 32"><path d="M6 5h20a2 2 0 0 1 2 2v18a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2zm1 3v16h18V8H7zm3 3h12v2H10zm0 4h8v2h-8z"/></symbol>
+<symbol id="iconGleanSearch" viewBox="0 0 32 32"><path d="M14 5a9 9 0 1 0 5.7 16l5.6 5.6 1.7-1.7-5.6-5.6A9 9 0 0 0 14 5zm0 2.5a6.5 6.5 0 1 1 0 13 6.5 6.5 0 0 1 0-13z"/></symbol>
+<symbol id="iconGleanArrowUp" viewBox="0 0 32 32"><path d="m6 19 10-10 10 10-2.1 2.1-7.9-7.9-7.9 7.9z"/></symbol>
+<symbol id="iconGleanArrowDown" viewBox="0 0 32 32"><path d="m6 13 2.1-2.1 7.9 7.9 7.9-7.9L26 13 16 23z"/></symbol>
+<symbol id="iconGleanArrowRight" viewBox="0 0 32 32"><path d="m12 6 2.1-2.1L26.2 16 14.1 28.1 12 26l10-10z"/></symbol>
+<symbol id="iconGleanArrowLeft" viewBox="0 0 32 32"><path d="m20 6 2.1 2.1-10 10 10 10L20 30 7.9 18.1z"/></symbol>
+<symbol id="iconGleanCheck" viewBox="0 0 32 32"><path d="m5.5 16.7 2.2-2.2 5.3 5.3L24.3 8.5l2.2 2.2L13 24.2z"/></symbol>`);
 
         // 设置只在此处加载一次；面板/弹窗都读这个缓存
         this.settings = await loadSettings(this);
+        if (!this.loaded) return;
 
         const plugin = this;
         this.addDock({
@@ -123,7 +145,7 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
 
         this.addCommand({
             langKey: "cmd.addToList",
-            callback: () => this.guardAction("addToList", () => this.addCurrentDocToLibrary()),
+            callback: () => void this.addCurrentDocToLibrary(),
         });
 
         this.addCommand({
@@ -133,16 +155,16 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
 
         this.addCommand({
             langKey: "cmd.makeCard",
-            callback: () => this.guardAction("makeCard", () => this.makeCardFromSelection()),
+            callback: () => void this.makeCardFromSelection(),
         });
 
         // T-1724：命令面板阅读动作（低风险单篇动作；快捷键在思源 设置→快捷键 自定义）
-        this.addCommand({ langKey: "cmd.markDone", callback: () => this.guardAction("markDone", () => this.markCurrentStatus("done")) });
-        this.addCommand({ langKey: "cmd.readNext", callback: () => this.guardAction("readNext", () => this.readNextArticle()) });
-        this.addCommand({ langKey: "cmd.markLater", callback: () => this.guardAction("markLater", () => this.markCurrentStatus("later")) });
-        this.addCommand({ langKey: "cmd.archiveCurrent", callback: () => this.guardAction("archiveCurrent", () => this.archiveCurrentWithChoice()) });
-        this.addCommand({ langKey: "cmd.openSource", callback: () => this.guardAction("openSource", () => this.openCurrentSource()) });
-        this.addCommand({ langKey: "cmd.excerptQuote", callback: () => this.guardAction("excerptQuote", () => this.excerptQuoteFromSelection()) });
+        this.addCommand({ langKey: "cmd.markDone", callback: () => void this.markCurrentStatus("done") });
+        this.addCommand({ langKey: "cmd.readNext", callback: () => void this.readNextArticle() });
+        this.addCommand({ langKey: "cmd.markLater", callback: () => void this.markCurrentStatus("later") });
+        this.addCommand({ langKey: "cmd.archiveCurrent", callback: () => { const id = this.currentDocId(); if (id) this.openArchiveDialog(id); } });
+        this.addCommand({ langKey: "cmd.openSource", callback: () => void this.openCurrentSource() });
+        this.addCommand({ langKey: "cmd.excerptQuote", callback: () => void this.excerptQuoteFromSelection() });
         this.addCommand({ langKey: "cmd.readerHelp", callback: () => this.showReaderHelp() });
 
         // 右键菜单"加入读库"（收录入口三件套之一）
@@ -198,14 +220,16 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
 
         // 阅读上下文挂在原生编辑器容器，事件回调按编辑器根块切换和销毁清理。
         this.disposeReadingContext = installReadingContext(this);
+        this.disposeBridge = installBridge(this, pluginManifest.version);
     }
 
     onLayoutReady() {
-        // 首启引导：尚无锚点笔记本且未完成过引导 → 自动弹出（平静原则：可一键跳过）
+        // 首启引导：无锚点且未完成过引导自动弹出；已有锚点但进度未完成时仍恢复。
         if (!this.isMobile) {
             void (async () => {
                 const prefs = await loadUiPrefs(this);
-                if (prefs.onboardingDone || this.settings.anchorNotebooks.length > 0) return;
+                const onboardingInProgress = prefs.onboardingInterrupted || prefs.onboardingStep !== 1;
+                if (prefs.onboardingDone || (this.settings.anchorNotebooks.length > 0 && !onboardingInProgress)) return;
                 window.setTimeout(() => this.openOnboarding(), 800);
             })();
         }
@@ -220,6 +244,9 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
     }
 
     async onunload() {
+        this.loaded = false;
+        this.disposeBridge?.();
+        this.disposeBridge = null;
         this.eventBus.off("open-menu-content", this.onMenuContent);
         this.eventBus.off("open-menu-inbox", this.onMenuInbox);
         this.disposeReadingContext?.();
@@ -228,28 +255,12 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
             unmount(this.dockInstance);
             this.dockInstance = null;
         }
-        // T-1968：卸载时统一销毁打开中的弹窗（迁移/导入/设置/引导/帮助/浮窗）
-        for (const dialog of this.openDialogs) {
-            try {
-                dialog.close();
-            } catch { /* 已被思源销毁的弹窗忽略 */ }
-        }
-        this.openDialogs = [];
-        this.workbenchPopup = null;
     }
 
     /* ---------- GleanFacade ---------- */
 
-    /** 设置写队列（T-1957）：多弹窗并发保存时逐个落盘，patch 合并基准=队列内的最新设置，
-     * 避免基于旧快照的全量展开互相覆盖（配合调用方只传变化字段）。 */
-    private settingsQueue: Promise<void> = Promise.resolve();
-
-    async updateSettings(patch: Partial<GleanSettings>): Promise<void> {
-        const run = this.settingsQueue.then(async () => {
-            this.settings = await saveSettings(this, { ...this.settings, ...patch });
-        });
-        this.settingsQueue = run.catch(() => undefined);
-        await run;
+    async updateSettings(patch: Partial<GleanSettings>, options: { expected?: GleanSettings } = {}): Promise<void> {
+        this.settings = await saveSettings(this, { ...this.settings, ...patch }, options);
         this.notifyDataChanged();
     }
 
@@ -258,30 +269,15 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
         document.dispatchEvent(new CustomEvent("glean:data-changed"));
     }
 
-    /**
-     * 解析真正持有焦点/选区的编辑器（T-1980）：分屏时 getAllEditor 的第一个元素
-     * 未必是用户正在看的那篇，命令可能取错文档。优先按活跃选区/焦点元素定位，
-     * 都无法定位时才回退到第一个有根块的编辑器（保持旧行为兜底）。
-     */
-    private focusedEditor(): { protyle?: { element?: HTMLElement; block?: { rootID?: string } } } | undefined {
-        const editors = getAllEditor();
-        const selection = window.getSelection();
-        const node: Node | Element | null =
-            selection && !selection.isCollapsed ? selection.anchorNode : document.activeElement;
-        if (node) {
-            const hit = editors.find((item) => item?.protyle?.element?.contains(node as Node));
-            if (hit) return hit;
-        }
-        return editors.find((item) => item?.protyle?.block?.rootID);
-    }
-
     currentDocId(): string {
-        return this.focusedEditor()?.protyle?.block?.rootID ?? "";
+        const editor = getAllEditor().find((item) => item?.protyle?.block?.rootID);
+        return editor?.protyle?.block?.rootID ?? "";
     }
 
     openReadingDocument(docId: string): void {
         if (!docId) return;
         this.lastReadingDocId = docId;
+        this.recordRecentReading(docId);
         if (this.isMobile) {
             openMobileFileById(this.app, docId);
             return;
@@ -298,6 +294,7 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
     openReader(docId: string): void {
         if (!docId) return;
         this.lastReadingDocId = docId;
+        this.recordRecentReading(docId);
         if (this.isMobile) {
             openMobileFileById(this.app, docId);
             return;
@@ -323,6 +320,15 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
         const id = this.pendingReaderDocId;
         this.pendingReaderDocId = "";
         return id;
+    }
+
+    recentReadingDocuments(): readonly RecentReadingEntry[] {
+        return this.recentReadings.map((entry) => ({ ...entry }));
+    }
+
+    recordRecentReading(docId: string, title = ""): void {
+        this.recentReadings = addRecentReading(this.recentReadings, { id: docId, title });
+        document.dispatchEvent(new CustomEvent("glean:recent-reading-changed"));
     }
 
     async openLibraryArticle(docId: string): Promise<void> {
@@ -382,15 +388,6 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
         });
     }
 
-    /** 读当前编辑器内的选区文本（无选区返回空串；FAST-01.3 范式） */
-    private readSelection(): string {
-        const selection = window.getSelection();
-        if (!selection || selection.isCollapsed) return "";
-        const editor = getAllEditor().find((item) => item?.protyle?.element?.contains(selection.anchorNode ?? null));
-        if (editor?.protyle?.element && !editor.protyle.element.contains(selection.anchorNode)) return "";
-        return selection.toString();
-    }
-
     /* ---------- T-1724 命令面板阅读动作 ---------- */
 
     private requireCurrentDoc(): string {
@@ -399,84 +396,26 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
         return id;
     }
 
-    /** T-1989：命令/右键动作统一错误边界——脱敏留痕 + 可重试提示，不产生 unhandled rejection。 */
-    private guardAction(name: string, action: () => Promise<unknown> | void): void {
-        try {
-            const result = action();
-            if (result instanceof Promise) {
-                void result.catch((error) => {
-                    console.warn(`[glean] ${name} 失败:`, error);
-                    showMessage(t(this.i18n, "msg.actionFailed"), 3500);
-                });
-            }
-        } catch (error) {
-            console.warn(`[glean] ${name} 失败:`, error);
-            showMessage(t(this.i18n, "msg.actionFailed"), 3500);
-        }
-    }
-
     /** 当前文档显式改状态（读完/稍后/归档）；done 走同一打卡桥钩子。 */
     async markCurrentStatus(status: "done" | "later" | "archived"): Promise<void> {
         const id = this.requireCurrentDoc();
         if (!id) return;
-        // T-1980：未收录的普通文档不得被状态命令直接写属性，先收录再流转。
-        const current = await readClip(id);
-        if (!current.status) {
-            showMessage(t(this.i18n, "msg.notInLibrary"), 3500);
-            return;
-        }
-        const changed = await batchSetStatus(this, [id], status);
-        if (changed !== 1) {
-            showMessage(t(this.i18n, "msg.statusFailed"), 3000);
-            return;
-        }
-        if (status === "done" && this.settings.integration.checkinEnabled && this.settings.integration.checkinItemId) {
-            const context = await readClipContext(id);
-            void recordReadingDone(this.settings.integration.checkinItemId, id, context?.title ?? "");
-        }
-        this.notifyDataChanged();
-        showMessage(t(this.i18n, "msg.statusChanged"), 2500);
-    }
-
-    /** 归档命令入口（T-1866）：弹三选对话框（保留原位置/移入【归档】/删除文章），替代直写 archived。 */
-    async archiveCurrentWithChoice(): Promise<void> {
-        const id = this.requireCurrentDoc();
-        if (!id) return;
-        const current = await readClip(id);
-        if (!current.status) {
-            showMessage(t(this.i18n, "msg.notInLibrary"), 3500);
-            return;
-        }
-        this.openArchiveDialog(id);
-    }
-
-    /** 归档后处理三选对话框（T-1866，D-0032）：统一七处入口语义；彻底删除为二级确认动作。 */
-    openArchiveDialog(docId: string): void {
-        this.openGleanDialog({
-            title: t(this.i18n, "archive.title"),
-            component: ArchiveDialog,
-            props: { facade: this, docId },
-            width: "440px",
-            height: "360px",
-        });
-    }
-
-    /** 恢复策略入口（T-1872，D-0033）：宿主内文章弹两选项；非宿主文章保持既有直接恢复。 */
-    async openRestoreDialog(docId: string): Promise<void> {
-        const kind = await docUnderHostKind(docId);
-        if (!kind) {
-            await batchSetStatus(this, [docId], "later");
+        try {
+            const changed = await batchSetStatus(this, [id], status);
+            if (changed !== 1) {
+                showMessage(t(this.i18n, "msg.statusFailed"), 3000);
+                return;
+            }
+            if (status === "done" && this.settings.integration.checkinEnabled && this.settings.integration.checkinItemId) {
+                const context = await readClipContext(id);
+                void recordReadingDone(this.settings.integration.checkinItemId, id, context?.title ?? "");
+            }
             this.notifyDataChanged();
             showMessage(t(this.i18n, "msg.statusChanged"), 2500);
-            return;
+        } catch (error) {
+            console.warn("[glean] 状态命令失败:", error);
+            showMessage(t(this.i18n, "msg.statusFailed"), 3000);
         }
-        this.openGleanDialog({
-            title: t(this.i18n, "restore.title"),
-            component: RestoreDialog,
-            props: { facade: this, docId },
-            width: "440px",
-            height: "300px",
-        });
     }
 
     /** 打开当前文档原文（载体与 URL 校验后导航，不写状态）。 */
@@ -521,6 +460,49 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
         this.openReadingDocument(next);
     }
 
+    /** 归档后处理入口：策略细节由 ArchiveDialog 负责，入口保持与阅读上下文解耦。 */
+    openArchiveDialog(docId: string): void {
+        if (!docId) return;
+        svelteDialog({
+            title: t(this.i18n, "archive.title"),
+            closeLabel: t(this.i18n, "action.close"),
+            component: ArchiveDialog,
+            props: { facade: this, docId },
+            width: "440px",
+            height: "360px",
+        });
+    }
+
+    /**
+     * 恢复入口：不在生命周期宿主中的文章沿用直接恢复语义；在宿主中的文章
+     * 打开策略对话框，让用户明确选择是否移出宿主。
+     */
+    openRestoreDialog(docId: string): void {
+        if (!docId) return;
+        void (async () => {
+            try {
+                const kind = await docUnderHostKind(docId);
+                if (!kind) {
+                    await batchSetStatus(this, [docId], "later");
+                    this.notifyDataChanged();
+                    showMessage(t(this.i18n, "msg.statusChanged"), 2500);
+                    return;
+                }
+                svelteDialog({
+                    title: t(this.i18n, "restore.title"),
+                    closeLabel: t(this.i18n, "action.close"),
+                    component: RestoreDialog,
+                    props: { facade: this, docId },
+                    width: "440px",
+                    height: "300px",
+                });
+            } catch (error) {
+                console.warn("[glean] 恢复入口检查失败:", error);
+                showMessage(t(this.i18n, "msg.statusFailed"), 3000);
+            }
+        })();
+    }
+
     /** `?` 帮助：阅读动作清单与自定义快捷键入口提示（T-1724）。 */
     showReaderHelp(): void {
         const actions: Array<[string, string]> = [
@@ -529,39 +511,42 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
             ["cmd.openSource", "cmd.archiveCurrent"],
             ["cmd.excerptQuote", "cmd.makeCard"],
         ];
-        const list = actions
-            .map(([left, right]) =>
-                `<div style="display:flex;gap:12px;padding:3px 0;font-size:12.5px">` +
-                `<span style="flex:1">${t(this.i18n, left)}</span><span style="flex:1">${t(this.i18n, right)}</span></div>`)
-            .join("");
         const wrap = document.createElement("div");
-        wrap.innerHTML =
-            `<div style="padding:6px 4px">` +
-            `<div style="font-size:12px;opacity:.72;margin-bottom:8px">${t(this.i18n, "help.hint")}</div>` +
-            list +
-            `</div>`;
+        wrap.className = "glean-reader-help";
+        const hint = document.createElement("p");
+        hint.className = "glean-reader-help__hint";
+        hint.textContent = t(this.i18n, "help.hint");
+        wrap.append(hint);
+        const list = document.createElement("div");
+        list.className = "glean-reader-help__list";
+        list.setAttribute("role", "list");
+        for (const [left, right] of actions) {
+            const row = document.createElement("div");
+            row.className = "glean-reader-help__row";
+            row.setAttribute("role", "listitem");
+            const primary = document.createElement("span");
+            primary.className = "glean-reader-help__action";
+            primary.textContent = t(this.i18n, left);
+            const secondary = document.createElement("span");
+            secondary.className = "glean-reader-help__action";
+            secondary.textContent = t(this.i18n, right);
+            row.append(primary, secondary);
+            list.append(row);
+        }
+        wrap.append(list);
         void import("./libs/dialog").then(({ simpleDialog }) => {
-            const entry = simpleDialog({
-                title: t(this.i18n, "help.title"),
-                ele: wrap,
-                width: "520px",
-                callback: () => {
-                    this.openDialogs = this.openDialogs.filter((item) => item.close !== entry.close);
-                },
-            });
-            this.openDialogs.push(entry);
+            simpleDialog({ title: t(this.i18n, "help.title"), closeLabel: t(this.i18n, "action.close"), ele: wrap, width: "520px" });
         });
     }
 
-    /** 摘录制卡：选中文本 → 问句卡入「拾遗卡片」牌组 */
+    /** 摘录制卡：选中文本 → 编辑预览 → 明确确认后入「拾遗卡片」牌组 */
     async makeCardFromSelection(): Promise<void> {
-        const quote = this.readSelection().trim();
-        if (!quote) {
+        const selection = this.cardSelection();
+        if (!selection) {
             showMessage(t(this.i18n, "flashcard.noSelection"), 3000);
             return;
         }
-        const editor = this.focusedEditor();
-        const docId = editor?.protyle?.block?.rootID ?? "";
+        const { docId, blockId, quote } = selection;
         let docTitle = "";
         try {
             const { querySql } = await import("./api/client");
@@ -569,11 +554,21 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
             docTitle = rows[0]?.content ?? "";
         } catch { /* 标题取不到就用无来源卡面 */ }
         try {
-            await makeQuoteCard(this.settings, docTitle, quote, this);
-            showMessage(t(this.i18n, "flashcard.done"), 3000);
+            makeQuoteCardPreview(this, { title: docTitle, quote, docId, blockId });
         } catch (error) {
             showMessage(String(error).slice(0, 140), 5000);
         }
+    }
+
+    private cardSelection(): { quote: string; docId: string; blockId: string } | null {
+        const selection = window.getSelection();
+        if (!selection || selection.isCollapsed) return null;
+        const editor = getAllEditor().find((item) => item?.protyle?.element?.contains(selection.anchorNode));
+        const host = editor?.protyle?.element;
+        const excerpt = excerptFromSelection(host ?? null, selection);
+        const docId = editor?.protyle?.block?.rootID;
+        if (!excerpt || !docId) return null;
+        return { quote: selection.toString().trim(), docId, blockId: excerpt.blockId };
     }
 
     /** 收集箱右键"迁入读库"：open-menu-inbox detail.ids → 逐条取详情迁移（T-1500） */
@@ -625,15 +620,20 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
             showMessage(t(this.i18n, "msg.noSelection"), 3000);
             return;
         }
-        const result = await captureDocument(this, docId, { src: "manual" });
-        showMessage(
-            result.conflict
-                ? `${t(this.i18n, "inbox.duplicate")}: ${result.conflict.title || result.conflict.hpath}`
-                : t(this.i18n, result.captured ? "msg.added" : "msg.alreadyIn"),
-            3000,
-        );
-        if (result.captured) autoEnrich(this, docId, this.settings);
-        this.notifyDataChanged();
+        try {
+            const result = await captureDocument(this, docId, { src: "manual" });
+            showMessage(
+                result.conflict
+                    ? `${t(this.i18n, "inbox.duplicate")}: ${result.conflict.title || result.conflict.hpath}`
+                    : t(this.i18n, result.captured ? "msg.added" : "msg.alreadyIn"),
+                3000,
+            );
+            if (result.captured) autoEnrich(this, docId, this.settings);
+            this.notifyDataChanged();
+        } catch (error) {
+            console.warn("[glean] 手动收录失败:", error);
+            showMessage(String(error).slice(0, 140), 5000);
+        }
     }
 
     private readonly onMenuContent = (event: {
@@ -641,7 +641,8 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
     }): void => {
         const rootId = event.detail.protyle?.block?.rootID;
         if (!rootId) return;
-        const selectionText = this.readSelection().trim();
+        const selected = this.cardSelection();
+        const selectionText = selected?.docId === rootId ? selected.quote : "";
         if (selectionText) {
             event.detail.menu.addItem({
                 id: "glean-make-card",
@@ -651,8 +652,7 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
                     try {
                         const { querySql } = await import("./api/client");
                         const rows = await querySql<{ content: string }>("SELECT content FROM blocks WHERE id = '" + rootId.replace(/'/g, "''") + "' LIMIT 1");
-                        await makeQuoteCard(this.settings, rows[0]?.content ?? "", selectionText, this);
-                        showMessage(t(this.i18n, "flashcard.done"), 3000);
+                        makeQuoteCardPreview(this, { title: rows[0]?.content ?? "", quote: selectionText, docId: rootId, blockId: selected?.blockId });
                     } catch (error) {
                         showMessage(String(error).slice(0, 140), 5000);
                     }
@@ -663,17 +663,22 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
             id: "glean-add-to-library",
             iconHTML: "",
             label: `${t(this.i18n, "pluginName")}：${t(this.i18n, "action.addToInbox")}`,
-            click: () => this.guardAction("addToLibrary", async () => {
-                const result = await captureDocument(this, rootId, { src: "manual" });
-                showMessage(
-                    result.conflict
-                        ? `${t(this.i18n, "inbox.duplicate")}: ${result.conflict.title || result.conflict.hpath}`
-                        : t(this.i18n, result.captured ? "msg.added" : "msg.alreadyIn"),
-                    3000,
-                );
-                if (result.captured) autoEnrich(this, rootId, this.settings);
-                this.notifyDataChanged();
-            }),
+            click: async () => {
+                try {
+                    const result = await captureDocument(this, rootId, { src: "manual" });
+                    showMessage(
+                        result.conflict
+                            ? `${t(this.i18n, "inbox.duplicate")}: ${result.conflict.title || result.conflict.hpath}`
+                            : t(this.i18n, result.captured ? "msg.added" : "msg.alreadyIn"),
+                        3000,
+                    );
+                    if (result.captured) autoEnrich(this, rootId, this.settings);
+                    this.notifyDataChanged();
+                } catch (error) {
+                    console.warn("[glean] 右键收录失败:", error);
+                    showMessage(String(error).slice(0, 140), 5000);
+                }
+            },
         });
     };
 
@@ -754,90 +759,76 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
                     ).getTime();
                     return captured < cutoff;
                 });
-                // T-1985：报告真实结算而非候选长度——写入失败的 ID 必须暴露，写后对账刷新索引。
-                const settled = await batchSetStatusDetailed(this, stale.map((clip) => clip.id), "archived");
-                const failedIds = stale.map((clip) => clip.id).filter((id) => !settled.succeeded.includes(id));
-                if (settled.ok > 0) this.notifyDataChanged();
+                const result = await batchSetStatusDetailed(this, stale.map((clip) => clip.id), "archived");
                 return {
-                    structuredContent: { requested: stale.length, archived: settled.ok, failedIds },
-                    result: failedIds.length === 0
-                        ? "已归档 " + settled.ok + " 篇超龄文章"
-                        : "已归档 " + settled.ok + "/" + stale.length + " 篇超龄文章；失败 " + failedIds.length + " 篇可重试",
+                    structuredContent: { attempted: stale.length, archived: result.ok, failed: stale.length - result.ok, succeeded: result.succeeded },
+                    result: "已归档 " + result.ok + " 篇超龄文章" + (result.ok < stale.length ? "，另有 " + (stale.length - result.ok) + " 篇失败" : ""),
                 };
             },
         });
         this.addAgentCapability({
             name: "weekly_digest",
-            description: "生成小驴拾遗读库本周摘要：总量、完成、未读压力与主题分布。",
+            description: "生成小驴拾遗读库本周摘要：总量、完成、未读压力、主题分布和本周读完文章名单。",
             inputSchema: schema,
             handler: async () => {
                 const { reconcileIndex } = await import("./services/clip-store");
-                const { buildStats } = await import("./services/stats-service");
+                const { buildReadingReview } = await import("./services/stats-service");
                 const index = await reconcileIndex(this, this.settings);
-                const stats = buildStats(index);
+                const now = new Date();
+                const review = buildReadingReview(index, { period: "week", now, reference: now });
+                const stats = review.stats;
+                const completedArticles = review.completedItems.map((item) => ({
+                    id: item.id,
+                    title: item.title || "无标题",
+                    site: item.site,
+                    doneTime: item.doneTime,
+                }));
                 const lines = [
                     "读库共 " + stats.total + " 篇，已读 " + stats.done + " 篇（" + (stats.total > 0 ? Math.round((stats.done / stats.total) * 100) : 0) + "%）。",
-                    "本周新增收录 " + stats.dailyCaptured.reduce((a, b) => a + b, 0) + " 篇，完成 " + stats.doneThisWeek + " 篇。",
+                    "本周新增收录 " + stats.periodCaptured + " 篇，完成 " + stats.periodCompleted + " 篇。",
                     "未读压力：新剪藏 " + stats.inbox + " 篇、阅读中 " + stats.reading + " 篇。",
                     stats.byTag.length > 0
                         ? "近期主题：" + stats.byTag.slice(0, 5).map((tag) => tag.name + "×" + tag.count).join("、")
                         : "",
+                    completedArticles.length > 0
+                        ? "本周读完文章：\n" + completedArticles.map((item) => "- " + item.title + (item.site ? "（" + item.site + "）" : "")).join("\n")
+                        : "本周读完文章：暂无",
                 ];
-                return { structuredContent: { stats }, result: lines.filter(Boolean).join("\n") };
+                return { structuredContent: { stats, period: review.stats.period, completedArticles }, result: lines.filter(Boolean).join("\n") };
             },
         });
     }
 
     openOnboarding(): void {
-        this.openGleanDialog({
+        svelteDialog({
             title: t(this.i18n, "onboarding.title"),
+            closeLabel: t(this.i18n, "action.close"),
             component: OnboardingDialog,
             props: { facade: this },
-            width: "600px",
-            height: "480px",
+            width: "680px",
+            height: "560px",
         });
     }
 
-    /**
-     * 统一弹窗入口：记录打开中的实例供 onunload 销毁（T-1968）；
-     * 关闭回执（思源 destroyCallback）负责从登记表移除。
-     */
-    private openGleanDialog(args: Parameters<typeof svelteDialog>[0]): void {
-        const entry = svelteDialog({
-            ...args,
-            callback: () => {
-                this.openDialogs = this.openDialogs.filter((item) => item.close !== close);
-                if (args.callback) args.callback();
-            },
-        });
-        const close = entry.close;
-        this.openDialogs.push({ close });
-    }
-
-    /** 工作台弹出为独立浮窗（全宽画布第三形态）；已有浮窗时忽略重复点击（T-1956）。 */
-    openWorkbenchPopup(): void {
-        if (this.workbenchPopup) return;
-        const entry = svelteDialog({
+    /** 工作台弹出为独立浮窗（全宽画布第三形态） */
+    openWorkbenchPopup(initialPreviewId?: string): void {
+        svelteDialog({
             title: t(this.i18n, "workbench.popupTitle"),
+            closeLabel: t(this.i18n, "action.close"),
             component: DockPanel,
-            props: { facade: this },
+            props: { facade: this, initialPreviewId },
             width: "1020px",
             height: "680px",
             containerClass: "glean-tab-root",
-            callback: () => {
-                this.workbenchPopup = null;
-                this.openDialogs = this.openDialogs.filter((item) => item.close !== entry.close);
-            },
         });
-        this.workbenchPopup = entry;
-        this.openDialogs.push(entry);
     }
 
     /* ---------- 弹窗 ---------- */
 
     openMigrate(): void {
-        this.openGleanDialog({
+        svelteDialog({
             title: t(this.i18n, "migrate.title"),
+            closeLabel: t(this.i18n, "action.close"),
             component: MigrateDialog,
             props: { facade: this },
             width: "720px",
@@ -846,8 +837,9 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
     }
 
     openImport(): void {
-        this.openGleanDialog({
+        svelteDialog({
             title: t(this.i18n, "import.title"),
+            closeLabel: t(this.i18n, "action.close"),
             component: ImportDialog,
             props: { facade: this },
             width: "720px",
@@ -856,8 +848,9 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
     }
 
     openSettings(): void {
-        this.openGleanDialog({
+        svelteDialog({
             title: t(this.i18n, "settings.title"),
+            closeLabel: t(this.i18n, "action.close"),
             component: SettingsView,
             props: { facade: this },
             width: "560px",

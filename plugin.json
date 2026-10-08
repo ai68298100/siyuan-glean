@@ -20,8 +20,8 @@
     "zh-CN": "小驴拾遗"
   },
   "description": {
-    "default": "Glean your clippings before they gather dust: turn web clippings and imports in SiYuan into a living reading library — status triage, AI enrichment, daily resurfacing. All data stays on your documents.",
-    "zh-CN": "小驴拾遗，把吃灰的收藏捡回来喂给自己：剪藏文章属性规范、状态分拣、AI 摘要打标、每日重浮，数据全部落在文档上，卸载不丢。"
+    "default": "Organize SiYuan clippings and imports into a document-attribute reading library with status triage and daily resurfacing. Optional AI enrichment is manual and requires a configured provider.",
+    "zh-CN": "小驴拾遗：把思源剪藏和导入文章整理为基于文档属性的读库，支持状态分拣和每日重浮；AI 富化可选且默认手动，需要配置模型。"
   },
   "readme": {
     "default": "README.md",

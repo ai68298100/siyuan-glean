@@ -1,24 +1,48 @@
-/* E2E 工作区准备（不含内核启动）：dist 拷入 + 标记，供桌面客户端 --workspace 指向。 */
 import fs from "node:fs";
 import path from "node:path";
-import os from "node:os";
+import { fileURLToPath } from "node:url";
+import { isSupportedE2EManifest, resolvePluginBundle } from "./plugin-identity.mjs";
 
-const WORKSPACE = path.join(os.homedir(), "SiYuan-Glean-E2E");
+const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
-// 隔离护栏（同 spike 纪律）
-const resolved = path.resolve(WORKSPACE);
-const relRepo = path.relative(resolved, process.cwd());
-if (resolved === path.parse(resolved).root || path.relative(os.homedir(), resolved) === "" || !(relRepo === ".." || relRepo.startsWith(`..${path.sep}`) || path.isAbsolute(relRepo))) {
-    throw new Error("拒绝使用宽泛或项目目录作为测试工作区");
+function parseArgs() {
+    const options = {};
+    for (let index = 2; index < process.argv.length; index += 1) {
+        const argument = process.argv[index];
+        if (argument === "--help") {
+            console.log("node scripts/e2e/prepare-workspace.mjs --manifest path [--plugin-dir path]");
+            process.exit(0);
+        }
+        if (!argument.startsWith("--")) throw new Error("未知参数: " + argument);
+        const key = argument.slice(2);
+        const value = process.argv[index + 1];
+        if (!value || value.startsWith("--")) throw new Error("参数缺少值: --" + key);
+        options[key] = value;
+        index += 1;
+    }
+    return options;
 }
-const marker = path.join(resolved, "glean-e2e.json");
-if (!fs.existsSync(marker)) throw new Error(`E2E 工作区不存在或无标记（先跑 launch-e2e.mjs 生成）: ${resolved}`);
 
-// dist → 插件目录
-const distDir = path.join(process.cwd(), "dist");
-if (!fs.existsSync(path.join(distDir, "index.js"))) throw new Error("dist/index.js 不存在，先 pnpm build");
-const target = path.join(WORKSPACE, "data", "plugins", "siyuan-glean");
+function readJson(filePath) {
+    return JSON.parse(fs.readFileSync(filePath, "utf8"));
+}
+
+const options = parseArgs();
+if (!options.manifest) throw new Error("需要 --manifest");
+const manifestPath = path.resolve(options.manifest);
+const manifest = readJson(manifestPath);
+if (!isSupportedE2EManifest(manifest)) throw new Error("manifest 创建者或版本不匹配");
+if (!path.isAbsolute(manifest.workspace) || !manifest.marker) throw new Error("manifest 缺少隔离工作区或标记");
+const workspace = path.resolve(manifest.workspace);
+const markerPath = path.join(workspace, manifest.marker);
+const marker = readJson(markerPath);
+if (marker.createdBy !== manifest.createdBy) throw new Error("工作区标记不匹配，拒绝操作");
+
+const plugin = resolvePluginBundle(options["plugin-dir"] || manifest.pluginDir || REPO);
+if (manifest.pluginName && plugin.name !== manifest.pluginName) throw new Error("目标插件与 manifest 不匹配");
+if (manifest.pluginVersion && plugin.version && plugin.version !== manifest.pluginVersion) throw new Error("目标插件版本与 manifest 不匹配");
+const target = path.join(workspace, "data", "plugins", plugin.name);
 fs.rmSync(target, { recursive: true, force: true });
 fs.mkdirSync(target, { recursive: true });
-fs.cpSync(distDir, target, { recursive: true });
-console.log("E2E 工作区已就绪：", WORKSPACE);
+fs.cpSync(plugin.distDir, target, { recursive: true });
+console.log(JSON.stringify({ manifest: manifestPath, workspace, pluginName: plugin.name, pluginVersion: plugin.version, target }, null, 2));

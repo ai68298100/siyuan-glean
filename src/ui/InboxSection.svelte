@@ -4,7 +4,9 @@ import { openTab, showMessage } from "siyuan";
 import type { GleanFacade } from "../types";
 import { t } from "../libs/i18n";
 import { removeShorthands, type Shorthand } from "../api/inbox";
-import { checkInbox, loadInboxOrphans, migrateShorthand, retryInboxOrphans } from "../services/inbox-service";
+import { checkInbox, InboxRecoveryError, migrateShorthand } from "../services/inbox-service";
+import { clearInboxRecovery, loadInboxRecovery } from "../services/inbox-recovery";
+import type { InboxRecovery } from "../domain/inbox-recovery";
 
 interface Props {
     facade: GleanFacade;
@@ -13,6 +15,9 @@ interface Props {
 
 let { facade, onMutated }: Props = $props();
 
+const instanceId = $props.id();
+const titleId = `glean-inbox-title-${instanceId}`;
+const contentId = `glean-inbox-content-${instanceId}`;
 const i18n = $derived(facade.i18n);
 
 let available = $state(false);
@@ -21,32 +26,40 @@ let expanded = $state(false);
 let items = $state<Shorthand[]>([]);
 let busyId = $state("");
 let duplicate = $state<{ item: Shorthand; existingId: string } | null>(null);
-// T-1841：收集箱孤儿（文档已建未收录）账本——重试补收录入口
-let orphans = $state(0);
-let retrying = $state(false);
+let pendingRemoval = $state<Record<string, string>>({});
+let pendingCapture = $state<Record<string, string>>({});
+let unknownRecovery = $state<Record<string, boolean>>({});
+let recovery = $state<InboxRecovery | null>(null);
 
-async function checkOrphans(): Promise<void> {
-    try {
-        orphans = (await loadInboxOrphans(facade.pluginInstance)).length;
-    } catch { /* 保持 0 */ }
+function applyRecovery(checkpoint: InboxRecovery | null) {
+    recovery = checkpoint;
+    pendingRemoval = {};
+    pendingCapture = {};
+    unknownRecovery = {};
+    if (!checkpoint) return;
+    if (checkpoint.phase === "remove-pending" && checkpoint.docId) pendingRemoval[checkpoint.shorthandId] = checkpoint.docId;
+    if (checkpoint.phase === "capture-pending" && checkpoint.docId) pendingCapture[checkpoint.shorthandId] = checkpoint.docId;
+    if (checkpoint.phase === "unknown") unknownRecovery[checkpoint.shorthandId] = true;
 }
 
-async function retryOrphans(): Promise<void> {
-    retrying = true;
-    try {
-        const result = await retryInboxOrphans(facade.pluginInstance);
-        // t() 只支持平占位符——后缀条件拼接在调用处（修复既有条件模板不求值缺陷）
-        let message = t(i18n, "inbox.orphansRetried", { n: result.restored });
-        if (result.remaining > 0) message += t(i18n, "msg.remainSuffix", { n: result.remaining });
-        if (result.expired > 0) message += t(i18n, "msg.expiredSuffix", { n: result.expired });
-        showMessage(message, 4000);
-        if (result.restored > 0) onMutated();
-    } catch (error) {
-        showMessage(String(error).slice(0, 140), 5000);
-    } finally {
-        retrying = false;
-        await checkOrphans();
-    }
+function recoveryMessage(error: unknown): string {
+    if (!(error instanceof InboxRecoveryError)) return String(error).slice(0, 140);
+    const messages: Record<InboxRecoveryError["reason"], string> = {
+        readFailed: "inbox.recoveryReadFailed",
+        invalid: "inbox.recoveryInvalid",
+        checkpointFailed: "inbox.recoveryCheckpointFailed",
+        clearFailed: "inbox.recoveryCheckpointFailed",
+        busy: "inbox.recoveryBusy",
+        createUnknown: "inbox.recoveryCreateUnknown",
+        captureFailed: "inbox.recoveryCaptureFailed",
+        removeFailed: "inbox.cloudRemoveFailed",
+        conflict: "inbox.duplicate",
+    };
+    return t(i18n, messages[error.reason]);
+}
+
+function rememberRecovery(checkpoint: InboxRecovery | undefined) {
+    if (checkpoint) applyRecovery(checkpoint);
 }
 
 async function refresh() {
@@ -54,6 +67,12 @@ async function refresh() {
         const status = await checkInbox();
         available = status.available;
         items = status.page?.shorthands ?? [];
+        try {
+            applyRecovery(await loadInboxRecovery(facade.pluginInstance));
+        } catch (error) {
+            applyRecovery(null);
+            showMessage(recoveryMessage(error), 5000);
+        }
     } catch {
         available = false;
     } finally {
@@ -63,7 +82,6 @@ async function refresh() {
 
 $effect(() => {
     void refresh();
-    void checkOrphans();
 });
 
 async function migrate(item: Shorthand, allowDuplicate = false) {
@@ -80,26 +98,38 @@ async function migrate(item: Shorthand, allowDuplicate = false) {
             duplicate = { item, existingId: result.existing.id };
             return;
         }
+        if (result.recovery) rememberRecovery(result.recovery);
+        else if (result.cloudRemoved) applyRecovery(null);
         showMessage(t(i18n, "inbox.migrated"), 3000);
-        items = items.filter((entry) => entry.oId !== item.oId);
-        if (!result.cloudRemoved) {
+        if (result.cloudRemoved) {
+            items = items.filter((entry) => entry.oId !== item.oId);
+        } else {
+            pendingRemoval[item.oId] = result.docId;
             showMessage(t(i18n, "inbox.cloudRemoveFailed"), 3500);
         }
         onMutated();
     } catch (error) {
-        showMessage(String(error).slice(0, 140), 5000);
+        if (error instanceof InboxRecoveryError) rememberRecovery(error.recovery);
+        showMessage(recoveryMessage(error), 5000);
     } finally {
         busyId = "";
     }
 }
 
 async function dismiss(item: Shorthand) {
+    if (busyId) return;
     busyId = item.oId;
     try {
         await removeShorthands([item.oId]);
+        if (recovery?.shorthandId === item.oId) {
+            await clearInboxRecovery(facade.pluginInstance, recovery, true);
+            applyRecovery(null);
+        }
         items = items.filter((entry) => entry.oId !== item.oId);
+        delete pendingRemoval[item.oId];
+        if (duplicate?.item.oId === item.oId) duplicate = null;
     } catch (error) {
-        showMessage(String(error).slice(0, 140), 5000);
+        showMessage(recoveryMessage(error), 5000);
     } finally {
         busyId = "";
     }
@@ -107,51 +137,61 @@ async function dismiss(item: Shorthand) {
 </script>
 
 {#if checked && available}
-    <div class="glean-inbox">
-        <button class="glean-inbox__toggle" onclick={() => (expanded = !expanded)}>
-            <span>📥 {t(i18n, "inbox.title")}</span>
+    <div class="glean-inbox" role="region" aria-labelledby={titleId} aria-busy={Boolean(busyId)}>
+        <button type="button" class="glean-inbox__toggle" aria-expanded={expanded} aria-controls={contentId} onclick={() => (expanded = !expanded)}>
+            <span id={titleId} class="glean-meta-icon"><svg class="glean-icon glean-icon--sm" aria-hidden="true"><use href="#iconGleanInbox" /></svg>{t(i18n, "inbox.title")}</span>
             <span class="glean-inbox__count">{items.length}</span>
             <span class="glean-inbox__spacer"></span>
             <span class="glean-inbox__arrow">{expanded ? "▾" : "▸"}</span>
         </button>
         {#if expanded}
-            {#if orphans > 0}
-                <!-- T-1841：上次迁入遗留的孤儿文档（已建未收录） -->
-                <div class="glean-inbox__empty">
-                    <div>{t(i18n, "inbox.orphansPending", { n: orphans })}</div>
-                    <button class="glean-cap-btn" disabled={retrying} onclick={() => void retryOrphans()}>
-                        {retrying ? t(i18n, "panel.loading") : t(i18n, "inbox.orphansRetry")}
-                    </button>
-                </div>
-            {/if}
-            {#if items.length === 0}
-                <div class="glean-inbox__empty">{t(i18n, "inbox.empty")}</div>
-            {:else}
-                {#each items as item (item.oId)}
-                    <div class="glean-inbox__item">
-                        <div class="glean-inbox__body">
-                            <div class="glean-inbox__title">{item.shorthandTitle || item.shorthandURL || t(i18n, "panel.untitled")}</div>
-                            {#if item.shorthandURL}
-                                <div class="glean-inbox__url">{item.shorthandURL}</div>
-                            {/if}
+            <div id={contentId} role="group" aria-labelledby={titleId}>
+                {#if items.length === 0}
+                    <div class="glean-inbox__empty" role="status">{t(i18n, "inbox.empty")}</div>
+                {:else}
+                    {#each items as item (item.oId)}
+                        <div class="glean-inbox__item" aria-busy={busyId === item.oId}>
+                            <div class="glean-inbox__body">
+                                <div class="glean-inbox__title">{item.shorthandTitle || item.shorthandURL || t(i18n, "panel.untitled")}</div>
+                                {#if item.shorthandURL}
+                                    <div class="glean-inbox__url">{item.shorthandURL}</div>
+                                {/if}
+                            </div>
+                            <div class="glean-inbox__ops">
+                                <button type="button" class="glean-cap-btn" aria-busy={busyId === item.oId} disabled={Boolean(busyId) || Boolean(unknownRecovery[item.oId])} onclick={() => pendingRemoval[item.oId] ? void dismiss(item) : void migrate(item)}>
+                                    {t(i18n, pendingRemoval[item.oId] ? "inbox.retryCloudRemoval" : pendingCapture[item.oId] ? "inbox.retryCapture" : unknownRecovery[item.oId] ? "inbox.recoveryUnknownShort" : "inbox.migrate")}
+                                </button>
+                                <button type="button" class="glean-inbox__dismiss" aria-busy={busyId === item.oId} disabled={Boolean(busyId)} title={t(i18n, "inbox.dismiss")} aria-label={t(i18n, "inbox.dismiss")} onclick={() => void dismiss(item)}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanClose" /></svg></button>
+                            </div>
                         </div>
-                        <div class="glean-inbox__ops">
-                            <button class="glean-cap-btn" disabled={busyId === item.oId} onclick={() => void migrate(item)}>
-                                {t(i18n, "inbox.migrate")}
-                            </button>
-                            <button class="glean-inbox__dismiss" title={t(i18n, "inbox.dismiss")} onclick={() => void dismiss(item)}>✕</button>
-                        </div>
-                    </div>
-                    {#if duplicate?.item.oId === item.oId}
-                        <div class="glean-inbox__duplicate">
-                            <span>{t(i18n, "inbox.duplicate")}</span>
-                            <button class="glean-op-btn" onclick={() => duplicate && void openTab({ app: facade.pluginInstance.app, doc: { id: duplicate.existingId }, keepCursor: false })}>{t(i18n, "inbox.openExisting")}</button>
-                            <button class="glean-op-btn" onclick={() => void migrate(item, true)}>{t(i18n, "inbox.keepDuplicate")}</button>
-                            <button class="glean-op-btn" onclick={() => (duplicate = null)}>{t(i18n, "action.cancel")}</button>
-                        </div>
-                    {/if}
-                {/each}
-            {/if}
+                        {#if pendingRemoval[item.oId]}
+                            <div class="glean-inbox__duplicate" role="group" aria-label={t(i18n, "inbox.cloudRemoveFailed")}>
+                                <span role="alert">{t(i18n, "inbox.cloudRemoveFailed")}</span>
+                                <button type="button" class="glean-op-btn" onclick={() => void openTab({ app: facade.pluginInstance.app, doc: { id: pendingRemoval[item.oId] }, keepCursor: false })}>{t(i18n, "inbox.openExisting")}</button>
+                            </div>
+                        {/if}
+                        {#if pendingCapture[item.oId]}
+                            <div class="glean-inbox__duplicate" role="group" aria-label={t(i18n, "inbox.recoveryCaptureFailed")}>
+                                <span role="alert">{t(i18n, "inbox.recoveryCaptureFailed")}</span>
+                                <button type="button" class="glean-op-btn" onclick={() => void openTab({ app: facade.pluginInstance.app, doc: { id: pendingCapture[item.oId] }, keepCursor: false })}>{t(i18n, "inbox.openExisting")}</button>
+                            </div>
+                        {/if}
+                        {#if unknownRecovery[item.oId]}
+                            <div class="glean-inbox__duplicate" role="group" aria-label={t(i18n, "inbox.recoveryUnknown")}>
+                                <span role="alert">{t(i18n, "inbox.recoveryUnknown")}</span>
+                            </div>
+                        {/if}
+                        {#if duplicate?.item.oId === item.oId}
+                            <div class="glean-inbox__duplicate" role="group" aria-label={t(i18n, "inbox.duplicate")}>
+                                <span role="status">{t(i18n, "inbox.duplicate")}</span>
+                                <button type="button" class="glean-op-btn" onclick={() => duplicate && void openTab({ app: facade.pluginInstance.app, doc: { id: duplicate.existingId }, keepCursor: false })}>{t(i18n, "inbox.openExisting")}</button>
+                                <button type="button" class="glean-op-btn" disabled={Boolean(busyId)} onclick={() => void migrate(item, true)}>{t(i18n, "inbox.keepDuplicate")}</button>
+                                <button type="button" class="glean-op-btn" onclick={() => (duplicate = null)}>{t(i18n, "action.cancel")}</button>
+                            </div>
+                        {/if}
+                    {/each}
+                {/if}
+            </div>
         {/if}
     </div>
 {/if}

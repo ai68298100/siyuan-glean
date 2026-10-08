@@ -5,14 +5,16 @@
  * 标签落位：外部标签写入文档根块 IAL 的 tags（用户标签位，不用 ai-tags）——尊重"标签是用户的"。
  */
 import type { Plugin } from "siyuan";
-import { createDocWithMd, querySql } from "../api/client";
-import { ATTR, siyuanTimestamp } from "../domain/schema";
+import { createDocWithMd, newNodeId } from "../api/client";
+import { ATTR, parseClipAttrs, siyuanTimestamp } from "../domain/schema";
 import { siteFromUrl } from "../domain/schema";
 import type { ImportFormat, ImportedItem, ParseResult } from "../domain/importers";
 import { parseImport } from "../domain/importers";
 import { normalizeUrl } from "../domain/url";
-import { normalizeImportFolder } from "../domain/importers";
-import { batchReadClipAttrs, captureClip, listClipDocs } from "./clip-store";
+import { batchReadClipAttrs, captureClip, ClipRestoreError, findClipUrlConflict, listClipDocs, readClipAttributeSnapshot, writeClip } from "./clip-store";
+import { ImportProgressError, isImportFingerprint, isImportId, normalizeImportFolder, recoverImportProgress, type ImportFailureReason, type ImportProgress } from "../domain/import-progress";
+import { isInternalDocument } from "../domain/candidate-policy";
+import { fingerprintImportSource, readImportProgress, saveImportProgress, withImportLock } from "./import-progress";
 
 export interface ImportPreviewRow {
     title: string;
@@ -28,13 +30,21 @@ export interface ImportPreviewRow {
 }
 
 export interface ImportPreview {
+    fingerprint: string;
     format: ImportFormat | null;
     rows: ImportPreviewRow[];
     duplicateCount: number;
 }
 
+export interface ImportStatusSummary {
+    status: ImportPreviewRow["status"];
+    count: number;
+}
+
 /** 解析文件内容并标记库内重复项。 */
-export async function previewImport(content: string, format: ImportFormat | "auto"): Promise<ImportPreview> {
+export async function previewImport(content: string, format: ImportFormat | "auto", fingerprint?: string): Promise<ImportPreview> {
+    const sourceFingerprint = fingerprint ?? await fingerprintImportSource(new TextEncoder().encode(content));
+    if (!isImportFingerprint(sourceFingerprint)) throw new ImportProgressError("file");
     const parsed: ParseResult = parseImport(content, format);
     const existingUrls = await collectExistingUrls();
     const rows: ImportPreviewRow[] = parsed.items.map((item) => ({
@@ -48,14 +58,27 @@ export async function previewImport(content: string, format: ImportFormat | "aut
         duplicate: existingUrls.has(normalizeUrl(item.url)),
     }));
     return {
+        fingerprint: sourceFingerprint,
         format: parsed.format,
         rows,
         duplicateCount: rows.filter((row) => row.duplicate).length,
     };
 }
 
+/** 统计去重后实际会写入的目标状态，供预览确认使用。 */
+export function summarizeImportStatuses(rows: ImportPreviewRow[]): ImportStatusSummary[] {
+    const counts = new Map<ImportPreviewRow["status"], number>();
+    for (const row of rows) {
+        if (row.duplicate) continue;
+        counts.set(row.status, (counts.get(row.status) ?? 0) + 1);
+    }
+    return (["inbox", "done", "archived"] as const)
+        .filter((status) => (counts.get(status) ?? 0) > 0)
+        .map((status) => ({ status, count: counts.get(status) ?? 0 }));
+}
+
 /** 全库已有 clip URL 集合；导入前必须读完次锚点的全部分页。 */
-async function collectExistingUrls(): Promise<Set<string>> {
+async function collectExistingUrls(exceptDocIds: ReadonlySet<string> = new Set()): Promise<Set<string>> {
     const pageSize = 500;
     const urls = new Set<string>();
     const seenIds = new Set<string>();
@@ -70,6 +93,7 @@ async function collectExistingUrls(): Promise<Set<string>> {
         for (const id of freshIds) seenIds.add(id);
         const attrPairs = await batchReadClipAttrs(freshIds);
         for (const pair of attrPairs) {
+            if (exceptDocIds.has(pair.id)) continue;
             const key = normalizeUrl(pair.attrs[ATTR.url] || "");
             if (key) urls.add(key);
         }
@@ -80,6 +104,8 @@ async function collectExistingUrls(): Promise<Set<string>> {
 }
 
 export interface ImportOptions {
+    fingerprint: string;
+    resumeTaskId?: string;
     notebookId: string;
     /** 来源格式（决定 custom-clip-src 标记） */
     format: ImportFormat;
@@ -88,12 +114,12 @@ export interface ImportOptions {
     /** 进度回调（已完成条数, 总数） */
     onProgress?: (done: number, total: number) => void;
     signal?: { aborted: boolean };
+    retryFailures?: readonly ImportFailure[];
 }
 
 export interface ImportFailure {
-    title: string;
-    /** 脱敏后的失败原因（错误消息前 120 字） */
-    reason: string;
+    url: string;
+    docId?: string;
 }
 
 export interface ImportSummary {
@@ -101,79 +127,17 @@ export interface ImportSummary {
     skippedDuplicate: number;
     failed: number;
     docIds: string[];
-    /** 文档已创建但收录未完成的孤儿（T-1840）：已记入 import-orphans.json，可重试补收录 */
-    orphanCount: number;
-    /** 逐条失败原因（T-1963）：title + 脱敏 reason，供 done 阶段展示 */
-    failures: ImportFailure[];
+    /** 本轮真正失败的来源 URL，供 UI 只重试失败项。 */
+    failedUrls: string[];
+    failedItems: ImportFailure[];
+    unknown: number;
+    stopped: boolean;
+    taskId: string;
 }
 
-/* ---------- 导入孤儿账本（T-1840，DATA-CONTRACT §0） ---------- */
-
-const ORPHANS_FILE = "import-orphans.json";
-
-export interface ImportOrphan {
-    docId: string;
-    notebookId: string;
-    format: ImportFormat;
-    row: ImportPreviewRow;
-}
-
-export async function loadImportOrphans(plugin: Plugin): Promise<ImportOrphan[]> {
-    try {
-        const raw = await plugin.loadData(ORPHANS_FILE);
-        if (!Array.isArray(raw)) return [];
-        return raw.filter((entry) => entry && typeof entry === "object" && typeof (entry as ImportOrphan).docId === "string");
-    } catch {
-        return [];
-    }
-}
-
-export async function saveImportOrphans(plugin: Plugin, orphans: ImportOrphan[]): Promise<void> {
-    await plugin.saveData(ORPHANS_FILE, orphans);
-}
-
-/** 执行重试：逐条对已创建文档补收录，成功即从账本移除。返回结算供 UI 反馈。
- *  文档已被删除（如经归档生命周期彻底删除）时账本条目自然失效（T-1878），
- *  不再无限重试——getBlockAttrs 对已删块返回空对象不报错，必须 SQL 判存在。 */
-export async function retryImportOrphans(
-    plugin: Plugin,
-    options: { onProgress?: (done: number, total: number) => void } = {}
-): Promise<{ restored: number; remaining: number; expired: number }> {
-    const orphans = await loadImportOrphans(plugin);
-    const remaining: ImportOrphan[] = [];
-    let restored = 0;
-    let expired = 0;
-    for (let index = 0; index < orphans.length; index += 1) {
-        const orphan = orphans[index];
-        const existsRows = await querySql<{ id: string }>(
-            `SELECT id FROM blocks WHERE type = 'd' AND id = '${orphan.docId.replace(/'/g, "''")}' LIMIT 1`
-        );
-        if (!existsRows[0]) {
-            expired += 1;
-            options.onProgress?.(index + 1, orphans.length);
-            continue;
-        }
-        try {
-            const src = formatToSrc(orphan.format);
-            const captured = await captureClip(plugin, orphan.docId, {
-                url: orphan.row.url,
-                site: orphan.row.site || siteFromUrl(orphan.row.url),
-                src,
-                time: orphan.row.time || siyuanTimestamp(),
-                timeSource: orphan.row.time ? "source" : "capture",
-                status: orphan.row.status,
-                doneTime: orphan.row.status === "done" ? orphan.row.doneTime : "",
-                contentType: "link",
-            });
-            if (captured.captured || captured.attrs.status) restored += 1;
-            else remaining.push(orphan);
-        } catch {
-            remaining.push(orphan);
-        }
-        options.onProgress?.(index + 1, orphans.length);
-    }
-    await saveImportOrphans(plugin, remaining);
-    return { restored, remaining: remaining.length, expired };
+export class ImportExecutionError extends ImportProgressError {
+    readonly summary: ImportSummary;
+    constructor(reason: ImportProgressError["reason"], summary: ImportSummary) { super(reason); this.summary = summary; }
 }
 
 /** 执行导入：建文档 → 收录（写 URL/时间/站点）→ 外部标签写入 tags → 状态映射。 */
@@ -182,114 +146,121 @@ export async function runImport(
     rows: ImportPreviewRow[],
     options: ImportOptions
 ): Promise<ImportSummary> {
-    const src = formatToSrc(options.format);
-    // T-1988：目标文件夹规范化——拒绝越级（..）、空段与非法字符，不静默跨目录创建
-    const folder = normalizeImportFolder(options.folder, "导入");
-    const summary: ImportSummary = { imported: 0, skippedDuplicate: 0, failed: 0, docIds: [], orphanCount: 0, failures: [] };
-    const orphans: ImportOrphan[] = [];
-    // 预览和执行之间库可能已变化；执行阶段重新查重，并把本批已创建 URL 记入集合。
-    const existingUrls = await collectExistingUrls();
-    const pending = rows.filter((row) => !row.duplicate);
-    summary.skippedDuplicate = rows.filter((row) => row.duplicate).length;
-    const total = pending.length;
-    let done = 0;
-
-    for (let i = 0; i < pending.length; i += 50) {
-        if (options.signal?.aborted) break;
-        const batch = pending.slice(i, i + 50);
-        for (const row of batch) {
-            const urlKey = normalizeUrl(row.url);
-            if (existingUrls.has(urlKey)) {
-                summary.skippedDuplicate += 1;
-                done += 1;
-                options.onProgress?.(done, total);
-                continue;
-            }
-            try {
-                const title = row.title || row.url;
-                const hPath = `/${folder}/${sanitizeTitle(title)}`;
-                const markdown = buildImportMarkdown(title, row.url, row.site, row.time, row.tags, row.doneTime);
-                // createDocWithMd 的 tags 参数已在隔离内核 spike 验证会落到新文档根块。
-                const docId = await createDocWithMd(options.notebookId, hPath, markdown, row.tags.join(","));
-                if (!docId) {
-                    throw new Error("创建导入文档失败");
-                }
-                // 即使后续属性写入失败，本次执行也不再为同 URL 建第二篇文档。
-                existingUrls.add(urlKey);
-                const captured = await captureClip(plugin, docId, {
-                    url: row.url,
-                    site: row.site || siteFromUrl(row.url),
-                    src,
-                    time: row.time || siyuanTimestamp(),
-                    timeSource: row.time ? "source" : "capture",
-                    status: row.status,
-                    // 只有导出文件确有已读时间才写完成时间；否则保持"未知"（D-0028）。
-                    doneTime: row.status === "done" ? row.doneTime : "",
-                    contentType: "link",
-                    markdown,
-                });
-                if (!captured.captured) {
-                    throw new Error(`导入文档未完成收录: ${docId}`);
-                }
-                summary.imported += 1;
-                summary.docIds.push(docId);
-            } catch (error) {
-                summary.failed += 1;
-                // T-1963：逐条失败原因（脱敏：只取消息前 120 字）
-                summary.failures.push({
-                    title: row.title || row.url,
-                    reason: String((error as Error)?.message ?? error).slice(0, 120),
-                });
-                // T-1840：失败可能发生在"文档已创建、属性未写入"——若本批已为该 URL 建档
-                //（existingUrls 含 urlKey），记入孤儿账本供重试补收录，避免重跑重建重复文档。
-                if (existingUrls.has(urlKey) && urlKey) {
-                    orphans.push({ docId: "", notebookId: options.notebookId, format: options.format, row });
-                    summary.orphanCount = orphans.length;
-                }
-            }
-            done += 1;
-            options.onProgress?.(done, total);
+    return withImportLock(plugin, async () => {
+        if (!isImportFingerprint(options.fingerprint)) throw new ImportProgressError("file");
+        if (!isImportId(options.notebookId)) throw new ImportProgressError("target");
+        const folder = normalizeImportFolder(options.folder);
+        const keyedRows = await Promise.all(rows.map(async (row) => {
+            const url = normalizeUrl(row.url);
+            if (!url) throw new ImportProgressError("file");
+            return { row: { ...row, tags: [...row.tags] }, key: await fingerprintImportSource(new TextEncoder().encode(JSON.stringify([url, row.title, row.site, row.time, row.doneTime || "", row.tags, row.status]))) };
+        }));
+        if (!keyedRows.length || new Set(keyedRows.map((item) => item.key)).size !== keyedRows.length) throw new ImportProgressError("file");
+        let saved = await readImportProgress(plugin);
+        let progress: ImportProgress;
+        if (options.resumeTaskId) {
+            if (!saved || saved.taskId !== options.resumeTaskId) throw new ImportProgressError("changed");
+            if (saved.fingerprint !== options.fingerprint || saved.format !== options.format || saved.rows.length !== keyedRows.length || saved.rows.some((row, index) => row.key !== keyedRows[index].key)) throw new ImportProgressError("file");
+            if (saved.notebookId !== options.notebookId || saved.folder !== folder) throw new ImportProgressError("target");
+            progress = recoverImportProgress(saved);
+        } else {
+            if (options.retryFailures) throw new ImportProgressError("confirmation");
+            if (saved && recoverImportProgress(saved).state !== "finished") throw new ImportProgressError("unfinished");
+            const now = new Date().toISOString();
+            progress = { version: 1, taskId: newNodeId(), fingerprint: options.fingerprint, format: options.format, notebookId: options.notebookId, folder, state: "paused", createdAt: now, updatedAt: now,
+                rows: keyedRows.map(({ row, key }) => ({ key, hpath: `${folder === "/" ? "" : folder}/${sanitizeTitle(row.title || row.url)}`, state: "pending", docId: "", reason: "" })) };
         }
-    }
-    // 孤儿账本：docId 只有在建档成功后才可知——失败时回查本批新建文档补齐 ID
-    if (orphans.length > 0) {
-        await attachOrphanDocIds(orphans, options.notebookId, folder);
-        const known = orphans.filter((orphan) => orphan.docId);
-        const previous = await loadImportOrphans(plugin);
-        await saveImportOrphans(plugin, [...previous, ...known]);
-        summary.orphanCount = known.length;
-    }
-    return summary;
+        const summary: ImportSummary = { imported: 0, skippedDuplicate: 0, failed: 0, failedUrls: [], failedItems: [], docIds: [], unknown: 0, stopped: false, taskId: progress.taskId };
+        const checkpoint = async () => {
+            progress.updatedAt = new Date().toISOString();
+            try { saved = await saveImportProgress(plugin, progress, saved); }
+            catch (error) { summary.stopped = true; throw new ImportExecutionError(error instanceof ImportProgressError ? error.reason : "save", summary); }
+        };
+        const retryUrls = options.retryFailures ? new Set(options.retryFailures.map((item) => normalizeUrl(item.url))) : null;
+        const pending = progress.rows.map((entry, index) => ({ entry, row: keyedRows[index].row })).filter(({ entry, row }) => !["applied", "duplicate"].includes(entry.state) && (!retryUrls || retryUrls.has(normalizeUrl(row.url))));
+        const existingUrls = await collectExistingUrls(new Set(progress.rows.map((entry) => entry.docId).filter(Boolean)));
+        progress.state = "running";
+        await checkpoint();
+        let done = 0;
+        for (const { entry, row } of pending) {
+            if (options.signal?.aborted) { summary.stopped = true; break; }
+            if (entry.state === "unknown") { summary.unknown += 1; done += 1; options.onProgress?.(done, pending.length); continue; }
+            const urlKey = normalizeUrl(row.url);
+            if (!entry.docId && (existingUrls.has(urlKey) || await findClipUrlConflict(row.url, undefined, plugin))) {
+                entry.state = "duplicate";
+                entry.reason = "";
+                summary.skippedDuplicate += 1;
+            } else {
+                if (!entry.docId) {
+                    entry.state = "creating";
+                    await checkpoint();
+                    let returnedId = "";
+                    try { returnedId = await createDocWithMd(options.notebookId, entry.hpath, buildImportMarkdown(row.title || row.url, row.url, row.site, row.time, row.tags, row.doneTime), row.tags.join(",")); }
+                    catch { returnedId = ""; }
+                    if (!isImportId(returnedId)) {
+                        entry.state = "unknown";
+                        entry.reason = "unknown";
+                        summary.unknown += 1;
+                        await checkpoint();
+                        done += 1;
+                        options.onProgress?.(done, pending.length);
+                        continue;
+                    }
+                    entry.docId = returnedId;
+                    entry.state = "created";
+                    await checkpoint();
+                }
+                try {
+                    const snapshot = await requireImportDocument(entry.docId, progress, entry.hpath, row.url);
+                    const attrs = parseClipAttrs(snapshot.attrs);
+                    const expectedLocation = { box: snapshot.meta.box, hpath: snapshot.meta.hpath };
+                    const expectedAttrs = Object.fromEntries(Object.values(ATTR).map((key) => [key, snapshot.attrs[key] ?? null]));
+                    if (attrs.status) {
+                        await writeClip(plugin, entry.docId, {}, { expectedLocation, expectedAttrs });
+                    } else {
+                        const captured = await captureClip(plugin, entry.docId, { url: row.url, site: row.site || siteFromUrl(row.url), src: formatToSrc(options.format), time: row.time || siyuanTimestamp(), timeSource: row.time ? "source" : "capture", status: row.status, doneTime: row.status === "done" ? row.doneTime : "", contentType: "link", markdown: buildImportMarkdown(row.title || row.url, row.url, row.site, row.time, row.tags, row.doneTime), expectedLocation, expectedAttrs });
+                        if (captured.conflict) throw new ImportRowError("conflict");
+                        if (!captured.captured) throw new ImportRowError("changed");
+                    }
+                    await requireImportDocument(entry.docId, progress, entry.hpath, row.url, true);
+                    entry.state = "applied";
+                    entry.reason = "";
+                    existingUrls.add(urlKey);
+                    summary.imported += 1;
+                    summary.docIds.push(entry.docId);
+                } catch (error) {
+                    entry.state = "failed";
+                    entry.reason = error instanceof ImportRowError ? error.reason : error instanceof ClipRestoreError ? error.reason === "missing" ? "missing" : error.reason === "internal" ? "internal" : "changed" : "capture";
+                    summary.failed += 1;
+                    summary.failedUrls.push(row.url);
+                    summary.failedItems.push({ url: row.url, docId: entry.docId });
+                }
+            }
+            await checkpoint();
+            done += 1;
+            options.onProgress?.(done, pending.length);
+        }
+        summary.stopped ||= Boolean(options.signal?.aborted);
+        progress.state = progress.rows.every((entry) => entry.state === "applied" || entry.state === "duplicate") ? "finished" : "paused";
+        await checkpoint();
+        return summary;
+    });
 }
 
-/** 回查孤儿文档 ID：按标题+路径在目标笔记本定位本批新建、无读库属性的文档。 */
-async function attachOrphanDocIds(
-    orphans: ImportOrphan[],
-    notebookId: string,
-    folder: string
-): Promise<void> {
-    const { querySql, getBlockAttrs } = await import("../api/client");
-    const { ATTR } = await import("../domain/schema");
-    for (const orphan of orphans) {
-        if (orphan.docId) continue;
-        const title = sanitizeTitle(orphan.row.title || orphan.row.url);
-        const hPath = `/${folder}/${title}`;
-        try {
-            const rows = await querySql<{ id: string }>(
-                `SELECT id FROM blocks WHERE type = 'd' AND box = '${notebookId.replace(/'/g, "''")}' AND hpath = '${hPath.replace(/'/g, "''")}' LIMIT 5`
-            );
-            for (const row of rows) {
-                const ial = await getBlockAttrs(row.id);
-                // 只认无读库状态的文档为孤儿（有状态=已收录，跳过）
-                if (!ial[ATTR.status]) {
-                    orphan.docId = row.id;
-                    break;
-                }
-            }
-        } catch {
-            // 回查失败保持 docId 为空，账本里跳过该条（不误绑）
-        }
-    }
+class ImportRowError extends Error {
+    readonly reason: ImportFailureReason;
+    constructor(reason: ImportFailureReason) { super(reason); this.reason = reason; }
+}
+
+async function requireImportDocument(docId: string, progress: ImportProgress, hpath: string, url: string, requireStatus = false) {
+    let snapshot;
+    try { snapshot = await readClipAttributeSnapshot(docId); }
+    catch (error) { throw new ImportRowError(error instanceof ClipRestoreError && error.reason === "missing" ? "missing" : "read"); }
+    if (snapshot.meta.box !== progress.notebookId || snapshot.meta.hpath !== hpath) throw new ImportRowError("changed");
+    const attrs = parseClipAttrs(snapshot.attrs);
+    if (attrs.internal || (!attrs.status && isInternalDocument(snapshot.meta))) throw new ImportRowError("internal");
+    if (attrs.excluded || (snapshot.attrs[ATTR.status] && !attrs.status) || (snapshot.attrs[ATTR.url] && normalizeUrl(snapshot.attrs[ATTR.url]) !== normalizeUrl(url)) || (attrs.status && normalizeUrl(snapshot.attrs[ATTR.url] ?? "") !== normalizeUrl(url)) || (requireStatus && !attrs.status)) throw new ImportRowError("changed");
+    return snapshot;
 }
 
 
@@ -301,22 +272,50 @@ function formatToSrc(format: ImportFormat): "import-pocket" | "import-omnivore" 
 
 function sanitizeTitle(title: string): string {
     // 思源文档名不允许 / \\ 等路径字符
-    const cleaned = title.replace(/[/\\:<>|?*"~]/g, " ").replace(/\s+/g, " ").trim();
-    return (cleaned || "未命名").slice(0, 80);
+    const cleaned = title.replace(/[/\\:<>|?*"~\p{Cc}\p{Cf}]/gu, " ").replace(/\s+/g, " ").trim();
+    return (cleaned && cleaned !== "." && cleaned !== ".." ? cleaned : "未命名").slice(0, 80);
 }
 
 function buildImportMarkdown(title: string, url: string, site: string, time: string, tags: string[], doneTime = ""): string {
     const lines: string[] = [];
-    lines.push(`# ${title}`);
+    const safeTitle = sanitizeMarkdownText(title, "未命名");
+    lines.push(`# ${safeTitle}`);
     lines.push("");
-    lines.push(`- [${url}](${url})`);
-    lines.push(`- 来源：${site || siteFromUrl(url)}`);
+    const sourceUrl = safeMarkdownUrl(url);
+    if (sourceUrl) lines.push(`- [${escapeMarkdownText(sourceUrl)}](<${sourceUrl}>)`);
+    lines.push(`- 来源：${sanitizeMarkdownText(site || siteFromUrl(url), siteFromUrl(url))}`);
     if (time) lines.push(`- 收藏于：${formatTime(time)}`);
     if (doneTime) lines.push(`- 已读于：${formatTime(doneTime)}`);
-    if (tags.length > 0) lines.push(`- 标签：${tags.map((tag) => `#${tag}`).join(" ")}`);
+    const safeTags = tags
+        .map((tag) => sanitizeMarkdownText(tag.replace(/^#+/, "")))
+        .filter(Boolean);
+    if (safeTags.length > 0) lines.push(`- 标签：${safeTags.map((tag) => `#${tag}`).join(" ")}`);
     lines.push("");
     lines.push(`> 由迁移导入器带入。原文内容请访问来源链接，或使用剪藏扩展重新剪藏全文。`);
     return lines.join("\n");
+}
+
+function sanitizeMarkdownText(value: string, fallback = ""): string {
+    const cleaned = value
+        .replace(/\r\n?|[\u2028\u2029]/g, " ")
+        .replace(/[\p{Cc}\p{Cf}]/gu, " ")
+        .replace(/[<>]/g, (char) => char === "<" ? "&lt;" : "&gt;")
+        .replace(/\s+/g, " ")
+        .trim();
+    return escapeMarkdownText(cleaned || fallback);
+}
+
+function escapeMarkdownText(value: string): string {
+    return value.replace(/([\\`*_{}\[\]()#+\-.!>|~])/g, "\\$1");
+}
+
+function safeMarkdownUrl(value: string): string {
+    try {
+        const parsed = new URL(value.trim());
+        return parsed.protocol === "http:" || parsed.protocol === "https:" ? parsed.toString() : "";
+    } catch {
+        return "";
+    }
 }
 
 function formatTime(time: string): string {

@@ -1,10 +1,13 @@
 /**
  * 阅读断点服务（T-1746，契约 DATA-CONTRACT §3.1a）：
- * 断点 = 锚定块 ID（`custom-clip-reading-pos`），仅内嵌页签滚动防抖/切文/销毁时写；
+ * 断点 = 锚定块 ID；写入时适配到当前唯一事实源
+ * `custom-clip-reading-position` 的 JSON 结构。旧的 `custom-clip-reading-pos`
+ * 只作为同步分支历史数据的只读兼容键，不再新增写入。
  * 原生编辑器不写；块被删时静默降级从头阅读并清除断点。进度条按块序比例做结构估计，
  * 不显示百分比数字（T-1728 反伪精确纪律）。纯函数在 domain 层可测。
  */
 import { querySql } from "../api/client";
+import { type ReadingPosition } from "../domain/reading-position";
 import { writeClip } from "./clip-store";
 
 /** 视口锚定块：容器 scrollTop 附近（顶部 1/3 内）第一个可见块；找不到取第一个可见块。 */
@@ -56,5 +59,11 @@ export async function blockPosition(rootDocId: string, blockId: string): Promise
 /** 写阅读断点（防抖节流由调用方负责）。 */
 export async function saveReadingPos(docId: string, blockId: string, plugin: Parameters<typeof writeClip>[0]): Promise<void> {
     if (!/^\d{14}-[0-9a-z]{7}$/.test(blockId)) return;
-    await writeClip(plugin, docId, { readingPos: blockId });
+    const position: ReadingPosition = {
+        version: 1,
+        blockId,
+        offset: 0,
+        at: new Date().toISOString(),
+    };
+    await writeClip(plugin, docId, { readingPosition: position });
 }

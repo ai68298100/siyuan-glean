@@ -21,11 +21,12 @@ export function resolveCarrier(value: string | undefined): ClipCarrier {
  * 返回可显示的来源网页地址。
  *
  * 全文剪藏有来源时也允许“打开原文”作为次级动作；这不会改变全文
- * 的主打开目标。local/unknown 即使正文里偶然有链接也不能显示网页动作。
+ * 的主打开目标。local 即使正文里偶然有链接也不能显示网页动作；旧文档
+ * 可能没有 contentType，但只要 custom-clip-url 有效，仍应保留来源动作。
  */
 export function sourceUrlForCarrier(contentType: string | undefined, rawUrl: string | undefined): string {
     const carrier = resolveCarrier(contentType);
-    if (carrier !== "fulltext" && carrier !== "link") return "";
+    if (carrier === "local") return "";
     const value = String(rawUrl ?? "").trim();
     return normalizeUrl(value) ? value : "";
 }

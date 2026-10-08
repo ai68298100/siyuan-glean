@@ -4,53 +4,40 @@
  * 保存为增量合并（patch 语义），避免多入口互相覆盖。
  */
 import type { Plugin } from "siyuan";
+import { normalizePreviewRatio } from "../domain/workbench-preview.ts";
+import { normalizeRailGroups, type RailGroups } from "../domain/library-rail.ts";
+import {
+    DEFAULT_READER_APPEARANCE,
+    EMPTY_GOVERNANCE_MUTED,
+    normalizeGovernanceMuted,
+    normalizeReaderAppearance,
+    normalizeSavedViews,
+    type ReaderAppearance,
+    type SavedView,
+    type GovernanceMuted,
+} from "../domain/ui-prefs.ts";
+
+export type OnboardingStep = 1 | 2 | 3 | 4;
 
 export interface UiPrefs {
     /** 上次停留的面板视图 */
     lastView: string;
     /** 首启引导已完成/已跳过 */
     onboardingDone: boolean;
-    /** 保存的筛选视图（T-1846）：仅筛选条件投影，不复制文章状态 */
-    savedFilters: SavedFilter[];
-    /** 阅读页签排版（T-1742）：字号/行距三档档位 */
-    readerTypography: ReaderTypography;
-    /** 会话阅读队列顺序（T-1903）：跨画布共享、重启保留 */
-    sessionOrder: SessionOrderState;
-}
-
-/** 阅读页签排版档位（T-1742/T-1743）：纯视图状态，默认档跟随思源。 */
-export interface ReaderTypography {
-    /** 字号档：sm / md / lg */
-    fontSize: "sm" | "md" | "lg";
-    /** 行距档：compact / normal / relaxed */
-    lineHeight: "compact" | "normal" | "relaxed";
-    /** 栏宽档（T-1742 收尾）：narrow / medium / wide */
-    width: "narrow" | "medium" | "wide";
-    /** 阅读主题（T-1743）：follow（跟随思源）/ paper（纸感）/ sepia（护眼） */
-    theme: "follow" | "paper" | "sepia";
-}
-
-const WIDTHS = ["narrow", "medium", "wide"] as const;
-const THEMES = ["follow", "paper", "sepia"] as const;
-
-/** 保存的筛选视图（T-1846）：name 唯一性由 UI 保证，这里只做类型归一。 */
-export interface SavedFilter {
-    name: string;
-    filter: Record<string, string | boolean>;
-}
-
-/** 会话阅读队列顺序（T-1903，D-0034）：docId 列表 + 洗牌种子；只存 ui-prefs，不写文章属性。 */
-export interface SessionOrderState {
-    order: string[];
-    seed: number;
-}
-
-/** 归一化会话顺序：非法形状回落空序；id 只留字符串并去重。 */
-export function normalizeSessionOrder(raw: unknown): SessionOrderState {
-    const input = (raw ?? {}) as Partial<SessionOrderState>;
-    const order = Array.isArray(input.order) ? [...new Set(input.order.filter((id): id is string => typeof id === "string" && id.length > 0))] : [];
-    const seed = Number.isSafeInteger(input.seed) ? (input.seed as number) : 0;
-    return { order, seed };
+    /** 首启引导关闭后下次恢复的步骤 */
+    onboardingStep: OnboardingStep;
+    /** 是否由用户中断，允许下一次布局就绪时恢复 */
+    onboardingInterrupted: boolean;
+    /** 设置页新手提示已由用户关闭 */
+    onboardingHintDismissed: boolean;
+    readerAppearance: ReaderAppearance;
+    readerSidebarCollapsed: boolean;
+    workbenchPreviewEnabled: boolean;
+    workbenchPreviewRatio: number;
+    libraryRailGroups: RailGroups;
+    savedViews: SavedView[];
+    defaultSavedViewId: string;
+    governanceMuted: GovernanceMuted;
 }
 
 const PREFS_FILE = "ui-prefs.json";
@@ -58,102 +45,107 @@ const PREFS_FILE = "ui-prefs.json";
 const DEFAULTS: UiPrefs = {
     lastView: "",
     onboardingDone: false,
-    savedFilters: [],
-    readerTypography: { fontSize: "md", lineHeight: "normal", width: "medium", theme: "follow" },
-    sessionOrder: { order: [], seed: 0 },
+    onboardingStep: 1,
+    onboardingInterrupted: false,
+    onboardingHintDismissed: false,
+    readerAppearance: { ...DEFAULT_READER_APPEARANCE },
+    readerSidebarCollapsed: false,
+    workbenchPreviewEnabled: true,
+    workbenchPreviewRatio: normalizePreviewRatio(undefined),
+    libraryRailGroups: normalizeRailGroups(undefined),
+    savedViews: [],
+    defaultSavedViewId: "",
+    governanceMuted: { ...EMPTY_GOVERNANCE_MUTED },
 };
 
-const FONT_SIZES = ["sm", "md", "lg"] as const;
-const LINE_HEIGHTS = ["compact", "normal", "relaxed"] as const;
+const saveQueues = new WeakMap<object, Promise<unknown>>();
 
-/** 归一化排版档位（T-1742/T-1743）：非法值回落默认。 */
-function normalizeTypography(raw: unknown): ReaderTypography {
-    const input = (raw ?? {}) as Partial<ReaderTypography>;
+function normalizeOnboardingStep(value: unknown): OnboardingStep {
+    return value === 2 || value === 3 || value === 4 ? value : 1;
+}
+
+export function normalizeUiPrefs(raw: unknown): UiPrefs {
+    const partial = raw && typeof raw === "object" ? raw as Partial<UiPrefs> : {};
+    const onboardingDone = partial.onboardingDone === true;
+    const onboardingHintDismissed = onboardingDone || partial.onboardingHintDismissed === true;
+    const savedViews = normalizeSavedViews(partial.savedViews);
+    const requestedDefault = typeof partial.defaultSavedViewId === "string" ? partial.defaultSavedViewId : "";
     return {
-        fontSize: FONT_SIZES.includes(input.fontSize as never) ? (input.fontSize as ReaderTypography["fontSize"]) : "md",
-        lineHeight: LINE_HEIGHTS.includes(input.lineHeight as never)
-            ? (input.lineHeight as ReaderTypography["lineHeight"])
-            : "normal",
-        width: WIDTHS.includes(input.width as never) ? (input.width as ReaderTypography["width"]) : "medium",
-        theme: THEMES.includes(input.theme as never) ? (input.theme as ReaderTypography["theme"]) : "follow",
+        lastView: typeof partial.lastView === "string" ? partial.lastView : "",
+        onboardingDone,
+        onboardingStep: onboardingDone ? 1 : normalizeOnboardingStep(partial.onboardingStep),
+        onboardingInterrupted: !onboardingDone && partial.onboardingInterrupted === true,
+        onboardingHintDismissed,
+        readerAppearance: normalizeReaderAppearance(partial.readerAppearance),
+        readerSidebarCollapsed: partial.readerSidebarCollapsed === true,
+        workbenchPreviewEnabled: typeof partial.workbenchPreviewEnabled === "boolean" ? partial.workbenchPreviewEnabled : true,
+        workbenchPreviewRatio: normalizePreviewRatio(partial.workbenchPreviewRatio),
+        libraryRailGroups: normalizeRailGroups(partial.libraryRailGroups),
+        savedViews,
+        defaultSavedViewId: savedViews.some((view) => view.id === requestedDefault) ? requestedDefault : "",
+        governanceMuted: normalizeGovernanceMuted(partial.governanceMuted),
     };
 }
 
-/** 归一化单条筛选投影：只保留字符串/布尔原语键。 */
-function normalizeFilterRecord(raw: unknown): Record<string, string | boolean> {
-    const out: Record<string, string | boolean> = {};
-    if (!raw || typeof raw !== "object") return out;
-    for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
-        if (typeof value === "string") out[key] = value;
-        else if (typeof value === "boolean") out[key] = value;
-    }
-    return out;
+function clonePrefs(prefs: UiPrefs): UiPrefs {
+    return {
+        ...prefs,
+        readerAppearance: { ...prefs.readerAppearance },
+        libraryRailGroups: normalizeRailGroups(prefs.libraryRailGroups),
+        savedViews: prefs.savedViews.map((view) => ({ ...view, filter: { ...view.filter } })),
+        governanceMuted: { ...prefs.governanceMuted },
+    };
 }
 
-function normalizeSavedFilters(raw: unknown): SavedFilter[] {
-    if (!Array.isArray(raw)) return [];
-    const out: SavedFilter[] = [];
-    for (const item of raw) {
-        if (!item || typeof item !== "object") continue;
-        const candidate = item as Partial<SavedFilter>;
-        if (typeof candidate.name !== "string" || !candidate.name.trim()) continue;
-        out.push({ name: candidate.name, filter: normalizeFilterRecord(candidate.filter) });
-    }
-    return out;
+type UiPrefsPatch = Omit<Partial<UiPrefs>, "libraryRailGroups"> & { libraryRailGroups?: Partial<RailGroups> };
+
+function clonePatch(patch: UiPrefsPatch): UiPrefsPatch {
+    return {
+        ...patch,
+        ...(patch.readerAppearance ? { readerAppearance: { ...patch.readerAppearance } } : {}),
+        ...(patch.libraryRailGroups ? { libraryRailGroups: Object.fromEntries(Object.entries(patch.libraryRailGroups).map(([name, group]) => [name, { ...group }])) } : {}),
+        ...(patch.savedViews ? { savedViews: patch.savedViews.map((view) => ({ ...view, filter: { ...view.filter } })) } : {}),
+        ...(patch.governanceMuted ? { governanceMuted: { ...patch.governanceMuted } } : {}),
+    };
 }
 
-/** 偏好写队列（T-1955）：load→merge→save 的读改写必须串行，防止多入口并发保存互相覆盖。 */
-let prefsQueue: Promise<unknown> = Promise.resolve();
-
-function withPrefsLock<T>(task: () => Promise<T>): Promise<T> {
-    const run = prefsQueue.then(task, task);
-    prefsQueue = run.catch(() => undefined);
-    return run;
-}
-
-export async function loadUiPrefs(plugin: Plugin): Promise<UiPrefs> {
-    return withPrefsLock(async () => {
-        try {
-            const raw = await plugin.loadData(PREFS_FILE);
-            if (raw && typeof raw === "object") {
-                const partial = raw as Partial<UiPrefs>;
-                return {
-                    lastView: typeof partial.lastView === "string" ? partial.lastView : "",
-                    onboardingDone: partial.onboardingDone === true,
-                    savedFilters: normalizeSavedFilters(partial.savedFilters),
-                    readerTypography: normalizeTypography(partial.readerTypography),
-                    sessionOrder: normalizeSessionOrder(partial.sessionOrder),
-                };
-            }
-        } catch { /* 忽略 */ }
-        return { ...DEFAULTS };
-    });
-}
-
-/** 增量保存：读取现有 → 合并 → 写回（patch 语义），全程在写队列内执行。 */
-export async function saveUiPrefs(plugin: Plugin, patch: Partial<UiPrefs>): Promise<UiPrefs> {
-    return withPrefsLock(async () => {
-        const current = await loadUiPrefsUnlocked(plugin);
-        const merged: UiPrefs = { ...current, ...patch };
-        await plugin.saveData(PREFS_FILE, merged);
-        return merged;
-    });
-}
-
-/** 队列内复用：不加锁的读取（调用方已在 withPrefsLock 内）。 */
-async function loadUiPrefsUnlocked(plugin: Plugin): Promise<UiPrefs> {
+export async function loadUiPrefs(plugin: Plugin, options: { strict?: boolean } = {}): Promise<UiPrefs> {
     try {
         const raw = await plugin.loadData(PREFS_FILE);
-        if (raw && typeof raw === "object") {
-                const partial = raw as Partial<UiPrefs>;
-                return {
-                    lastView: typeof partial.lastView === "string" ? partial.lastView : "",
-                    onboardingDone: partial.onboardingDone === true,
-                    savedFilters: normalizeSavedFilters(partial.savedFilters),
-                    readerTypography: normalizeTypography(partial.readerTypography),
-                    sessionOrder: normalizeSessionOrder(partial.sessionOrder),
-                };
-            }
-        } catch { /* 忽略 */ }
-        return { ...DEFAULTS };
-    }
+        return normalizeUiPrefs(raw);
+    } catch (error) { if (options.strict) throw error; }
+    return clonePrefs(DEFAULTS);
+}
+
+/** 增量保存：每个插件实例串行读取-合并-写回，失败不会污染后续保存。 */
+export class UiPrefsConflictError extends Error {
+    constructor() { super("Preferences changed"); }
+}
+
+export async function saveUiPrefs(plugin: Plugin, patch: UiPrefsPatch, options: { expected?: UiPrefs } = {}): Promise<UiPrefs> {
+    const safePatch = clonePatch(patch);
+    const expected = options.expected ? clonePrefs(normalizeUiPrefs(options.expected)) : undefined;
+    const previous = saveQueues.get(plugin as object) ?? Promise.resolve();
+    const operation = previous.catch(() => undefined).then(async () => {
+        const raw = await plugin.loadData(PREFS_FILE);
+        const current = normalizeUiPrefs(raw);
+        if (expected && JSON.stringify(current) !== JSON.stringify(expected)) throw new UiPrefsConflictError();
+        const merged = normalizeUiPrefs({
+            ...current, ...safePatch,
+            libraryRailGroups: { ...current.libraryRailGroups, ...safePatch.libraryRailGroups },
+        });
+        if (merged.onboardingDone) {
+            merged.onboardingStep = 1;
+            merged.onboardingInterrupted = false;
+            merged.onboardingHintDismissed = true;
+        }
+        const result = clonePrefs(merged);
+        await plugin.saveData(PREFS_FILE, result);
+        return result;
+    });
+    saveQueues.set(plugin as object, operation);
+    void operation.then(() => undefined, () => undefined).then(() => {
+        if (saveQueues.get(plugin as object) === operation) saveQueues.delete(plugin as object);
+    });
+    return operation;
+}

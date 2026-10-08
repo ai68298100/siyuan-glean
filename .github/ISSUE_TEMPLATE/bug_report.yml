@@ -1,0 +1,101 @@
+name: 问题报告
+description: 报告可复现的功能、界面或数据问题
+title: "[Bug] "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢反馈。请先确认问题发生在真实思源宿主中，并尽量附上脱敏截图、录屏或日志。
+        提交前可查看 [反馈闭环](https://github.com/ai68298100/siyuan-glean/blob/HEAD/docs/FEEDBACK-LOOP.md)、[能力矩阵](https://github.com/ai68298100/siyuan-glean/blob/HEAD/docs/CAPABILITY-MATRIX.md) 和 [恢复矩阵](https://github.com/ai68298100/siyuan-glean/blob/HEAD/docs/RECOVERY-MATRIX.md)。
+  - type: input
+    id: plugin-version
+    attributes:
+      label: 插件版本
+      description: 例如 v1.1.0；可在插件设置或 package.zip 名称中查看。
+      placeholder: v1.1.0
+    validations:
+      required: true
+  - type: input
+    id: siyuan-version
+    attributes:
+      label: 思源版本
+      placeholder: 3.8.5
+    validations:
+      required: true
+  - type: dropdown
+    id: frontend
+    attributes:
+      label: 使用环境
+      options:
+        - 桌面端
+        - Android
+        - iOS
+        - 浏览器端
+    validations:
+      required: true
+  - type: dropdown
+    id: article-carrier
+    attributes:
+      label: 文章载体
+      options:
+        - 全文剪藏
+        - 仅链接
+        - 本地文档
+        - 候选文档
+        - 不确定
+    validations:
+      required: true
+  - type: input
+    id: first-seen-version
+    attributes:
+      label: 首次出现版本
+      description: 不确定时填写“不确定”；最后正常版本可写在上下文中。
+      placeholder: v1.1.0
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      description: 请按实际点击顺序描述，并说明文章是否为真实剪藏、仅链接或本地文档。
+      placeholder: |
+        1. 打开……
+        2. 点击……
+        3. 看到……
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期望结果
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: 实际结果
+    validations:
+      required: true
+  - type: textarea
+    id: retry
+    attributes:
+      label: 失败后的重试结果
+      description: 如果涉及断网、权限、批量部分失败或异步结果，请写重试步骤、成功/失败结果和是否仍有残留。
+  - type: textarea
+    id: evidence
+    attributes:
+      label: 截图、录屏或日志
+      description: 请先移除文档标题、URL、正文和密钥等隐私内容。
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: 提交前确认
+      options:
+        - label: 我已搜索现有 issue，确认没有重复报告。
+          required: true
+        - label: 我已移除截图、日志和示例数据中的敏感信息。
+          required: true
+        - label: 这不是功能建议；如果是，请改用功能建议模板。
+          required: true

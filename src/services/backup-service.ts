@@ -1,117 +1,137 @@
-/**
- * 备份/恢复服务（T-1780，契约 DATA-CONTRACT §0.1）：
- * 导出 = 读全部已收录文档属性（经 clip-store 批读）+ 插件 saveData 快照 → 包 JSON 字符串（由 UI 触发下载）。
- * 恢复 = 预览（文档存在性检查）→ 用户确认 → 包内 attrs 经 restoreClipAttrs 覆盖写回
- *       → 设置/偏好覆盖（返回恢复后的设置供壳层同步）→ 全量对账重建索引。缺失文档跳过不报错。
- * 包不携带密钥：自定义通道只导出 customSecretName 名字，密钥本体留在思源密钥库。
- */
 import type { Plugin } from "siyuan";
-import { querySql } from "../api/client";
-import {
-    BACKUP_APP,
-    BACKUP_VERSION,
-    backupFileName,
-    parseBackup,
-    pickClipAttrs,
-    previewBackup,
-    type BackupPackage,
-    type BackupPreview,
-} from "../domain/backup";
-import { batchReadClipAttrs, listClipDocs, rebuildIndex, restoreClipAttrs } from "./clip-store";
-import { loadSettings, saveSettings, type GleanSettings } from "./settings";
+import { BACKUP_FORMAT, backupFieldPatch, diffBackupAttrs, parseBackup, type BackupDocument, type BackupFieldDiff, type BackupPackage } from "../domain/backup";
+import { parseClipAttrs, type ClipPatch } from "../domain/schema";
+import { batchReadClipAttrs, ClipRestoreError, readClipAttributeSnapshot, reconcileIndex, restoreClipFields, type ClipAttributeSnapshot } from "./clip-store";
+import { loadSettings, normalizeSettings, saveSettings, settingsEqual, SettingsConflictError, type GleanSettings } from "./settings";
+import { loadUiPrefs, normalizeUiPrefs, saveUiPrefs, UiPrefsConflictError, type UiPrefs } from "./prefs";
 
-export { backupFileName };
+export type RestoreRowState = "ready" | "missing" | "internal" | "unavailable" | "applied" | "changed" | "unknown" | "skipped" | "conflict";
+export interface RestoreRow {
+    document: BackupDocument;
+    snapshot: ClipAttributeSnapshot | null;
+    fields: BackupFieldDiff[];
+    state: RestoreRowState;
+    allowDuplicate: boolean;
+}
+export interface RestoreSession {
+    backup: BackupPackage;
+    rows: RestoreRow[];
+    preferences: { beforeSettings: GleanSettings; afterSettings: GleanSettings; beforeUiPrefs: UiPrefs; afterUiPrefs: UiPrefs; settingsSupported: boolean };
+    busy: boolean;
+    used: boolean;
+}
+export interface RestoreReport { applied: number; processed: number; selected: number; stopped: boolean; indexFresh: boolean; settings: RestoreRowState; uiPrefs: RestoreRowState }
 
-export async function buildBackupPackage(plugin: Plugin, settings: GleanSettings): Promise<BackupPackage> {
-    const docs = await listClipDocs();
-    const pairs = await batchReadClipAttrs(docs.map((doc) => doc.id));
-    const clips = pairs.map((pair) => ({ id: pair.id, attrs: pickClipAttrs(pair.attrs) }));
-    return {
-        version: BACKUP_VERSION,
-        app: BACKUP_APP,
-        exportedAt: new Date().toISOString(),
-        settings,
-        index: await plugin.loadData("glean-index.json") ?? null,
-        uiPrefs: await plugin.loadData("ui-prefs.json") ?? null,
-        clips,
+export async function exportLibraryBackup(plugin: Plugin, settings: GleanSettings): Promise<string> {
+    const index = await reconcileIndex(plugin, settings);
+    const entries = Object.values(index.clips).filter((entry) => !entry.internal);
+    const pairs = await batchReadClipAttrs(entries.map((entry) => entry.id));
+    const byId = new Map(pairs.map((pair) => [pair.id, pair.attrs]));
+    const documents: BackupDocument[] = [];
+    for (const entry of entries.sort((first, second) => first.id.localeCompare(second.id))) {
+        const raw = byId.get(entry.id);
+        if (!raw) throw new Error("Backup attribute read incomplete");
+        const attrs = parseClipAttrs(raw);
+        if (!attrs.status || attrs.internal) continue;
+        documents.push({ id: entry.id, title: entry.title, box: entry.box, hpath: entry.hpath, attrs: Object.fromEntries(Object.entries(raw).filter(([key]) => key.startsWith("custom-clip-"))) });
+    }
+    const manifest = (plugin as Plugin & { manifest?: { version?: unknown } }).manifest;
+    const [savedSettings, uiPrefs] = await Promise.all([loadSettings(plugin, { strict: true }), loadUiPrefs(plugin, { strict: true })]);
+    const backup: BackupPackage = {
+        format: BACKUP_FORMAT,
+        version: 1,
+        createdAt: new Date().toISOString(),
+        pluginVersion: typeof manifest?.version === "string" ? manifest.version : "unknown",
+        documents,
+        settings: { ...savedSettings },
+        uiPrefs: { ...uiPrefs },
+        index: { ...index },
     };
+    const content = JSON.stringify(backup, null, 2);
+    parseBackup(content);
+    return content;
 }
 
-export function backupPackageJson(pkg: BackupPackage): string {
-    return JSON.stringify(pkg, null, 2);
-}
-
-/** 恢复预览：解析校验 + 检查包内文档是否仍存在（存在才可覆盖写回）。 */
-export async function previewRestore(raw: string): Promise<{ pkg: BackupPackage; preview: BackupPreview }> {
-    const parsed = parseBackup(raw);
-    if (!parsed.ok) {
-        const reasons: Record<string, string> = {
-            "not-json": "文件不是合法 JSON",
-            "not-object": "备份包结构不符",
-            "bad-version": "备份包版本不受支持",
-            "bad-app": "这不是小驴拾遗的备份包",
-            "bad-clips": "备份包文章列表损坏",
-        };
-        throw new Error(reasons[parsed.reason] ?? "备份包无法解析");
+export async function previewBackupRestore(plugin: Plugin, content: string, signal?: AbortSignal): Promise<RestoreSession> {
+    const backup = parseBackup(content);
+    const [beforeSettings, beforeUiPrefs] = await Promise.all([loadSettings(plugin, { strict: true }), loadUiPrefs(plugin, { strict: true })]);
+    const afterSettings = normalizeSettings(backup.settings);
+    afterSettings.snapshotOnCapture = false;
+    afterSettings.ai = { ...afterSettings.ai, enrichMode: "off", dedupOnEnrich: false, relatedWhileReading: false, formattingEnabled: false, presetActions: false, authorSuggestionEnabled: false, questionCardEnabled: false, articleQuestionEnabled: false };
+    afterSettings.integration = { ...afterSettings.integration, checkinEnabled: false, bridgeWriteEnabled: false };
+    afterSettings.reader.defaultMode = "read";
+    const rows: RestoreRow[] = [];
+    for (let offset = 0; offset < backup.documents.length; offset += 20) {
+        if (signal?.aborted) throw new Error("Backup preview cancelled");
+        const batch = await Promise.all(backup.documents.slice(offset, offset + 20).map(async (document): Promise<RestoreRow> => {
+            try {
+                const snapshot = await readClipAttributeSnapshot(document.id);
+                if (parseClipAttrs(snapshot.attrs).internal) return { document, snapshot, fields: [], state: "internal", allowDuplicate: false };
+                return { document, snapshot, fields: diffBackupAttrs(snapshot.attrs, document.attrs), state: "ready", allowDuplicate: false };
+            } catch (error) {
+                return { document, snapshot: null, fields: [], state: error instanceof ClipRestoreError && error.reason === "missing" ? "missing" : "unavailable", allowDuplicate: false };
+            }
+        }));
+        rows.push(...batch);
     }
-    const missingIds = new Set<string>();
-    for (let offset = 0; offset < parsed.data.clips.length; offset += 200) {
-        const batch = parsed.data.clips.slice(offset, offset + 200);
-        const rows = await querySql<{ id: string }>(
-            `SELECT id FROM blocks WHERE type = 'd' AND id IN (${batch.map((clip) => `'${clip.id.replace(/'/g, "''")}'`).join(",")})`
-        );
-        const found = new Set(rows.map((row) => row.id));
-        for (const clip of batch) {
-            if (!found.has(clip.id)) missingIds.add(clip.id);
+    if (signal?.aborted) throw new Error("Backup preview cancelled");
+    return { backup, rows, busy: false, used: false, preferences: { beforeSettings, afterSettings, beforeUiPrefs, afterUiPrefs: normalizeUiPrefs(backup.uiPrefs), settingsSupported: backup.settings.version === 1 } };
+}
+
+export async function applyBackupRestore(
+    plugin: Plugin,
+    session: RestoreSession,
+    options: { confirmed: boolean; signal?: AbortSignal; onProgress?: (processed: number, selected: number) => void; restoreSettings?: boolean; restoreUiPrefs?: boolean; updateSettings?: (next: GleanSettings, expected: GleanSettings) => Promise<void> },
+): Promise<RestoreReport> {
+    if (!options.confirmed || session.busy || session.used) throw new Error("Restore requires a fresh confirmed preview");
+    const plans = session.rows.filter((row) => row.state === "ready" && row.snapshot).map((row) => {
+        const fields = row.fields.filter((field) => field.selected && field.supported).map((field) => ({ ...field }));
+        const patch: ClipPatch = {};
+        for (const field of fields) {
+            const value = backupFieldPatch(field.key, field.after);
+            if (!value) throw new Error("Unsupported restore field");
+            Object.assign(patch, value);
         }
-    }
-    return { pkg: parsed.data, preview: previewBackup(parsed.data, missingIds) };
-}
-
-export interface RestoreSummary {
-    restored: number;
-    /** 文档已删除或写入失败的篇数 */
-    skipped: number;
-    settingsRestored: boolean;
-    prefsRestored: boolean;
-}
-
-/**
- * 执行恢复（用户在预览后显式确认）。
- * 返回 summary.settings 语义：包内设置已落盘；调用方须同步壳层缓存
- * （facade.updateSettings(pkg.settings) 合并语义下等价全量覆盖）并刷新界面。
- */
-export async function restoreBackup(plugin: Plugin, pkg: BackupPackage): Promise<RestoreSummary> {
-    const summary: RestoreSummary = {
-        restored: 0,
-        skipped: 0,
-        settingsRestored: false,
-        prefsRestored: false,
-    };
-    for (const clip of pkg.clips) {
-        try {
-            const written = await restoreClipAttrs(plugin, clip.id, clip.attrs);
-            if (written > 0) summary.restored += 1;
-            else summary.skipped += 1;
-        } catch {
-            summary.skipped += 1;
+        return { row, patch, fields, id: row.document.id, snapshot: { meta: { ...row.snapshot!.meta }, attrs: { ...row.snapshot!.attrs } }, allowDuplicate: row.allowDuplicate === true };
+    }).filter((plan) => plan.fields.length > 0);
+    if (!plans.length && !options.restoreSettings && !options.restoreUiPrefs) throw new Error("No restore fields selected");
+    if (options.restoreSettings && !session.preferences.settingsSupported) throw new Error("Unsupported settings version");
+    session.busy = true;
+    session.used = true;
+    const report: RestoreReport = { applied: 0, processed: 0, selected: plans.length, stopped: false, indexFresh: false, settings: "skipped", uiPrefs: "skipped" };
+    try {
+        for (const plan of plans) {
+            if (options.signal?.aborted) { report.stopped = true; break; }
+            try {
+                await restoreClipFields(plugin, plan.id, plan.snapshot, plan.patch, plan.allowDuplicate);
+                plan.row.state = "applied";
+                report.applied += 1;
+            } catch (error) {
+                plan.row.state = error instanceof ClipRestoreError ? error.reason : "unknown";
+            }
+            report.processed += 1;
+            options.onProgress?.(report.processed, report.selected);
         }
-    }
-    if (pkg.settings && typeof pkg.settings === "object") {
-        await saveSettings(plugin, pkg.settings as GleanSettings);
-        summary.settingsRestored = true;
-    }
-    if (pkg.uiPrefs && typeof pkg.uiPrefs === "object") {
-        const prefs = pkg.uiPrefs as { lastView?: unknown; onboardingDone?: unknown };
-        const { saveUiPrefs } = await import("./prefs");
-        await saveUiPrefs(plugin, {
-            lastView: typeof prefs.lastView === "string" ? prefs.lastView : undefined,
-            onboardingDone: prefs.onboardingDone === true ? true : undefined,
-        });
-        summary.prefsRestored = true;
-    }
-    // 索引是可重建缓存：恢复后按（包内或当前的）设置全量对账，使其与写回后的属性一致
-    const settings = await loadSettings(plugin);
-    await rebuildIndex(plugin, settings);
-    return summary;
+        if (report.stopped) for (const plan of plans.slice(report.processed)) plan.row.state = "skipped";
+        if (options.signal?.aborted) report.stopped = true;
+        const preferences = session.preferences;
+        if (!report.stopped && options.restoreSettings) {
+            try {
+                if (options.updateSettings) await options.updateSettings(preferences.afterSettings, preferences.beforeSettings);
+                else await saveSettings(plugin, preferences.afterSettings, { expected: preferences.beforeSettings });
+                if (!settingsEqual(await loadSettings(plugin, { strict: true }), preferences.afterSettings)) throw new Error("Settings readback changed");
+                report.settings = "applied";
+            } catch (error) { report.settings = error instanceof SettingsConflictError ? "changed" : "unknown"; }
+        }
+        if (options.signal?.aborted) report.stopped = true;
+        if (!report.stopped && options.restoreUiPrefs) {
+            try {
+                await saveUiPrefs(plugin, preferences.afterUiPrefs, { expected: preferences.beforeUiPrefs });
+                if (JSON.stringify(await loadUiPrefs(plugin, { strict: true })) !== JSON.stringify(preferences.afterUiPrefs)) throw new Error("Preferences readback changed");
+                report.uiPrefs = "applied";
+            } catch (error) { report.uiPrefs = error instanceof UiPrefsConflictError ? "changed" : "unknown"; }
+        }
+        try { await reconcileIndex(plugin, await loadSettings(plugin, { strict: true })); report.indexFresh = true; } catch { report.indexFresh = false; }
+        return report;
+    } finally { session.busy = false; }
 }

@@ -22,6 +22,7 @@ export interface LibraryItem {
     status?: ClipStatus;
     url?: string;
     site?: string;
+    author?: string;
     tags?: string[];
     aiTags?: string[];
     src?: ClipSource | string;
@@ -32,8 +33,6 @@ export interface LibraryItem {
     minutes?: number;
     priority?: number;
     rating?: number;
-    /** 来源作者（T-1811 投影）；候选无此字段 */
-    author?: string;
     /** 用户显式收藏标记（T-1755 投影）；候选无此字段 */
     favorite?: boolean;
 }
@@ -42,6 +41,7 @@ export interface LibraryFilter {
     /** `all` is used by the kanban, whose columns apply status afterwards. */
     status?: ClipStatus | "all";
     site?: string;
+    author?: string;
     tag?: string;
     /** AI 标签分面（T-1729）：与用户 tag 分开筛选，UI 需带 AI 来源标记。 */
     aiTag?: string;
@@ -49,8 +49,6 @@ export interface LibraryFilter {
     timeSource?: string;
     contentType?: string;
     keyword?: string;
-    /** 来源作者筛选（T-1812）；空/缺省 = 不筛选 */
-    author?: string;
     /** 仅看收藏（T-1755）；true 时只保留 favorite 条目 */
     favoriteOnly?: boolean;
     sortBy?: LibrarySortKey;
@@ -120,6 +118,7 @@ function searchableText(item: LibraryItem): string {
         item.title,
         item.hpath,
         item.site,
+        item.author,
         item.url,
         ...(item.tags ?? []),
         ...(item.aiTags ?? []),
@@ -142,6 +141,7 @@ export function matchesLibraryFilter(item: LibraryItem, filter: LibraryFilter = 
         }
     }
     if (!matchesExact(item.site, filter.site)) return false;
+    if (!matchesExact(item.author, filter.author)) return false;
     if (filter.tag && !hasTag(item, filter.tag)) return false;
     if (filter.aiTag && !hasAiTag(item, filter.aiTag)) return false;
     if (!matchesExact(item.src, filter.src)) return false;

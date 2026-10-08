@@ -6,7 +6,7 @@
  * 快照资产/AV 行/外部打卡历史按契约保留（§7.3），插件不代用户清理。
  */
 import type { Plugin } from "siyuan";
-import { createDocWithMd, getBlockAttrs, moveDocs, querySql, removeDoc, setBlockAttrs } from "../api/client";
+import { createDocWithMd, getBlockAttrs, moveDocs, querySql, removeDoc } from "../api/client";
 import { ATTR } from "../domain/schema";
 import { hostHpathOf, hostParentFolderOf, hostTitleOf, isUnderHost, isHostItself, type HostKind } from "../domain/lifecycle";
 import { writeClip } from "./clip-store";
@@ -54,18 +54,19 @@ async function findHost(box: string, hostHpath: string): Promise<DocRow | null> 
  * 同名文件夹视作同一宿主）；无则创建并写 `custom-clip-internal=true`（§7.4 扫描豁免双保险）。
  * 返回宿主行（path 供 moveDocs 的 toPath 用，必须带 `.sy`）。
  */
-export async function ensureHost(box: string, currentHpath: string, kind: HostKind): Promise<DocRow> {
+export async function ensureHost(plugin: Plugin, box: string, currentHpath: string, kind: HostKind): Promise<DocRow> {
     const hostHpath = hostHpathOf(currentHpath, kind);
     const existing = await findHost(box, hostHpath);
     if (existing) return existing;
     const markdown = `# ${hostTitleOf(kind)}\n\n由小驴拾遗创建的宿主文档，收录已归档文章。`;
     const hostId = await createDocWithMd(box, hostHpath, markdown);
     if (!hostId) throw new Error("宿主文档创建失败（无返回 ID）");
-    await setBlockAttrs(hostId, { [ATTR.internal]: "true" });
-    return untilSettled(async () => {
+    const host = await untilSettled(async () => {
         const row = await docRow(hostId);
         return row?.path ? row : null;
     }, 8000, "宿主索引收敛");
+    await writeClip(plugin, hostId, { internal: true }, { force: true });
+    return host;
 }
 
 export interface MoveResult {
@@ -87,7 +88,7 @@ export async function moveDocToHost(plugin: Plugin, docId: string, kind: HostKin
     const hostHpath = hostHpathOf(row.hpath, kind);
     let moved = false;
     if (!isUnderHost(row.hpath, kind)) {
-        const host = await ensureHost(row.box, row.hpath, kind);
+        const host = await ensureHost(plugin, row.box, row.hpath, kind);
         await moveDocs([row.path], row.box, host.path);
         // 内核移动为异步索引刷新：轮询确认 hpath 已落到宿主下（§7.2 收敛判据）
         await untilSettled(async () => {

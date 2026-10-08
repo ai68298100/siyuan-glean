@@ -7,16 +7,19 @@
 import type { Plugin } from "siyuan";
 import { chatGPT } from "../api/ai";
 import { chatCompletionDirect } from "../api/ai-direct";
-import { embeddingStat, exportMdContent, semanticSearchBlock } from "../api/client";
+import { embeddingStat, exportMdContent, querySql, semanticSearchBlock, type SemanticSearchHit } from "../api/client";
+import { isInternalDocument } from "../domain/candidate-policy";
 import { stripMarkdown } from "../domain/migrate";
 import { todayStamp } from "../domain/resurface";
 import { buildEnrichPrompt, isLikelyDuplicate, parseEnrichResponse, type EnrichResult } from "../domain/enrich";
-import { writeClip } from "./clip-store";
-import type { GleanSettings } from "./settings";
+import { parseClipAttrs } from "../domain/schema";
+import { batchReadClipAttrs, writeClip, type WriteClipOptions } from "./clip-store";
+import { normalizeSettings, type GleanSettings } from "./settings";
 
 const LOG_FILE = "ai-log.json";
 const LOG_LIMIT = 50;
 const USAGE_FILE = "ai-usage.json";
+const uncertainUsage = new WeakSet<Plugin>();
 
 export interface AiLogEntry {
     at: string;
@@ -36,23 +39,6 @@ export async function loadAiLog(plugin: Plugin): Promise<AiLogEntry[]> {
     }
 }
 
-/**
- * 富化失败待重试的文档集合（T-1763）：按每个文档"最近一条"日志判定——
- * 最近一条非 ok（llm/parse/enrich）即视为失败待重试。供卡片 ⚠ 标记与重试入口。
- */
-export async function loadEnrichFailedIds(plugin: Plugin): Promise<Set<string>> {
-    const entries = await loadAiLog(plugin); // 新的在前
-    const latest = new Map<string, string>();
-    for (const entry of entries) {
-        if (!latest.has(entry.docId)) latest.set(entry.docId, entry.stage);
-    }
-    const failed = new Set<string>();
-    for (const [docId, stage] of latest) {
-        if (stage !== "ok") failed.add(docId);
-    }
-    return failed;
-}
-
 export interface AiUsage {
     date: string;
     count: number;
@@ -60,33 +46,54 @@ export interface AiUsage {
 
 /** 今日富化次数（自动+手动合计，按日重置）。 */
 export async function usageToday(plugin: Plugin): Promise<number> {
+    if (uncertainUsage.has(plugin)) throw new Error("AI usage unavailable");
     const usage = await loadUsage(plugin);
     return usage.date === todayStamp() ? usage.count : 0;
 }
 
 async function loadUsage(plugin: Plugin): Promise<AiUsage> {
-    try {
-        const raw = await plugin.loadData(USAGE_FILE);
-        if (raw && typeof raw === "object" && typeof (raw as AiUsage).date === "string") return raw as AiUsage;
-    } catch { /* 忽略 */ }
-    return { date: "", count: 0 };
+    const raw: unknown = await plugin.loadData(USAGE_FILE);
+    if (raw === undefined || raw === null || raw === "") return { date: "", count: 0 };
+    const entry = raw as Partial<AiUsage>;
+    if (!raw || typeof raw !== "object" || Array.isArray(raw) || typeof entry.date !== "string" || !/^\d{8}$/.test(entry.date)
+        || typeof entry.count !== "number" || !Number.isSafeInteger(entry.count) || entry.count < 0) throw new Error("Invalid AI usage");
+    const date = new Date(`${entry.date.slice(0, 4)}-${entry.date.slice(4, 6)}-${entry.date.slice(6, 8)}T12:00:00`);
+    if (!Number.isFinite(date.getTime()) || todayStamp(date) !== entry.date) throw new Error("Invalid AI usage date");
+    return { date: entry.date, count: entry.count };
 }
 
 async function incUsage(plugin: Plugin): Promise<number> {
     const usage = await loadUsage(plugin);
     const today = todayStamp();
     const count = usage.date === today ? usage.count + 1 : 1;
-    await plugin.saveData(USAGE_FILE, { date: today, count });
+    if (!Number.isSafeInteger(count)) throw new Error("AI usage overflow");
+    try { await plugin.saveData(USAGE_FILE, { date: today, count }); } catch { uncertainUsage.add(plugin); }
+    try {
+        const saved = await loadUsage(plugin);
+        if (saved.date !== today || saved.count !== count) throw new Error("AI usage readback changed");
+        uncertainUsage.delete(plugin);
+    } catch (error) { uncertainUsage.add(plugin); throw error; }
     return count;
 }
 
 /** 伴读等场景共享每日额度（D-0030）：false=今日已满。调用成功后须 recordAiUsage 计数（失败不扣，与富化同语义）。 */
 export async function aiQuotaAvailable(plugin: Plugin, settings: GleanSettings): Promise<boolean> {
-    return !(settings.ai.enrichDailyCap > 0 && (await usageToday(plugin)) >= settings.ai.enrichDailyCap);
+    const used = await usageToday(plugin);
+    return !(settings.ai.enrichDailyCap > 0 && used >= settings.ai.enrichDailyCap);
 }
 
 export async function recordAiUsage(plugin: Plugin): Promise<void> {
-    await incUsage(plugin);
+    try { await incUsage(plugin); }
+    catch (error) { uncertainUsage.add(plugin); throw error; }
+}
+
+function aiEnabled(settings: GleanSettings): boolean {
+    return settings.ai.enrichMode !== "off";
+}
+
+export function activeAiSettings(plugin: Plugin, fallback: GleanSettings): GleanSettings {
+    const current = (plugin as Plugin & { settings?: unknown }).settings;
+    return current && typeof current === "object" ? normalizeSettings(current) : fallback;
 }
 
 interface LogEntry {
@@ -143,60 +150,91 @@ export async function callLLM(
 }
 
 /** 单篇富化（串行队列执行）。关闭模式不调用模型；每日上限由队列内统一把守。 */
-export function enrichClip(plugin: Plugin, docId: string, settings: GleanSettings): Promise<EnrichOutcome> {
-    if (settings.ai.enrichMode === "off") {
+export function enrichClip(plugin: Plugin, docId: string, settings: GleanSettings, options: Pick<WriteClipOptions, "expectedAttrs" | "expectedLocation"> = {}): Promise<EnrichOutcome> {
+    if (!aiEnabled(activeAiSettings(plugin, settings))) {
         return Promise.resolve({ ok: false, duplicates: [], skipped: "off" });
     }
-    return enqueueEnrich(() => enrichClipInner(plugin, docId, settings));
+    const expected = {
+        ...(options.expectedAttrs ? { expectedAttrs: { ...options.expectedAttrs } } : {}),
+        ...(options.expectedLocation ? { expectedLocation: { ...options.expectedLocation } } : {}),
+    };
+    return enqueueEnrich(() => enrichClipInner(plugin, docId, settings, expected));
 }
 
-async function enrichClipInner(plugin: Plugin, docId: string, settings: GleanSettings): Promise<EnrichOutcome> {
-    if (settings.ai.enrichDailyCap > 0 && (await usageToday(plugin)) >= settings.ai.enrichDailyCap) {
-        return { ok: false, duplicates: [], skipped: "cap" };
-    }
+async function enrichClipInner(plugin: Plugin, docId: string, settings: GleanSettings, options: Pick<WriteClipOptions, "expectedAttrs" | "expectedLocation">): Promise<EnrichOutcome> {
+    let currentSettings = activeAiSettings(plugin, settings);
+    if (!aiEnabled(currentSettings)) return { ok: false, duplicates: [], skipped: "off" };
     try {
+        if (!(await aiQuotaAvailable(plugin, currentSettings))) return { ok: false, duplicates: [], skipped: "cap" };
         const exported = await exportMdContent(docId);
         const markdown = exported?.content ?? "";
         const titleMatch = markdown.match(/^#\s+(.+)$/m);
         const title = titleMatch ? titleMatch[1].trim() : "";
-        const plain = stripMarkdown(markdown);
-        const prompt = buildEnrichPrompt(title, plain);
-        const llm = await callLLM(plugin, settings, prompt);
-        if (!llm.ok) {
-            await appendLog(plugin, docId, "llm", llm.reason || "调用失败");
+        const plain = stripMarkdown(markdown).trim();
+        if (!plain) {
+            await appendLog(plugin, docId, "content", "文章正文为空，已跳过");
             return { ok: false, duplicates: [], skipped: "error" };
         }
-        const parsed: EnrichResult | null = parseEnrichResponse(llm.text ?? "");
+        currentSettings = activeAiSettings(plugin, settings);
+        if (!aiEnabled(currentSettings)) return { ok: false, duplicates: [], skipped: "off" };
+        if (!(await aiQuotaAvailable(plugin, currentSettings))) return { ok: false, duplicates: [], skipped: "cap" };
+        currentSettings = activeAiSettings(plugin, settings);
+        if (!aiEnabled(currentSettings)) return { ok: false, duplicates: [], skipped: "off" };
+        const prompt = buildEnrichPrompt(title, plain);
+        const llm = await callLLM(plugin, currentSettings, prompt);
+        if (!llm.ok) {
+            await appendLog(plugin, docId, "llm", "模型调用失败，已跳过");
+            return { ok: false, duplicates: [], skipped: "error" };
+        }
+        await recordAiUsage(plugin);
+        currentSettings = activeAiSettings(plugin, settings);
+        if (!aiEnabled(currentSettings)) return { ok: false, duplicates: [], skipped: "off" };
+        const parsed: EnrichResult | null = parseEnrichResponse(typeof llm.text === "string" ? llm.text : "");
         if (!parsed) {
             await appendLog(plugin, docId, "parse", "模型响应无法解析为 JSON，已跳过");
             return { ok: false, duplicates: [], skipped: "parse" };
         }
-        await writeClip(plugin, docId, { summary: parsed.summary, aiTags: parsed.tags });
-        await incUsage(plugin);
-        // T-1763：成功也留痕（stage=ok）——卡片的"富化失败待重试"标记按最近一条日志判定
-        await appendLog(plugin, docId, "ok", "富化成功");
-        const duplicates = settings.ai.dedupOnEnrich
+        await writeClip(plugin, docId, { summary: parsed.summary, aiTags: parsed.tags }, options);
+        const duplicates = currentSettings.ai.dedupOnEnrich
             ? await findDuplicates(plugin, docId, title || parsed.summary)
             : [];
         return { ok: true, duplicates };
-    } catch (error) {
-        await appendLog(plugin, docId, "enrich", String((error as Error)?.message ?? error));
+    } catch {
+        await appendLog(plugin, docId, "enrich", "富化失败，已跳过");
         return { ok: false, duplicates: [], skipped: "error" };
     }
 }
 
+async function confirmedSemanticHits(hits: SemanticSearchHit[]): Promise<DuplicateWarning[]> {
+    const ids = [...new Set(hits.map((hit) => hit.id).filter((id) => /^\d{14}-[0-9a-z]{7}$/.test(id)))];
+    if (ids.length === 0) return [];
+    const [pairs, docs] = await Promise.all([
+        batchReadClipAttrs(ids),
+        querySql<{ id: string; content: string; hpath: string; type: string }>(
+            `SELECT id, content, hpath, type FROM blocks WHERE type = 'd' AND id IN (${ids.map((id) => `'${id}'`).join(",")})`
+        ),
+    ]);
+    const attrsById = new Map(pairs.map((pair) => [pair.id, parseClipAttrs(pair.attrs)]));
+    const docsById = new Map(docs.filter((doc) => doc.type === "d").map((doc) => [doc.id, doc]));
+    return ids.flatMap((id) => {
+        const attrs = attrsById.get(id);
+        const doc = docsById.get(id);
+        if (!attrs?.status || attrs.internal || attrs.excluded || !doc || isInternalDocument({ title: doc.content, hpath: doc.hpath })) return [];
+        return [{ id, title: (doc.content ?? "").slice(0, 80) }];
+    });
+}
+
 /** 语义查重：嵌入未启用 → 静默返回空；启用 → 语义搜索 + 标题相似过滤。 */
 export async function findDuplicates(plugin: Plugin, docId: string, query: string): Promise<DuplicateWarning[]> {
+    if (!query.trim()) return [];
     try {
         const stat = await embeddingStat();
         if (!stat?.enabled) return [];
         const hits = await semanticSearchBlock({ query, types: { d: true }, page: 1, pageSize: 8 });
-        return hits
-            .filter((hit) => hit.id && hit.id !== docId)
-            .filter((hit) => isLikelyDuplicate(query, hit.content ?? ""))
-            .map((hit) => ({ id: hit.id, title: (hit.content ?? "").slice(0, 80) }));
-    } catch (error) {
-        await appendLog(plugin, docId, "dedup", String((error as Error)?.message ?? error));
+        const confirmed = await confirmedSemanticHits(hits.filter((hit) => hit.id && hit.id !== docId));
+        return confirmed.filter((hit) => isLikelyDuplicate(query, hit.title));
+    } catch {
+        await appendLog(plugin, docId, "dedup", "语义查重不可用，已跳过");
         return [];
     }
 }
@@ -207,19 +245,10 @@ export async function findDuplicates(plugin: Plugin, docId: string, query: strin
  */
 let enrichQueue: Promise<unknown> = Promise.resolve();
 
-function enqueueEnrich<T>(task: () => Promise<T>): Promise<T> {
+export function enqueueEnrich<T>(task: () => Promise<T>): Promise<T> {
     const run = enrichQueue.then(task, task);
     enrichQueue = run.catch(() => undefined);
     return run;
-}
-
-/**
- * AI 消耗统一租约（T-1883）：检查额度 → 调用模型 → 成功计数的全过程必须在同一个
- * 串行队列任务内执行。伴读动作（reader-ai）与富化共享每日额度但原本各自检查，
- * 并发时可能都读到"剩 1 次"而双双通过，超额消耗；现在全部走本队列，天然原子。
- */
-export function runAiTask<T>(task: () => Promise<T>): Promise<T> {
-    return enqueueEnrich(task);
 }
 
 /**
@@ -227,7 +256,7 @@ export function runAiTask<T>(task: () => Promise<T>): Promise<T> {
  * 上限在 enrichClip 内统一把守（auto 与 manual 共享额度）。
  */
 export function autoEnrich(plugin: Plugin, docId: string, settings: GleanSettings): void {
-    if (settings.ai.enrichMode !== "auto") return;
+    if (activeAiSettings(plugin, settings).ai.enrichMode !== "auto") return;
     // enrichClip 已负责入队；这里再次 enqueue 会让当前任务等待排在自己后面的任务，永远无法结束。
     void enrichClip(plugin, docId, settings);
 }
@@ -236,16 +265,22 @@ export function autoEnrich(plugin: Plugin, docId: string, settings: GleanSetting
 export async function findRelated(
     docId: string,
     query: string,
-    excludeIds: string[] = []
+    excludeIds: string[] = [],
+    context?: { plugin: Plugin; settings: GleanSettings }
 ): Promise<Array<{ id: string; title: string }>> {
+    if (!context || !query.trim()) return [];
+    const enabled = () => {
+        const current = activeAiSettings(context.plugin, context.settings);
+        return aiEnabled(current) && current.ai.relatedWhileReading;
+    };
+    if (!enabled()) return [];
     try {
         const stat = await embeddingStat();
-        if (!stat?.enabled) return [];
+        if (!stat?.enabled || !enabled()) return [];
         const hits = await semanticSearchBlock({ query, types: { d: true }, page: 1, pageSize: 8 });
         const exclude = new Set([docId, ...excludeIds]);
-        return hits
-            .filter((hit) => hit.id && !exclude.has(hit.id))
-            .map((hit) => ({ id: hit.id, title: (hit.content ?? "").slice(0, 80) }));
+        const confirmed = await confirmedSemanticHits(hits.filter((hit) => hit.id && !exclude.has(hit.id)));
+        return enabled() ? confirmed : [];
     } catch {
         return [];
     }

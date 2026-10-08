@@ -18,6 +18,17 @@ import {
     siyuanTimestamp,
 } from "../src/domain/schema.ts";
 
+test("作者属性按码点校验，非法旧值不投影，显式清空保持删除语义", () => {
+    assert.equal(parseClipAttrs({ [ATTR.author]: "  公众号  " }).author, "公众号");
+    assert.equal(parseClipAttrs({ [ATTR.author]: "错误\n署名" }).author, undefined);
+    assert.equal(isClipDoc({ [ATTR.author]: "单独署名" }), false);
+    assert.deepEqual(serializePatch({ author: "😀".repeat(120) }), { [ATTR.author]: "😀".repeat(120) });
+    assert.throws(() => serializePatch({ author: "😀".repeat(121) }), RangeError);
+    assert.throws(() => serializePatch({ author: "署名\n" }), RangeError);
+    assert.deepEqual(serializePatch({ author: " " }), { [ATTR.author]: null });
+    assert.deepEqual(serializePatch({ author: undefined }), {});
+});
+
 test("parseClipAttrs：完整 IAL 还原为强类型", () => {
     const attrs = parseClipAttrs({
         [ATTR.url]: "https://example.com/a",
@@ -26,19 +37,23 @@ test("parseClipAttrs：完整 IAL 还原为强类型", () => {
         [ATTR.status]: "reading",
         [ATTR.words]: "1234",
         [ATTR.minutes]: "3",
+        [ATTR.readMinutes]: "2",
         [ATTR.priority]: "4",
         [ATTR.rating]: "5",
         [ATTR.aiTags]: "ai, 隐私",
         [ATTR.summary]: "一篇好文章",
         [ATTR.lastSurfaced]: "20260928",
+        [ATTR.pinned]: "20260929",
         [ATTR.src]: "migration",
     });
     assert.equal(attrs.url, "https://example.com/a");
     assert.equal(attrs.status, "reading");
     assert.equal(attrs.words, 1234);
     assert.equal(attrs.priority, 4);
+    assert.equal(attrs.readMinutes, 2);
     assert.deepEqual(attrs.aiTags, ["ai", "隐私"]);
     assert.equal(attrs.src, "migration");
+    assert.equal(attrs.pinned, "20260929");
 });
 
 test("parseClipAttrs：非法值丢弃、缺键为 undefined、aiTags 空数组兜底", () => {
@@ -52,6 +67,7 @@ test("parseClipAttrs：非法值丢弃、缺键为 undefined、aiTags 空数组�
     assert.equal(attrs.priority, 5); // 越界值钳制到 1-5
     assert.deepEqual(attrs.aiTags, []);
     assert.equal(attrs.url, undefined);
+    assert.equal(parseClipAttrs({ [ATTR.pinned]: "20260230" }).pinned, undefined);
 });
 
 test("isClipDoc：有状态或 URL 即认，空串不算", () => {
@@ -78,11 +94,24 @@ test("serializePatch：数字钳制与空串删除语义", () => {
     assert.equal(patch[ATTR.aiTags], "a,b");
 });
 
+test("serializePatch：真实阅读分钟独立于预计分钟", () => {
+    assert.deepEqual(serializePatch({ minutes: 8, readMinutes: 3 }), {
+        [ATTR.minutes]: "8",
+        [ATTR.readMinutes]: "3",
+    });
+});
+
 test("serializePatch：显式 null 保留（删除），undefined 键不出现", () => {
     const patch = serializePatch({ summary: null });
     assert.equal(patch[ATTR.summary], null);
     const patch2 = serializePatch({});
     assert.deepEqual(patch2, {});
+});
+
+test("serializePatch：今日置顶只接受真实 YYYYMMDD，空值表示删除", () => {
+    assert.equal(serializePatch({ pinned: "20260929" })[ATTR.pinned], "20260929");
+    assert.equal(serializePatch({ pinned: null })[ATTR.pinned], null);
+    assert.throws(() => serializePatch({ pinned: "20260230" }), RangeError);
 });
 
 test("estimateMinutes：400 字/分钟，最少 1 分钟", () => {

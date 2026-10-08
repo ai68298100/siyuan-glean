@@ -1,0 +1,56 @@
+name: 使用问题
+description: 询问安装、配置、数据边界或已有能力的使用方式
+title: "[Question] "
+labels:
+  - question
+body:
+  - type: markdown
+    attributes:
+      value: |
+        提问前请先查看 [README](https://github.com/ai68298100/siyuan-glean#readme)、[能力矩阵](https://github.com/ai68298100/siyuan-glean/blob/HEAD/docs/CAPABILITY-MATRIX.md) 和 [反馈闭环](https://github.com/ai68298100/siyuan-glean/blob/HEAD/docs/FEEDBACK-LOOP.md)。
+  - type: input
+    id: plugin-version
+    attributes:
+      label: 插件版本
+      placeholder: v1.1.0
+    validations:
+      required: true
+  - type: input
+    id: siyuan-version
+    attributes:
+      label: 思源版本
+      description: 例如 3.8.5；如果尚未安装，请填写“未安装”。
+      placeholder: 3.8.5
+    validations:
+      required: true
+  - type: dropdown
+    id: frontend
+    attributes:
+      label: 使用环境
+      options:
+        - 桌面端
+        - Android
+        - iOS
+        - 浏览器端
+        - 尚未运行
+    validations:
+      required: true
+  - type: textarea
+    id: question
+    attributes:
+      label: 你的问题
+      description: 请描述目标和已经尝试过的操作。
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: 环境与上下文
+      description: 思源版本、桌面或移动端、文章载体（全文/仅链接/本地文档）等。
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: 提交前确认
+      options:
+        - label: 我已先查看 README、能力矩阵和已知阻塞。
+          required: true

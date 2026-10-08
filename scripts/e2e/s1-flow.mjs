@@ -18,12 +18,42 @@ import {
     waitForBoot,
     shutdownKernel,
 } from "../spike/kernel-harness.mjs";
+import { cleanupScratch, parseTargetArgs, prepareWriteSmoke, resolveTarget } from "../lib/smoke-kernel.mjs";
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const HOST = "127.0.0.1";
 const MARKER = "glean-s1-e2e.json";
 const CREATED_BY = "siyuan-glean-s1-flow";
 const WORKSPACE = path.join(os.tmpdir(), `siyuan-glean-s1-${Date.now()}-${process.pid}`);
+const passedScenarios = [];
+const TARGET_ARGS = parseTargetArgs(process.argv.slice(2));
+
+async function runAttachedTarget() {
+    const target = resolveTarget({ argv: process.argv.slice(2), baseArg: TARGET_ARGS["base-url"], tokenArg: TARGET_ARGS.token });
+    const client = createApiClient(target.base);
+    client.setToken(target.token);
+    await prepareWriteSmoke((route, body) => client.api(route, body), { base: target.base, log: console });
+    const workspace = path.join(os.tmpdir(), `siyuan-glean-attached-${Date.now()}-${process.pid}`);
+    globalThis.__gleanS1FetchSyncPost = async (route, body) => {
+        const result = await client.api(route, body);
+        if (route === "/api/filetree/createDocWithMd" && typeof result?.data === "string") {
+            const id = result.data;
+            const deadline = Date.now() + 10000;
+            while (Date.now() < deadline) {
+                const rows = await client.api("/api/query/sql", { stmt: `SELECT id FROM blocks WHERE id='${id}' AND type='d' LIMIT 1` });
+                if (rows?.code === 0 && rows.data?.some((row) => row.id === id)) break;
+                await new Promise((resolve) => setTimeout(resolve, 150));
+            }
+        }
+        return result;
+    };
+    console.log(`S1 服务级 E2E：连接现有隔离靶场 ${target.base}`);
+    try {
+        await runFlow(client, workspace);
+    } finally {
+        await cleanupScratch((route, body) => client.api(route, body), { log: console }).catch((error) => console.warn(`临时库收尾清扫失败：${error.message}`));
+    }
+}
 
 // Node 只替换思源前端 SDK 的传输入口；业务服务、属性校验、索引和迁移逻辑均加载源码。
 registerHooks({
@@ -38,7 +68,7 @@ registerHooks({
         if (url === "glean-s1-e2e:siyuan") {
             return {
                 format: "module",
-                source: "export const fetchPost = (...args) => globalThis.__gleanS1FetchPost(...args);",
+                source: "export const fetchSyncPost = (...args) => globalThis.__gleanS1FetchSyncPost(...args); export const getFrontend = () => 'desktop';",
                 shortCircuit: true,
             };
         }
@@ -89,7 +119,7 @@ async function until(label, check, timeoutMs = 20000) {
     throw new Error(`${label} 未在 ${timeoutMs}ms 内满足${lastError ? `：${lastError.message}` : ""}`);
 }
 
-function pass(label) { console.log(`✓ ${label}`); }
+function pass(label) { passedScenarios.push(label); console.log(`✓ ${label}`); }
 
 async function runFlow(client, workspace) {
     const clip = await import("../../src/services/clip-store.ts");
@@ -100,7 +130,7 @@ async function runFlow(client, workspace) {
     const newPlugin = pluginDataAt(workspace);
     const plugin = newPlugin();
 
-    const notebookName = "GleanS1Flow";
+    const notebookName = `siyuan-glean-s1-${process.pid}`;
     await client.apiChecked("/api/notebook/createNotebook", { name: notebookName });
     const listing = await client.apiChecked("/api/notebook/lsNotebooks", {});
     const box = listing.notebooks.find((item) => item.name === notebookName)?.id;
@@ -195,12 +225,13 @@ async function runFlow(client, workspace) {
     assert.equal(preview.rows.length, 1);
     assert.equal(preview.rows[0].duplicate, false);
     const imported = await importer.runImport(newPlugin(), preview.rows, {
+        fingerprint: preview.fingerprint,
         notebookId: box,
         folder: "S1导入",
         format: "pocket-csv",
     });
-    assert.equal(imported.imported, 1);
-    assert.equal(imported.failed, 0);
+    assert.equal(imported.imported, 1, JSON.stringify(imported));
+    assert.equal(imported.failed, 0, JSON.stringify(imported));
     const importedId = imported.docIds[0];
     const importedAttrs = await client.apiChecked("/api/attr/getBlockAttrs", { id: importedId });
     assert.equal(importedAttrs["custom-clip-url"], preview.rows[0].url);
@@ -237,7 +268,7 @@ async function runFlow(client, workspace) {
     assert.equal(carrier.openTargetForCarrier(localCapture.attrs.contentType, localCapture.attrs.url), "document");
     assert.equal(carrier.sourceUrlForCarrier("local", "https://example.org/incidental"), "");
     assert.equal(carrier.openTargetForCarrier(undefined, "https://example.org/s3-unknown"), "document");
-    assert.equal(carrier.sourceUrlForCarrier(undefined, "https://example.org/s3-unknown"), "");
+    assert.equal(carrier.sourceUrlForCarrier(undefined, "https://example.org/s3-unknown"), "https://example.org/s3-unknown");
     pass("全文、仅链接、本地与未知载体真实收录；主入口及来源动作遵守载体属性");
 
     const ranked = await clip.writeClip(newPlugin(), fulltext, { priority: 5, rating: 4 }, { force: true });
@@ -316,6 +347,15 @@ async function runFlow(client, workspace) {
     assert(dailyA.picks.length >= 1 && dailyA.picks.length <= 2);
     for (const pick of dailyA.picks) assert(Array.isArray(pick.reasons));
     const skippedId = dailyA.picks[0].item.id;
+    await resurface.setSurfacePinned(plugin, skippedId, true);
+    const pinnedAttrs = await client.apiChecked("/api/attr/getBlockAttrs", { id: skippedId });
+    assert.match(pinnedAttrs["custom-clip-pinned"] ?? "", /^\d{8}$/);
+    const pinnedIndex = await clip.reconcileIndex(newPlugin(), settings);
+    assert.equal(pinnedIndex.clips[skippedId]?.pinned, pinnedAttrs["custom-clip-pinned"]);
+    await resurface.setSurfacePinned(plugin, skippedId, false);
+    const unpinnedAttrs = await client.apiChecked("/api/attr/getBlockAttrs", { id: skippedId });
+    assert.equal(unpinnedAttrs["custom-clip-pinned"], undefined);
+    pass("今日拾遗置顶经 clip-store 写入独立日期属性，重建索引可读回，取消时删除属性");
     await resurface.actOnSurface(plugin, skippedId, "later");
     const skipFirst = (await client.apiChecked("/api/attr/getBlockAttrs", { id: skippedId }))["custom-clip-last-surfaced"];
     await resurface.actOnSurface(plugin, skippedId, "later");
@@ -356,6 +396,60 @@ async function runFlow(client, workspace) {
     assert.deepEqual(await client.apiChecked("/api/attr/getBlockAttrs", { id: fulltext }), beforeFilter);
     pass("真实索引上的组合筛选和排序只改变视图，不改文档属性");
 
+    const formatting = await import("../../src/services/formatting-service.ts");
+    const formattingDomain = await import("../../src/domain/formatting.ts");
+    const longFormattingUrl = `https://example.org/formatting?tracking=${"x".repeat(90)}`;
+    const formattingDoc = await client.apiChecked("/api/filetree/createDocWithMd", {
+        notebook: box,
+        path: "/排版原文",
+        markdown: `# 排版原文\n\n正文原句 ${longFormattingUrl}\n\n请关注我们的公众号\n\n\`\`\`text\n代码保持 ${longFormattingUrl}\n\`\`\`\n\n> 引用保持原句\n\n| 表头 |\n| --- |\n| 原值 |\n\n![图示](assets/formatting.png)\n\n![](assets/formatting.png)`,
+        tags: "用户标签",
+    });
+    await until("排版原文 SQL 可见", async () => (await clip.listAnchorDocs([box])).some((doc) => doc.id === formattingDoc));
+    await clip.writeClip(plugin, formattingDoc, { status: "later", url: longFormattingUrl, priority: 5, rating: 4 });
+    const originalFormattingAttrs = await client.apiChecked("/api/attr/getBlockAttrs", { id: formattingDoc });
+    const originalFormattingMd = await client.apiChecked("/api/export/exportMdContent", { id: formattingDoc });
+    const formattingExportOptions = { yfm: false, addTitle: false, refMode: 2 };
+    const formattingExportProbe = await client.apiChecked("/api/export/exportMdContent", { id: formattingDoc, ...formattingExportOptions });
+    assert(!formattingExportProbe.content.startsWith("---"));
+    assert.equal(formattingExportProbe.content.match(/^# 排版原文$/gm)?.length, 1);
+    console.log("  排版导出参数 spike：yfm=false / addTitle=false 已隔离验证");
+    const formattingSession = await formatting.loadFormattingSession(formattingDoc);
+    assert.equal(formattingSession.source.title, "排版原文");
+    assert.equal(formattingSession.source.markdown, formattingExportProbe.content);
+    assert.equal(formattingSession.analysis.blocks.filter((block) => block.kind === "image").length, 2);
+    assert(formattingSession.analysis.candidates.some((candidate) => candidate.reasons.includes("duplicateImage") && candidate.reasons.includes("unlabelledImage")));
+    const promotion = formattingSession.analysis.candidates.find((candidate) => candidate.reasons.includes("promotion"));
+    assert(promotion);
+    const formattingPreview = formattingDomain.renderFormatting(formattingSession.analysis, formattingSession.plan, [promotion.id]);
+    assert(formattingPreview.includes("example.org/…"));
+    assert(formattingPreview.includes(`代码保持 ${longFormattingUrl}`));
+    assert(!formattingPreview.includes("请关注"));
+    const formattingLabels = { suffix: "阅读整理", original: "原文", source: "来源" };
+    const formattingSave = await formatting.saveFormattingDraft(plugin, formattingSession, [promotion.id], formattingLabels);
+    assert.equal(formattingSave.ok, true);
+    assert.match(formattingSave.docId, /^\d{14}-[0-9a-z]{7}$/);
+    assert.notEqual(formattingSave.docId, formattingDoc);
+    assert.deepEqual(await formatting.saveFormattingDraft(plugin, formattingSession, [], formattingLabels), formattingSave);
+    const formattingDraftAttrs = await client.apiChecked("/api/attr/getBlockAttrs", { id: formattingSave.docId });
+    assert.equal(formattingDraftAttrs["custom-clip-internal"], "true");
+    for (const key of ["custom-clip-url", "custom-clip-status", "custom-clip-priority", "custom-clip-rating", "tags"]) assert.equal(formattingDraftAttrs[key], undefined);
+    const formattingDraftMd = await client.apiChecked("/api/export/exportMdContent", { id: formattingSave.docId, ...formattingExportOptions });
+    assert(formattingDraftMd.content.includes(`siyuan://blocks/${formattingDoc}`));
+    console.log("  排版导出参数 spike：refMode=2 保留思源回链已隔离验证");
+    assert(formattingDraftMd.content.includes(longFormattingUrl));
+    assert(formattingDraftMd.content.includes(`代码保持 ${longFormattingUrl}`));
+    assert(!formattingDraftMd.content.includes("请关注"));
+    assert(!formattingDraftMd.content.includes("用户标签"));
+    assert(!formattingDraftMd.content.includes("lastmod:"));
+    assert.deepEqual(await client.apiChecked("/api/export/exportMdContent", { id: formattingDoc }), originalFormattingMd);
+    assert.deepEqual(await client.apiChecked("/api/attr/getBlockAttrs", { id: formattingDoc }), originalFormattingAttrs);
+    await until("整理稿 SQL 可见", async () => (await clip.listAnchorDocs([box])).some((doc) => doc.id === formattingSave.docId));
+    const formattingIndex = await clip.reconcileIndex(newPlugin(), settings);
+    assert.equal(formattingIndex.clips[formattingSave.docId], undefined);
+    assert.equal(formattingIndex.candidates[formattingSave.docId], undefined);
+    pass("排版整理稿真实建文档、回链、复杂内容与属性主权保留；内部稿不进入读库候选");
+
     const clipIds = [urlOnly, oldA, oldB, importedId, fulltext, link, local, unknown, hollow];
     await until("新收录文档 SQL 属性索引", async () => {
         const rows = await clip.listClipDocs();
@@ -387,6 +481,9 @@ async function runFlow(client, workspace) {
     assert.equal(rebuilt.candidates[urlOnly], undefined);
     pass("删除派生索引后从内核属性重建收录与候选一致");
 
+    const { runLibraryExtensions } = await import("./library-extensions.mjs");
+    await runLibraryExtensions({ client, plugin, box, until, pass });
+
     // T-1108 数据主权：不经插件服务，直接经内核属性端点读取——"卸载插件"等价于只剩内核数据。
     const sovereign = await client.apiChecked("/api/attr/getBlockAttrs", { id: fulltext });
     assert.equal(sovereign["custom-clip-status"], "later");
@@ -402,489 +499,359 @@ async function runFlow(client, workspace) {
     assert.equal(afterWipe["custom-clip-status"], "later");
     pass("数据主权：卸载/清空插件存储后 custom-clip-* 属性仍在内核");
 
-    // T-1980：状态动作对未收录的普通文档是服务端空操作（兜底，不产出幽灵读库文档）。
-    const plainDoc = await makeDoc("T1980 普通笔记", "从未收录的文档不得被状态命令写属性。");
-    const guarded = await clip.batchSetStatusDetailed(plugin, [plainDoc], "done");
-    assert.deepEqual(guarded, { ok: 0, succeeded: [] });
-    const plainAttrs = await client.apiChecked("/api/attr/getBlockAttrs", { id: plainDoc });
-    assert.equal(plainAttrs["custom-clip-status"], undefined);
-    assert.equal(plainAttrs["custom-clip-done-time"], undefined);
-    pass("T-1980 状态动作跳过未收录文档，不写属性");
-
-    // T-1987 读库宿主身份：同名用户文档不被当作宿主写入；带 internal 标记的宿主幂等复用。
-    const avApi = await import("../../src/api/av.ts");
-    const libraryDb = await import("../../src/services/library-db.ts");
-    const userLibDoc = await makeDoc("读库数据库", "用户自己建的文档，插件不得写入。");
-    const anchor1 = await libraryDb.ensureLibraryAnchor(settings, plugin);
-    assert.notEqual(anchor1.hostDocId, userLibDoc);
-    await until("读库宿主与同名用户文档都进入 SQL 索引", async () => {
-        const rows = await avApi.findDocsByTitle(box, "读库数据库");
-        return rows.length === 2 ? rows : null;
+    const previewActions = await import("../../src/services/workbench-preview.ts");
+    const previewCandidate = await makeDoc("预览补来源样本", "保留这段原始正文。", "剪藏");
+    const previewExcluded = await makeDoc("预览排除样本", "这是误报正文。", "剪藏");
+    const previewLocal = await makeDoc("预览本地样本", "这是用户明确保留的本地正文。", "剪藏");
+    await until("预览样本入SQL索引", async () => {
+        const docs = await clip.listAnchorDocs([box]);
+        return [previewCandidate, previewExcluded, previewLocal].every((id) => docs.some((doc) => doc.id === id));
     });
-    const hostAttrs = await client.apiChecked("/api/attr/getBlockAttrs", { id: anchor1.hostDocId });
-    assert.equal(hostAttrs["custom-clip-internal"], "true");
-    const userLibAttrs = await client.apiChecked("/api/attr/getBlockAttrs", { id: userLibDoc });
-    assert.equal(userLibAttrs["custom-clip-internal"], undefined);
-    const anchor2 = await libraryDb.ensureLibraryAnchor(settings, plugin);
-    assert.equal(anchor2.hostDocId, anchor1.hostDocId);
-    pass("T-1987 读库宿主复用要求 internal 身份，同名用户文档不被写入");
+    const originalBody = await apiClient.exportMdContent(previewCandidate);
+    assert.equal((await clip.readClip(previewCandidate)).status, undefined);
+    await previewActions.savePreviewCandidateUrl(newPlugin(), previewCandidate, "", "https://example.org/preview-confirm");
+    await previewActions.confirmPreviewCandidate(newPlugin(), previewCandidate, "https://cache.example/ignored");
+    const confirmedPreview = await clip.readClip(previewCandidate);
+    assert.equal(confirmedPreview.url, "https://example.org/preview-confirm");
+    assert.equal(confirmedPreview.status, "inbox");
+    assert.equal((await apiClient.exportMdContent(previewCandidate)).content, originalBody.content);
+    await previewActions.setPreviewStatus(newPlugin(), previewCandidate, "done");
+    const previewDoneTime = (await clip.readClip(previewCandidate)).doneTime;
+    assert.match(previewDoneTime, /^\d{14}$/);
+    await previewActions.setPreviewStatus(newPlugin(), previewCandidate, "archived");
+    assert.equal((await clip.readClip(previewCandidate)).doneTime, previewDoneTime);
+    await assert.rejects(previewActions.excludePreviewCandidate(newPlugin(), previewCandidate), { reason: "changed" });
+    await assert.rejects(previewActions.setPreviewStatus(newPlugin(), ordinary, "done"), { reason: "changed" });
+    pass("工作台预览服务：补来源/确认保留正文，完成/归档保留完成时间，资格变化拒绝写入");
+    await previewActions.excludePreviewCandidate(newPlugin(), previewExcluded);
+    await previewActions.confirmPreviewCandidate(newPlugin(), previewLocal, "", true);
+    const previewIndex = await clip.reconcileIndex(newPlugin(), settings);
+    assert.equal(previewIndex.candidates[previewExcluded], undefined);
+    assert.equal(previewIndex.clips[previewExcluded], undefined);
+    assert.equal(previewIndex.clips[previewLocal].contentType, "local");
+    const previewLookupEvidence = {
+        sqlKnown: (await clip.listClipDocs()).some((doc) => doc.id === previewCandidate),
+        conflictFromKnownIds: (await clip.findClipUrlConflict("https://example.org/preview-confirm", noUrl, newPlugin()))?.id === previewCandidate,
+    };
+    assert.equal(previewLookupEvidence.conflictFromKnownIds, true);
+    fs.writeFileSync(path.join(workspace, "preview-lookup-evidence.json"), JSON.stringify(previewLookupEvidence, null, 2));
+    await assert.rejects(previewActions.savePreviewCandidateUrl(newPlugin(), noUrl, "", "https://example.org/preview-confirm"), { reason: "conflict" });
+    assert.equal((await clip.readClip(noUrl)).url, undefined);
+    pass("工作台预览服务：排除不计入读库，本地确认载体明确，同源冲突不写入");
+    await previewActions.quotePreviewExcerpt(fulltext, firstPara, "工作台预览摘录样本");
+    await until("预览引述进入原文", async () => (await apiClient.listQuoteBlocks(fulltext)).some((block) => block.content.includes("工作台预览摘录样本")));
+    await assert.rejects(previewActions.quotePreviewExcerpt(previewCandidate, firstPara, "错误归属"), { reason: "changed" });
+    pass("工作台预览摘录回读文章和块归属，原文引述落库，跨文档锚点被拒绝");
 
-    // T-1987 闪卡宿主身份：同语义验证「拾遗卡片」宿主。
-    const flashcards = await import("../../src/services/flashcard-service.ts");
-    const userCardDoc = await makeDoc("拾遗卡片", "用户自己建的卡片文档。");
-    const deck1 = await flashcards.ensureFlashcardDeck(settings, plugin);
-    assert.notEqual(deck1.hostDocId, userCardDoc);
-    await until("闪卡宿主进入 SQL 索引", async () => {
-        const rows = await client.apiChecked("/api/query/sql", {
-            stmt: `SELECT id FROM blocks WHERE type='d' AND box='${box}' AND content='拾遗卡片'`,
-        });
-        return rows.some((row) => row.id === deck1.hostDocId) ? rows : null;
-    });
-    const deck2 = await flashcards.ensureFlashcardDeck(settings, plugin);
-    assert.equal(deck2.hostDocId, deck1.hostDocId);
-    const userCardAttrs = await client.apiChecked("/api/attr/getBlockAttrs", { id: userCardDoc });
-    assert.equal(userCardAttrs["custom-clip-internal"], undefined);
-    pass("T-1987 闪卡宿主复用要求 internal 身份，同名用户文档不被写入");
-
-    // T-1958 周报幂等：同周重复生成定位同一宿主文档，不堆积同名文档。
-    const stats = await import("../../src/services/stats-service.ts");
-    const weeklyIndex = await clip.reconcileIndex(newPlugin(), settings);
-    const weekly1 = await stats.exportWeeklyReport(weeklyIndex, settings, plugin);
-    await until("周报宿主进入 SQL 索引", async () => {
-        const rows = await client.apiChecked("/api/query/sql", {
-            stmt: `SELECT id FROM blocks WHERE type='d' AND box='${box}' AND hpath LIKE '/读库周报/%'`,
-        });
-        return rows.some((row) => row.id === weekly1) ? rows : null;
-    });
-    const weekly2 = await stats.exportWeeklyReport(weeklyIndex, settings, plugin);
-    assert.equal(weekly2, weekly1);
-    const weeklyRows = await client.apiChecked("/api/query/sql", {
-        stmt: `SELECT id FROM blocks WHERE type='d' AND box='${box}' AND hpath LIKE '/读库周报/%'`,
-    });
-    assert.equal(weeklyRows.length, 1);
-    pass("T-1958 同周重复生成周报定位同一文档，不堆积同名宿主");
-
-    // T-1771 月度回顾：同月幂等定位（复用周报管线）。
-    const monthly1 = await stats.exportMonthlyReview(weeklyIndex, settings, plugin);
-    await until("月报宿主进入 SQL 索引", async () => {
-        const rows = await client.apiChecked("/api/query/sql", {
-            stmt: `SELECT id FROM blocks WHERE type='d' AND box='${box}' AND hpath LIKE '/读库月报/%'`,
-        });
-        return rows.some((row) => row.id === monthly1) ? rows : null;
-    });
-    const monthly2 = await stats.exportMonthlyReview(weeklyIndex, settings, plugin);
-    assert.equal(monthly2, monthly1);
-    pass("T-1771 同月重复生成月报定位同一文档，不堆积");
-
-    // T-1990 损坏索引：坏文件保留、增量写不覆盖、对账重建后恢复落盘。
-    const indexStore = await import("../../src/services/index-store.ts");
-    const indexPath = path.join(workspace, "glean-s1-service-data", "glean-index.json");
-    fs.writeFileSync(indexPath, "{broken json!!");
-    const corruptedPlugin = newPlugin();
-    const loadedCorrupt = await indexStore.loadIndex(corruptedPlugin);
-    assert.equal(Object.keys(loadedCorrupt.clips).length, 0);
-    await clip.writeClip(corruptedPlugin, fulltext, { rating: 4 });
-    assert.equal(fs.readFileSync(indexPath, "utf8"), "{broken json!!", "损坏期间增量写不得覆盖原文件");
-    const recovered = await clip.reconcileIndex(corruptedPlugin, settings);
-    assert.equal(recovered.clips[fulltext].status, "later");
-    const rawAfter = JSON.parse(fs.readFileSync(indexPath, "utf8"));
-    assert.equal(rawAfter.clips[fulltext].status, "later");
-    pass("T-1990 损坏索引保留原文件，增量写被拦截，对账重建恢复");
-
-    // T-1780 备份回环：导出 → 改动属性 → 恢复 → 属性回到备份点。
-    const backup = await import("../../src/services/backup-service.ts");
-    const backupPlugin = newPlugin();
-    const pkg = await backup.buildBackupPackage(backupPlugin, settings);
-    const json = backup.backupPackageJson(pkg);
-    assert.ok(json.includes('"siyuan-glean"'));
-    await clip.writeClip(backupPlugin, fulltext, { rating: 5, status: "done" }, { force: true, forceStatus: true });
-    const changed = await client.apiChecked("/api/attr/getBlockAttrs", { id: fulltext });
-    assert.equal(changed["custom-clip-rating"], "5");
-    const target = await backup.previewRestore(json);
-    assert.ok(target.preview.totalClips > 0);
-    assert.equal(target.preview.missing, 0);
-    const restoreSummary = await backup.restoreBackup(backupPlugin, target.pkg);
-    assert.ok(restoreSummary.restored > 0);
-    const restored = await client.apiChecked("/api/attr/getBlockAttrs", { id: fulltext });
-    assert.equal(restored["custom-clip-rating"], "4");
-    assert.equal(restored["custom-clip-status"], "later");
-    const afterRestoreIndex = JSON.parse(fs.readFileSync(indexPath, "utf8"));
-    assert.equal(afterRestoreIndex.clips[fulltext].rating, 4);
-    pass("T-1780 备份→改动→恢复回环：属性回到备份点，索引随对账一致");
-
-    // T-1740 大纲：heading 查询（隔离内核实证 ORDER BY sort 与 subtype 形状）。
-    const outline = await import("../../src/services/outline.ts");
-    const headings = await outline.fetchDocOutline(fulltext);
-    assert.ok(headings.length >= 1);
-    assert.match(headings[0].id, /^\d{14}-[0-9a-z]{7}$/);
-    assert.equal(headings[0].text.length > 0, true);
-    assert.deepEqual(outline.outlineIndent(headings)[0], 0);
-    pass("T-1740 大纲查询：标题按文档顺序返回且首层缩进归一");
-
-    // T-1750/1752 地基：全库引述块分页查询（摘录宿主=fulltext，索引已就绪）。
-    const highlights = await import("../../src/services/highlights.ts");
-    const libraryQuotes = await highlights.listLibraryQuotes(50, 0);
-    assert.ok(libraryQuotes.length >= 1);
-    assert.ok(libraryQuotes.some((quote) => quote.rootId === fulltext));
-    pass("T-1750/1752 地基：全库引述块查询覆盖摘录宿主文档");
-
-    // T-1752 摘录批量导出：映射 root 元数据后落盘汇总笔记（含原文回链）。
-    const quoteRoots = await highlights.listQuoteRoots(libraryQuotes.map((quote) => quote.rootId));
-    const quoteEntries = libraryQuotes.map((quote) => ({
-        id: quote.id,
-        rootId: quote.rootId,
-        text: quote.text,
-        title: quoteRoots.get(quote.rootId) || "",
-        site: "",
-        tags: [],
-        aiTags: [],
-    }));
-    const exportedQuoteDoc = await excerptMod.exportQuotesToDoc(quoteEntries, box);
-    assert.match(exportedQuoteDoc, /^[0-9]{14}-[0-9a-z]{7}$/);
-    await until("摘录导出文档进入 SQL 索引", async () => {
-        const rows = await client.apiChecked("/api/query/sql", {
-            stmt: `SELECT id FROM blocks WHERE type='d' AND box='${box}' AND hpath LIKE '/摘录导出/%'`,
-        });
-        return rows.some((row) => row.id === exportedQuoteDoc) ? rows : null;
-    });
-    pass("T-1752 摘录批量导出为汇总笔记并落盘");
-
-    // T-1772 CSV：BOM + 表头 + 全量行。
-    const libraryCsv = stats.buildLibraryCsv(recovered);
-    assert.ok(libraryCsv.startsWith("\uFEFF"));
-    assert.ok(libraryCsv.includes("title"));
-    assert.ok(libraryCsv.split("\r\n").length > 2);
-    pass("T-1772 CSV 构建：BOM + 表头 + 数据行");
-
-    // T-1840 导入孤儿账本：模拟"文档已建未收录"→ 入账本 → 重试补收录 → 移出账本。
-    const importSvc = await import("../../src/services/import-service.ts");
-    const orphanDoc = await makeDoc("T1840 孤儿文章", "- [https://example.org/t1840](https://example.org/t1840)\n\n孤儿正文。");
-    // 账本重试的存在性检查依赖 SQL 索引——新建文档必须先等 SQL 收敛（内核异步）
-    await until("T1840 孤儿文档入 SQL", async () => {
-        const rows = await client.apiChecked("/api/query/sql", { stmt: `SELECT id FROM blocks WHERE type='d' AND id='${orphanDoc}'` });
-        return rows[0]?.id ? true : null;
-    });
-    await importSvc.saveImportOrphans(plugin, [
-        {
-            docId: orphanDoc,
-            notebookId: box,
-            format: "pocket-html",
-            row: {
-                title: "T1840 孤儿文章",
-                url: "https://example.org/t1840",
-                site: "example.org",
-                time: "20260930080000",
-                doneTime: "",
-                tags: ["技术"],
-                status: "inbox",
-                duplicate: false,
-            },
-        },
-    ]);
-    const orphanRetry = await importSvc.retryImportOrphans(plugin);
-    assert.equal(orphanRetry.restored, 1);
-    assert.equal(orphanRetry.remaining, 0);
-    const orphanAttrs = await client.apiChecked("/api/attr/getBlockAttrs", { id: orphanDoc });
-    assert.equal(orphanAttrs["custom-clip-status"], "inbox");
-    assert.equal(orphanAttrs["custom-clip-url"], "https://example.org/t1840");
-    assert.deepEqual(await importSvc.loadImportOrphans(plugin), []);
-    pass("T-1840 孤儿账本重试补收录：属性写全、账本清空");
-
-    // T-1841 收集箱孤儿账本：同模式验证（模拟"文档已建未收录"→ 重试 → 账本清空）。
-    const inboxSvc = await import("../../src/services/inbox-service.ts");
-    const inboxOrphanDoc = await makeDoc("T1841 收集箱孤儿", "- [https://example.org/t1841](https://example.org/t1841)\n\n收集箱孤儿正文。");
-    await until("T1841 孤儿文档入 SQL", async () => {
-        const rows = await client.apiChecked("/api/query/sql", { stmt: `SELECT id FROM blocks WHERE type='d' AND id='${inboxOrphanDoc}'` });
-        return rows[0]?.id ? true : null;
-    });
-    await inboxSvc.saveInboxOrphans(plugin, [
-        {
-            docId: inboxOrphanDoc,
-            notebookId: box,
-            cloudId: "",
-            url: "https://example.org/t1841",
-            title: "T1841 收集箱孤儿",
-            desc: "",
-            markdown: "# T1841 收集箱孤儿\n\n- [https://example.org/t1841](https://example.org/t1841)\n\n收集箱孤儿正文。",
-            contentType: "link",
-            time: "20260930090000",
-        },
-    ]);
-    const inboxRetry = await inboxSvc.retryInboxOrphans(plugin);
-    assert.equal(inboxRetry.restored, 1);
-    assert.equal(inboxRetry.remaining, 0);
-    const inboxAttrs = await client.apiChecked("/api/attr/getBlockAttrs", { id: inboxOrphanDoc });
-    assert.equal(inboxAttrs["custom-clip-status"], "inbox");
-    assert.equal(inboxAttrs["custom-clip-src"], "inbox");
-    assert.deepEqual(await inboxSvc.loadInboxOrphans(plugin), []);
-    pass("T-1841 收集箱孤儿账本重试补收录：src=inbox 属性写全、账本清空");
-
-    // T-1878 孤儿账本失效：文档被彻底删除后，账本条目自然失效（expired 计数、不再无限重试）。
-    const expDoc = await makeDoc("T1878 已删孤儿", "- [https://example.org/t1878](https://example.org/t1878)\n\n待删除孤儿。");
-    const importSvcAgain = await import("../../src/services/import-service.ts");
-    await until("T1878 孤儿文档入 SQL", async () => {
-        const rows = await client.apiChecked("/api/query/sql", { stmt: `SELECT id FROM blocks WHERE type='d' AND id='${expDoc}'` });
-        return rows[0]?.id ? true : null;
-    });
-    await importSvcAgain.saveImportOrphans(plugin, [
-        { docId: expDoc, notebookId: box, format: "pocket-html", row: { title: "T1878 已删孤儿", url: "https://example.org/t1878", site: "example.org", time: "20261001090000", doneTime: "", tags: [], status: "inbox" } },
-    ]);
-    const expRow = await client.apiChecked("/api/query/sql", { stmt: `SELECT path FROM blocks WHERE type='d' AND id='${expDoc}'` });
-    await client.apiChecked("/api/filetree/removeDoc", { notebook: box, path: expRow[0].path });
-    await until("T1878 孤儿文档从 SQL 消失", async () => {
-        const rows = await client.apiChecked("/api/query/sql", { stmt: `SELECT id FROM blocks WHERE type='d' AND id='${expDoc}'` });
-        return rows[0]?.id ? null : true;
-    });
-    const expiredRetry = await importSvcAgain.retryImportOrphans(plugin);
-    assert.equal(expiredRetry.expired, 1, "已删文档的账本条目计入 expired");
-    assert.equal(expiredRetry.restored, 0);
-    assert.deepEqual(await importSvcAgain.loadImportOrphans(plugin), [], "失效条目从账本移除，不再无限重试");
-    pass("T-1878 孤儿账本失效：文档删除后条目自然过期（expired 计数、账本清空）");
-
-    // T-1755 收藏：写 favorite → 索引投影 → favoriteOnly 筛选。
-    const libraryView = await import("../../src/domain/library-view.ts");
-    const favIndex = await clip.reconcileIndex(newPlugin(), settings);
-    await clip.writeClip(plugin, fulltext, { favorite: true });
-    const favAttrs = await client.apiChecked("/api/attr/getBlockAttrs", { id: fulltext });
-    assert.equal(favAttrs["custom-clip-favorite"], "true");
-    const favIndexAfter = await clip.reconcileIndex(newPlugin(), settings);
-    assert.equal(favIndexAfter.clips[fulltext].favorite, true);
-    const favItems = Object.values(favIndexAfter.clips).map((entry) => ({ ...entry, kind: "clip" }));
-    const favFiltered = libraryView.filterAndSortLibrary(favItems, { favoriteOnly: true });
-    assert.deepEqual(favFiltered.map((item) => item.id), [fulltext]);
-    pass("T-1755 收藏写入与索引投影一致，favoriteOnly 筛选命中");
-
-    // T-1797 钉住：actOnSurface("pin") → 属性/索引投影 → computeDaily 置顶首位。
-    const resurfaceLate = await import("../../src/services/resurface-service.ts");
-    await resurfaceLate.actOnSurface(plugin, local, "pin");
-    const pinnedAttrs = await client.apiChecked("/api/attr/getBlockAttrs", { id: local });
-    assert.match(pinnedAttrs["custom-clip-pinned"], /^\d{8}$/);
-    const afterPinIndex = await clip.reconcileIndex(newPlugin(), settings);
-    assert.match(afterPinIndex.clips[local].pinned, /^\d{8}$/);
-    const afterPin = resurfaceLate.computeDailyFromIndex(afterPinIndex, settings);
-    assert.equal(afterPin.picks.some((pick) => pick.item.id === local), true);
-    assert.equal(afterPin.picks[0].item.id, local, "钉住的篇目应置顶首位");
-    pass("T-1797 钉住当日置顶首位（覆盖改天），属性与索引一致");
-
-    // T-1746 阅读断点：写 readingPos → readClipContext 投影（断点不进派生索引）。
-    const readingPos = await import("../../src/services/reading-position.ts");
-    const anchorBlock = await until("锚定块入 SQL 索引", async () => {
-        const rows = await client.apiChecked("/api/query/sql", {
-            stmt: `SELECT id FROM blocks WHERE root_id='${fulltext}' AND type='p' ORDER BY sort ASC LIMIT 1`,
-        });
-        return rows[0]?.id ?? "";
-    });
-    await readingPos.saveReadingPos(fulltext, anchorBlock, plugin);
-    const posAttrs = await client.apiChecked("/api/attr/getBlockAttrs", { id: fulltext });
-    assert.equal(posAttrs["custom-clip-reading-pos"], anchorBlock);
-    const posContext = await clip.readClipContext(fulltext);
-    assert.equal(posContext?.readingPos, anchorBlock);
-    // 断点不进派生索引（单文档阅读状态，DATA-CONTRACT §3.1a）
-    const posIndexData = await newPlugin().loadData("glean-index.json");
-    assert.equal("readingPos" in (posIndexData?.clips?.[fulltext] ?? {}), false);
-    pass("T-1746 阅读断点写入与上下文投影一致，不进派生索引");
-
-    // T-1747 阅读计时：settleReadingMinutes 累计语义（增量累加 + 不足 1 分钟不写）。
-    const readingTime = await import("../../src/services/reading-time.ts");
-    const t0 = Date.now() - 3 * 60_000; // 模拟 3 分钟前开始
-    const gained1 = await readingTime.settleReadingMinutes(plugin, fulltext, t0);
-    assert.equal(gained1, 3);
-    const firstMin = Number((await client.apiChecked("/api/attr/getBlockAttrs", { id: fulltext }))["custom-clip-read-minutes"]);
-    assert.equal(firstMin, 3);
-    // 二次结算 2 分钟 → 累计 5
-    const gained2 = await readingTime.settleReadingMinutes(plugin, fulltext, Date.now() - 2 * 60_000);
-    assert.equal(gained2, 2);
-    const secondMin = Number((await client.apiChecked("/api/attr/getBlockAttrs", { id: fulltext }))["custom-clip-read-minutes"]);
-    assert.equal(secondMin, 5);
-    // 不足 1 分钟不写
-    const gained3 = await readingTime.settleReadingMinutes(plugin, fulltext, Date.now() - 30_000);
-    assert.equal(gained3, 0);
-    assert.equal(Number((await client.apiChecked("/api/attr/getBlockAttrs", { id: fulltext }))["custom-clip-read-minutes"]), 5);
-    pass("T-1747 阅读计时累计语义：增量累加、不足 1 分钟不写");
-
-    // T-1811/T-1812 来源作者：写 author → 索引投影 → 作者筛选/分面。
-    await clip.writeClip(plugin, fulltext, { author: "测试作者" });
-    const authorAttrs = await client.apiChecked("/api/attr/getBlockAttrs", { id: fulltext });
-    assert.equal(authorAttrs["custom-clip-author"], "测试作者");
-    const authorIndex = await clip.reconcileIndex(newPlugin(), settings);
-    assert.equal(authorIndex.clips[fulltext].author, "测试作者");
-    const authorItems = Object.values(authorIndex.clips).map((entry) => ({ ...entry, kind: "clip" }));
-    const authorFiltered = library.filterAndSortLibrary(authorItems, { author: "测试作者" });
-    assert.deepEqual(authorFiltered.map((item) => item.id), [fulltext]);
-    const authorFacets = library.libraryFacets(authorItems);
-    assert.ok(authorFacets.authors.some((facet) => facet.value === "测试作者"));
-    pass("T-1811/T-1812 作者属性投影与作者筛选/分面命中");
-
-    // T-1901 高亮颜色：setQuoteColor 写块级 IAL → listDocHighlights 投影 color。
-    const hlQuoteId = await until("引述块可查", async () => {
-        const rows = await client.apiChecked("/api/query/sql", {
-            stmt: `SELECT id FROM blocks WHERE root_id='${fulltext}' AND type='b' LIMIT 1`,
-        });
-        return rows[0]?.id ?? "";
-    });
-    const hlSvc = await import("../../src/services/highlights.ts");
-    await hlSvc.setQuoteColor(hlQuoteId, "red");
-    // T-1901：颜色写入后 getBlockAttrs 确认（SQL ial 列不含自定义键，颜色读取走属性端点）
-    const coloredAttr = await client.apiChecked("/api/attr/getBlockAttrs", { id: hlQuoteId });
-    assert.equal(coloredAttr["custom-clip-hl-color"], "red");
-    const colorRead = await hlSvc.getQuoteColor(hlQuoteId);
-    assert.equal(colorRead, "red");
-    // 清除：传空串移除键
-    await hlSvc.setQuoteColor(hlQuoteId, "");
-    const clearedAttr = await client.apiChecked("/api/attr/getBlockAttrs", { id: hlQuoteId });
-    assert.equal(clearedAttr["custom-clip-hl-color"], undefined);
-    assert.equal(await hlSvc.getQuoteColor(hlQuoteId), "");
-    pass("T-1901 高亮颜色写入/读取/清除（块级 IAL 经属性端点）");
-
-    // T-1869/1870/1871 归档生命周期链路（D-0032 / DATA-CONTRACT §7）：
-    // 宿主幂等创建 → 归档移动不变式 → 回收 → 彻底删除+索引清理。
-    const lifecycleSvc = await import("../../src/services/lifecycle-service.ts");
-    const lcDoc = await makeDoc("生命周期文章", "# 生命周期文章\n\n待移动正文", "");
-    await clip.writeClip(plugin, lcDoc, { status: "reading" });
-    const lcHpath = await until("生命周期文章入 SQL", async () => {
-        const rows = await client.apiChecked("/api/query/sql", {
-            stmt: `SELECT hpath FROM blocks WHERE type='d' AND id='${lcDoc}'`,
-        });
-        return rows[0]?.hpath ?? "";
-    });
-    // ① 宿主幂等创建：重复调用复用同一文档（同路径 createDocWithMd 静默新建不幂等，先 SQL 查）
-    const host1 = await lifecycleSvc.ensureHost(box, lcHpath, "archive");
-    const host2 = await lifecycleSvc.ensureHost(box, lcHpath, "archive");
-    assert.equal(host1.id, host2.id, "宿主幂等：重复创建复用同一文档");
-    assert.match(host1.path, /\.sy$/);
-    const lcHostAttrs = await client.apiChecked("/api/attr/getBlockAttrs", { id: host1.id });
-    assert.equal(lcHostAttrs["custom-clip-internal"], "true");
-    // ② 归档移动：ID/属性保留 + hpath 落宿主下 + 状态 archived + 索引投影刷新
-    const moveResult = await lifecycleSvc.archiveMoveDoc(plugin, lcDoc);
-    assert.equal(moveResult.moved, true);
-    const movedAttrs = await client.apiChecked("/api/attr/getBlockAttrs", { id: lcDoc });
-    assert.equal(movedAttrs["custom-clip-status"], "archived");
-    const movedHpath = await until("移动后 hpath 收敛", async () => {
-        const rows = await client.apiChecked("/api/query/sql", {
-            stmt: `SELECT hpath FROM blocks WHERE type='d' AND id='${lcDoc}'`,
-        });
-        return rows[0]?.hpath === "/S1/【归档】/生命周期文章" ? rows[0].hpath : "";
-    });
-    assert.equal(movedHpath, "/S1/【归档】/生命周期文章");
-    const movedIndex = await clip.reconcileIndex(newPlugin(), settings);
-    assert.equal(movedIndex.clips[lcDoc].hpath, "/S1/【归档】/生命周期文章", "索引 hpath 随移动定向刷新");
-    // 幂等重入：已在宿主下 → no-op（moved=false），状态保持
-    const moveAgain = await lifecycleSvc.archiveMoveDoc(plugin, lcDoc);
-    assert.equal(moveAgain.moved, false);
-    // ③ 回收（删除默认语义）：移入同目录【回收】宿主
-    const recycleResult = await lifecycleSvc.recycleDoc(plugin, lcDoc);
-    assert.equal(recycleResult.moved, true);
-    // 回收宿主按契约建在文章当前所在文件夹下：已在【归档】下的文章，其【回收】宿主为宿主内同级
-    // （嵌套自洽、无隐式状态，DATA-CONTRACT §7.1 边界）。
-    const recycledHpath = await until("回收后 hpath 收敛", async () => {
-        const rows = await client.apiChecked("/api/query/sql", {
-            stmt: `SELECT hpath FROM blocks WHERE type='d' AND id='${lcDoc}'`,
-        });
-        return rows[0]?.hpath === "/S1/【归档】/【回收】/生命周期文章" ? rows[0].hpath : "";
-    });
-    assert.equal(recycledHpath, "/S1/【归档】/【回收】/生命周期文章");
-    // ④ 彻底删除（二级动作）：确认信息齐备 → 删除 → SQL 清空 + 索引清理
-    const purgeInfo = await lifecycleSvc.buildDocPurgeInfo(lcDoc);
-    assert.equal(purgeInfo.title, "生命周期文章");
-    assert.equal(purgeInfo.box, box);
-    assert.equal(purgeInfo.hpath, "/S1/【归档】/【回收】/生命周期文章");
-    const purge = await lifecycleSvc.purgeDoc(plugin, lcDoc);
-    assert.equal(purge.removed, true);
-    const goneRows = await client.apiChecked("/api/query/sql", {
-        stmt: `SELECT count(*) AS n FROM blocks WHERE root_id='${lcDoc}'`,
-    });
-    assert.equal(Number(goneRows[0].n), 0, "彻底删除后 SQL 无残留行");
-    const purgedIndex = await clip.reconcileIndex(newPlugin(), settings);
-    assert.equal(purgedIndex.clips[lcDoc], undefined, "彻底删除后索引无幽灵条目");
-    pass("T-1869/1870/1871 生命周期链路：宿主幂等/移动不变式/回收/彻底删除+索引清理");
-
-    // T-1872 恢复策略（D-0033 §7.6）：恢复并移出宿主 → hpath 回宿主所在文件夹；恢复分流判据。
-    const rcDoc = await makeDoc("恢复文章", "# 恢复文章\n\n归档后恢复", "");
-    await clip.writeClip(plugin, rcDoc, { status: "later" });
-    await until("恢复文章入 SQL", async () => {
-        const rows = await client.apiChecked("/api/query/sql", {
-            stmt: `SELECT hpath FROM blocks WHERE type='d' AND id='${rcDoc}'`,
-        });
-        return rows[0]?.hpath ? true : null;
-    });
-    await lifecycleSvc.archiveMoveDoc(plugin, rcDoc);
-    const rcArchived = await client.apiChecked("/api/attr/getBlockAttrs", { id: rcDoc });
-    assert.equal(rcArchived["custom-clip-status"], "archived");
-    assert.equal(await lifecycleSvc.docUnderHostKind(rcDoc), "archive", "归档后判为宿主内");
-    // 恢复并移出宿主：位置回 /S1，状态写回 later
-    await lifecycleSvc.moveDocOutOfHost(rcDoc);
-    const rcHpath = await until("移出宿主后 hpath 收敛", async () => {
-        const rows = await client.apiChecked("/api/query/sql", {
-            stmt: `SELECT hpath FROM blocks WHERE type='d' AND id='${rcDoc}'`,
-        });
-        return rows[0]?.hpath === "/S1/恢复文章" ? rows[0].hpath : "";
-    });
-    assert.equal(rcHpath, "/S1/恢复文章");
-    await clip.writeClip(plugin, rcDoc, { status: "later" }, { forceStatus: true });
-    const rcRestored = await client.apiChecked("/api/attr/getBlockAttrs", { id: rcDoc });
-    assert.equal(rcRestored["custom-clip-status"], "later");
-    assert.equal(await lifecycleSvc.docUnderHostKind(rcDoc), null, "移出后判为宿主外（恢复直接动作分流）");
-    pass("T-1872 恢复策略：宿主判定分流 + 恢复并移出宿主（hpath 回父目录、状态写回）");
-
-    // T-1877 完整矩阵补强：失败不伪报 / 宿主删除语义实证与重建 / 索引重建数据主权。
-    // ① 失败不伪报：对不存在文档执行生命周期动作必须抛错（服务层不吞错误）
-    const ghostId = "20260101000000-zzzzzzz";
-    let moveFailed = false;
-    try { await lifecycleSvc.archiveMoveDoc(plugin, ghostId); } catch { moveFailed = true; }
-    assert.equal(moveFailed, true, "对不存在文档归档移动必须抛错");
-    let purgeFailed = false;
-    try { await lifecycleSvc.purgeDoc(plugin, ghostId); } catch { purgeFailed = true; }
-    assert.equal(purgeFailed, true, "对不存在文档彻底删除必须抛错");
-    pass("T-1877a 失败语义：生命周期动作对不存在文档抛错，不伪报成功");
-
-    // ② 宿主删除语义实证 + 宿主重建：removeDoc 宿主是否递归删除子文档（内核语义）
-    const rbDoc = await makeDoc("宿主重建文章", "# 宿主重建文章\n\n宿主删除实证", "");
-    await clip.writeClip(plugin, rbDoc, { status: "later" });
-    await until("宿主重建文章入 SQL", async () => {
-        const rows = await client.apiChecked("/api/query/sql", {
-            stmt: `SELECT hpath FROM blocks WHERE type='d' AND id='${rbDoc}'`,
-        });
-        return rows[0]?.hpath ? true : null;
-    });
-    await lifecycleSvc.archiveMoveDoc(plugin, rbDoc);
-    const rbHostRow = await until("找到当前归档宿主", async () => {
-        const rows = await client.apiChecked("/api/query/sql", {
-            stmt: `SELECT id, path FROM blocks WHERE type='d' AND box='${box}' AND hpath='/S1/【归档】'`,
-        });
-        return rows[0]?.id ? rows[0] : null;
-    });
-    await client.apiChecked("/api/filetree/removeDoc", { notebook: box, path: rbHostRow.path });
-    const hostGone = await until("宿主删除后结果收敛", async () => {
-        const childRows = await client.apiChecked("/api/query/sql", {
-            stmt: `SELECT count(*) AS n FROM blocks WHERE root_id='${rbDoc}'`,
-        });
-        const hostRows = await client.apiChecked("/api/query/sql", {
-            stmt: `SELECT count(*) AS n FROM blocks WHERE type='d' AND id='${rbHostRow.id}'`,
-        });
-        return Number(childRows[0].n) === 0 || Number(hostRows[0].n) === 0 ? { childGone: Number(childRows[0].n) === 0 } : null;
-    });
-    if (hostGone.childGone) {
-        // 内核递归删除：宿主删除连带子文档（思源语义，思源数据历史兜底）——契约记录，宿主重建无从谈起
-        pass("T-1877b 宿主删除语义：内核递归删除宿主连带子文档（思源语义，数据历史兜底）");
-    } else {
-        // 宿主被删但子文档幸存：ensureHost 必须能重建宿主且移动幂等依旧
-        const rebuiltHost = await lifecycleSvc.ensureHost(box, "/S1/宿主重建文章", "archive");
-        assert.match(rebuiltHost.path, /\.sy$/);
-        const moveAgainAfterRebuild = await lifecycleSvc.archiveMoveDoc(plugin, rbDoc);
-        assert.equal(moveAgainAfterRebuild.moved, false, "宿主重建后重复归档移动仍幂等");
-        pass("T-1877b 宿主删除语义：子文档幸存，ensureHost 重建宿主 + 幂等依旧");
-    }
-
-    // ③ 索引重建数据主权：删 glean-index.json 重建后无幽灵条目（彻底删除/宿主删除篇目）
+    const authorOriginalBody = await apiClient.exportMdContent(previewCandidate);
+    await clip.saveClipAuthor(plugin, previewCandidate, "", "  公众号样本  ");
+    const protectedAuthor = await clip.writeClip(plugin, previewCandidate, { author: "AI猜测" });
+    assert.deepEqual(protectedAuthor.skippedKeys, ["custom-clip-author"]);
+    const protectedClear = await clip.writeClip(plugin, previewCandidate, { author: "" });
+    assert.deepEqual(protectedClear.skippedKeys, ["custom-clip-author"]);
+    await assert.rejects(clip.saveClipAuthor(plugin, previewCandidate, "旧缓存", "错误覆盖"), { reason: "changed" });
+    await assert.rejects(clip.saveClipAuthor(plugin, previewCandidate, "公众号样本", "非法\n署名"), { reason: "invalid" });
+    assert.equal((await clip.readClipAuthor(previewCandidate)).author, "公众号样本");
+    assert.equal((await apiClient.exportMdContent(previewCandidate)).content, authorOriginalBody.content);
+    pass("来源作者：真实属性读写、自动覆盖/清空保护、过期与非法输入拒绝，正文保持");
+    await until("作者文章被SQL发现", async () => (await clip.listClipDocs()).some((doc) => doc.id === previewCandidate));
     await plugin.removeData("glean-index.json");
-    const rebuiltLifecycle = await clip.rebuildIndex(newPlugin(), settings);
-    assert.equal(rebuiltLifecycle.clips[lcDoc], undefined, "索引重建后无已彻底删除篇目的幽灵条目");
-    if (hostGone.childGone) assert.equal(rebuiltLifecycle.clips[rbDoc], undefined, "索引重建后无随宿主删除篇目的幽灵条目");
-    else assert.ok(rebuiltLifecycle.clips[rbDoc], "宿主重建场景下文章条目保留");
-    pass("T-1877c 数据主权：索引删除重建后无幽灵条目，属性为唯一事实源");
+    const authorIndex = await clip.rebuildIndex(plugin, settings);
+    assert.equal(authorIndex.clips[previewCandidate].author, "公众号样本");
+    const authorRows = Object.values(authorIndex.clips).map((entry) => ({ kind: "clip", ...entry }));
+    assert.deepEqual(library.filterAndSortLibrary(authorRows, { status: "all", author: "公众号样本" }).map((entry) => entry.id), [previewCandidate]);
+    assert.deepEqual(library.libraryFacets(authorRows).authors, [{ value: "公众号样本", count: 1 }]);
+    const exportService = await import("../../src/services/library-export-service.ts");
+    const authorCsv = await exportService.exportLibraryCsv(plugin, settings);
+    assert(authorCsv.includes("site,author,time"));
+    assert(authorCsv.includes("公众号样本"));
+    const authorStatsService = await import("../../src/services/stats-service.ts");
+    const authorReview = authorStatsService.buildReadingReview(authorIndex, { period: "year" });
+    assert.deepEqual(authorReview.stats.periodByAuthor, [{ name: "公众号样本", count: 1 }]);
+    const authorSite = authorReview.stats.periodSiteAuthors.find((group) => group.site === authorIndex.clips[previewCandidate].site);
+    assert(authorSite.authors.some((group) => group.name === "公众号样本" && group.count === 1));
+    assert.equal(authorSite.count, authorSite.unknownAuthorCount + authorSite.authors.reduce((total, group) => total + group.count, 0));
+    await clip.writeClip(plugin, previewLocal, { internal: true, status: "done", author: "内部署名", doneTime: (await import("../../src/domain/schema.ts")).siyuanTimestamp() }, { force: true });
+    const withInternal = await clip.reconcileIndex(plugin, settings);
+    const internalReview = authorStatsService.buildReadingReview(withInternal, { period: "year" });
+    assert.equal(internalReview.completedItems.some((entry) => entry.id === previewLocal), false);
+    assert.equal(internalReview.stats.periodByAuthor.some((group) => group.name === "内部署名"), false);
+    fs.writeFileSync(path.join(workspace, "author-evidence.json"), JSON.stringify({ docId: previewCandidate, author: "公众号样本", rebuild: true, filter: true, csv: true, siteDrill: true, internalExcluded: true }, null, 2));
+    pass("作者统计：真实完成范围、站点作者与缺失计数对齐，有状态internal不进入回顾");
+    await clip.saveClipAuthor(plugin, previewCandidate, "公众号样本", "");
+    assert.equal((await clip.readClipAuthor(previewCandidate)).raw, "");
+    await assert.rejects(clip.saveClipAuthor(plugin, ordinary, "", "普通笔记不能写"), { reason: "changed" });
+    pass("来源作者：清空缓存后重建、全状态作者筛选、CSV列与显式删除，普通笔记拒绝编辑");
+
+    const { runBackupFlow } = await import("./backup-flow.mjs");
+    const backupEvidence = await runBackupFlow({ client, plugin, box, until, pass, workspace });
+    console.log(`备份恢复证据：${backupEvidence.evidencePath}（${backupEvidence.scenarios} 条）`);
+
+    await runAvProjectionFlow({ client, plugin, until, pass, workspace });
+
+    const { runFlashcardFlow } = await import("./flashcard-flow.mjs");
+    const flashcardEvidence = await runFlashcardFlow({ client, plugin, box, until, pass, workspace });
+    console.log(`制卡确认恢复证据：${flashcardEvidence.evidencePath}（${flashcardEvidence.scenarios} 条）`);
+
+    await runImportJournalFlow({ client, newPlugin, box, workspace });
+}
+
+async function runAvProjectionFlow({ client, plugin, until, pass, workspace }) {
+    const library = await import("../../src/services/library-db.ts");
+    const av = await import("../../src/api/av.ts");
+    const clipStore = await import("../../src/services/clip-store.ts");
+    const { normalizeSettings } = await import("../../src/services/settings.ts");
+    const { siyuanTimestamp } = await import("../../src/domain/schema.ts");
+    const evidenceDir = path.join(workspace, "av-flow");
+    fs.mkdirSync(evidenceDir, { recursive: true });
+    const calls = [];
+    let loseCellReplyFor;
+    let rejectCellFor;
+    const transport = globalThis.__gleanS1FetchSyncPost;
+    globalThis.__gleanS1FetchSyncPost = async (route, body) => {
+        const call = { route, body: structuredClone(body) };
+        calls.push(call);
+        if (route === "/api/av/setAttributeViewBlockAttr" && body.itemID === rejectCellFor) {
+            rejectCellFor = undefined;
+            call.rejectedBeforeKernel = true;
+            return { code: 1, msg: "隔离测试：AV状态写入故障" };
+        }
+        const result = await transport(route, body);
+        if (route === "/api/filetree/createDocWithMd") call.returnedDocId = result.data;
+        if (route === "/api/block/insertBlock") call.returnedIds = (result.data ?? []).flatMap((transaction) => (transaction.doOperations ?? []).map((operation) => operation.id));
+        if (route === "/api/av/setAttributeViewBlockAttr" && body.itemID === loseCellReplyFor && result.code === 0) {
+            loseCellReplyFor = undefined;
+            call.actualKernelAccepted = true;
+            call.replyDiscarded = true;
+            throw new Error("隔离测试：AV内核已写入，客户端丢失响应");
+        }
+        return result;
+    };
+    const evidence = { workspace, startedAt: new Date().toISOString(), completed: false, scenarios: [], calls };
+    const writeEvidence = () => fs.writeFileSync(path.join(evidenceDir, "av-evidence.json"), `${JSON.stringify(evidence, null, 2)}\n`);
+    const record = (label, details) => { evidence.scenarios.push({ label, ...details }); writeEvidence(); pass(label); };
+    const attrsOf = (id) => client.apiChecked("/api/attr/getBlockAttrs", { id });
+    const bodyOf = async (id) => (await client.apiChecked("/api/export/exportMdContent", { id, yfm: false, addTitle: false, refMode: 2 })).content;
+    const sourceAttrs = (attrs) => Object.fromEntries(Object.entries(attrs).filter(([key]) => key.startsWith("custom-clip-") || key === "tags"));
+    try {
+        const notebookName = `siyuan-glean-av-projection-${process.pid}`;
+        await client.apiChecked("/api/notebook/createNotebook", { name: notebookName });
+        const listing = await client.apiChecked("/api/notebook/lsNotebooks", {});
+        const box = listing.notebooks.find((notebook) => notebook.name === notebookName)?.id;
+        assert.match(box ?? "", /^\d{14}-[a-z0-9]{7}$/);
+        const settings = normalizeSettings({ anchorNotebooks: [box] });
+        const first = await client.apiChecked("/api/filetree/createDocWithMd", { notebook: box, path: "/AV第一篇", markdown: "# AV第一篇\n\nAV投影不能改变第一篇正文。", tags: "AV用户标签" });
+        const second = await client.apiChecked("/api/filetree/createDocWithMd", { notebook: box, path: "/AV第二篇", markdown: "# AV第二篇\n\nAV投影不能改变第二篇正文。", tags: "AV用户标签" });
+        await until("AV来源文档SQL", async () => {
+            const docs = await clipStore.listAnchorDocs([box]);
+            return [first, second].every((id) => docs.some((doc) => doc.id === id));
+        });
+        await clipStore.writeClip(plugin, first, { status: "later", author: "AV第一作者", url: "https://example.org/av-first", priority: 5, rating: 4 });
+        await clipStore.writeClip(plugin, second, { status: "reading", author: "AV第二作者", url: "https://example.org/av-second", priority: 2, rating: 3 });
+        const originals = await Promise.all([first, second].map(async (id) => ({ id, attrs: sourceAttrs(await attrsOf(id)), body: await bodyOf(id) })));
+        const assertSourcesPreserved = async () => {
+            for (const original of originals) {
+                assert.deepEqual(sourceAttrs(await attrsOf(original.id)), original.attrs);
+                assert.equal(await bodyOf(original.id), original.body);
+            }
+        };
+        const setFirstStatus = async (status) => {
+            await clipStore.writeClip(plugin, first, { status, ...(status === "done" ? { doneTime: siyuanTimestamp() } : {}) }, { force: true });
+            originals.find((original) => original.id === first).attrs = sourceAttrs(await attrsOf(first));
+        };
+        const sourceIndex = await clipStore.reconcileIndex(plugin, settings);
+        const sourceIds = Object.values(sourceIndex.clips).filter((entry) => entry.status && !entry.internal).map((entry) => entry.id).sort();
+        const projectionOffset = calls.length;
+        const projected = await library.bindAllClipsToLibrary(plugin, settings);
+        assert.equal(projected.bound, sourceIds.length);
+        assert.deepEqual([...projected.boundDocIds].sort(), sourceIds);
+        assert.equal(projected.synced, sourceIds.length);
+        assert.deepEqual(projected.failures, []);
+        const setupCalls = calls.slice(projectionOffset);
+        const hostCall = setupCalls.find((call) => call.route === "/api/filetree/createDocWithMd" && call.body.notebook === box && call.body.path === `/${library.LIBRARY_DOC_TITLE}`);
+        assert(hostCall);
+        const hostDocId = hostCall.returnedDocId;
+        const avInsert = setupCalls.find((call) => call.route === "/api/block/insertBlock" && call.body.parentID === hostDocId && call.body.data.includes("NodeAttributeView"));
+        assert(avInsert);
+        const avId = avInsert.body.data.match(/data-av-id="(\d{14}-[a-z0-9]{7})"/)?.[1];
+        const dbBlockId = avInsert.returnedIds[0];
+        assert.match(avId ?? "", /^\d{14}-[a-z0-9]{7}$/);
+        assert.match(dbBlockId ?? "", /^\d{14}-[a-z0-9]{7}$/);
+        const rendered = await av.renderView(avId, dbBlockId);
+        const statusKeyId = rendered.view.columns.find((column) => column.name === "状态")?.id;
+        assert(statusKeyId);
+        const mapped = await av.mapBoundDocIds(avId, sourceIds);
+        assert.deepEqual(Object.keys(mapped).sort(), sourceIds);
+        assert.notEqual(mapped[first], first);
+        assert.notEqual(mapped[second], second);
+        const statusOf = async (id) => (await av.renderView(avId, dbBlockId)).view.rows.find((row) => row.id === mapped[id])?.cells.find((cell) => cell.value.keyID === statusKeyId)?.value.mSelect?.[0]?.content;
+        assert.equal(await statusOf(first), "later");
+        assert.equal(await statusOf(second), "reading");
+        await assertSourcesPreserved();
+        record("AV真实属性对账、绑定ID映射与状态单元格读回；itemID不同于文档ID，源正文/剪藏字段/用户tags保持", { first, second, avId, dbBlockId, hostDocId, statusKeyId, projected, mapped });
+
+        await setFirstStatus("done");
+        await av.setCellSelect(avId, statusKeyId, mapped[second], "archived");
+        await until("AV手动状态修改读回", async () => await statusOf(second) === "archived");
+        assert.equal((await clipStore.readClip(second)).status, "reading");
+        const refreshOffset = calls.length;
+        const refreshed = await library.bindAllClipsToLibrary(plugin, settings);
+        assert.equal(refreshed.bound, 0);
+        assert.equal(refreshed.synced, sourceIds.length);
+        assert.deepEqual(refreshed.failures, []);
+        assert.equal(calls.slice(refreshOffset).filter((call) => call.route === "/api/av/addAttributeViewBlocks").length, 0);
+        assert.equal(await statusOf(first), "done");
+        assert.equal(await statusOf(second), "reading");
+        assert.deepEqual(await av.mapBoundDocIds(avId, sourceIds), mapped);
+        await assertSourcesPreserved();
+        record("AV单向投影：改库值不反写五态，显式刷新取当前属性并复用已有行与映射，不重复绑定", { refreshed });
+
+        await setFirstStatus("later");
+        const lostOffset = calls.length;
+        loseCellReplyFor = mapped[first];
+        const lostReport = await library.bindAllClipsToLibrary(plugin, settings);
+        assert.equal(loseCellReplyFor, undefined);
+        assert.equal(lostReport.bound, 0);
+        assert.equal(lostReport.synced, sourceIds.length);
+        assert.deepEqual(lostReport.failures, []);
+        const lostAttempts = calls.slice(lostOffset).filter((call) => call.route === "/api/av/setAttributeViewBlockAttr" && call.body.itemID === mapped[first]);
+        assert.equal(lostAttempts.length, 1);
+        assert.equal(lostAttempts[0].actualKernelAccepted, true);
+        assert.equal(lostAttempts[0].replyDiscarded, true);
+        assert.equal(await statusOf(first), "later");
+        await assertSourcesPreserved();
+        record("AV真实状态写入响应丢失：读回相符才计入synced，确切item仅写一次、不自动重发", { lostReport, lostAttempts });
+
+        await setFirstStatus("reading");
+        rejectCellFor = mapped[first];
+        const failureReport = await library.bindAllClipsToLibrary(plugin, settings);
+        assert.equal(rejectCellFor, undefined);
+        assert.equal(failureReport.synced, sourceIds.length - 1);
+        assert.deepEqual(failureReport.failures, [{ docId: first, reason: "write" }]);
+        assert.equal(await statusOf(first), "later");
+        assert.equal((await clipStore.readClip(first)).status, "reading");
+        const retryReport = await library.bindAllClipsToLibrary(plugin, settings);
+        assert.equal(retryReport.bound, 0);
+        assert.equal(retryReport.synced, sourceIds.length);
+        assert.deepEqual(retryReport.failures, []);
+        assert.equal(await statusOf(first), "reading");
+        assert.deepEqual(await av.mapBoundDocIds(avId, sourceIds), mapped);
+        await assertSourcesPreserved();
+        record("AV状态写入故障单独计数，失败不冒充对齐；再次显式刷新恢复同一行且不改来源属性/正文", { failureReport, retryReport });
+        evidence.completed = true;
+        evidence.completedAt = new Date().toISOString();
+        writeEvidence();
+        console.log(`AV投影证据：${path.join(evidenceDir, "av-evidence.json")}（${evidence.scenarios.length} 条）`);
+    } catch (error) {
+        evidence.failure = { message: error.message, stack: error.stack };
+        writeEvidence();
+        throw error;
+    } finally {
+        globalThis.__gleanS1FetchSyncPost = transport;
+    }
+}
+
+async function runImportJournalFlow({ client, newPlugin, box, workspace }) {
+    const importer = await import("../../src/services/import-service.ts");
+    const journal = await import("../../src/services/import-progress.ts");
+    const clipStore = await import("../../src/services/clip-store.ts");
+    const evidenceDir = path.join(workspace, "import-journal-flow");
+    fs.mkdirSync(evidenceDir, { recursive: true });
+    const calls = [];
+    const transport = globalThis.__gleanS1FetchSyncPost;
+    globalThis.__gleanS1FetchSyncPost = (route, body) => {
+        calls.push({ route, body: structuredClone(body) });
+        return transport(route, body);
+    };
+    const evidence = { workspace, startedAt: new Date().toISOString(), completed: false, scenarios: [], calls };
+    const writeEvidence = () => fs.writeFileSync(path.join(evidenceDir, "import-journal-evidence.json"), `${JSON.stringify(evidence, null, 2)}\n`);
+    const record = (label, details) => { evidence.scenarios.push({ label, ...details }); writeEvidence(); pass(label); };
+    try {
+        const csv = [
+            "title,url,time_added,time_read,status,tags",
+            '检查点第一篇,https://example.org/journal-first,1577934245,,unread,"检查点,第一篇"',
+            '检查点第二篇,https://example.org/journal-second,1577934245,,unread,"检查点,第二篇"',
+        ].join("\n");
+        const preview = await importer.previewImport(csv, "pocket-csv");
+        assert.equal(preview.rows.length, 2);
+        assert.match(preview.fingerprint, /^[a-f0-9]{64}$/);
+        const initialPlugin = newPlugin();
+        const abort = new AbortController();
+        const options = { fingerprint: preview.fingerprint, notebookId: box, folder: "/S1检查点导入", format: "pocket-csv" };
+        const initial = await importer.runImport(initialPlugin, preview.rows, {
+            ...options,
+            signal: abort.signal,
+            onProgress(done) { if (done === 1) abort.abort(); },
+        });
+        assert.equal(initial.imported, 1);
+        assert.equal(initial.failed, 0);
+        assert.equal(initial.stopped, true);
+        const paused = await journal.readImportProgress(initialPlugin);
+        assert.equal(paused.taskId, initial.taskId);
+        assert.equal(paused.fingerprint, preview.fingerprint);
+        assert.equal(paused.state, "paused");
+        assert.deepEqual(paused.rows.map((row) => row.state), ["applied", "pending"]);
+        assert.equal(paused.rows[0].docId, initial.docIds[0]);
+        assert.equal(paused.rows[1].docId, "");
+        assert(!JSON.stringify(paused).includes("https://"));
+        record("导入检查点真实建文档后暂停：确切ID与applied/pending持久化，不保存原文件或URL正文", { initial, paused });
+
+        const reloadedPlugin = newPlugin();
+        const resumedPreview = await importer.previewImport(csv, "pocket-csv");
+        assert.equal(resumedPreview.fingerprint, preview.fingerprint);
+        const rejectionOffset = calls.length;
+        await assert.rejects(importer.runImport(reloadedPlugin, resumedPreview.rows, { ...options, fingerprint: "0".repeat(64), resumeTaskId: initial.taskId }), { reason: "file" });
+        await assert.rejects(importer.runImport(reloadedPlugin, resumedPreview.rows, { ...options, folder: "/错误目标目录", resumeTaskId: initial.taskId }), { reason: "target" });
+        await assert.rejects(importer.runImport(reloadedPlugin, resumedPreview.rows, options), { reason: "unfinished" });
+        assert(calls.slice(rejectionOffset).every((call) => call.route === "/api/query/sql" || call.route === "/api/attr/batchGetBlockAttrs"));
+        assert.deepEqual(await journal.readImportProgress(reloadedPlugin), paused);
+        record("重载导入任务必须匹配原文件指纹和原目标；未处理任务阻止新建，拒绝不会改检查点", { taskId: initial.taskId });
+
+        const firstId = initial.docIds[0];
+        await clipStore.writeClip(reloadedPlugin, firstId, { status: "reading", author: "导入后用户手填作者", priority: 5, rating: 4 }, { force: true });
+        const firstBeforeResume = await client.apiChecked("/api/attr/getBlockAttrs", { id: firstId });
+        const firstBody = await client.apiChecked("/api/export/exportMdContent", { id: firstId, yfm: false, addTitle: false, refMode: 2 });
+        const resumeOffset = calls.length;
+        const resumed = await importer.runImport(reloadedPlugin, resumedPreview.rows, { ...options, resumeTaskId: initial.taskId });
+        assert.equal(resumed.taskId, initial.taskId);
+        assert.equal(resumed.imported, 1);
+        assert.equal(resumed.failed, 0);
+        assert.equal(resumed.unknown, 0);
+        assert.equal(resumed.stopped, false);
+        assert.equal(resumed.docIds.length, 1);
+        assert.notEqual(resumed.docIds[0], firstId);
+        const finished = await journal.readImportProgress(newPlugin());
+        assert.equal(finished.state, "finished");
+        assert.deepEqual(finished.rows.map((row) => row.state), ["applied", "applied"]);
+        assert.deepEqual(finished.rows.map((row) => row.docId), [firstId, resumed.docIds[0]]);
+        assert.equal(calls.slice(resumeOffset).filter((call) => call.route === "/api/filetree/createDocWithMd").length, 1);
+        assert.equal(calls.slice(resumeOffset).filter((call) => call.route === "/api/attr/setBlockAttrs" && call.body.id === firstId).length, 0);
+        assert.deepEqual(await client.apiChecked("/api/attr/getBlockAttrs", { id: firstId }), firstBeforeResume);
+        assert.equal((await client.apiChecked("/api/export/exportMdContent", { id: firstId, yfm: false, addTitle: false, refMode: 2 })).content, firstBody.content);
+        const repeatedOffset = calls.length;
+        const repeated = await importer.runImport(newPlugin(), resumedPreview.rows, { ...options, resumeTaskId: initial.taskId });
+        assert.equal(repeated.imported, 0);
+        assert.equal(repeated.docIds.length, 0);
+        assert.equal(calls.slice(repeatedOffset).filter((call) => call.route === "/api/filetree/createDocWithMd").length, 0);
+        record("新插件实例恢复检查点仅建pending文章，已完成ID/用户后改状态与手填/正文保留；完成任务重复恢复不另建", { resumed, finished, repeated, preservedFirstAttrs: firstBeforeResume });
+        evidence.completed = true;
+        evidence.completedAt = new Date().toISOString();
+        writeEvidence();
+        console.log(`导入检查点证据：${path.join(evidenceDir, "import-journal-evidence.json")}（${evidence.scenarios.length} 条）`);
+    } catch (error) {
+        evidence.failure = { message: error.message, stack: error.stack };
+        writeEvidence();
+        throw error;
+    } finally {
+        globalThis.__gleanS1FetchSyncPost = transport;
+    }
 }
 
 async function main() {
+    if (TARGET_ARGS["base-url"] || process.env.SIYUAN_BASE_URL) {
+        await runAttachedTarget();
+        return;
+    }
     process.chdir(REPO);
     const { kernel, appDir } = resolveKernel();
     prepareWorkspace(WORKSPACE, MARKER, CREATED_BY);
@@ -895,22 +862,49 @@ async function main() {
     client.onGuard(() => {
         if (child.exitCode !== null || child.signalCode !== null) throw new Error("测试内核已退出");
     });
+    const runEvidence = { workspace: WORKSPACE, kernel, base, port, startedAt: new Date().toISOString(), bazaarTrusted: false, completed: false, scenarios: passedScenarios };
+    const saveRunEvidence = () => fs.writeFileSync(path.join(WORKSPACE, "s1-run-evidence.json"), `${JSON.stringify(runEvidence, null, 2)}\n`);
+    saveRunEvidence();
     try {
         const version = await waitForBoot(base, lines, () => {
             if (child.exitCode !== null || child.signalCode !== null) throw new Error("测试内核已退出");
         }, client);
         const conf = JSON.parse(fs.readFileSync(path.join(WORKSPACE, "conf", "conf.json"), "utf8"));
-        client.setToken(conf.accessAuthCode || "");
+        const token = TARGET_ARGS.token || process.env.SIYUAN_TOKEN || conf.accessAuthCode || "";
+        if (!token) throw new Error("隔离内核未生成 token；请设置 SIYUAN_TOKEN 或检查 conf.json");
+        client.setToken(token);
+        await prepareWriteSmoke((route, body) => client.api(route, body), { base, log: console });
         await client.apiChecked("/api/setting/setBazaar", { trust: true, petalDisabled: false });
-        globalThis.__gleanS1FetchPost = (route, body, callback) => {
-            void client.api(route, body).then(callback, (error) => callback({ code: -1, msg: String(error) }));
+        runEvidence.kernelVersion = version;
+        runEvidence.bazaarTrusted = true;
+        saveRunEvidence();
+        globalThis.__gleanS1FetchSyncPost = async (route, body) => {
+            const result = await client.api(route, body);
+            if (route === "/api/filetree/createDocWithMd" && typeof result?.data === "string") {
+                const id = result.data;
+                const deadline = Date.now() + 10000;
+                while (Date.now() < deadline) {
+                    const rows = await client.api("/api/query/sql", { stmt: `SELECT id FROM blocks WHERE id='${id}' AND type='d' LIMIT 1` });
+                    if (rows?.code === 0 && rows.data?.some((row) => row.id === id)) break;
+                    await new Promise((resolve) => setTimeout(resolve, 150));
+                }
+            }
+            return result;
         };
         console.log(`S1 服务级 E2E：内核 ${JSON.stringify(version)}，回环端口 ${port}`);
         console.log(`隔离工作区：${WORKSPACE}`);
         await runFlow(client, WORKSPACE);
-        console.log("S1 服务级 E2E：全部通过");
+        runEvidence.completed = true;
+        console.log(`S1 服务级 E2E：全部通过（${passedScenarios.length} 条）`);
+    } catch (error) {
+        runEvidence.failure = { message: error.message, stack: error.stack };
+        throw error;
     } finally {
+        await cleanupScratch((route, body) => client.api(route, body), { log: console }).catch((error) => console.warn(`临时库收尾清扫失败：${error.message}`));
         await shutdownKernel(client, child);
+        runEvidence.finishedAt = new Date().toISOString();
+        saveRunEvidence();
+        fs.writeFileSync(path.join(WORKSPACE, "kernel-tail.log"), `${lines.slice(-100).join("\n")}\n`);
     }
 }
 

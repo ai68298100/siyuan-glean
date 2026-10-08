@@ -24,9 +24,10 @@ registerHooks({
     },
 });
 
-const { batchSetStatus, batchSetStatusDetailed, captureClip, captureDocument, findClipUrlConflict, listAnchorDocs, listClipDocs, measureClipBody, readClipContext, reconcileIndex, scanDocScopes, writeClip } = await import(
+const { batchSetStatus, batchSetStatusDetailed, captureClip, captureDocument, findClipUrlConflict, listAnchorDocs, listClipDocs, measureClipBody, readClipContext, reconcileIndex, scanDocScopes, scanPreview, writeClip } = await import(
     "../src/services/clip-store.ts"
 );
+const { readClipAuthor, saveClipAuthor } = await import("../src/services/clip-store.ts");
 
 interface FakeDoc {
     id: string;
@@ -48,6 +49,8 @@ function harness() {
     const saved = new Map<string, unknown>();
     const queries: string[] = [];
     const writes: { id: string; attrs: Record<string, string | null> }[] = [];
+    let activeMarkdownExports = 0;
+    let maxMarkdownExports = 0;
     let failAnchorQuery = false;
     let failPageOffset: number | null = null;
     const failWriteIds = new Set<string>();
@@ -61,7 +64,13 @@ function harness() {
         async batchGetBlockAttrs(ids: string[]) {
             return ids.filter((id) => docs.has(id)).map((id) => ({ id, attrs: { ...(attrs.get(id) ?? {}) } }));
         },
-        async exportMdContent(id: string) { return { content: markdowns.get(id) ?? "" }; },
+        async exportMdContent(id: string) {
+            activeMarkdownExports += 1;
+            maxMarkdownExports = Math.max(maxMarkdownExports, activeMarkdownExports);
+            await Promise.resolve();
+            activeMarkdownExports -= 1;
+            return { content: markdowns.get(id) ?? "" };
+        },
         async setBlockAttrs(id: string, patch: Record<string, string | null>) {
             if (failWriteIds.has(id)) throw new Error("write failed");
             writes.push({ id, attrs: { ...patch } });
@@ -99,8 +108,109 @@ function harness() {
         attrs.set(id, ial);
         markdowns.set(id, markdown);
     };
-    return { plugin, docs, attrs, saved, queries, writes, add, failWriteIds, setFailAnchorQuery: (value: boolean) => { failAnchorQuery = value; }, setFailPageOffset: (value: number | null) => { failPageOffset = value; } };
+    return { plugin, docs, attrs, saved, queries, writes, add, failWriteIds, maxMarkdownExports: () => maxMarkdownExports, setFailAnchorQuery: (value: boolean) => { failAnchorQuery = value; }, setFailPageOffset: (value: number | null) => { failPageOffset = value; } };
 }
+
+test("作者自动写入保护已有值及清空，显式作者编辑只改署名并读回", async () => {
+    const current = harness();
+    current.add("author-clip", "box-1", { "custom-clip-status": "later", "custom-clip-author": "手填公众号", "custom-clip-url": "https://source.example/a", "custom-clip-rating": "5" });
+    for (const author of ["自动推断", ""]) {
+        const result = await writeClip(current.plugin as never, "author-clip", { author, summary: "摘要" });
+        assert.deepEqual(result.skippedKeys, ["custom-clip-author"]);
+        assert.equal(result.attrs.author, "手填公众号");
+    }
+    await saveClipAuthor(current.plugin as never, "author-clip", "手填公众号", "  新署名  ");
+    assert.equal((await readClipContext("author-clip"))?.author, "新署名");
+    assert.equal(current.attrs.get("author-clip")?.["custom-clip-status"], "later");
+    assert.equal(current.attrs.get("author-clip")?.["custom-clip-rating"], "5");
+    assert.equal(current.attrs.get("author-clip")?.["custom-clip-url"], "https://source.example/a");
+    await saveClipAuthor(current.plugin as never, "author-clip", "新署名", "");
+    assert.equal(current.attrs.get("author-clip")?.["custom-clip-author"], undefined);
+    assert.equal((await readClipAuthor("author-clip")).author, "");
+});
+
+test("非法旧署名保持原属性，修正需原始值核对；非法输入不写入", async () => {
+    const current = harness();
+    current.add("legacy-author", "box-1", { "custom-clip-status": "inbox", "custom-clip-author": "旧\n署名" });
+    assert.deepEqual(await readClipAuthor("legacy-author"), { raw: "旧\n署名", author: "" });
+    await writeClip(current.plugin as never, "legacy-author", { author: "" });
+    assert.equal(current.attrs.get("legacy-author")?.["custom-clip-author"], "旧\n署名");
+    const count = current.writes.length;
+    for (const author of ["x".repeat(121), "末尾\n", "隐形\u202E字符"]) {
+        await assert.rejects(saveClipAuthor(current.plugin as never, "legacy-author", "旧\n署名", author), { reason: "invalid" });
+    }
+    assert.equal(current.writes.length, count);
+    await assert.rejects(saveClipAuthor(current.plugin as never, "legacy-author", "", "合法"), { reason: "changed" });
+    await saveClipAuthor(current.plugin as never, "legacy-author", "旧\n署名", "合法");
+    assert.equal(current.attrs.get("legacy-author")?.["custom-clip-author"], "合法");
+});
+
+test("作者编辑在写入点复查来源手填与资格，不用早期读值覆盖", async () => {
+    for (const change of [{ "custom-clip-author": "其他窗口手填" }, { "custom-clip-status": "" }, { "custom-clip-internal": "true" }]) {
+        const current = harness();
+        current.add("author-race", "box-1", { "custom-clip-status": "inbox", "custom-clip-author": "原值" });
+        const api = (globalThis as Record<string, unknown>).__gleanTestApi as { getBlockAttrs: (id: string) => Promise<Record<string, string>> };
+        const originalRead = api.getBlockAttrs;
+        let reads = 0;
+        api.getBlockAttrs = async (id) => {
+            if (++reads === 2) Object.assign(current.attrs.get(id)!, change);
+            return originalRead(id);
+        };
+        await assert.rejects(saveClipAuthor(current.plugin as never, "author-race", "原值", "新值"), { reason: "changed" });
+        assert.equal(current.writes.length, 0);
+    }
+    const deleted = harness();
+    deleted.add("deleted-author", "box-1", { "custom-clip-status": "inbox" });
+    deleted.docs.delete("deleted-author");
+    await assert.rejects(saveClipAuthor(deleted.plugin as never, "deleted-author", "", "新值"), { reason: "changed" });
+    assert.equal(deleted.writes.length, 0);
+});
+
+test("作者派生投影可重建，只有署名的普通笔记不成为候选", async () => {
+    const current = harness();
+    current.add("author-article", "box-1", { "custom-clip-status": "reading", "custom-clip-author": "专栏名" });
+    current.add("author-note", "box-1", { "custom-clip-author": "同名" });
+    await saveClipAuthor(current.plugin as never, "author-article", "专栏名", "新专栏");
+    current.saved.clear();
+    const rebuilt = await reconcileIndex(current.plugin as never, { anchorNotebooks: ["box-1"] } as never);
+    assert.equal(rebuilt.clips["author-article"].author, "新专栏");
+    assert.equal(rebuilt.clips["author-note"], undefined);
+    assert.equal(rebuilt.candidates["author-note"], undefined);
+});
+
+test("同一文档多入口作者编辑串行核对，失败后队列仍可重试", async () => {
+    const current = harness();
+    current.add("parallel-author", "box-1", { "custom-clip-status": "inbox", "custom-clip-author": "原值" });
+    const results = await Promise.allSettled([
+        saveClipAuthor(current.plugin as never, "parallel-author", "原值", "第一入口"),
+        saveClipAuthor(current.plugin as never, "parallel-author", "原值", "第二入口"),
+    ]);
+    assert.equal(results[0].status, "fulfilled");
+    assert.equal(results[1].status, "rejected");
+    assert.equal(current.writes.length, 1);
+    assert.equal(current.attrs.get("parallel-author")?.["custom-clip-author"], "第一入口");
+    await saveClipAuthor(current.plugin as never, "parallel-author", "第一入口", "重新确认");
+    assert.equal(current.attrs.get("parallel-author")?.["custom-clip-author"], "重新确认");
+});
+
+test("作者保存失败或读回发现外部修改时不冒充成功", async () => {
+    const current = harness();
+    current.add("failed-author", "box-1", { "custom-clip-status": "inbox", "custom-clip-author": "原值" });
+    current.failWriteIds.add("failed-author");
+    await assert.rejects(saveClipAuthor(current.plugin as never, "failed-author", "原值", "新值"), /write failed/);
+    assert.equal(current.attrs.get("failed-author")?.["custom-clip-author"], "原值");
+    current.failWriteIds.clear();
+    const api = (globalThis as Record<string, unknown>).__gleanTestApi as { getBlockAttrs: (id: string) => Promise<Record<string, string>> };
+    const originalRead = api.getBlockAttrs;
+    let reads = 0;
+    api.getBlockAttrs = async (id) => {
+        if (++reads === 3) current.attrs.get(id)!["custom-clip-author"] = "外部变化";
+        return originalRead(id);
+    };
+    await assert.rejects(saveClipAuthor(current.plugin as never, "failed-author", "原值", "新值"), { reason: "changed" });
+    assert.equal(current.attrs.get("failed-author")?.["custom-clip-author"], "外部变化");
+    assert.equal(current.writes.length, 1);
+});
 
 test("锚点笔记本 ID 正确加 SQL 字符串引号，URL-only 文档可被次锚点发现", async () => {
     const h = harness();
@@ -183,6 +293,36 @@ test("URL-only 文档首次收录补状态并保留来源 URL、时间和优先�
     assert.equal((h.saved.get("glean-index.json") as { clips: Record<string, unknown> }).clips["url-only"] !== undefined, true);
 });
 
+test("查重补查派生索引已知ID的真实属性，不依赖SQL IAL及时更新", async () => {
+    const h = harness();
+    const id = "20261004120000-aaaaaaa";
+    h.add(id, "box-1", { "custom-clip-url": "https://example.com/new", "custom-clip-status": "done" });
+    await writeClip(h.plugin as never, id, {});
+    const api = (globalThis as Record<string, any>).__gleanTestApi;
+    const query = api.querySql;
+    api.querySql = (sql: string) => sql.includes("ial LIKE") ? Promise.resolve([]) : query(sql);
+    const found = await findClipUrlConflict("https://example.com/new", undefined, h.plugin as never);
+    assert.equal(found?.id, id);
+    h.attrs.get(id)!["custom-clip-url"] = "https://manual.example/changed";
+    assert.equal(await findClipUrlConflict("https://example.com/new", undefined, h.plugin as never), null);
+    assert.equal((await findClipUrlConflict("https://manual.example/changed", undefined, h.plugin as never))?.id, id);
+    assert.equal(await findClipUrlConflict("https://manual.example/changed", id, h.plugin as never), null);
+});
+
+test("查重已知ID全部覆盖SQL首个满页时仍读取后续分页，读取失败拒绝无冲突", async () => {
+    const h = harness();
+    const ids = Array.from({ length: 500 }, (_value, index) => `20261004120000-${index.toString(36).padStart(7, "0")}`);
+    ids.forEach((id) => h.add(id, "box-1", { "custom-clip-status": "inbox", "custom-clip-url": `https://example.com/${id}` }));
+    await reconcileIndex(h.plugin as never, { anchorNotebooks: [] } as never);
+    h.add("00000000000000-zzzzzzz", "box-1", { "custom-clip-status": "inbox", "custom-clip-url": "https://later.example/target" });
+    assert.equal((await findClipUrlConflict("https://later.example/target", undefined, h.plugin as never))?.id, "00000000000000-zzzzzzz");
+    assert.ok(h.queries.some((sql) => sql.includes("OFFSET 500")));
+    await assert.rejects(findClipUrlConflict("https://none.example", undefined, { async loadData() { throw new Error("index read failed"); } } as never), /index read failed/);
+    const api = (globalThis as Record<string, any>).__gleanTestApi;
+    api.batchGetBlockAttrs = async () => { throw new Error("attribute read failed"); };
+    await assert.rejects(findClipUrlConflict("https://none.example", undefined, h.plugin as never), /attribute read failed/);
+});
+
 test("显式收录发现同 URL 时返回冲突并保留第二份需显式允许", async () => {
     const h = harness();
     h.add("existing", "box-1", { "custom-clip-status": "done", "custom-clip-url": "https://example.com/a" });
@@ -238,6 +378,24 @@ test("对账 SQL 失败必须向上抛出且不保存不完整的索引", async 
     assert.equal(h.saved.has("glean-index.json"), false);
 });
 
+test("同一插件并发打开读库只执行一次完整对账", async () => {
+    const h = harness();
+    h.add("concurrent-clip", "box-1", { "custom-clip-status": "inbox" });
+    const [first, second] = await Promise.all([
+        reconcileIndex(h.plugin as never, { anchorNotebooks: ["box-1"] } as never),
+        reconcileIndex(h.plugin as never, { anchorNotebooks: ["box-1"] } as never),
+    ]);
+    assert.deepEqual(first, second);
+    assert.equal(h.queries.length, 3);
+});
+
+test("大量普通笔记模板检查最多并发四篇，不退化为串行导出", async () => {
+    const h = harness();
+    for (let index = 0; index < 12; index += 1) h.add(`ordinary-${index}`, "box-1", {}, `普通笔记 ${index}`);
+    await reconcileIndex(h.plugin as never, { anchorNotebooks: ["box-1"] } as never);
+    assert.equal(h.maxMarkdownExports(), 4);
+});
+
 test("扫描读取全部分页并按 ID 去重，跨笔记本标签也在范围中", async () => {
     const h = harness();
     h.add("anchor-a", "box-1", {}, "# 标题\n- [https://example.com/a](https://example.com/a)\n正文");
@@ -277,6 +435,33 @@ test("模板候选会由正文证据出现，普通笔记和模糊标签不成�
     assert.equal(index.candidates["fuzzy-tag"], undefined);
 });
 
+test("首启扫描预览区分已确认读库、候选、缺来源和普通笔记，且不写文章属性", async () => {
+    const h = harness();
+    h.add("confirmed", "box-1", { "custom-clip-status": "later", "custom-clip-url": "https://example.com/confirmed" });
+    h.add("candidate", "box-1", { "custom-clip-url": "https://example.com/candidate" });
+    h.add("missing-url", "box-1", { tags: "剪藏" }, "", "#剪藏#");
+    h.add("ordinary", "box-1", {}, "# 普通笔记\n没有来源证据");
+
+    const preview = await scanPreview(h.plugin as never, { anchorNotebooks: ["box-1"] } as never);
+
+    assert.deepEqual(
+        {
+            total: preview.total,
+            confirmed: preview.confirmed,
+            candidates: preview.candidates,
+            candidatesMissingUrl: preview.candidatesMissingUrl,
+            ordinary: preview.ordinary,
+        },
+        { total: 4, confirmed: 1, candidates: 2, candidatesMissingUrl: 1, ordinary: 1 },
+    );
+    assert.ok(preview.examples.confirmed.some((item) => item.id === "confirmed"));
+    assert.ok(preview.examples.candidates.some((item) => item.id === "candidate"));
+    assert.ok(preview.examples.candidates.some((item) => item.id === "missing-url"));
+    assert.ok(preview.examples.ordinary.some((item) => item.id === "ordinary"));
+    assert.equal(h.writes.length, 0);
+    assert.ok(h.saved.has("glean-index.json"));
+});
+
 test("精确剪藏标签仍会读取正文模板，补出候选来源 URL", async () => {
     const h = harness();
     h.add(
@@ -308,6 +493,19 @@ test("后续分页失败会保留旧索引", async () => {
     h.setFailPageOffset(500);
     await assert.rejects(reconcileIndex(h.plugin as never, { anchorNotebooks: ["box-1"] } as never), /page failed/);
     assert.deepEqual(h.saved.get("glean-index.json"), before);
+});
+
+test("清空派生索引后仍能从文章属性重建", async () => {
+    const h = harness();
+    h.add("sovereign", "box-1", {
+        "custom-clip-status": "later",
+        "custom-clip-url": "https://example.com/sovereign",
+    });
+    await reconcileIndex(h.plugin as never, { anchorNotebooks: ["box-1"] } as never);
+    h.saved.delete("glean-index.json");
+    const rebuilt = await reconcileIndex(h.plugin as never, { anchorNotebooks: ["box-1"] } as never);
+    assert.equal(rebuilt.clips.sovereign.status, "later");
+    assert.equal(rebuilt.clips.sovereign.url, "https://example.com/sovereign");
 });
 
 test("显式标记读完写入完成时间；归档与恢复不抹除（D-0028）", async () => {

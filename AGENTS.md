@@ -5,7 +5,7 @@
 ## 铁律
 
 1. **数据主权**（D-0001）：一切文章状态写文档属性（`custom-clip-*`，键名唯一事实源=src/domain/schema.ts）；
-   插件 saveData 只存派生索引与设置；**不覆盖用户手填字段**（url/status/priority/rating）。
+   插件 saveData 只存派生索引、设置和契约明确的恢复检查点；**不覆盖用户手填字段**（url/status/priority/rating）。恢复检查点只存阶段、任务 ID、确切对象 ID 与目标位置，不存正文或文章事实。
 2. **契约先行**：存储/端点约定先改 `docs/DATA-CONTRACT.md` 再改代码；所有决策记 `docs/DECISIONS.md`（D-xxxx）；
    任务记 `TODO.md`（T-xxxx）。
 3. **不臆造思源 API**：端点形状以 DATA-CONTRACT §5 与 `scripts/spike/` 实证为准；新端点先 spike 再进 api/。

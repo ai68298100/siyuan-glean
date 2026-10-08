@@ -97,4 +97,3 @@ v2.9.4 的批注块以 IAL 标识，核心字段如下。字段名来自发布�
 - [v2.9.4 Release](https://github.com/HaoCeans/siyuan-comment/releases/tag/v2.9.4)
 - [plugin.json](https://github.com/HaoCeans/siyuan-comment/blob/main/plugin.json)
 - [floating-toc 的批注弹层排除实证](https://github.com/shuojie819/siyuan-floating-toc-plugin/blob/001b05a5450821083b00d6ebab54cb5c65461531/src/utils/domUtils.ts#L263-L308)
-

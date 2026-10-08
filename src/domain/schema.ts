@@ -4,6 +4,9 @@
  * 铁律（D-0001）：属性一旦写入永不丢失；用户手填字段不得被 AI/迁移器覆盖。
  */
 
+import { normalizeAuthor } from "./author.ts";
+import { parseReadingPosition, serializeReadingPosition, type ReadingPosition } from "./reading-position.ts";
+
 export const CLIP_STATUSES = ["inbox", "later", "reading", "done", "archived"] as const;
 export type ClipStatus = (typeof CLIP_STATUSES)[number];
 
@@ -26,23 +29,35 @@ export type ClipContentType = (typeof CLIP_CONTENT_TYPES)[number];
 export const CLIP_TIME_SOURCES = ["source", "document", "capture", "legacy"] as const;
 export type ClipTimeSource = (typeof CLIP_TIME_SOURCES)[number];
 
+/** 引述块视觉标记允许的颜色。值写入引述块 IAL，不属于文章根块状态。 */
+export const CLIP_HIGHLIGHT_COLORS = ["yellow", "red", "blue", "green"] as const;
+export type ClipHighlightColor = (typeof CLIP_HIGHLIGHT_COLORS)[number];
+
 /** IAL 键名（custom-* 属性）。值在 IAL 里一律是字符串。 */
 export const ATTR = {
     url: "custom-clip-url",
     site: "custom-clip-site",
-    /** 来源作者（T-1811）：公众号/频道/专栏作者名，用户可改可覆盖类。 */
     author: "custom-clip-author",
+    readingPosition: "custom-clip-reading-position",
+    /** 块级断点兼容字段；新阅读服务仅写入该字段，旧 JSON 断点继续由 readingPosition 管理。 */
+    readingPos: "custom-clip-reading-pos",
+    favorite: "custom-clip-favorite",
+    /** 引述块级颜色标记（不参与文章根块 ClipAttrs 投影）。 */
+    highlightColor: "custom-clip-hl-color",
     time: "custom-clip-time",
     status: "custom-clip-status",
     /** 最近一次显式标记读完的时刻；缺键 = 完成时间未知（D-0028）。 */
     doneTime: "custom-clip-done-time",
     words: "custom-clip-words",
     minutes: "custom-clip-minutes",
+    /** 用户真实前台阅读累计分钟（与预计阅读分钟独立）。 */
+    readMinutes: "custom-clip-read-minutes",
     priority: "custom-clip-priority",
     rating: "custom-clip-rating",
     aiTags: "custom-clip-ai-tags",
     summary: "custom-clip-summary",
     lastSurfaced: "custom-clip-last-surfaced",
+    pinned: "custom-clip-pinned",
     /** 单文件 HTML 快照（assets 路径，T-1504） */
     snapshot: "custom-clip-snapshot",
     src: "custom-clip-src",
@@ -50,14 +65,6 @@ export const ATTR = {
     timeSource: "custom-clip-time-source",
     /** 用户确认“不是文章”后写入，避免候选扫描反复打扰。 */
     excluded: "custom-clip-excluded",
-    /** 用户显式收藏标记（T-1755/T-1904）：独立布尔位，与 priority 语义分离。 */
-    favorite: "custom-clip-favorite",
-    /** 用户钉住生效日 YYYYMMDD（T-1797）：当日重浮置顶，隔日自然回池。 */
-    pinned: "custom-clip-pinned",
-    /** 阅读断点：锚定块 ID（T-1746，契约 DATA-CONTRACT §3.1a）；仅内嵌页签写入。 */
-    readingPos: "custom-clip-reading-pos",
-    /** 真实阅读分钟累计（T-1747）：页签前台计时结算写入，与估算 minutes 分离。 */
-    readMinutes: "custom-clip-read-minutes",
     /** 插件内部宿主文档标志；新建时写入，旧文档由候选规则回退推断。 */
     internal: "custom-clip-internal",
 } as const;
@@ -68,35 +75,33 @@ export type AttrKey = (typeof ATTR)[keyof typeof ATTR];
 export interface ClipAttrs {
     url?: string;
     site?: string;
-    /** 来源作者（T-1811）；缺键 = 未知作者 */
     author?: string;
+    readingPosition?: ReadingPosition;
+    readingPos?: string;
+    favorite?: boolean;
     time?: string;
     status?: ClipStatus;
     doneTime?: string;
     words?: number;
     minutes?: number;
+    readMinutes?: number;
     priority?: number;
     rating?: number;
     aiTags: string[];
     summary?: string;
     lastSurfaced?: string;
+    pinned?: string;
     snapshot?: string;
     src?: ClipSource;
     contentType?: ClipContentType;
     timeSource?: ClipTimeSource;
     excluded?: boolean;
-    favorite?: boolean;
-    /** 钉住生效日 YYYYMMDD（T-1797）；缺键 = 未钉住 */
-    pinned?: string;
-    /** 阅读断点：锚定块 ID（T-1746）；缺键 = 无断点 */
-    readingPos?: string;
-    /** 真实阅读分钟累计（T-1747）；缺键 = 无真实阅读记录 */
-    readMinutes?: number;
     internal?: boolean;
 }
 
 /** 待写回文档的属性补丁。值 = 字符串（IAL 形态）；null = 删除该键。 */
 export type AttrPatch = Record<string, string | null>;
+export type ClipPatch = { [Field in keyof ClipAttrs]?: ClipAttrs[Field] | null };
 
 /** 面板/索引用的轻量投影 */
 export interface ClipSummary {
@@ -143,6 +148,15 @@ function parseFlag(value: string | undefined): boolean | undefined {
     return value?.toLowerCase() === "true" ? true : undefined;
 }
 
+function parseDateStamp(value: string | undefined): string | undefined {
+    if (!value || !/^\d{8}$/.test(value)) return undefined;
+    const year = Number(value.slice(0, 4));
+    const month = Number(value.slice(4, 6));
+    const day = Number(value.slice(6, 8));
+    const date = new Date(year, month - 1, day);
+    return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day ? value : undefined;
+}
+
 function parseTags(value: string | undefined): string[] {
     if (!value) return [];
     return value
@@ -176,27 +190,28 @@ export function parseClipAttrs(ial: Record<string, string | undefined>): ClipAtt
     return {
         url: optionalString(ial[ATTR.url]),
         site: optionalString(ial[ATTR.site]),
-        author: optionalString(ial[ATTR.author]),
+        author: normalizeAuthor(ial[ATTR.author]) || undefined,
+        readingPosition: parseReadingPosition(ial[ATTR.readingPosition]) ?? undefined,
+        readingPos: optionalString(ial[ATTR.readingPos]),
+        favorite: parseFlag(ial[ATTR.favorite]),
         time: optionalString(ial[ATTR.time]),
         status: parseStatus(ial[ATTR.status]),
         doneTime: optionalString(ial[ATTR.doneTime]),
         words: parseNumber(ial[ATTR.words]),
         minutes: parseNumber(ial[ATTR.minutes]),
+        readMinutes: parseNumber(ial[ATTR.readMinutes]),
         priority: parseClamped(ial[ATTR.priority], 1, 5),
         rating: parseClamped(ial[ATTR.rating], 0, 5),
         aiTags: parseTags(ial[ATTR.aiTags]),
         summary: optionalString(ial[ATTR.summary]),
         lastSurfaced: optionalString(ial[ATTR.lastSurfaced]),
+        pinned: parseDateStamp(ial[ATTR.pinned]),
         snapshot: optionalString(ial[ATTR.snapshot]),
         src: parseSource(ial[ATTR.src]),
         contentType: parseContentType(ial[ATTR.contentType]),
         // 旧数据没有来源标记；保留原时间且如实呈现为 legacy。
         timeSource: parseTimeSource(ial[ATTR.timeSource]) ?? (ial[ATTR.time] ? "legacy" : undefined),
         excluded: parseFlag(ial[ATTR.excluded]),
-        favorite: parseFlag(ial[ATTR.favorite]),
-        pinned: optionalString(ial[ATTR.pinned]),
-        readingPos: optionalString(ial[ATTR.readingPos]),
-        readMinutes: parseClamped(ial[ATTR.readMinutes], 0, 1_000_000),
         internal: parseFlag(ial[ATTR.internal]),
     };
 }
@@ -205,17 +220,14 @@ function optionalString(value: string | undefined): string | undefined {
     return value && value.length > 0 ? value : undefined;
 }
 
+/** 插件内部宿主文档判定；仅 custom-clip-internal=true 才视为可信内部文档。 */
+export function isMarkedInternalDoc(ial: Record<string, string | undefined>): boolean {
+    return parseFlag(ial[ATTR.internal]) === true;
+}
+
 /** 是否已有读库线索：状态属性或来源 URL 均算；URL-only 仍待用户确认收录。 */
 export function isClipDoc(ial: Record<string, string | undefined>): boolean {
     return Boolean(ial[ATTR.status] || ial[ATTR.url]);
-}
-
-/**
- * 插件内部宿主判定（T-1987）：只有带 custom-clip-internal 标记的文档才可信复用。
- * 同名/同路径的用户文档一律视为用户文档，不得当作宿主绑定、写入或补挂内容。
- */
-export function isMarkedInternalDoc(ial: Record<string, string | undefined>): boolean {
-    return parseFlag(ial[ATTR.internal]) === true;
 }
 
 /* ---------- 序列化 ---------- */
@@ -230,7 +242,7 @@ function clampInt(value: number, min: number, max: number): number {
  * - 显式传 null 的键保留为 null（删除语义）；
  * - aiTags 数组序列化为逗号分割字符串。
  */
-export function serializePatch(patch: Partial<ClipAttrs> & { aiTags?: string[] | null }): AttrPatch {
+export function serializePatch(patch: ClipPatch): AttrPatch {
     const out: AttrPatch = {};
     const put = (key: AttrKey, value: string | null | undefined) => {
         if (value === undefined) return;
@@ -238,26 +250,38 @@ export function serializePatch(patch: Partial<ClipAttrs> & { aiTags?: string[] |
     };
     if (patch.url !== undefined) put(ATTR.url, patch.url || null);
     if (patch.site !== undefined) put(ATTR.site, patch.site || null);
-    if (patch.author !== undefined) put(ATTR.author, patch.author || null);
+    if (patch.author !== undefined) {
+        const author = patch.author === null ? "" : normalizeAuthor(patch.author);
+        if (author === null) throw new RangeError("Invalid author");
+        put(ATTR.author, author || null);
+    }
     if (patch.time !== undefined) put(ATTR.time, patch.time || null);
+    if (patch.readingPosition !== undefined) put(ATTR.readingPosition, patch.readingPosition === null ? null : serializeReadingPosition(patch.readingPosition));
+    if (patch.readingPos !== undefined) put(ATTR.readingPos, patch.readingPos || null);
+    if (patch.favorite !== undefined) put(ATTR.favorite, patch.favorite ? "true" : null);
     if (patch.status !== undefined) put(ATTR.status, patch.status ?? null);
     if (patch.doneTime !== undefined) put(ATTR.doneTime, patch.doneTime || null);
     if (patch.words !== undefined) put(ATTR.words, patch.words === null ? null : String(Math.max(0, Math.round(patch.words))));
     if (patch.minutes !== undefined) put(ATTR.minutes, patch.minutes === null ? null : String(Math.max(0, Math.round(patch.minutes))));
+    if (patch.readMinutes !== undefined) put(ATTR.readMinutes, patch.readMinutes === null ? null : String(Math.max(0, Math.round(patch.readMinutes))));
     if (patch.priority !== undefined) put(ATTR.priority, patch.priority === null ? null : String(clampInt(patch.priority, 1, 5)));
     if (patch.rating !== undefined) put(ATTR.rating, patch.rating === null ? null : String(clampInt(patch.rating, 0, 5)));
     if (patch.aiTags !== undefined) put(ATTR.aiTags, patch.aiTags === null ? null : patch.aiTags.join(","));
     if (patch.summary !== undefined) put(ATTR.summary, patch.summary || null);
     if (patch.lastSurfaced !== undefined) put(ATTR.lastSurfaced, patch.lastSurfaced || null);
+    if (patch.pinned !== undefined) {
+        if (patch.pinned === null || patch.pinned === "") put(ATTR.pinned, null);
+        else {
+            const pinned = parseDateStamp(patch.pinned);
+            if (!pinned) throw new RangeError("Invalid pinned date");
+            put(ATTR.pinned, pinned);
+        }
+    }
     if (patch.snapshot !== undefined) put(ATTR.snapshot, patch.snapshot || null);
     if (patch.src !== undefined) put(ATTR.src, patch.src ?? null);
     if (patch.contentType !== undefined) put(ATTR.contentType, patch.contentType ?? null);
     if (patch.timeSource !== undefined) put(ATTR.timeSource, patch.timeSource ?? null);
     if (patch.excluded !== undefined) put(ATTR.excluded, patch.excluded ? "true" : null);
-    if (patch.favorite !== undefined) put(ATTR.favorite, patch.favorite ? "true" : null);
-    if (patch.pinned !== undefined) put(ATTR.pinned, patch.pinned || null);
-    if (patch.readingPos !== undefined) put(ATTR.readingPos, patch.readingPos || null);
-    if (patch.readMinutes !== undefined) put(ATTR.readMinutes, patch.readMinutes === null ? null : String(Math.max(0, Math.round(patch.readMinutes))));
     if (patch.internal !== undefined) put(ATTR.internal, patch.internal ? "true" : null);
     return out;
 }

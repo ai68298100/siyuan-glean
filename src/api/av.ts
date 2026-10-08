@@ -110,11 +110,21 @@ export async function bindDocsAsRows(avId: string, dbBlockId: string, docIds: st
 
 /** 绑定文档 ID → 行 itemID 的官方换算端点。 */
 export async function mapBoundDocIds(avId: string, docIds: string[]): Promise<Record<string, string>> {
-    const data = await kernelPost<Record<string, string>>("/api/av/getAttributeViewItemIDsByBoundIDs", {
+    const data = await kernelPost<unknown>("/api/av/getAttributeViewItemIDsByBoundIDs", {
         avID: avId,
         blockIDs: docIds,
     });
-    return data ?? {};
+    if (!data || typeof data !== "object" || Array.isArray(data)) throw new Error("Invalid AV binding map");
+    const mapped: Record<string, string> = {};
+    const items = new Set<string>();
+    for (const docId of docIds) {
+        const itemId = (data as Record<string, unknown>)[docId];
+        if (itemId === undefined || itemId === "") continue;
+        if (typeof itemId !== "string" || !isNodeId(itemId) || items.has(itemId)) throw new Error("Invalid AV item ID");
+        items.add(itemId);
+        mapped[docId] = itemId;
+    }
+    return mapped;
 }
 
 export async function setCellNumber(avId: string, keyId: string, itemId: string, value: number): Promise<void> {
