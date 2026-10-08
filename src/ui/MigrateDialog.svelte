@@ -36,7 +36,13 @@ async function updateBatchSize(input: HTMLInputElement): Promise<void> {
     input.value = String(parsed);
     if (parsed === fallback) return;
     // T-1957：只传变化字段，避免旧快照覆盖并发保存的其他设置
-    await facade.updateSettings({ migrateBatchSize: parsed });
+    try {
+        await facade.updateSettings({ migrateBatchSize: parsed });
+    } catch (error) {
+        console.warn("[glean] 迁移批次设置保存失败:", error);
+        input.value = String(fallback);
+        showMessage(t(i18n, "msg.actionFailed"), 4000);
+    }
 }
 
 type Phase = "intro" | "scanning" | "report" | "running" | "paused" | "done";
@@ -54,11 +60,16 @@ let manualUrl = $state("");
 const step = $derived<Step>(phase === "intro" || phase === "scanning" ? 1 : phase === "done" ? 3 : 2);
 
 onMount(async () => {
-    const progress = await loadMigrateProgress(facade.pluginInstance);
-    if (phase === "intro" && progress && progress.rows.length > 0) {
-        rows = progress.rows;
-        cursor = progress.cursor;
-        resumeAvailable = hasOutstanding(progress.rows, progress.finished);
+    try {
+        const progress = await loadMigrateProgress(facade.pluginInstance);
+        if (phase === "intro" && progress && progress.rows.length > 0) {
+            rows = progress.rows;
+            cursor = progress.cursor;
+            resumeAvailable = hasOutstanding(progress.rows, progress.finished);
+        }
+    } catch (error) {
+        console.warn("[glean] 迁移进度读取失败:", error);
+        showMessage(t(i18n, "msg.actionFailed"), 4000);
     }
 });
 
@@ -90,11 +101,16 @@ function hasOutstanding(items: MigrateRow[], finished: boolean): boolean {
 }
 
 async function refreshProgress() {
-    const progress = await loadMigrateProgress(facade.pluginInstance);
-    if (!progress) return;
-    rows = progress.rows;
-    cursor = progress.cursor;
-    resumeAvailable = hasOutstanding(progress.rows, progress.finished);
+    try {
+        const progress = await loadMigrateProgress(facade.pluginInstance);
+        if (!progress) return;
+        rows = progress.rows;
+        cursor = progress.cursor;
+        resumeAvailable = hasOutstanding(progress.rows, progress.finished);
+    } catch (error) {
+        console.warn("[glean] 迁移进度刷新失败:", error);
+        showMessage(t(i18n, "msg.actionFailed"), 4000);
+    }
 }
 
 async function startScan() {
@@ -113,11 +129,17 @@ async function startScan() {
 }
 
 async function resume() {
-    const progress = await loadMigrateProgress(facade.pluginInstance);
-    if (!progress) return;
-    rows = progress.rows;
-    cursor = progress.cursor;
-    await startRun(false);
+    try {
+        const progress = await loadMigrateProgress(facade.pluginInstance);
+        if (!progress) return;
+        rows = progress.rows;
+        cursor = progress.cursor;
+        await startRun(false);
+    } catch (error) {
+        console.warn("[glean] 迁移恢复失败:", error);
+        showMessage(t(i18n, "msg.actionFailed"), 4000);
+        phase = "intro";
+    }
 }
 
 async function startRun(startNew: boolean) {

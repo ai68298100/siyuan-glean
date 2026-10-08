@@ -177,3 +177,12 @@ test("reading status actions surface write failures and always release busy stat
     assert.match(context, /阅读上下文状态变更失败/);
     assert.match(context, /showMessage\(t\(i18n, "msg\.statusFailed"\), 3000\)/);
 });
+
+test("migration progress reads have visible failure feedback", () => {
+    const source = read("src/ui/MigrateDialog.svelte");
+    assert.match(source, /迁移进度读取失败/);
+    assert.match(source, /迁移进度刷新失败/);
+    assert.match(source, /迁移恢复失败/);
+    assert.match(source, /迁移批次设置保存失败/);
+    assert.match(source, /msg\.actionFailed/);
+});
