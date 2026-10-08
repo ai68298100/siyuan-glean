@@ -1,5 +1,12 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-08 设置浮窗宽度修复）
+
+设置浮窗截图中的逐字换行和按钮挤压是共享弹窗内容区交叉轴没有被宿主主题明确拉伸造成的。本轮将 `dialog-content` 明确设为 `align-items: stretch`，并让 `.glean-settings` 以 `width: 100%`、`min-width: 0` 和 `box-sizing: border-box` 铺满内容区；设置容器查询只会在真实窄宽度下触发。
+
+- 改动：`src/libs/dialog.ts`、`src/index.scss`、`tests/header-actions.test.ts`；任务 T-3308，决策 D-0189。
+- 门禁与 PR 尚未完成；版本继续为 v1.2.0，不升版、不打 tag、不创建 Release。真实设置浮窗分组、滚动和底部操作区仍需 B-0002。
+
 ## 当前有效交接（2026-10-08 独立浮窗工作台宽度修复）
 
 独立浮窗截图中的中文竖排和按钮挤压来自弹窗内容区的 flex 方向与尺寸约束：`svelteDialog` 原本让 `dialog-content` 使用默认横向 flex，`display: contents` 挂载下的 `.glean-panel` 按最小内容宽度收缩，触发 `glean-workbench` 窄容器规则。本轮把内容区改为纵向 flex，设置 `width: 100%`、`min-width/min-height: 0` 和 `box-sizing: border-box`，让工作台根节点沿横轴铺满浮窗。
