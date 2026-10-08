@@ -1269,6 +1269,11 @@ function bodyPending(entry: ClipIndexEntry): boolean {
     return resolveCarrier(entry.contentType) === "fulltext" && entry.words <= 0;
 }
 
+/** 来源列的兜底文案：本地文档本无来源，显示"本地笔记"而不是"未知来源"（T-3314 用户走查反馈）。 */
+function sourceFallback(entry: ClipIndexEntry): string {
+    return resolveCarrier(entry.contentType) === "local" ? t(i18n, "clip.sourceLocal") : t(i18n, "panel.unknownSite");
+}
+
 function carrierLabel(entry: ClipIndexEntry): string {
     return clipType(entry);
 }
@@ -1756,7 +1761,7 @@ function metaLine(entry: Row): string {
                                 onchange={() => toggleStalePick(entry.id)}
                             />
                             <span class="glean-stale-preview__title" title={entry.title}>{entry.title || t(i18n, "panel.untitled")}</span>
-                            <span class="glean-stale-preview__meta">{entry.site || t(i18n, "panel.unknownSite")} · {t(i18n, "panel.staleDays", { n: ageDays(entry.time) })}</span>
+                            <span class="glean-stale-preview__meta">{entry.site || sourceFallback(entry)} · {t(i18n, "panel.staleDays", { n: ageDays(entry.time) })}</span>
                         </label>
                     {/each}
                     <div class="glean-stale-preview__ops">
@@ -1941,7 +1946,7 @@ function metaLine(entry: Row): string {
                                         </label>
                                         <span class={statusDotClass(entry.status)}></span>
                                         <span class="glean-drow__ti" title={entry.title || t(i18n, "panel.untitled")}>{entry.title || t(i18n, "panel.untitled")}</span>
-                                        <span class="glean-drow__site">{entry.site || t(i18n, "panel.unknownSite")}{#if entry.author}<button class="glean-source-author" onclick={(event) => { event.stopPropagation(); selectAuthor(entry.author!); }}>· {entry.author}</button>{/if}</span>
+                                        <span class="glean-drow__site">{entry.site || sourceFallback(entry)}{#if entry.author}<button class="glean-source-author" onclick={(event) => { event.stopPropagation(); selectAuthor(entry.author!); }}>· {entry.author}</button>{/if}</span>
                                          <span class={carrierClass(entry)} title={entry.contentType === "link" && !hasSourceAction(entry.contentType, entry.url) ? t(i18n, "clip.sourceMissing") : carrierLabel(entry)}>{carrierLabel(entry)}</span>
                                         {#if entry.contentType === "link" && !hasSourceAction(entry.contentType, entry.url)}
                                             <span class="glean-source-missing">{t(i18n, "clip.sourceMissing")}</span>

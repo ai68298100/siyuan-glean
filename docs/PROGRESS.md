@@ -8,6 +8,7 @@
 - [x] i18n 新增 21 个双语键（导航 9、分类描述 8、筛选 4，双语各 1026 键一致）；新增 `scripts/preview-settings.mjs`（Svelte SSR + 组件 scoped CSS 注入）生成静态 fixture；桌面与窄容器 SSR 截图（`output/playwright/t3314-settings-*`）与原型对照通过。
 - [x] 无障碍：保留全部既有契约（chips `aria-pressed`、三个 `role=group`、根 `aria-labelledby`、`aria-busy` 链），新增 tab/tablist/tabpanel 语义与双语键存在性断言；`header-actions` 对话框契约同步 720×640 与容器查询断言。
 - [x] 门禁：`pnpm check` 0 错误/0 警告、`pnpm test` 1223/1223、`pnpm build`、`pnpm check:release`、任务账本、`git diff --check` 通过；不改设置数据契约、不新增端点。
+- [x] 作者走查反馈修复：`.glean-drow--preview` 原有"全包围 2px 描边（Dock/移动）"与"左侧 3px 指示条（工作台容器）"两套矛盾定义，统一为左侧指示条 + 轻选中背景 + 中性卡片阴影；本地文档来源列由"未知来源"改为"本地笔记"（新键 `clip.sourceLocal`，工作台行与超龄池清单两处）；`scripts/preview-settings.mjs` 支持注入图标 symbol 便于视觉回归。
 - [ ] 真实浮窗的分类导航密度、暗色主题与移动触控待 B-0002；版本保持 `1.2.1`，不升版、不打 tag、不创建 Release。
 
 ## T-3313 第二轮全方位走查：服务层/域层/API/主入口（2026-10-09）

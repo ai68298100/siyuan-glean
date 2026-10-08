@@ -1,5 +1,6 @@
 {
   "author.suggestion.cancelled": "Suggestion request cancelled",
+  "clip.sourceLocal": "Local note",
   "highlight.busy": "The previous operation is still running. Try again shortly.",
   "highlight.exported": "CSV file exported",
   "import.progress.error.size": "The import file exceeds the 32 MiB limit and was not read. Split the export and try again.",

@@ -1,5 +1,6 @@
 {
   "author.suggestion.cancelled": "已取消生成建议",
+  "clip.sourceLocal": "本地笔记",
   "highlight.busy": "上一个操作仍在进行，请稍候再试",
   "highlight.exported": "已导出 CSV 文件",
   "import.progress.error.size": "导入文件超过 32 MiB 上限，未读取。请拆分导出文件后重试。",

@@ -71,8 +71,12 @@ const { body } = render(SettingsView, { props: { facade } });
 const css = readFileSync(new URL("../dist/index.css", import.meta.url), "utf8");
 // 组件 scoped CSS 需要与 SSR 渲染时的哈希类名一致：用本脚本编译产物里的 css 源码
 const scopedCss = [...compiledCache.entries()].filter(([k]) => k.startsWith("css:")).map(([, v]) => v).join("\n");
+// 注入真机的图标 symbol（模拟 addIcons 注入），让 SVG 图标可渲染
+let icons = "";
+try { icons = readFileSync(new URL("../output/playwright/icons.txt", import.meta.url), "utf8"); } catch { }
 const html = `<!DOCTYPE html>
 <html lang="zh-CN"><head><meta charset="UTF-8"><title>settings fixture</title>
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none">${icons}</svg>
 <style>${css}</style>
 <style>${scopedCss}</style>
 <style>
