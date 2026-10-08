@@ -8,6 +8,26 @@ Lv Glean organizes clippings and articles already in SiYuan. It does not crawl t
 
 [中文说明](README.md) · [Latest Release](https://github.com/ai68298100/siyuan-glean/releases/latest) · [Capability matrix](docs/CAPABILITY-MATRIX.md) · [Feedback](https://github.com/ai68298100/siyuan-glean/issues/new/choose)
 
+## Latest update (main, based on v1.2.0, 2026-10-08)
+
+Added: reliable recovery and reading workflows
+
+- Inbox migration, external imports, backup/restore, and flashcard creation now keep exact checkpoints with bounded recovery and retry paths.
+- Added reading position, real reading minutes, the library highlights wall, weekly/monthly/yearly reviews, author views, batch AI, formatting drafts, the external bridge, and AV projection.
+
+Added: cross-surface entry points
+
+- Desktop Workbench, standalone popup, and the mobile home view now expose the main capture, search, and candidate actions.
+
+Improved: desktop and narrow-screen interaction
+
+- Unified Chinese and English copy, accessibility semantics, and mobile touch targets; wide-canvas Today's Gleaning cards now align at the bottom.
+
+Fixed: flashcard recovery and popup layout
+
+- When a flashcard insertion response is lost, the plugin first recovers the exact checkpoint, then validates source-block ownership; invalid ownership still returns `sourceChanged` without inserting again.
+- Fixed horizontal collapse in the standalone and settings popups, which caused one-character-per-line text, squeezed buttons, and accidental narrow-layout rules.
+
 ## Install and get started
 
 Compatible with SiYuan `v3.8.5+`. Download `package.zip` from the [Latest Release](https://github.com/ai68298100/siyuan-glean/releases/latest), then install and enable the plugin in SiYuan.

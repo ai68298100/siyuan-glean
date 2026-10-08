@@ -1,5 +1,12 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-08 README 更新摘要约定）
+
+中英文 README 已在安装说明前增加“本次更新 / Latest update”区块，按“新增 / 优化 / 修复”分组列出当前 main 的用户可见变化；本轮内容标明基于 v1.2.0，避免把 main 后续修复误写成已包含在 Release 附件中。D-0190 与 T-3309 已记录，后续每轮用户可见更新都要同步维护两份 README，并遵守能力矩阵的真实验收边界。
+
+- 改动：`README.md`、`README.en-US.md`、`docs/DECISIONS.md`、`TODO.md`、`docs/PROGRESS.md`、`docs/TASK-LEDGER.md`。
+- 本轮不升版本、不打 tag、不创建 Release；工作区门禁需在提交前复跑。
+
 ## 当前有效交接（2026-10-08 设置浮窗宽度修复）
 
 设置浮窗截图中的逐字换行和按钮挤压是共享弹窗内容区交叉轴没有被宿主主题明确拉伸造成的。本轮将 `dialog-content` 明确设为 `align-items: stretch`，并让 `.glean-settings` 以 `width: 100%`、`min-width: 0` 和 `box-sizing: border-box` 铺满内容区；设置容器查询只会在真实窄宽度下触发。
