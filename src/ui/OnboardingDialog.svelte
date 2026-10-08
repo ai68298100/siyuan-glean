@@ -29,6 +29,7 @@ let anchorNotebooks = $state<string[]>([]);
 
 let scanning = $state(false);
 let scanFailed = $state(false);
+let actionFailed = $state(false);
 let preview = $state<ScanPreview | null>(null);
 let completed = false;
 let disposed = false;
@@ -42,10 +43,18 @@ onMount(() => {
         // 扫描预览是派生数据，关闭后不落盘；从第 4 步恢复时回到第 3 步重算。
         step = prefs.onboardingStep === 4 ? 3 : prefs.onboardingStep;
         if (step === 3) void runScan();
-    }).catch(() => undefined);
+    }).catch((error) => {
+        if (!active || disposed || completed) return;
+        console.warn("[glean] 引导进度读取失败:", error);
+        actionFailed = true;
+    });
     void listNotebooks().then((items) => {
         if (active && !disposed) notebooks = items;
-    }).catch(() => undefined);
+    }).catch((error) => {
+        if (!active || disposed || completed) return;
+        console.warn("[glean] 引导笔记本读取失败:", error);
+        actionFailed = true;
+    });
     return () => {
         active = false;
     };
@@ -76,6 +85,11 @@ async function persist(): Promise<void> {
     });
 }
 
+function reportActionFailure(label: string, error: unknown): void {
+    console.warn(`[glean] ${label}:`, error);
+    actionFailed = true;
+}
+
 async function markDone(): Promise<void> {
     await saveUiPrefs(facade.pluginInstance, {
         onboardingDone: true,
@@ -88,12 +102,17 @@ async function markDone(): Promise<void> {
 async function moveTo(nextStep: OnboardingStep): Promise<void> {
     if (disposed || completed) return;
     progressTouched = true;
-    step = nextStep;
-    await saveUiPrefs(facade.pluginInstance, {
-        onboardingDone: false,
-        onboardingStep: nextStep,
-        onboardingInterrupted: false,
-    });
+    try {
+        await saveUiPrefs(facade.pluginInstance, {
+            onboardingDone: false,
+            onboardingStep: nextStep,
+            onboardingInterrupted: false,
+        });
+        actionFailed = false;
+        step = nextStep;
+    } catch (error) {
+        reportActionFailure("引导进度保存失败", error);
+    }
 }
 
 /** T-1719：只读扫描（读属性 + 重建派生索引缓存），不写任何文章属性。 */
@@ -116,9 +135,14 @@ async function runScan(): Promise<void> {
 }
 
 async function next(): Promise<void> {
-    await persist();
+    try {
+        await persist();
+    } catch (error) {
+        reportActionFailure("引导设置保存失败", error);
+        return;
+    }
     await moveTo(3);
-    void runScan();
+    if (!actionFailed) void runScan();
 }
 
 async function moveToCapabilities(): Promise<void> {
@@ -126,26 +150,41 @@ async function moveToCapabilities(): Promise<void> {
 }
 
 async function finish(openImport: boolean): Promise<void> {
-    await persist();
-    await markDone();
-    completed = true;
-    onClose();
-    if (openImport) facade.openImport();
+    try {
+        await persist();
+        await markDone();
+        actionFailed = false;
+        completed = true;
+        onClose();
+        if (openImport) facade.openImport();
+    } catch (error) {
+        reportActionFailure("引导完成失败", error);
+    }
 }
 
 /** 有待确认候选时，完成键直达工作台逐篇确认（T-1719 的行动闭环）。 */
 async function finishByConfirmingCandidates(): Promise<void> {
-    await persist();
-    await markDone();
-    completed = true;
-    onClose();
-    facade.openWorkbenchPopup(preview?.examples.candidates[0]?.id);
+    try {
+        await persist();
+        await markDone();
+        actionFailed = false;
+        completed = true;
+        onClose();
+        facade.openWorkbenchPopup(preview?.examples.candidates[0]?.id);
+    } catch (error) {
+        reportActionFailure("引导候选确认入口失败", error);
+    }
 }
 
 async function skip(): Promise<void> {
-    await markDone();
-    completed = true;
-    onClose();
+    try {
+        await markDone();
+        actionFailed = false;
+        completed = true;
+        onClose();
+    } catch (error) {
+        reportActionFailure("跳过引导失败", error);
+    }
 }
 
 function continueLater(): void {
@@ -173,6 +212,9 @@ function continueLater(): void {
             {#if index < 3}<span class="glean-onb-progress__line" class:glean-onb-progress__line--done={progressStep < step} aria-hidden="true"></span>{/if}
         {/each}
     </nav>
+    {#if actionFailed}
+        <div class="glean-empty glean-onb-empty glean-onb-empty--error" role="alert">{t(i18n, "msg.actionFailed")}</div>
+    {/if}
 
     {#if step === 1}
         <div class="glean-onb-hero" role="region" aria-labelledby={`${idPrefix}-welcome-title`}>

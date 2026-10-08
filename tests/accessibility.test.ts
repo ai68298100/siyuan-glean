@@ -186,3 +186,14 @@ test("migration progress reads have visible failure feedback", () => {
     assert.match(source, /迁移批次设置保存失败/);
     assert.match(source, /msg\.actionFailed/);
 });
+
+test("onboarding async actions expose visible failure feedback", () => {
+    const source = read("src/ui/OnboardingDialog.svelte");
+    assert.match(source, /引导进度读取失败/);
+    assert.match(source, /引导笔记本读取失败/);
+    assert.match(source, /引导设置保存失败/);
+    assert.match(source, /引导完成失败/);
+    assert.match(source, /跳过引导失败/);
+    assert.match(source, /role="alert"/);
+    assert.match(source, /msg\.actionFailed/);
+});
