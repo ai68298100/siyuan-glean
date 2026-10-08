@@ -1,5 +1,11 @@
 # 进度（PROGRESS）
 
+## T-3310/D-0191 v1.2.1 补丁发布（2026-10-08）
+
+- [x] 版本由 `1.2.0` 升至 `1.2.1`，`package.json` 与 `plugin.json` 保持一致；双语 README、CHANGELOG、RELEASE、发布候选和验收说明同步当前版本。
+- [ ] 待本轮门禁、提交、推送 `main`、推送 `v1.2.1` tag 并创建 GitHub Release 后回填提交、资产哈希和 Quality gates/CodeQL 运行结论。
+- [x] 集市 PR、历史 tag/Release、保留分支和真实宿主验收边界不因补丁发布改变。
+
 ## T-3309/D-0190 README 更新摘要约定（2026-10-08）
 
 - [x] 中英文 README 在安装说明前增加本次更新区块，按“新增 / 优化 / 修复”分组列出当前 main 的用户可见变化，并明确基于 `v1.2.0` 的主线状态。

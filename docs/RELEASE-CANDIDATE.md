@@ -1,24 +1,24 @@
 # 发布候选复核
 
-> 2026-10-08 定版 v1.2.0：本轮发布覆盖 1.1.0 之后已合入 main 的产品、恢复和工程质量收口；真实宿主/作者验收边界仍按 B-0002–B-0008 保留。
+> 2026-10-08 定版 v1.2.1：本轮补丁发布覆盖当前 main 的浮窗排版修复与文档/发布同步；真实宿主/作者验收边界仍按 B-0002–B-0008 保留。
 
-> T-3213，2026-10-04。本文记录当前工作区的发布候选检查结果。v1.2.0 的 tag、GitHub Release 和默认分支切换按本轮作者授权执行；集市 PR 仍不执行这些外部动作。
+> T-3310，2026-10-08。本文记录 v1.2.1 当前发布候选检查结果；集市 PR 仍不执行这些外部动作。
 
 ## 1. 当前候选
 
 | 项目 | 结果 | 证据 |
 |---|---|---|
-| 源版本 | `1.2.0` | `package.json` 与 `plugin.json` 一致 |
-| 变更记录 | 已有 `v1.2.0` 条目 | `docs/CHANGELOG.md` |
+| 源版本 | `1.2.1` | `package.json` 与 `plugin.json` 一致 |
+| 变更记录 | 已有 `v1.2.1` 条目 | `docs/CHANGELOG.md` |
 | 类型与 Svelte 检查 | 通过，0 错误/0 警告 | `pnpm check` |
 | 全量测试 | 通过，1214/1214 | `pnpm test`，含大库窗口、今日置顶、阅读位置、AI 批量、备份恢复和导出回归 |
 | 隔离内核主链 | 通过，58/58 | `node scripts/e2e/s1-flow.mjs`，含恢复检查点、备份恢复、AV、制卡和导入实证；制卡恢复 10 条 |
 | 生产构建 | 通过 | `pnpm build` |
 | 性能门禁 | 通过当前机器合成基线 | `pnpm perf:check` |
 | 视觉矩阵 | 通过登记检查；24 张仍待真实宿主 | `pnpm visual:check`，B-0002 |
-| 发布产物 | 通过，373563B | `pnpm check:release` 14/14；`package.zip` 已上传 [v1.2.0 Release](https://github.com/ai68298100/siyuan-glean/releases/tag/v1.2.0)，SHA-256 `fcb0ecae350d04ab2d6c699a9a7aa18882ed9a67c18df85c9443bcc69c6f7033` |
+| 发布产物 | 待本轮构建 | `pnpm check:release` 将校验 v1.2.1 的 `dist` 与 `package.zip`；Release 上传后回填资产链接和 SHA-256 |
 
-版本已按 D-0005 定版为 `1.2.0`。GitHub tag、Release 和 `package.zip` 与 `main` 保持同一发布提交；集市仍需单独授权。
+版本已按 D-0005 定版为 `1.2.1`。GitHub tag、Release 和 `package.zip` 必须与 `main` 同一发布提交；集市仍需单独授权。
 
 ## 2. 仍需真实环境证据
 

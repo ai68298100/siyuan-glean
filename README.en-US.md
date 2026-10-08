@@ -8,25 +8,19 @@ Lv Glean organizes clippings and articles already in SiYuan. It does not crawl t
 
 [中文说明](README.md) · [Latest Release](https://github.com/ai68298100/siyuan-glean/releases/latest) · [Capability matrix](docs/CAPABILITY-MATRIX.md) · [Feedback](https://github.com/ai68298100/siyuan-glean/issues/new/choose)
 
-## Latest update (main, based on v1.2.0, 2026-10-08)
+## Latest update (v1.2.1, 2026-10-08)
 
-Added: reliable recovery and reading workflows
+Added: v1.2.1 mainline release
 
-- Inbox migration, external imports, backup/restore, and flashcard creation now keep exact checkpoints with bounded recovery and retry paths.
-- Added reading position, real reading minutes, the library highlights wall, weekly/monthly/yearly reviews, author views, batch AI, formatting drafts, the external bridge, and AV projection.
+- The current `main` line, popup layout fixes, README update summaries, and merged reliability improvements are published together as `v1.2.1`.
 
-Added: cross-surface entry points
+Improved: wide-canvas and standalone popup layout
 
-- Desktop Workbench, standalone popup, and the mobile home view now expose the main capture, search, and candidate actions.
+- Wide-canvas Today's Gleaning cards stay bottom-aligned; standalone Workbench and settings popups now stretch across the content area instead of wrapping Chinese text or squeezing buttons.
 
-Improved: desktop and narrow-screen interaction
+Fixed: accidental narrow-layout activation
 
-- Unified Chinese and English copy, accessibility semantics, and mobile touch targets; wide-canvas Today's Gleaning cards now align at the bottom.
-
-Fixed: flashcard recovery and popup layout
-
-- When a flashcard insertion response is lost, the plugin first recovers the exact checkpoint, then validates source-block ownership; invalid ownership still returns `sourceChanged` without inserting again.
-- Fixed horizontal collapse in the standalone and settings popups, which caused one-character-per-line text, squeezed buttons, and accidental narrow-layout rules.
+- Fixed host dialog content shrinking and incorrectly activating narrow-container rules; flashcard recovery, source ownership checks, and data sovereignty boundaries are unchanged.
 
 ## Install and get started
 
@@ -55,7 +49,7 @@ Ordinary notes are not bulk-captured just because of their location, and opening
 
 ## Compatibility and acceptance
 
-The current stable release is [v1.2.0](https://github.com/ai68298100/siyuan-glean/releases/tag/v1.2.0). Its automated gates and isolated S1 service E2E have passed; this does not mean every real environment has been accepted.
+The current stable release is [v1.2.1](https://github.com/ai68298100/siyuan-glean/releases/tag/v1.2.1). Its automated gates and isolated S1 service E2E have passed; this does not mean every real environment has been accepted.
 
 Desktop host, Android/mobile, browser frontend, real models, the official clipper, external files, and subscription services still require environment-specific checks. Prerequisites, fallbacks, and open blockers are listed in the [capability matrix](docs/CAPABILITY-MATRIX.md) and [known blockers](docs/BLOCKERS.md). Unit tests and isolated E2E are not device acceptance.
 

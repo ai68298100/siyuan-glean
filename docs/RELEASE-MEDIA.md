@@ -38,7 +38,7 @@
 
 1. `pnpm check && pnpm test` 全绿
 2. 隔离内核 E2E（spike 7/7 + av-spike 6/6）
-3. 版本号以 `package.json`/`plugin.json` 当前候选为准（本轮为 v1.2.0）；运行 `pnpm update-version` 后再构建
+3. 版本号以 `package.json`/`plugin.json` 当前候选为准（本轮为 v1.2.1）；运行 `pnpm update-version` 后再构建
 4. `pnpm check:release` 14/14
 5. preview.png 换成真机截图（1920×1280，首屏 + 面板拼图）
 6. **打 tag / 发 Release 已按本轮授权完成；提集市 PR 仍需单独请示作者**

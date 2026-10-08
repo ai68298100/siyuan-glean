@@ -117,7 +117,7 @@
 | 1. check 零错误 | ✅ 持续全绿 |
 | 2. test 全绿 | ✅ 132/132 |
 | 3. 隔离 E2E（含数据主权） | ✅ 脚本化完成，15+1 项断言 |
-| 4. 版本号一致 | ✅ 已定版 v1.2.0；`package.json`/`plugin.json`、tag、Release 与 `main` 同步 |
+| 4. 版本号一致 | ✅ 已定版 v1.2.1；`package.json`/`plugin.json`、tag、Release 与 `main` 同步 |
 | 5. PROGRESS 记账 / CHANGELOG | ✅ 记账已持续；CHANGELOG 已追加「未发布」段（S1–S4+阅读线全条目），定版后回填版本号 |
 | 截图/GIF（T-1601） | ⏸ 未拍，清单在 RELEASE-MEDIA.md（新增：阅读页签帧） |
 | 桌面/移动走查 | ⏸ 本手册 §2 |
