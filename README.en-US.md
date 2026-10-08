@@ -10,6 +10,12 @@ Lv Glean organizes clippings and articles already in SiYuan. It does not crawl t
 
 ## Latest update (main · after v1.2.1, 2026-10-09)
 
+Added: settings category navigation
+
+- Settings now use a "category navigation + content pane" layout: the 11 flat groups are consolidated into 8 categories (Workspace, Daily gleaning, Reading, AI enrichment, AI channel, Integrations, Data & recovery, Maintenance), each with a one-line description; the dialog widened to 720×640.
+- Library notebook selection gained search, a selection counter and one-tap clear — no more scrolling through long chip lists.
+- Narrow windows / mobile automatically fall back to horizontal category tabs with 44px touch targets.
+
 Added: AI tag cleanup entry
 
 - Settings can scan similar AI tags on demand; each group requires choosing the name to keep before merging. Only the AI tag field is changed.

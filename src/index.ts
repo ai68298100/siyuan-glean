@@ -877,8 +877,9 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
             closeLabel: t(this.i18n, "action.close"),
             component: SettingsView,
             props: { facade: this },
-            width: "560px",
-            height: "620px",
+            // T-3314：分类导航版式需要横向空间；窄屏仍由容器查询降级为顶部 tab
+            width: "720px",
+            height: "640px",
         });
     }
 }

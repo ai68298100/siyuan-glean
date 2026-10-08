@@ -154,10 +154,15 @@ test("settings, migration and import dialogs keep the standard bounded dialog co
     const styles = read("src/index.scss");
     assert.match(index, /openMigrate\(\)[\s\S]*?width:\s*"720px",\s*height:\s*"560px"/);
     assert.match(index, /openImport\(\)[\s\S]*?width:\s*"720px",\s*height:\s*"560px"/);
-    assert.match(index, /openSettings\(\)[\s\S]*?width:\s*"560px",\s*height:\s*"620px"/);
+    // T-3314：设置页改为分类导航版式，对话框加宽加高
+    assert.match(index, /openSettings\(\)[\s\S]*?width:\s*"720px",\s*height:\s*"640px"/);
     assert.match(styles, /\.glean-migrate\s*\{[\s\S]*height:\s*100%;[\s\S]*overflow:\s*hidden/);
     assert.match(styles, /\.glean-settings\s*\{[\s\S]*height:\s*100%;[\s\S]*overflow-y:\s*auto/);
     assert.match(styles, /\.glean-mtable\s*\{[\s\S]*overflow:\s*auto/);
+    // 分类导航版式契约：布局双栏、内容区滚动、窄容器降级为横向 tab（组件 scoped 样式）
+    const settingsView = read("src/ui/SettingsView.svelte");
+    assert.match(settingsView, /@container glean-settings \(max-width: 600px\)/);
+    assert.match(settingsView, /\.glean-settings__content\s*\{[\s\S]*overflow-y:\s*auto/);
 });
 
 test("wide canvas exposes labels for compact popovers and sort direction", () => {

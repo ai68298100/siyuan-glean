@@ -37,6 +37,28 @@ test("settings exposes names for groups, controls and save state", () => {
     assert.match(source, /aria-busy=\{aiLogLoading\}/);
 });
 
+test("settings category navigation exposes tab semantics and the notebook filter is named (T-3314)", () => {
+    const source = read("src/ui/SettingsView.svelte");
+    assert.match(source, /role="tablist"/);
+    assert.match(source, /role="tab"/);
+    assert.match(source, /aria-selected=\{activeSection === section\.id\}/);
+    assert.match(source, /role="tabpanel"/);
+    assert.match(source, /aria-controls=\{panelId\}/);
+    assert.match(source, /aria-label=\{t\(i18n, "settings\.anchorSearch"\)\}/);
+    assert.ok(source.includes(`{t(i18n, "settings.anchorSelected", { n: anchorNotebooks.length, total: notebooks.length })}`));
+    // 双语键集合：导航、分类描述与筛选文案必须两边都存在
+    for (const file of ["public/i18n/zh_CN.json", "public/i18n/en_US.json"]) {
+        const i18n = JSON.parse(readFileSync(new URL(`../${file}`, import.meta.url), "utf8"));
+        for (const key of [
+            "settings.navLabel", "settings.nav.workspace", "settings.nav.resurface", "settings.nav.reading", "settings.nav.ai",
+            "settings.nav.aiChannel", "settings.nav.integration", "settings.nav.data", "settings.nav.maintenance",
+            "settings.desc.workspace", "settings.desc.resurface", "settings.desc.reading", "settings.desc.ai",
+            "settings.desc.aiChannel", "settings.desc.integration", "settings.desc.data", "settings.desc.maintenance",
+            "settings.anchorSearch", "settings.anchorSelected", "settings.anchorClear", "settings.anchorNoMatch",
+        ]) assert.ok(typeof i18n[key] === "string" && i18n[key].length > 0, `${file} 缺少 ${key}`);
+    }
+});
+
 test("stats uses per-instance section names and readable daily heatmap labels", () => {
     const source = read("src/ui/StatsView.svelte");
     assert.match(source, /const instanceId = \$props\.id\(\);/);

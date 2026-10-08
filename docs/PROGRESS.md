@@ -1,5 +1,15 @@
 # 进度（PROGRESS）
 
+## T-3314 设置页分类导航重构（2026-10-09）
+
+- [x] 调研同类产品（Obsidian、思源桌面设置、Notion）确认"左导航+右内容"范式；产出并自查原型 `design/prototype-settings.html`（桌面 760×640 与窄容器横向 tab 两种形态、亮暗双色）。
+- [x] `SettingsView.svelte` 落地：11 个平铺分组归并为 8 个大类（工作区 / 每日拾遗 / 阅读 / AI 增强 / AI 通道 / 集成 / 数据与恢复 / 维护），每类配职责描述；对话框 560×620 → 720×640；宽容器左侧竖排导航（品牌+tab+选中指示条+锚点计数徽标），`glean-settings` 升级为容器查询容器、≤600px 自动降级为顶部横向滚动 tab；移动端保持 44px 命中区。
+- [x] 工作区锚点笔记本补搜索筛选（名称子串、大小写不敏感）、已选 n/total 计数、一键清空与过滤空态；新手提示条移入工作区分类顶部。
+- [x] i18n 新增 21 个双语键（导航 9、分类描述 8、筛选 4，双语各 1026 键一致）；新增 `scripts/preview-settings.mjs`（Svelte SSR + 组件 scoped CSS 注入）生成静态 fixture；桌面与窄容器 SSR 截图（`output/playwright/t3314-settings-*`）与原型对照通过。
+- [x] 无障碍：保留全部既有契约（chips `aria-pressed`、三个 `role=group`、根 `aria-labelledby`、`aria-busy` 链），新增 tab/tablist/tabpanel 语义与双语键存在性断言；`header-actions` 对话框契约同步 720×640 与容器查询断言。
+- [x] 门禁：`pnpm check` 0 错误/0 警告、`pnpm test` 1223/1223、`pnpm build`、`pnpm check:release`、任务账本、`git diff --check` 通过；不改设置数据契约、不新增端点。
+- [ ] 真实浮窗的分类导航密度、暗色主题与移动触控待 B-0002；版本保持 `1.2.1`，不升版、不打 tag、不创建 Release。
+
 ## T-3313 第二轮全方位走查：服务层/域层/API/主入口（2026-10-09）
 
 - [x] 域层：`pickDaily` 修复置顶项 `MAX_SAFE_INTEGER` 基准导致的"有钉住时每日拾遗只剩置顶"，并按注释本意只淘汰因标签重叠降分过多的候选（新增 2 条回归：置顶不坍缩、低分无重叠按序入选）；滑动背景动作标签 CSS 与 `resolveSurfaceSwipe` 方向对齐；朗读分块保护小数点；`toSiyuanTime` 支持 13 位毫秒；Omnivore 解析 `state` 归档语义；`csvCell` 补公式注入防护；stats byTag 同篇重复标签只计一次。

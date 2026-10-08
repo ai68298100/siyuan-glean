@@ -1,5 +1,15 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-09 T-3314 设置页分类导航重构）
+
+设置页从 11 个平铺分组重构为"左导航 + 右内容"的 8 大类版式（原型先行：`design/prototype-settings.html`，桌面/窄容器两种形态截图自查后落地）。版本保持 `1.2.1`，不升版、不打 tag、不创建 Release。要点：
+
+- **分类**：工作区 / 每日拾遗 / 阅读 / AI 增强 / AI 通道 / 集成 / 数据与恢复 / 维护。挂载看板与 CSV/诊断导出归"数据与恢复"，AI 标签规范化归"维护"。每类有一句话职责描述（`settings.desc.*`）。
+- **响应式**：对话框 560×620 → 720×640；`glean-settings` 声明为 `container: glean-settings / inline-size`，≤600px 容器时导航自动降级为顶部横向滚动 tab（组件 scoped `@container` 查询，断言在 header-actions/accessibility 测试里）。注意 `.glean-settings` 的滚动职责已移交给 `.glean-settings__content`（组件内覆盖 `overflow: hidden`；index.scss 的 `overflow-y: auto` 保留给非本组件场景，勿"清理"）。
+- **锚点笔记本筛选**：搜索框（名称子串、大小写不敏感）+ 已选 n/total 计数 + 一键清空 + 过滤空态；新手提示条移入工作区分类顶部。
+- **视觉验证方法**：`pnpm build && node scripts/preview-settings.mjs output/playwright/xxx.html` 生成 SSR fixture（含组件 scoped CSS），浏览器打开截图。脚本是通用工具，后续 UI 轮可复用。
+- i18n 双语各 1026 键一致（新增 21 键）；`pnpm check` 0/0、`pnpm test` 1223/1223、build/release/账本/diff 门禁全过。真实浮窗密度/暗色/触控归 B-0002。
+
 ## 当前有效交接（2026-10-09 T-3313 第二轮全方位走查：服务层/域层/API/主入口）
 
 继 T-3312（UI 组件层）之后的第二轮系统性走查，覆盖上次未深入的服务层（37 文件）、域层纯函数、`src/api/` 端点层与 `src/index.ts` 主入口。修复约 30 项，未新增端点或文章属性，版本保持 `1.2.1`，不升版、不打 tag、不创建 Release。要点：

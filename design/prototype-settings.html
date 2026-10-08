@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>小驴拾遗 · 设置页原型（T-3314）</title>
+<style>
+    /* 模拟思源 b3 令牌（亮/暗） */
+    :root {
+        --b3-theme-primary: #d97706; --b3-theme-primary-light: #f5d9ae;
+        --b3-theme-background: #ffffff; --b3-theme-background-light: #f7f7f7;
+        --b3-theme-surface: #fbfaf9; --b3-theme-on-surface: #6b7280; --b3-theme-on-background: #374151;
+        --b3-border: #e5e7eb; --b3-scroll: #d1d5db;
+        --glean-accent-b: #d97706; --glean-primary-soft: #fdf3e3; --glean-grad-soft: linear-gradient(135deg,#fdf6ec,#fbf0dd);
+    }
+    .dark {
+        --b3-theme-primary: #f5a623; --b3-theme-primary-light: #5a4318;
+        --b3-theme-background: #1e1e1e; --b3-theme-background-light: #262626;
+        --b3-theme-surface: #232323; --b3-theme-on-surface: #9ca3af; --b3-theme-on-background: #d1d5db;
+        --b3-border: #374151; --b3-scroll: #4b5563;
+        --glean-accent-b: #f5a623; --glean-primary-soft: #3a2f1a; --glean-grad-soft: linear-gradient(135deg,#2a2419,#332a17);
+    }
+    * { box-sizing: border-box; margin: 0; }
+    body { font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; background: #ececec; padding: 24px; display: grid; gap: 32px; grid-template-columns: minmax(0, 820px); justify-content: center; }
+    h2 { font-size: 14px; color: #555; }
+    .dialog { border-radius: 12px; overflow: hidden; box-shadow: 0 8px 32px rgba(0,0,0,.18); font-size: 13px; color: var(--b3-theme-on-background); }
+    .dialog__head { padding: 12px 16px; border-bottom: 1px solid var(--b3-border); font-weight: 700; font-size: 14px; background: var(--b3-theme-background); }
+    .dlg { display: flex; flex-direction: column; height: 640px; background: var(--b3-theme-background); }
+    .body { flex: 1; display: flex; min-height: 0; }
+    /* 左导航 */
+    .nav { flex: 0 0 168px; border-right: 1px solid var(--b3-border); background: var(--b3-theme-surface); display: flex; flex-direction: column; min-height: 0; }
+    .brand { display: flex; gap: 10px; align-items: center; padding: 14px 14px 12px; background: var(--glean-grad-soft); }
+    .brand__mark { width: 34px; height: 34px; flex: 0 0 34px; border-radius: 10px; background: var(--glean-primary-soft); display: grid; place-items: center; font-size: 18px; }
+    .brand__name { font-weight: 700; font-size: 13px; }
+    .brand__sub { font-size: 11px; color: var(--b3-theme-on-surface); margin-top: 2px; }
+    .nav__list { flex: 1; overflow-y: auto; padding: 8px; display: flex; flex-direction: column; gap: 2px; }
+    .nav__item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 8px; border: none; background: none; text-align: left; font-size: 13px; color: var(--b3-theme-on-background); cursor: pointer; position: relative; }
+    .nav__item:hover { background: var(--b3-theme-background-light); }
+    .nav__item--on { background: var(--glean-primary-soft); color: var(--glean-accent-b); font-weight: 700; }
+    .nav__item--on::before { content: ""; position: absolute; left: 0; top: 8px; bottom: 8px; width: 3px; border-radius: 2px; background: var(--glean-accent-b); }
+    .nav__badge { margin-left: auto; font-size: 11px; color: var(--b3-theme-on-surface); background: var(--b3-theme-background-light); border-radius: 999px; padding: 1px 7px; }
+    /* 右内容 */
+    .content { flex: 1; min-width: 0; overflow-y: auto; padding: 16px 18px 20px; }
+    .page-title { font-size: 15px; font-weight: 700; }
+    .page-desc { font-size: 12px; color: var(--b3-theme-on-surface); margin: 4px 0 14px; }
+    .group { border: 1px solid var(--b3-border); border-radius: 10px; background: var(--b3-theme-surface); overflow: hidden; margin-bottom: 12px; }
+    .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 14px; }
+    .row + .row { border-top: 1px solid var(--b3-border); }
+    .row__lb { font-size: 13px; }
+    .row__desc { font-size: 11.5px; color: var(--b3-theme-on-surface); margin-top: 3px; line-height: 1.55; }
+    .sw { width: 38px; height: 22px; border-radius: 999px; background: var(--b3-border); position: relative; flex: 0 0 38px; }
+    .sw::after { content: ""; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.25); }
+    .sw--on { background: var(--glean-accent-b); }
+    .sw--on::after { left: auto; right: 2px; }
+    .seg { display: inline-flex; border: 1px solid var(--b3-border); border-radius: 8px; overflow: hidden; }
+    .seg__btn { padding: 5px 14px; border: none; background: none; font-size: 12.5px; color: var(--b3-theme-on-background); }
+    .seg__btn--on { background: var(--glean-primary-soft); color: var(--glean-accent-b); font-weight: 700; }
+    .input { border: 1px solid var(--b3-border); border-radius: 6px; padding: 5px 9px; font-size: 12.5px; background: var(--b3-theme-background); color: inherit; width: 90px; }
+    .input--wide { width: 100%; }
+    .btn { border: 1px solid var(--b3-border); border-radius: 8px; padding: 6px 14px; background: var(--b3-theme-surface); color: inherit; font-size: 12.5px; }
+    .btn--pri { background: linear-gradient(135deg,#f09b3c,#e2832b); color: #fff; border: none; font-weight: 700; }
+    .btn--ghost { background: none; }
+    /* 锚点笔记本工具行 */
+    .nb-tools { display: flex; gap: 8px; align-items: center; padding: 10px 14px; border-bottom: 1px solid var(--b3-border); }
+    .nb-search { flex: 1; display: flex; align-items: center; gap: 6px; border: 1px solid var(--b3-border); border-radius: 8px; padding: 6px 10px; background: var(--b3-theme-background); color: var(--b3-theme-on-surface); font-size: 12.5px; }
+    .nb-count { font-size: 12px; color: var(--b3-theme-on-surface); white-space: nowrap; }
+    .nb-link { border: none; background: none; color: var(--glean-accent-b); font-size: 12px; cursor: pointer; white-space: nowrap; }
+    .nb-wrap { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px 14px; }
+    .nb { border: 1px solid var(--b3-border); border-radius: 999px; padding: 5px 13px; background: var(--b3-theme-background); font-size: 12.5px; color: var(--b3-theme-on-background); }
+    .nb--on { background: var(--glean-primary-soft); border-color: var(--glean-accent-b); color: var(--glean-accent-b); font-weight: 600; }
+    .chip-row { padding: 0 14px 12px; font-size: 11.5px; color: var(--b3-theme-on-surface); }
+    /* footer */
+    .foot { display: flex; align-items: center; gap: 10px; padding: 11px 16px; border-top: 1px solid var(--b3-border); background: var(--b3-theme-surface); }
+    .foot__status { flex: 1; font-size: 12px; color: var(--b3-theme-on-surface); }
+    /* 窄形态 */
+    .dlg--narrow { width: 480px; height: 600px; }
+    .dlg--narrow .body { flex-direction: column; }
+    .dlg--narrow .nav { flex: 0 0 auto; border-right: none; border-bottom: 1px solid var(--b3-border); }
+    .dlg--narrow .brand { padding: 10px 14px; }
+    .dlg--narrow .nav__list { flex-direction: row; overflow-x: auto; padding: 6px 10px; gap: 4px; }
+    .dlg--narrow .nav__item { padding: 6px 11px; white-space: nowrap; border-radius: 999px; }
+    .dlg--narrow .nav__item--on::before { display: none; }
+    .dlg--narrow .nav__item--on { border: 1px solid var(--glean-accent-b); }
+    .dlg--narrow .nav__badge { display: none; }
+</style>
+</head>
+<body>
+<h2>桌面形态 · 760×640 · 亮色 · 「工作区」页</h2>
+<div class="dialog">
+  <div class="dlg">
+    <div class="dialog__head">小驴拾遗设置</div>
+    <div class="body">
+      <nav class="nav">
+        <div class="brand">
+          <div class="brand__mark">🌾</div>
+          <div><div class="brand__name">小驴拾遗</div><div class="brand__sub">数据都在你的文档上</div></div>
+        </div>
+        <div class="nav__list">
+          <button class="nav__item nav__item--on">工作区</button>
+          <button class="nav__item">每日拾遗<span class="nav__badge">4</span></button>
+          <button class="nav__item">阅读</button>
+          <button class="nav__item">AI 增强<span class="nav__badge">9</span></button>
+          <button class="nav__item">AI 通道</button>
+          <button class="nav__item">集成</button>
+          <button class="nav__item">数据与恢复</button>
+          <button class="nav__item">维护</button>
+        </div>
+      </nav>
+      <div class="content">
+        <div class="page-title">工作区</div>
+        <div class="page-desc">选择读库笔记本，并设定收录后的自动化行为。改动会先保存在草稿，点右下角「保存」生效。</div>
+        <div class="group">
+          <div class="nb-tools">
+            <div class="nb-search">🔍 <span>搜索笔记本…</span></div>
+            <span class="nb-count">已选 1 / 22</span>
+            <button class="nb-link">清空</button>
+          </div>
+          <div class="nb-wrap">
+            <button class="nb">🌾 小驴管家</button>
+            <button class="nb">LVH-it07-probe</button>
+            <button class="nb">工作台</button>
+            <button class="nb">收集箱</button>
+            <button class="nb">DailyNote</button>
+            <button class="nb nb--on">✓ 剪藏之堆</button>
+            <button class="nb">小飞驴来咯</button>
+            <button class="nb">数据之都</button>
+            <button class="nb">微信读书</button>
+            <button class="nb">曾经沧海</button>
+            <button class="nb">思源插件</button>
+          </div>
+          <div class="chip-row">在这些笔记本中寻找有来源证据的剪藏候选；任意笔记本的精确 #剪藏 标签也可进入候选。</div>
+        </div>
+        <div class="group">
+          <div class="row">
+            <div><div class="row__lb">收录后自动生成快照</div><div class="row__desc">默认关闭。首次收录成功后把当前思源文档保存为 HTML 资产；已有快照不重拍。</div></div>
+            <div class="sw"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="foot">
+      <span class="foot__status">已保存</span>
+      <button class="btn">恢复默认</button>
+      <button class="btn">取消</button>
+      <button class="btn btn--pri">保存</button>
+    </div>
+  </div>
+</div>
+
+<h2>窄形态 · 480 容器 · 顶部横向导航 · 「AI 增强」页</h2>
+<div class="dialog">
+  <div class="dlg dlg--narrow dark">
+    <div class="dialog__head">小驴拾遗设置</div>
+    <div class="body">
+      <nav class="nav">
+        <div class="brand">
+          <div class="brand__mark">🌾</div>
+          <div><div class="brand__name">小驴拾遗</div></div>
+        </div>
+        <div class="nav__list">
+          <button class="nav__item">工作区</button>
+          <button class="nav__item">每日拾遗</button>
+          <button class="nav__item">阅读</button>
+          <button class="nav__item nav__item--on">AI 增强</button>
+          <button class="nav__item">AI 通道</button>
+          <button class="nav__item">集成</button>
+          <button class="nav__item">数据</button>
+          <button class="nav__item">维护</button>
+        </div>
+      </nav>
+      <div class="content">
+        <div class="page-title">AI 增强</div>
+        <div class="page-desc">所有 AI 功能默认关闭或仅手动；共享同一个每日调用额度。</div>
+        <div class="group">
+          <div class="row"><div><div class="row__lb">富化模式</div><div class="row__desc">关：不用 AI；手动：文章页点 ✨ 才调用；自动：收录后台调用。</div></div></div>
+          <div class="row"><div class="seg"><button class="seg__btn">关</button><button class="seg__btn seg__btn--on">仅手动</button><button class="seg__btn">自动</button></div></div>
+          <div class="row"><div><div class="row__lb">每日调用上限</div><div class="row__desc">富化、总结、翻译、排版与问文章共享；0 表示不限制。</div></div><input class="input" value="20"></div>
+          <div class="row"><div><div class="row__lb">今日 AI 成功调用</div><div class="row__desc">按本地日历日重置。</div></div><span class="nb-count">15 / 20</span></div>
+          <div class="row"><div><div class="row__lb">AI 去重</div></div><div class="sw sw--on"></div></div>
+          <div class="row"><div><div class="row__lb">相关文章推荐</div></div><div class="sw"></div></div>
+          <div class="row"><div><div class="row__lb">AI 排版整理</div></div><div class="sw"></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="foot">
+      <span class="foot__status">有未保存的修改</span>
+      <button class="btn">恢复默认</button>
+      <button class="btn">取消</button>
+      <button class="btn btn--pri">保存</button>
+    </div>
+  </div>
+</div>
+</body>
+</html>
