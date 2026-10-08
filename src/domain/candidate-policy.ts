@@ -118,6 +118,8 @@ export function isInternalDocument(meta: CandidateDocMeta): boolean {
     if (title === "拾遗卡片" && (pathParts.length === 0 || pathParts.at(-1) === title)) return true;
     // 允许插件后续增加同类宿主时沿用稳定目录前缀，不把正文标题关键词当作排除条件。
     if (pathParts.includes("拾遗卡片")) return true;
+    // D-0032 §7.4：归档/回收宿主及其子文档不进候选扫描（宿主创建时另写 internal=true 双保险）。
+    if (pathParts.includes("【归档】") || pathParts.includes("【回收】")) return true;
     return false;
 }
 

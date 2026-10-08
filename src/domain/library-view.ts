@@ -6,9 +6,11 @@
  * 不会改变文章状态。
  */
 import type { ClipContentType, ClipSource, ClipStatus, ClipTimeSource } from "./schema.ts";
+import { applySessionOrder } from "./session-order.ts";
 
 export type LibraryItemKind = "clip" | "candidate";
-export type LibrarySortKey = "time" | "updated" | "words" | "priority" | "rating" | "title";
+/** "session"（T-1903，D-0034）：按 ui-prefs 的会话顺序展示；direction 不适用（忽略）。 */
+export type LibrarySortKey = "time" | "updated" | "words" | "priority" | "rating" | "title" | "session";
 export type LibrarySortDirection = "asc" | "desc";
 
 export interface LibraryItem {
@@ -31,6 +33,8 @@ export interface LibraryItem {
     minutes?: number;
     priority?: number;
     rating?: number;
+    /** 用户显式收藏标记（T-1755 投影）；候选无此字段 */
+    favorite?: boolean;
 }
 
 export interface LibraryFilter {
@@ -45,10 +49,14 @@ export interface LibraryFilter {
     timeSource?: string;
     contentType?: string;
     keyword?: string;
+    /** 仅看收藏（T-1755）；true 时只保留 favorite 条目 */
+    favoriteOnly?: boolean;
     sortBy?: LibrarySortKey;
     direction?: LibrarySortDirection;
     /** Candidates are only shown when the inbox view explicitly opts in. */
     includeCandidates?: boolean;
+    /** 会话顺序（T-1903）：sortBy="session" 时按此 docId 序展示；domain 不读 prefs，由调用方传入 */
+    sessionOrder?: string[];
 }
 
 export interface LibraryFacet {
@@ -58,10 +66,11 @@ export interface LibraryFacet {
 
 export interface LibraryFacets {
     sites: LibraryFacet[];
-    authors: LibraryFacet[];
     tags: LibraryFacet[];
     /** AI 标签分面（T-1729）：独立于用户 tags，UI 显示 AI 来源标记。 */
     aiTags: LibraryFacet[];
+    /** 来源作者分面（T-1812）。 */
+    authors: LibraryFacet[];
     sources: LibraryFacet[];
     timeSources: LibraryFacet[];
     contentTypes: LibraryFacet[];
@@ -138,6 +147,10 @@ export function matchesLibraryFilter(item: LibraryItem, filter: LibraryFilter = 
     if (!matchesExact(item.src, filter.src)) return false;
     if (!matchesExact(item.timeSource, filter.timeSource)) return false;
     if (!matchesExact(item.contentType, filter.contentType)) return false;
+    // T-1812：作者筛选（候选无作者字段，天然不命中）
+    if (!matchesExact(item.author, filter.author)) return false;
+    // T-1755：仅看收藏（候选不参与收藏）
+    if (filter.favoriteOnly && !(item.kind === "clip" && item.favorite === true)) return false;
     const query = key(filter.keyword);
     return !query || searchableText(item).includes(query);
 }
@@ -166,11 +179,17 @@ function compareItems(a: LibraryItem, b: LibraryItem, sortBy: LibrarySortKey, di
 
 /**
  * 应用统一筛选和排序。返回新数组，不改变传入索引或条目，也不写任何属性。
+ * sortBy="session"（T-1903）：先按默认 time desc 建立基底序，再按 sessionOrder 投影
+ * （order 内按相对次序在前，未入列追加尾部）；direction 对 session 无效。
  */
 export function filterAndSortLibrary(items: readonly LibraryItem[], filter: LibraryFilter = {}): LibraryItem[] {
     const sortBy = filter.sortBy ?? "time";
     const direction = filter.direction ?? (sortBy === "title" ? "asc" : "desc");
-    return items.filter((item) => matchesLibraryFilter(item, filter)).sort((a, b) => compareItems(a, b, sortBy, direction));
+    const filtered = items.filter((item) => matchesLibraryFilter(item, filter));
+    if (sortBy === "session") {
+        return applySessionOrder(filtered.sort((a, b) => compareItems(a, b, "time", "desc")), filter.sessionOrder ?? []);
+    }
+    return filtered.sort((a, b) => compareItems(a, b, sortBy, direction));
 }
 
 function addFacet(map: Map<string, LibraryFacet>, value: string | undefined): void {

@@ -1,12 +1,16 @@
 import type { Plugin } from "siyuan";
-import { createDocWithMd, getHighlightBlocks, listHighlightBlocks, listHighlightDocuments, newNodeId, type BlockRow } from "../api/client";
+import { createDocWithMd, getHighlightBlocks, listHighlightBlocks, listHighlightDocuments, newNodeId, querySql, type BlockRow } from "../api/client";
 import {
     cleanHighlightText, highlightMarker, isHighlightId, renderHighlightsCsv, renderHighlightsMarkdown, selectHighlights,
     type HighlightExportLabels, type HighlightItem, type HighlightRoot,
 } from "../domain/highlights";
 import { CLIP_STATUSES, parseClipAttrs, parseUserTags } from "../domain/schema";
-import { batchReadClipAttrs, readClip, reconcileIndex, writeClip } from "./clip-store";
+import { batchReadClipAttrs, readClip, readHighlightColor, reconcileIndex, writeClip, writeHighlightColor } from "./clip-store";
 import type { GleanSettings } from "./settings";
+
+/** 引述块颜色标记沿用 schema 的单一事实源；颜色写入仍经 clip-store。 */
+export { CLIP_HIGHLIGHT_COLORS as HL_COLORS } from "../domain/schema";
+export type { ClipHighlightColor as HlColor } from "../domain/schema";
 
 export type { HighlightItem, HighlightExportLabels } from "../domain/highlights";
 export type HighlightExportReason = "changed" | "readFailed" | "empty" | "invalid";
@@ -87,6 +91,68 @@ async function collectHighlights(roots: Map<string, QualifiedRoot>): Promise<Hig
         }
     }
     return items.sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0);
+}
+
+/** 引述块列表行：供摘录墙使用的轻量、只读投影。 */
+export interface LibraryQuoteRow {
+    id: string;
+    rootId: string;
+    text: string;
+    markdown: string;
+}
+
+const BLOCK_ID_PATTERN = /^\d{14}-[0-9a-z]{7}$/;
+
+/** 引述块 content 会带引用首行杂音（"&nbsp;" 等），做轻清洗。 */
+function cleanQuoteText(raw: string): string {
+    return raw.replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
+}
+
+/** 全库引述块分页。只读查询，root 元数据由调用方经索引/标题查询映射。 */
+export async function listLibraryQuotes(limit = 500, offset = 0): Promise<LibraryQuoteRow[]> {
+    const safeLimit = Number.isSafeInteger(limit) && limit > 0 ? limit : 500;
+    const safeOffset = Number.isSafeInteger(offset) && offset >= 0 ? offset : 0;
+    const rows = await querySql<{ id?: unknown; root_id?: unknown; content?: unknown; markdown?: unknown }>(
+        `SELECT id, root_id, content, markdown FROM blocks
+         WHERE type = 'b'
+         ORDER BY updated DESC, id DESC LIMIT ${safeLimit} OFFSET ${safeOffset}`,
+    );
+    return rows.flatMap((row) => {
+        if (typeof row.id !== "string" || !BLOCK_ID_PATTERN.test(row.id)
+            || typeof row.root_id !== "string" || !BLOCK_ID_PATTERN.test(row.root_id)
+            || typeof row.content !== "string") return [];
+        const text = cleanQuoteText(row.content);
+        if (!text) return [];
+        return [{ id: row.id, rootId: row.root_id, text, markdown: typeof row.markdown === "string" ? row.markdown : "" }];
+    });
+}
+
+/** 批量读取引述所属文档标题；输入 ID 先做严格校验以避免拼接 SQL。 */
+export async function listQuoteRoots(rootIds: string[]): Promise<Map<string, string>> {
+    const titles = new Map<string, string>();
+    const unique = [...new Set(rootIds)].filter((id) => BLOCK_ID_PATTERN.test(id));
+    for (let offset = 0; offset < unique.length; offset += 200) {
+        const batch = unique.slice(offset, offset + 200);
+        const rows = await querySql<{ id?: unknown; content?: unknown }>(
+            `SELECT id, content FROM blocks WHERE type = 'd' AND id IN (${batch.map((id) => `'${id}'`).join(",")})`,
+        );
+        for (const row of rows) {
+            if (typeof row.id === "string" && BLOCK_ID_PATTERN.test(row.id)) {
+                titles.set(row.id, typeof row.content === "string" ? row.content : "");
+            }
+        }
+    }
+    return titles;
+}
+
+/** 读取引述块颜色标记；权限/网络异常按空色降级。 */
+export async function getQuoteColor(quoteBlockId: string): Promise<string> {
+    return readHighlightColor(quoteBlockId);
+}
+
+/** 设置或清除引述块颜色标记，写属性统一经 clip-store。 */
+export async function setQuoteColor(quoteBlockId: string, color: string): Promise<void> {
+    await writeHighlightColor(quoteBlockId, color);
 }
 
 export async function highlightDocumentTitle(rootDocId: string): Promise<string> {

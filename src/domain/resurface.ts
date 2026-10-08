@@ -114,12 +114,19 @@ export function pickDaily(pool: SurfaceItem[], recentTagSets: Set<string>[], opt
     const now = options.now ?? new Date();
     const today = todayStamp(now);
     const eligible = pool.filter((item) => {
+        // T-1797：钉住当日是用户强意图，覆盖"改天"（lastSurfaced）过滤
+        if (item.pinned === todayStamp(now).slice(0, 8)) return true;
         if (item.lastSurfaced === today) return false;
         if (item.status === "inbox" || item.status === "later") return true;
         return Boolean(options.includeDone && item.status === "done");
     });
 
-    const seeded = eligible
+    // T-1797：钉住当日（pinned === 今天）的条目置顶优先入选（占每日名额），
+    // 不参与多样性降权；隔日 pinned 不再匹配自然回池（平静原则不变）。
+    const pinnedToday = eligible.filter((item) => item.pinned === today.slice(0, 8));
+    const unpinned = eligible.filter((item) => item.pinned !== today.slice(0, 8));
+
+    const seeded = unpinned
         .map((item) => ({
             item,
             score: surfaceScore(item, recentTagSets, now),
@@ -130,6 +137,12 @@ export function pickDaily(pool: SurfaceItem[], recentTagSets: Set<string>[], opt
     const picked: SurfacePick[] = [];
     const pickedTagSets: Set<string>[] = [];
     const used = new Set<string>();
+    for (const pinned of pinnedToday) {
+        if (picked.length >= options.count) break;
+        picked.push({ item: pinned, score: Number.MAX_SAFE_INTEGER });
+        pickedTagSets.push(new Set((pinned.aiTags || []).map((tag) => tag.toLowerCase())));
+        used.add(pinned.id);
+    }
     for (const candidate of seeded) {
         if (picked.length >= options.count) break;
         if (used.has(candidate.item.id)) continue;

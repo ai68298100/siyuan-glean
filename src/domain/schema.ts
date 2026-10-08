@@ -29,12 +29,21 @@ export type ClipContentType = (typeof CLIP_CONTENT_TYPES)[number];
 export const CLIP_TIME_SOURCES = ["source", "document", "capture", "legacy"] as const;
 export type ClipTimeSource = (typeof CLIP_TIME_SOURCES)[number];
 
+/** 引述块视觉标记允许的颜色。值写入引述块 IAL，不属于文章根块状态。 */
+export const CLIP_HIGHLIGHT_COLORS = ["yellow", "red", "blue", "green"] as const;
+export type ClipHighlightColor = (typeof CLIP_HIGHLIGHT_COLORS)[number];
+
 /** IAL 键名（custom-* 属性）。值在 IAL 里一律是字符串。 */
 export const ATTR = {
     url: "custom-clip-url",
     site: "custom-clip-site",
     author: "custom-clip-author",
     readingPosition: "custom-clip-reading-position",
+    /** 块级断点兼容字段；新阅读服务仅写入该字段，旧 JSON 断点继续由 readingPosition 管理。 */
+    readingPos: "custom-clip-reading-pos",
+    favorite: "custom-clip-favorite",
+    /** 引述块级颜色标记（不参与文章根块 ClipAttrs 投影）。 */
+    highlightColor: "custom-clip-hl-color",
     time: "custom-clip-time",
     status: "custom-clip-status",
     /** 最近一次显式标记读完的时刻；缺键 = 完成时间未知（D-0028）。 */
@@ -68,6 +77,8 @@ export interface ClipAttrs {
     site?: string;
     author?: string;
     readingPosition?: ReadingPosition;
+    readingPos?: string;
+    favorite?: boolean;
     time?: string;
     status?: ClipStatus;
     doneTime?: string;
@@ -181,6 +192,8 @@ export function parseClipAttrs(ial: Record<string, string | undefined>): ClipAtt
         site: optionalString(ial[ATTR.site]),
         author: normalizeAuthor(ial[ATTR.author]) || undefined,
         readingPosition: parseReadingPosition(ial[ATTR.readingPosition]) ?? undefined,
+        readingPos: optionalString(ial[ATTR.readingPos]),
+        favorite: parseFlag(ial[ATTR.favorite]),
         time: optionalString(ial[ATTR.time]),
         status: parseStatus(ial[ATTR.status]),
         doneTime: optionalString(ial[ATTR.doneTime]),
@@ -205,6 +218,11 @@ export function parseClipAttrs(ial: Record<string, string | undefined>): ClipAtt
 
 function optionalString(value: string | undefined): string | undefined {
     return value && value.length > 0 ? value : undefined;
+}
+
+/** 插件内部宿主文档判定；仅 custom-clip-internal=true 才视为可信内部文档。 */
+export function isMarkedInternalDoc(ial: Record<string, string | undefined>): boolean {
+    return parseFlag(ial[ATTR.internal]) === true;
 }
 
 /** 是否已有读库线索：状态属性或来源 URL 均算；URL-only 仍待用户确认收录。 */
@@ -239,6 +257,8 @@ export function serializePatch(patch: ClipPatch): AttrPatch {
     }
     if (patch.time !== undefined) put(ATTR.time, patch.time || null);
     if (patch.readingPosition !== undefined) put(ATTR.readingPosition, patch.readingPosition === null ? null : serializeReadingPosition(patch.readingPosition));
+    if (patch.readingPos !== undefined) put(ATTR.readingPos, patch.readingPos || null);
+    if (patch.favorite !== undefined) put(ATTR.favorite, patch.favorite ? "true" : null);
     if (patch.status !== undefined) put(ATTR.status, patch.status ?? null);
     if (patch.doneTime !== undefined) put(ATTR.doneTime, patch.doneTime || null);
     if (patch.words !== undefined) put(ATTR.words, patch.words === null ? null : String(Math.max(0, Math.round(patch.words))));

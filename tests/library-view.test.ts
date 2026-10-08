@@ -159,3 +159,26 @@ test("AI 标签独立分面与筛选，不冒充用户标签（T-1729）", () =>
     assert.equal(filterAndSortLibrary(items, { aiTag: "机器学习".toUpperCase() }).length, 2);
     assert.equal(filterAndSortLibrary(items, { keyword: "机器学习" }).length, 2);
 });
+
+test("favoriteOnly：仅保留收藏的收录条目，候选不参与（T-1755）", () => {
+    const items = [
+        { kind: "clip" as const, id: "20260101000000-aaaaaaa", title: "已收藏", hpath: "/a", updated: "20260101000000", favorite: true },
+        { kind: "clip" as const, id: "20260101000001-aaaaaaa", title: "未收藏", hpath: "/b", updated: "20260102000000" },
+        { kind: "candidate" as const, id: "20260101000002-aaaaaaa", title: "候选", hpath: "/c", updated: "20260103000000", favorite: true },
+    ];
+    const filtered = filterAndSortLibrary(items, { favoriteOnly: true });
+    assert.deepEqual(filtered.map((item) => item.id), ["20260101000000-aaaaaaa"]);
+    assert.equal(filterAndSortLibrary(items, {}).length, 2); // 候选默认不显示（includeCandidates 既有语义）
+});
+
+test("author：作者筛选与分面（T-1811/T-1812）", () => {
+    const items = [
+        { kind: "clip" as const, id: "20260101000000-aaaaaaa", title: "A", hpath: "/a", updated: "20260101000000", author: "张三", site: "mp.weixin.qq.com" },
+        { kind: "clip" as const, id: "20260101000001-aaaaaaa", title: "B", hpath: "/b", updated: "20260102000000", author: "张三" },
+        { kind: "clip" as const, id: "20260101000002-aaaaaaa", title: "C", hpath: "/c", updated: "20260103000000" },
+    ];
+    const filtered = filterAndSortLibrary(items, { author: "张三" });
+    assert.equal(filtered.length, 2);
+    const facets = libraryFacets(items);
+    assert.deepEqual(facets.authors, [{ value: "张三", count: 2 }]);
+});

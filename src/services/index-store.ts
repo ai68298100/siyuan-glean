@@ -32,6 +32,8 @@ export interface ClipIndexEntry {
     minutes: number;
     priority: number;
     rating: number;
+    /** 用户显式收藏标记（custom-clip-favorite）；缺省 false。 */
+    favorite: boolean;
     surfaced: string;
     pinned?: string;
     summary: string;
@@ -68,6 +70,26 @@ export interface GleanIndex {
 
 export function emptyIndex(): GleanIndex {
     return { version: INDEX_VERSION, updatedAt: "", clips: {}, candidates: {} };
+}
+
+/**
+ * 索引写入互斥：load→改→save 的读改写段必须整体串行，避免并发动作互相覆盖。
+ * 这里只约束当前插件实例；索引是可由完整对账随时重建的派生缓存。
+ */
+let indexLock: Promise<unknown> = Promise.resolve();
+
+export function withIndexLock<T>(task: () => Promise<T>): Promise<T> {
+    const run = indexLock.then(task, task);
+    indexLock = run.catch(() => undefined);
+    return run;
+}
+
+/** 索引文件损坏后禁止增量覆盖，等待完整对账/重建确认。 */
+let indexCorrupted = false;
+
+/** 由完整对账/重建完成后调用，解除损坏保护。 */
+export function confirmIndexRebuilt(): void {
+    indexCorrupted = false;
 }
 
 export async function loadIndex(plugin: Plugin, options: { strict?: boolean } = {}): Promise<GleanIndex> {
@@ -116,6 +138,7 @@ export async function loadIndex(plugin: Plugin, options: { strict?: boolean } = 
                 minutes: typeof value.minutes === "number" ? value.minutes : 0,
                 priority: typeof value.priority === "number" ? value.priority : 3,
                 rating: typeof value.rating === "number" ? value.rating : 0,
+                favorite: value.favorite === true,
                 surfaced: typeof value.surfaced === "string" ? value.surfaced : "",
                 pinned: typeof value.pinned === "string" ? value.pinned : "",
                 summary: typeof value.summary === "string" ? value.summary : "",
@@ -133,12 +156,17 @@ export async function loadIndex(plugin: Plugin, options: { strict?: boolean } = 
             candidates,
         };
     } catch (error) {
+        indexCorrupted = true;
         if (options.strict) throw error;
         return emptyIndex();
     }
 }
 
 export async function saveIndex(plugin: Plugin, index: GleanIndex): Promise<GleanIndex> {
+    if (indexCorrupted) {
+        // 损坏未消除前拒绝增量落盘，避免空/局部索引覆盖原文件。
+        return index;
+    }
     index.version = INDEX_VERSION;
     index.updatedAt = new Date().toISOString();
     await plugin.saveData(INDEX_FILE, index);
@@ -174,6 +202,7 @@ export function applyAttrsToIndex(
             minutes: attrs.minutes ?? 0,
             priority: attrs.priority ?? 3,
             rating: attrs.rating ?? 0,
+            favorite: attrs.favorite === true,
             surfaced: attrs.lastSurfaced ?? "",
             pinned: attrs.pinned ?? "",
             summary: attrs.summary ?? "",

@@ -17,9 +17,13 @@
         showDone?: boolean;
         onStartReading: () => void | Promise<void>;
         onSetStatus: (status: ClipStatus) => void | Promise<void>;
+        /** 提供时弹出归档策略；缺省回落到直接写入 archived。 */
+        onArchive?: () => void | Promise<void>;
+        /** 提供时按宿主位置分流恢复；缺省回落到直接写入 later。 */
+        onRestore?: () => void | Promise<void>;
     }
 
-    let { i18n, status, disabled = false, showDone = true, onStartReading, onSetStatus }: Props = $props();
+    let { i18n, status, disabled = false, showDone = true, onStartReading, onSetStatus, onArchive, onRestore }: Props = $props();
     let pending = $state(false);
 
     async function invoke(action: () => void | Promise<void>) {
@@ -49,7 +53,7 @@
             class="glean-status-actions__btn glean-status-actions__btn--restore"
             disabled={disabled || pending}
             title={t(i18n, "action.restore")}
-            onclick={(event) => { stop(event); void invoke(() => onSetStatus("later")); }}
+            onclick={(event) => { stop(event); void invoke(() => onRestore ? onRestore() : onSetStatus("later")); }}
         ><span aria-hidden="true">↩</span><span>{t(i18n, "action.restore")}</span></button>
     {:else}
         <button
@@ -79,7 +83,7 @@
             class="glean-status-actions__btn glean-status-actions__btn--archive"
             disabled={disabled || pending}
             title={t(i18n, "action.archive")}
-            onclick={(event) => { stop(event); void invoke(() => onSetStatus("archived")); }}
+            onclick={(event) => { stop(event); void invoke(() => onArchive ? onArchive() : onSetStatus("archived")); }}
         ><span aria-hidden="true">⤓</span><span>{t(i18n, "action.archive")}</span></button>
     {/if}
 </div>

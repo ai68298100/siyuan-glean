@@ -98,6 +98,7 @@
 - **图标钮** `glean-icon-btn`：28px 圆角 9，active 缩放 0.9。
 - **胶囊收录** `glean-cap-btn` / 卡内 `glean-card__capture`：候选专属动作。
 - **开关** `glean-sw`：36×21，激活=渐变+弹簧滑块；**chips** `glean-nb`：笔记本多选，激活=橙描边。
+- **按钮标签可见性（T-1795）**：icon-only 按钮必须携带 `title`（及 aria-label）；高频悬浮操作（行表/卡片 ▶✓⤓📷↗）保持图标+title 不展开文字（悬浮区空间有限）；头部主入口在宽画布（tab/浮窗）用 `glean-icon-btn--labeled` 图标+文字、窄栏回落图标+title；带文字的按钮不需 title。
 
 ### 4.4 数据展示
 - **Bento** `glean-tile`：18px 圆角+右上径向 glow+渐变大数字+spark 迷你柱（近 4 根热色）。

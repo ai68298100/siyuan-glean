@@ -244,6 +244,8 @@
                 disabled={busy}
                 onStartReading={startReading}
                 onSetStatus={setStatus}
+                onArchive={() => { if (context) facade.openArchiveDialog(context.id); }}
+                onRestore={() => { if (context) facade.openRestoreDialog(context.id); }}
             />
             <button type="button" class="glean-reading-context__back" onclick={backToLibrary}>
                 {t(i18n, "reading.backToLibrary")}

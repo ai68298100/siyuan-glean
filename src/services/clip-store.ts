@@ -20,6 +20,7 @@ import {
 import { inspectCandidate } from "../domain/candidate-policy";
 import {
     ATTR,
+    CLIP_HIGHLIGHT_COLORS,
     documentTimeFromId,
     parseClipAttrs,
     captureDefaults,
@@ -36,6 +37,7 @@ import { normalizeAuthor } from "../domain/author";
 import { parseReadingPosition, serializeReadingPosition, type ReadingPosition } from "../domain/reading-position";
 import {
     applyAttrsToIndex,
+    confirmIndexRebuilt,
     emptyIndex,
     loadIndex,
     saveIndex,
@@ -70,6 +72,29 @@ export interface ScanPreview {
 export async function readClip(docId: string): Promise<ClipAttrs> {
     const ial = await getBlockAttrs(docId);
     return parseClipAttrs(ial);
+}
+
+/**
+ * 读取引述块的视觉颜色标记。引述块不是读库文章根文档，因而不进入
+ * ClipAttrs；仍由 clip-store 统一封装 custom-clip-* 属性访问，避免 UI/查询
+ * 服务绕过属性访问边界。
+ */
+export async function readHighlightColor(blockId: string): Promise<string> {
+    if (!/^\d{14}-[0-9a-z]{7}$/.test(blockId)) return "";
+    try {
+        const ial = await getBlockAttrs(blockId);
+        const value = ial[ATTR.highlightColor] ?? "";
+        return (CLIP_HIGHLIGHT_COLORS as readonly string[]).includes(value) ? value : "";
+    } catch {
+        return "";
+    }
+}
+
+/** 设置或清除引述块颜色标记。仅允许 schema 规定的颜色值。 */
+export async function writeHighlightColor(blockId: string, color: string): Promise<void> {
+    if (!/^\d{14}-[0-9a-z]{7}$/.test(blockId)) return;
+    const value = (CLIP_HIGHLIGHT_COLORS as readonly string[]).includes(color) ? color : "";
+    await setBlockAttrs(blockId, value ? { [ATTR.highlightColor]: value } : { [ATTR.highlightColor]: null });
 }
 
 export async function readClipDocument(docId: string, exportOptions: ExportMarkdownOptions = {}): Promise<{ meta: DocMeta; attrs: ClipAttrs; markdown: string }> {
@@ -808,7 +833,9 @@ export async function reconcileIndex(plugin: Plugin, settings: GleanSettings): P
     const promise = (async () => {
         const scopes = await scanDocScopes(settings);
         const index = await indexFromScopes(scopes);
-        return saveIndex(plugin, index);
+        const saved = await saveIndex(plugin, index);
+        confirmIndexRebuilt();
+        return saved;
     })();
     reconcileFlights.set(plugin, { key, promise });
     try {
@@ -823,6 +850,7 @@ export async function scanPreview(plugin: Plugin, settings: GleanSettings): Prom
     const scopes = await scanDocScopes(settings);
     const index = await indexFromScopes(scopes);
     await saveIndex(plugin, index);
+    confirmIndexRebuilt();
     return buildScanPreview(scopes, index);
 }
 
@@ -834,5 +862,7 @@ function rowToMeta(row: DocRow): DocMeta {
 export async function rebuildIndex(plugin: Plugin, settings: GleanSettings): Promise<GleanIndex> {
     const scopes = await scanDocScopes(settings);
     const index = await indexFromScopes(scopes);
-    return saveIndex(plugin, index);
+    const saved = await saveIndex(plugin, index);
+    confirmIndexRebuilt();
+    return saved;
 }

@@ -19,6 +19,7 @@ registerHooks({
 
 const {
     copyHighlights, exportHighlightsCsv, highlightDocumentTitle, listDocHighlights, listLibraryHighlights,
+    listLibraryQuotes, listQuoteRoots, getQuoteColor, setQuoteColor,
     prepareHighlightExport, revalidateHighlights, saveHighlightDraft,
 } = await import("../src/services/highlights.ts");
 const { listHighlightBlocks, getHighlightBlocks, listHighlightDocuments } = await import("../src/api/client.ts");
@@ -113,6 +114,19 @@ function harness() {
 async function preview(fixture, selectedIds = [quoteId(1)]) {
     return prepareHighlightExport(await listLibraryHighlights(fixture.plugin, fixture.settings), selectedIds, labels);
 }
+
+test("摘录墙读取标题与颜色标记经过统一服务入口", async () => {
+    const fixture = harness();
+    const rows = await listLibraryQuotes(10, 0);
+    assert.deepEqual(rows, [{ id: quoteId(1), rootId: originalId, text: "真实引述", markdown: "> **真实引述**" }]);
+    assert.deepEqual([...await listQuoteRoots([originalId, "bad-id"])], [[originalId, "文章标题"]]);
+    assert.equal(await getQuoteColor(quoteId(1)), "");
+    await setQuoteColor(quoteId(1), "yellow");
+    assert.equal(await getQuoteColor(quoteId(1)), "yellow");
+    await setQuoteColor(quoteId(1), "unsupported");
+    assert.equal(await getQuoteColor(quoteId(1)), "");
+    assert.ok(fixture.calls.some((call) => call.route === "/api/attr/setBlockAttrs"));
+});
 
 test("全库从完整新对账范围取已确认文章，排除候选、普通笔记、内部文档和缓存幽灵", async () => {
     const fixture = harness();

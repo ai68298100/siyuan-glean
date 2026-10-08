@@ -35,7 +35,8 @@ async function updateBatchSize(input: HTMLInputElement): Promise<void> {
     const parsed = Math.min(50, Math.max(1, Math.round(Number(input.value)) || fallback));
     input.value = String(parsed);
     if (parsed === fallback) return;
-    await facade.updateSettings({ ...facade.settings, migrateBatchSize: parsed });
+    // T-1957：只传变化字段，避免旧快照覆盖并发保存的其他设置
+    await facade.updateSettings({ migrateBatchSize: parsed });
 }
 
 type Phase = "intro" | "scanning" | "report" | "running" | "paused" | "done";
@@ -259,10 +260,11 @@ function rowStateLabel(row: MigrateRow): string {
         <div class="glean-panel__loading" role="status" aria-live="polite">{t(i18n, "migrate.scanning")}</div>
     {:else if phase === "report"}
         <div class="glean-mstats">
-            <div class="glean-mstat"><div class="glean-mstat__n">{counts.pending}</div><div class="glean-mstat__l">{t(i18n, "migrate.backfillableLabel")}</div></div>
-            <div class="glean-mstat"><div class="glean-mstat__n">{counts.skipped}</div><div class="glean-mstat__l">{t(i18n, "migrate.skipHasAttrs")}</div></div>
-            <div class="glean-mstat"><div class="glean-mstat__n">{counts.manual}</div><div class="glean-mstat__l">{t(i18n, "migrate.needUrl")}</div></div>
-            <div class="glean-mstat"><div class="glean-mstat__n">{counts.errors}</div><div class="glean-mstat__l">{t(i18n, "import.failed")}</div></div>
+            <!-- T-2027：语义染色 modifier（pending=待处理琥珀/skip=中性/manual=挂起紫/err=错误红），不按排位 -->
+            <div class="glean-mstat glean-mstat--pending"><div class="glean-mstat__n">{counts.pending}</div><div class="glean-mstat__l">{t(i18n, "migrate.backfillableLabel")}</div></div>
+            <div class="glean-mstat glean-mstat--skip"><div class="glean-mstat__n">{counts.skipped}</div><div class="glean-mstat__l">{t(i18n, "migrate.skipHasAttrs")}</div></div>
+            <div class="glean-mstat glean-mstat--manual"><div class="glean-mstat__n">{counts.manual}</div><div class="glean-mstat__l">{t(i18n, "migrate.needUrl")}</div></div>
+            <div class="glean-mstat glean-mstat--err"><div class="glean-mstat__n">{counts.errors}</div><div class="glean-mstat__l">{t(i18n, "import.failed")}</div></div>
         </div>
         <div class="glean-mtable">
             {#each visibleRows as row (row.id)}
@@ -337,9 +339,9 @@ function rowStateLabel(row: MigrateRow): string {
             </div>
         </div>
         <div class="glean-mstats">
-            <div class="glean-mstat"><div class="glean-mstat__n">{counts.ok}</div><div class="glean-mstat__l">{t(i18n, "migrate.okLabel")}</div></div>
-            <div class="glean-mstat"><div class="glean-mstat__n">{counts.skipped}</div><div class="glean-mstat__l">{t(i18n, "migrate.skipHasAttrs")}</div></div>
-            <div class="glean-mstat"><div class="glean-mstat__n">{counts.errors}</div><div class="glean-mstat__l">{t(i18n, "import.failed")}</div></div>
+            <div class="glean-mstat glean-mstat--ok"><div class="glean-mstat__n">{counts.ok}</div><div class="glean-mstat__l">{t(i18n, "migrate.okLabel")}</div></div>
+            <div class="glean-mstat glean-mstat--skip"><div class="glean-mstat__n">{counts.skipped}</div><div class="glean-mstat__l">{t(i18n, "migrate.skipHasAttrs")}</div></div>
+            <div class="glean-mstat glean-mstat--err"><div class="glean-mstat__n">{counts.errors}</div><div class="glean-mstat__l">{t(i18n, "import.failed")}</div></div>
         </div>
         <div class="glean-mtable">
             {#each rows as row (row.id)}

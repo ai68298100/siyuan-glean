@@ -2,7 +2,7 @@
  * 内核 HTTP 传输层：api/ 是唯一允许发内核请求的地方（AGENTS.md 铁律）。
  * 端点形状以 docs/DATA-CONTRACT.md §5 与 scripts/spike 实证为准。
  */
-import { fetchSyncPost } from "siyuan";
+import * as siyuan from "siyuan";
 
 export interface KernelResponse<T> {
     code: number;
@@ -10,8 +10,45 @@ export interface KernelResponse<T> {
     data: T;
 }
 
-async function kernelPost<T>(route: string, body: Record<string, unknown> | FormData = {}): Promise<T> {
-    const response = await fetchSyncPost(route, body);
+export const KERNEL_TIMEOUT_DEFAULT_MS = 60_000;
+export const KERNEL_TIMEOUT_LONG_MS = 180_000;
+
+function kernelPost<T>(
+    route: string,
+    body: Record<string, unknown> | FormData = {},
+    options: { timeoutMs?: number } = {},
+): Promise<T> {
+    const fetchPost = (siyuan as unknown as { fetchPost?: (route: string, body: unknown, callback: (response: KernelResponse<T>) => void) => void }).fetchPost;
+    if (typeof fetchPost === "function") {
+        const timeoutMs = options.timeoutMs ?? KERNEL_TIMEOUT_DEFAULT_MS;
+        return new Promise<T>((resolve, reject) => {
+            let settled = false;
+            const timer = setTimeout(() => {
+                if (settled) return;
+                settled = true;
+                reject(new Error(`${route} 请求超时（${Math.round(timeoutMs / 1000)}s 无响应）`));
+            }, timeoutMs);
+            try {
+                fetchPost(route, body, (response) => {
+                    if (settled) return;
+                    settled = true;
+                    clearTimeout(timer);
+                    if (!response || typeof response.code !== "number") reject(new Error(`${route} 返回异常响应`));
+                    else if (response.code !== 0) reject(new Error(`${route} code=${response.code} msg=${response.msg || ""}`));
+                    else resolve(response.data as T);
+                });
+            } catch (error) {
+                if (!settled) {
+                    settled = true;
+                    clearTimeout(timer);
+                    reject(error);
+                }
+            }
+        });
+    }
+    const fetchSyncPost = (siyuan as unknown as { fetchSyncPost?: (route: string, body: unknown) => Promise<KernelResponse<T>> }).fetchSyncPost;
+    if (typeof fetchSyncPost !== "function") return Promise.reject(new Error("思源内核请求接口不可用"));
+    return Promise.resolve(fetchSyncPost(route, body)).then((response) => {
     if (!response || typeof response.code !== "number") {
         throw new Error(`${route} 返回异常响应`);
     }
@@ -19,6 +56,7 @@ async function kernelPost<T>(route: string, body: Record<string, unknown> | Form
         throw new Error(`${route} code=${response.code} msg=${response.msg || ""}`);
     }
     return response.data as T;
+    });
 }
 
 export { kernelPost };
@@ -119,6 +157,19 @@ export async function exportMdContent(id: string, options: ExportMarkdownOptions
 /** 创建文档（同路径会再建新文档，不幂等——调用方先查重，人脉 D-0007 同款结论）。返回文档 ID。 */
 export async function createDocWithMd(notebookId: string, hPath: string, markdown: string, tags?: string): Promise<string> {
     return kernelPost<string>("/api/filetree/createDocWithMd", { notebook: notebookId, path: hPath, markdown, ...(tags ? { tags } : {}) });
+}
+
+/** 移动文档到目标笔记本/文档路径；生命周期服务只通过此 API 调用内核。 */
+export async function moveDocs(fromPaths: string[], toNotebook: string, toPath: string): Promise<void> {
+    if (fromPaths.length === 0) return;
+    if (!fromPaths.every((path) => typeof path === "string" && path.length > 0)) throw new Error("Invalid move paths");
+    await kernelPost("/api/filetree/moveDocs", { fromPaths, toNotebook, toPath });
+}
+
+/** 永久删除文档；调用方必须先完成路径与 ID 配对确认。 */
+export async function removeDoc(notebookId: string, path: string): Promise<void> {
+    if (!notebookId || !path) throw new Error("Invalid document removal target");
+    await kernelPost("/api/filetree/removeDoc", { notebook: notebookId, path });
 }
 
 /* ---------- block 子块（高亮聚合） ---------- */

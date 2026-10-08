@@ -33,6 +33,9 @@
 | `custom-clip-site` | string | 站点名（可空） |
 | `custom-clip-author` | string | 来源作者/公众号/频道/专栏名称；用户可编辑，非 AI 标签；首尾空白去除，最多 120 个 Unicode 码点，单行且无控制字符；缺键表示未知 |
 | `custom-clip-reading-position` | JSON string | D-0095版本1显式阅读书签 `{version:1,blockId,offset,at}`；合法块ID、块内像素偏移0–10000整数、UTC ISO时间；不是百分比或实读时长 |
+| `custom-clip-reading-pos` | string | 历史块级断点兼容读取位；新代码不再写入，现行写入统一使用上面的 JSON 书签属性 |
+| `custom-clip-favorite` | boolean | 用户显式收藏标记；缺键表示未收藏 |
+| `custom-clip-hl-color` | enum | 引述块级视觉颜色（`yellow`/`red`/`blue`/`green`）；只作用于引述块，不进入文章根块 `ClipAttrs`，读写经 `clip-store.readHighlightColor/writeHighlightColor` |
 | `custom-clip-time` | string | 待阅读等待时间的基准时刻 `YYYYMMDDHHmmss`（本地时区）：外部导入/收集箱优先原服务收藏时间；旧文回填使用文档 ID 创建时间作为估计；普通显式收录或无可用来源时使用首次收录时刻。与 `time-source` 一起解释，不把所有值称为“首次入库时间” |
 | `custom-clip-time-source` | enum | `source`（原服务收藏时间） / `document`（文档 ID 创建时间估计） / `capture`（首次收录操作时刻） / `legacy`（历史值无可靠来源）。旧非空 time 不自动重写，缺来源时只在读取投影为 legacy |
 | `custom-clip-status` | enum | `inbox` / `later` / `reading` / `done` / `archived`（D-0003 五态） |

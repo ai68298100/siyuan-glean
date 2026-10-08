@@ -3,10 +3,17 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+    buildAuthorPrompt,
+    buildDailyDigestPrompt,
+    buildMultiReportPrompt,
     buildEnrichPrompt,
+    buildQuestionCardPrompt,
     extractJson,
+    findSimilarTagGroups,
     isLikelyDuplicate,
+    parseAuthorResponse,
     parseEnrichResponse,
+    parseQuestionResponse,
 } from "../src/domain/enrich.ts";
 
 test("buildEnrichPrompt：含标题与正文截断", () => {
@@ -58,4 +65,71 @@ test("isLikelyDuplicate：词元重叠 ≥80% 判重", () => {
     assert.equal(isLikelyDuplicate("理解 CUDA 极简心智模型", "CUDA 极简心智模型 指南"), true);
     assert.equal(isLikelyDuplicate("完全不同的话题", "风马牛不相及的内容"), false);
     assert.equal(isLikelyDuplicate("", "任意"), false);
+});
+
+test("findSimilarTagGroups：归一化相等与包含关系成组，孤立标签不成组（T-1761）", () => {
+    const groups = findSimilarTagGroups([
+        "机器学习", "机器 学习", "机器学习基础", "ML", "深度学习", "前端",
+    ]);
+    // 归一化相等：机器学习 / 机器 学习；包含关系：机器学习 ⊂ 机器学习基础
+    assert.equal(groups.length, 1);
+    assert.equal(groups[0].keep, "机器学习基础");
+    assert.deepEqual([...groups[0].variants].sort(), ["机器 学习", "机器学习", "机器学习基础"].sort());
+});
+
+test("findSimilarTagGroups：短于 2 字的短标签不触发包含判定，空输入空组", () => {
+    assert.deepEqual(findSimilarTagGroups(["AI", "ML", "A", "B"]), []);
+    assert.deepEqual(findSimilarTagGroups([]), []);
+    // ML/AI 互不包含 → 不成组
+    const groups = findSimilarTagGroups(["人工智能", "AGI", "人工智能应用"]);
+    assert.equal(groups.length, 1);
+    assert.equal(groups[0].keep, "人工智能应用");
+});
+
+test("buildAuthorPrompt/parseAuthorResponse：作者推断指令与结果清洗（T-1813）", () => {
+    const prompt = buildAuthorPrompt("深度文章", "点击上方蓝字关注 极客视界……");
+    assert.ok(prompt.includes("深度文章"));
+    assert.ok(prompt.includes("只输出作者名本身"));
+    assert.equal(parseAuthorResponse("极客视界"), "极客视界");
+    assert.equal(parseAuthorResponse("公众号：极客视界"), "极客视界");
+    assert.equal(parseAuthorResponse("“极客视界”"), "极客视界");
+    assert.equal(parseAuthorResponse("未知"), null);
+    assert.equal(parseAuthorResponse(""), null);
+    assert.equal(parseAuthorResponse("a".repeat(50)), null); // 超上限拒绝
+});
+
+test("buildQuestionCardPrompt/parseQuestionResponse：问句卡指令与清洗（T-1751）", () => {
+    const prompt = buildQuestionCardPrompt("间隔重复提升记忆留存。");
+    assert.ok(prompt.includes("间隔复习"));
+    assert.ok(prompt.includes("间隔重复提升记忆留存。"));
+    assert.equal(parseQuestionResponse("1. 间隔重复为什么有效？"), "间隔重复为什么有效？");
+    assert.equal(parseQuestionResponse("「这个问题是什么？」"), "这个问题是什么？");
+    assert.equal(parseQuestionResponse(""), null);
+    assert.equal(parseQuestionResponse("x".repeat(150)), null);
+});
+
+test("buildDailyDigestPrompt：三篇速览指令与无摘要占位（T-1764）", () => {
+    const prompt = buildDailyDigestPrompt([
+        { title: "文章一", site: "a.com", summary: "摘要一" },
+        { title: "文章二", site: "", summary: "" },
+        { title: "文章三", site: "c.com", summary: "摘要三" },
+    ]);
+    assert.ok(prompt.includes("1. 《文章一》（a.com）：摘要一"));
+    assert.ok(prompt.includes("2. 《文章二》（未知来源）：（无摘要）"));
+    assert.ok(prompt.includes("150 字"));
+    assert.ok(prompt.includes("只输出速览正文"));
+});
+
+test("buildMultiReportPrompt：勾选篇清单与状态标签（T-1902）", () => {
+    const prompt = buildMultiReportPrompt([
+        { title: "文章甲", site: "a.com", summary: "摘要甲", status: "inbox" },
+        { title: "文章乙", site: "", summary: "", status: "done" },
+    ]);
+    assert.ok(prompt.includes("2 篇文章"));
+    assert.ok(prompt.includes("1. 《文章甲》[新剪藏]（a.com）：摘要甲"));
+    assert.ok(prompt.includes("2. 《文章乙》[已读]（未知来源）：（无摘要）"));
+    assert.ok(prompt.includes("400 字"));
+    // 超过 20 篇截断
+    const many = Array.from({ length: 25 }, (_, i) => ({ title: `t${i}`, site: "", summary: "", status: "inbox" }));
+    assert.ok(!buildMultiReportPrompt(many).includes("t20"));
 });

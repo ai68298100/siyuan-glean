@@ -1,0 +1,248 @@
+<script lang="ts">
+/** 全库摘录墙（T-1750）：引述块聚合视图 + 站点/标签/AI 标签/关键词筛选 + 跳回 + 批量导出（T-1752）。
+ * 只读投影：引述块来自 highlights.listLibraryQuotes，root 元数据从派生索引与 root 标题查询映射，
+ * 筛选不写任何属性（domain/quotes 纯函数）。 */
+import { onMount } from "svelte";
+import { openTab, showMessage } from "siyuan";
+import type { GleanFacade } from "../types";
+import { t } from "../libs/i18n";
+import type { GleanIndex } from "../services/index-store";
+import { listLibraryQuotes, listQuoteRoots, getQuoteColor, setQuoteColor } from "../services/highlights";
+import { exportQuotesToDoc } from "../services/excerpt-service";
+import { filterQuotes, formatQuoteShare, quoteFacets, type QuoteEntry, type QuoteFilter } from "../domain/quotes";
+
+type QuoteEntryWithColor = QuoteEntry & { color: string };
+
+interface Props {
+    facade: GleanFacade;
+    index: GleanIndex;
+}
+
+let { facade, index }: Props = $props();
+
+const i18n = $derived(facade.i18n);
+
+let entries = $state<QuoteEntryWithColor[]>([]);
+let loading = $state(true);
+let loadFailed = $state(false);
+let exporting = $state(false);
+/** 单页上限；超出时提示仅展示最近 N 条（地基分页已备好，翻页随视图走查再开）。 */
+const PAGE_SIZE = 500;
+let truncated = $state(false);
+
+let filter = $state<QuoteFilter>({});
+
+const facets = $derived(quoteFacets(entries));
+const filtered = $derived(filterQuotes(entries, filter));
+
+onMount(() => {
+    void loadQuotes();
+});
+
+async function loadQuotes() {
+    loading = true;
+    loadFailed = false;
+    try {
+        const rows = await listLibraryQuotes(PAGE_SIZE + 1, 0);
+        truncated = rows.length > PAGE_SIZE;
+        const page = rows.slice(0, PAGE_SIZE);
+        const rootTitles = await listQuoteRoots(page.map((row) => row.rootId));
+        entries = page.map((row) => {
+            const clip = index.clips[row.rootId];
+            return {
+                id: row.id,
+                rootId: row.rootId,
+                text: row.text,
+                title: clip?.title || rootTitles.get(row.rootId) || "",
+                site: clip?.site || "",
+                tags: clip?.tags ?? [],
+                aiTags: clip?.aiTags ?? [],
+                color: "",
+            };
+        });
+        // T-1901 延伸：颜色标记逐块补齐（getBlockAttrs 可靠；SQL ial 列同步有限）
+        const colors = await Promise.all(entries.map((entry) => getQuoteColor(entry.id)));
+        entries = entries.map((entry, i) => ({ ...entry, color: colors[i] }));
+    } catch (error) {
+        console.warn("[glean] 摘录墙加载失败:", error);
+        loadFailed = true;
+    } finally {
+        loading = false;
+    }
+}
+
+/** T-1901 延伸：单条颜色循环切换（写引述块级 IAL）。 */
+async function cycleQuoteColor(entry: QuoteEntryWithColor): Promise<void> {
+    const order = ["", "yellow", "red", "blue", "green"];
+    const next = order[(order.indexOf(entry.color) + 1) % order.length];
+    try {
+        await setQuoteColor(entry.id, next);
+        entries = entries.map((item) => (item.id === entry.id ? { ...item, color: next } : item));
+    } catch (error) {
+        console.warn("[glean] 摘录颜色切换失败:", error);
+        showMessage(t(i18n, "msg.actionFailed"), 3000);
+    }
+}
+
+function toggleFacet(key: "site" | "tag" | "aiTag" | "color", value: string): void {
+    filter = { ...filter, [key]: filter[key] === value ? undefined : value };
+}
+
+function activeChips(): Array<{ key: "site" | "tag" | "aiTag" | "color" | "keyword"; label: string }> {
+    const chips: Array<{ key: "site" | "tag" | "aiTag" | "color" | "keyword"; label: string }> = [];
+    if (filter.site) chips.push({ key: "site", label: filter.site });
+    if (filter.tag) chips.push({ key: "tag", label: `#${filter.tag}` });
+    if (filter.aiTag) chips.push({ key: "aiTag", label: `✨${filter.aiTag}` });
+    if (filter.color) chips.push({ key: "color", label: `●${colorLabel(filter.color)}` });
+    if (filter.keyword) chips.push({ key: "keyword", label: `“${filter.keyword}”` });
+    return chips;
+}
+
+function clearFilter(): void {
+    filter = {};
+}
+
+/** 颜色分面文案：色名走 i18n（zh: 黄/红/蓝/绿）。 */
+function colorLabel(name: string): string {
+    return t(i18n, `highlight.color.${name}`);
+}
+
+function openRoot(quoteId: string): void {
+    void openTab({ app: facade.pluginInstance.app, doc: { id: quoteId }, keepCursor: false });
+}
+
+/** T-1803 分享卡：复制格式化引用（引述+来源+回链）。 */
+async function copyQuoteShare(quote: QuoteEntry): Promise<void> {
+    try {
+        await navigator.clipboard.writeText(formatQuoteShare(quote));
+        showMessage(t(i18n, "reader.copied"), 2000);
+    } catch {
+        showMessage(t(i18n, "reader.actionFailed"), 2500);
+    }
+}
+
+async function doExport(): Promise<void> {
+    if (filtered.length === 0) return;
+    const notebookId = facade.settings.anchorNotebooks[0];
+    if (!notebookId) {
+        showMessage(t(i18n, "panel.noAnchorHint"), 4000);
+        return;
+    }
+    exporting = true;
+    try {
+        await exportQuotesToDoc(filtered, notebookId);
+        showMessage(t(i18n, "quotes.exportDone", { n: filtered.length }), 3500);
+    } catch (error) {
+        showMessage(String(error).slice(0, 140), 5000);
+    } finally {
+        exporting = false;
+    }
+}
+</script>
+
+<div class="glean-panel">
+    {#if loading}
+        <div class="glean-panel__loading">{t(i18n, "panel.loading")}</div>
+    {:else if loadFailed}
+        <div class="glean-empty">
+            <div class="glean-empty__title">{t(i18n, "quotes.loadFailed")}</div>
+            <button class="glean-btn glean-btn--ghost" onclick={() => void loadQuotes()}>{t(i18n, "action.retry")}</button>
+        </div>
+    {:else if entries.length === 0}
+        <div class="glean-empty">
+            <div class="glean-empty__art">❝</div>
+            <div class="glean-empty__title">{t(i18n, "quotes.empty")}</div>
+            <div class="glean-empty__hint">{t(i18n, "quotes.emptyHint")}</div>
+        </div>
+    {:else}
+        <input
+            class="glean-mini-input glean-quotes__search"
+            type="text"
+            placeholder={t(i18n, "quotes.search")}
+            aria-label={t(i18n, "quotes.search")}
+            bind:value={filter.keyword}
+        />
+        {#if facets.sites.length > 0 || facets.tags.length > 0 || facets.aiTags.length > 0 || facets.colors.length > 0}
+            <div class="glean-quotes__facets">
+                {#each facets.sites.slice(0, 8) as site (site.name)}
+                    <button
+                        class="glean-tag glean-quotes__facet"
+                        class:glean-quotes__facet--on={filter.site === site.name}
+                        onclick={() => toggleFacet("site", site.name)}
+                    >{site.name} ×{site.count}</button>
+                {/each}
+                {#each facets.tags.slice(0, 8) as tag (tag.name)}
+                    <button
+                        class="glean-tag glean-quotes__facet"
+                        class:glean-quotes__facet--on={filter.tag === tag.name}
+                        onclick={() => toggleFacet("tag", tag.name)}
+                    >#{tag.name} ×{tag.count}</button>
+                {/each}
+                {#each facets.aiTags.slice(0, 6) as tag (tag.name)}
+                    <button
+                        class="glean-tag glean-quotes__facet"
+                        class:glean-quotes__facet--on={filter.aiTag === tag.name}
+                        onclick={() => toggleFacet("aiTag", tag.name)}
+                    >✨{tag.name} ×{tag.count}</button>
+                {/each}
+                <!-- T-1901 延伸：颜色分面（色点筛选） -->
+                {#each facets.colors.slice(0, 5) as color (color.name)}
+                    <button
+                        class="glean-tag glean-quotes__facet"
+                        class:glean-quotes__facet--on={filter.color === color.name}
+                        onclick={() => toggleFacet("color", color.name)}
+                    ><span class="glean-hl__color--{color.name}">●</span> {colorLabel(color.name)} ×{color.count}</button>
+                {/each}
+            </div>
+        {/if}
+        {#if activeChips().length > 0}
+            <div class="glean-quotes__chips">
+                {#each activeChips() as chip (chip.key + chip.label)}
+                    <button class="glean-quotes__chip" title={t(i18n, "quotes.clearFilter")} onclick={() => clearFilter()}>
+                        {chip.label} ×
+                    </button>
+                {/each}
+                <span class="glean-quotes__count">{t(i18n, "quotes.count", { n: filtered.length, total: entries.length })}</span>
+            </div>
+        {:else}
+            <div class="glean-quotes__chips">
+                <span class="glean-quotes__count">{t(i18n, "quotes.count", { n: filtered.length, total: entries.length })}</span>
+            </div>
+        {/if}
+        {#if truncated}
+            <div class="glean-quotes__truncated">{t(i18n, "quotes.truncated", { n: PAGE_SIZE })}</div>
+        {/if}
+        <div class="glean-quotes">
+            {#each filtered as quote (quote.id)}
+                <div class="glean-quote" class:glean-hl--yellow={quote.color === "yellow"} class:glean-hl--red={quote.color === "red"} class:glean-hl--blue={quote.color === "blue"} class:glean-hl--green={quote.color === "green"}>
+                    <div class="glean-quote__text">{quote.text.slice(0, 160)}{quote.text.length > 160 ? "…" : ""}</div>
+                    <div class="glean-quote__meta">
+                        <button class="glean-quote__src" title={quote.title || quote.rootId} onclick={() => openRoot(quote.id)}>
+                            ↩ {quote.title || t(i18n, "panel.untitled")}{quote.site ? ` · ${quote.site}` : ""}
+                        </button>
+                        <!-- T-1901 延伸：颜色循环切换 -->
+                        <button
+                            class="glean-quote__src glean-hl__color glean-hl__color--{quote.color || 'none'}"
+                            title={t(i18n, "highlight.cycleColor")}
+                            onclick={() => void cycleQuoteColor(quote)}
+                        >{quote.color ? "●" : "○"}</button>
+                        <!-- T-1803 分享卡：复制格式化引用 -->
+                        <button
+                            class="glean-quote__src"
+                            title={t(i18n, "highlight.copyShare")}
+                            onclick={() => void copyQuoteShare(quote)}
+                        >⧉ {t(i18n, "highlight.copyShare")}</button>
+                    </div>
+                </div>
+            {:else}
+                <div class="glean-empty" style="padding:12px">
+                    <div class="glean-empty__hint">{t(i18n, "quotes.filterEmpty")}</div>
+                    <button class="glean-btn glean-btn--ghost" onclick={clearFilter}>{t(i18n, "quotes.clearFilter")}</button>
+                </div>
+            {/each}
+        </div>
+        <button class="glean-primary-btn" disabled={exporting || filtered.length === 0} onclick={() => void doExport()}>
+            📤 {exporting ? t(i18n, "panel.loading") : t(i18n, "quotes.export", { n: filtered.length })}
+        </button>
+    {/if}
+</div>

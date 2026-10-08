@@ -2029,3 +2029,7 @@
 - [ ] T-3199 完成 UI v2 第一轮逐页 port 验收
 - [ ] T-3200 完成 UI v2 第二轮交互舒适度优化
 - [x] T-3201 完成 220 项键盘、朗读、URL、载体、状态、设置、正文和读库投影契约样本（2026-10-02；`docs/AGENT-200-BATCH.md`；`pnpm test` 354/354，`pnpm check` 0 errors/0 warnings）
+## T-3304（2026-10-08）主线同步分支合入开发支线
+
+- [◐] 将 `origin/codex/main-sync-20261008` 合入 `dev/thispc-1002`，完成类型、测试、构建、发布检查并普通推送；保留同步分支，不触碰 `main`/tag/Release/集市。
+- [x] 冲突裁决：阅读断点继续以 `custom-clip-reading-position` JSON 为唯一新写入事实源；同步侧旧键仅兼容读取。

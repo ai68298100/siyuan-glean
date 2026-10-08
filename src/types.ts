@@ -18,6 +18,10 @@ export interface GleanFacade {
     openSettings(): void;
     /** 打开迁移导入弹窗 */
     openImport(): void;
+    /** 归档后处理对话框（保留原位、移入归档、移入回收或彻底删除） */
+    openArchiveDialog(docId: string): void;
+    /** 从归档/回收宿主恢复文章的策略对话框 */
+    openRestoreDialog(docId: string): void;
     /** 将当前活动文档手动收录到读库；复用既有命令收录链路。 */
     addCurrentDocToLibrary(): Promise<void>;
     /** 工作台弹出为独立浮窗 */

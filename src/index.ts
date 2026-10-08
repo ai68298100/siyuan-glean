@@ -10,6 +10,8 @@ import DockPanel from "./ui/DockPanel.svelte";
 import ReaderTab from "./ui/ReaderTab.svelte";
 import { installReadingContext } from "./ui/reading-context-controller";
 import MigrateDialog from "./ui/MigrateDialog.svelte";
+import ArchiveDialog from "./ui/ArchiveDialog.svelte";
+import RestoreDialog from "./ui/RestoreDialog.svelte";
 import ImportDialog from "./ui/ImportDialog.svelte";
 import OnboardingDialog from "./ui/OnboardingDialog.svelte";
 import { loadUiPrefs } from "./services/prefs";
@@ -31,6 +33,7 @@ import { installBridge } from "./services/bridge";
 import pluginManifest from "../plugin.json";
 import type { GleanFacade } from "./types";
 import { addRecentReading, type RecentReadingEntry } from "./domain/recent-reading";
+import { docUnderHostKind } from "./services/lifecycle-service";
 
 const DOCK_TYPE = "glean-dock";
 const TAB_TYPE = "glean-library";
@@ -159,7 +162,7 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
         this.addCommand({ langKey: "cmd.markDone", callback: () => void this.markCurrentStatus("done") });
         this.addCommand({ langKey: "cmd.readNext", callback: () => void this.readNextArticle() });
         this.addCommand({ langKey: "cmd.markLater", callback: () => void this.markCurrentStatus("later") });
-        this.addCommand({ langKey: "cmd.archiveCurrent", callback: () => void this.markCurrentStatus("archived") });
+        this.addCommand({ langKey: "cmd.archiveCurrent", callback: () => { const id = this.currentDocId(); if (id) this.openArchiveDialog(id); } });
         this.addCommand({ langKey: "cmd.openSource", callback: () => void this.openCurrentSource() });
         this.addCommand({ langKey: "cmd.excerptQuote", callback: () => void this.excerptQuoteFromSelection() });
         this.addCommand({ langKey: "cmd.readerHelp", callback: () => this.showReaderHelp() });
@@ -455,6 +458,49 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
             return;
         }
         this.openReadingDocument(next);
+    }
+
+    /** 归档后处理入口：策略细节由 ArchiveDialog 负责，入口保持与阅读上下文解耦。 */
+    openArchiveDialog(docId: string): void {
+        if (!docId) return;
+        svelteDialog({
+            title: t(this.i18n, "archive.title"),
+            closeLabel: t(this.i18n, "action.close"),
+            component: ArchiveDialog,
+            props: { facade: this, docId },
+            width: "440px",
+            height: "360px",
+        });
+    }
+
+    /**
+     * 恢复入口：不在生命周期宿主中的文章沿用直接恢复语义；在宿主中的文章
+     * 打开策略对话框，让用户明确选择是否移出宿主。
+     */
+    openRestoreDialog(docId: string): void {
+        if (!docId) return;
+        void (async () => {
+            try {
+                const kind = await docUnderHostKind(docId);
+                if (!kind) {
+                    await batchSetStatus(this, [docId], "later");
+                    this.notifyDataChanged();
+                    showMessage(t(this.i18n, "msg.statusChanged"), 2500);
+                    return;
+                }
+                svelteDialog({
+                    title: t(this.i18n, "restore.title"),
+                    closeLabel: t(this.i18n, "action.close"),
+                    component: RestoreDialog,
+                    props: { facade: this, docId },
+                    width: "440px",
+                    height: "300px",
+                });
+            } catch (error) {
+                console.warn("[glean] 恢复入口检查失败:", error);
+                showMessage(t(this.i18n, "msg.statusFailed"), 3000);
+            }
+        })();
     }
 
     /** `?` 帮助：阅读动作清单与自定义快捷键入口提示（T-1724）。 */

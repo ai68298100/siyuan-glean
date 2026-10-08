@@ -1162,3 +1162,8 @@ D-0016 S0–S4 主线代码全部关闭，作者 v1.0.4 反馈由 S1–S4 覆盖
 - 块删除后读回现在明确记录 `readable/empty/rejected/transport-error`；当前插入块删除后为 `code=-1 block not found`。资源删除/权限没有经实证的端点形状，仍记录为未测试，不臆造接口。
 - `transaction-report.json` 升为 `reportVersion: 2`，包含 `kernelVersion`、`pluginVersion`、回环 `host/port`、逐项布尔 `results`、完整 `probes` 和 `limitations`，可导入 `e2e:acceptance report`。本轮隔离探针通过，报告路径为 `C:\Users\sunku\AppData\Local\Temp\siyuan-glean-t3220-1791143874720-21700\transaction-report.json`。
 - 报告已导入独立验收账本并以 `passed` 关闭，共 15 项隔离证据；本地 `pnpm test` 为 1107/1107，`pnpm check`、`pnpm build`、`pnpm perf:check` 和 `pnpm check:release` 均通过。本轮已提交当前 `codex/` 分支 `bd3df9a`，未合并主线。仍未关闭：双 Protyle、用户中间编辑、真实网络故障、资源权限/删除、编辑器渲染和真实宿主撤销；跨 session undo 无插件归属隔离，因此不提供插件专属撤销。
+## 当前有效交接（2026-10-08：同步分支合入准备完成）
+
+本机 `dev/thispc-1002` 正在合并远端 `origin/codex/main-sync-20261008`。同步内容已按当前契约接入：生命周期归档/恢复、摘录墙与颜色投影、CSV/会话排序/朗读与阅读计时、收藏字段、索引损坏保护和内核请求超时。阅读断点保持 `custom-clip-reading-position` JSON 为唯一新写入事实源，历史 `custom-clip-reading-pos` 不再新写。
+
+当前合并现场尚未提交或推送；已通过 `pnpm check`，新增定向测试已通过，正在继续跑完整测试、构建、发布门禁和 `git diff --check`。不得触碰 `main`、升版本、打 tag、创建 Release 或上传集市。
