@@ -22,6 +22,7 @@ const i18n = $derived(facade.i18n);
 
 let available = $state(false);
 let checked = $state(false);
+let inboxCheckFailed = $state(false);
 let expanded = $state(false);
 let items = $state<Shorthand[]>([]);
 let busyId = $state("");
@@ -43,7 +44,10 @@ function applyRecovery(checkpoint: InboxRecovery | null) {
 }
 
 function recoveryMessage(error: unknown): string {
-    if (!(error instanceof InboxRecoveryError)) return String(error).slice(0, 140);
+    if (!(error instanceof InboxRecoveryError)) {
+        console.warn("[glean] 收集箱操作失败:", error);
+        return t(i18n, "msg.actionFailed");
+    }
     const messages: Record<InboxRecoveryError["reason"], string> = {
         readFailed: "inbox.recoveryReadFailed",
         invalid: "inbox.recoveryInvalid",
@@ -67,6 +71,7 @@ async function refresh() {
         const status = await checkInbox();
         available = status.available;
         items = status.page?.shorthands ?? [];
+        inboxCheckFailed = false;
         try {
             applyRecovery(await loadInboxRecovery(facade.pluginInstance));
         } catch (error) {
@@ -74,7 +79,9 @@ async function refresh() {
             showMessage(recoveryMessage(error), 5000);
         }
     } catch {
+        // 查询失败与"未订阅收集箱"区分开：给用户重试入口而不是静默隐藏整个区域
         available = false;
+        inboxCheckFailed = true;
     } finally {
         checked = true;
     }
@@ -100,10 +107,11 @@ async function migrate(item: Shorthand, allowDuplicate = false) {
         }
         if (result.recovery) rememberRecovery(result.recovery);
         else if (result.cloudRemoved) applyRecovery(null);
-        showMessage(t(i18n, "inbox.migrated"), 3000);
         if (result.cloudRemoved) {
+            showMessage(t(i18n, "inbox.migrated"), 3000);
             items = items.filter((entry) => entry.oId !== item.oId);
         } else {
+            // 云端删除失败时只弹失败提示（文案已含"本地已创建"），避免两条 toast 互相覆盖
             pendingRemoval[item.oId] = result.docId;
             showMessage(t(i18n, "inbox.cloudRemoveFailed"), 3500);
         }
@@ -121,12 +129,17 @@ async function dismiss(item: Shorthand) {
     busyId = item.oId;
     try {
         await removeShorthands([item.oId]);
-        if (recovery?.shorthandId === item.oId) {
-            await clearInboxRecovery(facade.pluginInstance, recovery, true);
-            applyRecovery(null);
-        }
+        // 先更新本地列表：检查点清理失败不应让已删除的云端条目继续留在界面上
         items = items.filter((entry) => entry.oId !== item.oId);
         delete pendingRemoval[item.oId];
+        if (recovery?.shorthandId === item.oId) {
+            try {
+                await clearInboxRecovery(facade.pluginInstance, recovery, true);
+                applyRecovery(null);
+            } catch (error) {
+                showMessage(recoveryMessage(error), 5000);
+            }
+        }
         if (duplicate?.item.oId === item.oId) duplicate = null;
     } catch (error) {
         showMessage(recoveryMessage(error), 5000);
@@ -136,7 +149,14 @@ async function dismiss(item: Shorthand) {
 }
 </script>
 
-{#if checked && available}
+{#if checked && inboxCheckFailed}
+    <div class="glean-inbox" role="region" aria-labelledby={titleId}>
+        <div class="glean-inbox__empty" role="status">
+            {t(i18n, "inbox.checkFailed")}
+            <button class="glean-linkish" type="button" onclick={() => void refresh()}>{t(i18n, "action.retry")}</button>
+        </div>
+    </div>
+{:else if checked && available}
     <div class="glean-inbox" role="region" aria-labelledby={titleId} aria-busy={Boolean(busyId)}>
         <button type="button" class="glean-inbox__toggle" aria-expanded={expanded} aria-controls={contentId} onclick={() => (expanded = !expanded)}>
             <span id={titleId} class="glean-meta-icon"><svg class="glean-icon glean-icon--sm" aria-hidden="true"><use href="#iconGleanInbox" /></svg>{t(i18n, "inbox.title")}</span>

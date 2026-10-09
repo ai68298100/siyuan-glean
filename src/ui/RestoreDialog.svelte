@@ -39,7 +39,8 @@
             onClose();
         } catch (error) {
             console.warn("[glean] 恢复失败:", error);
-            showMessage(t(i18n, "msg.actionFailed"), 3000);
+            // 两步操作（移出宿主 + 写状态）部分失败时提示已完成的进度，避免重复执行的语义混乱
+            showMessage(moveOut ? t(i18n, "restore.partialMoved") : t(i18n, "msg.actionFailed"), 4000);
         } finally {
             pending = false;
         }

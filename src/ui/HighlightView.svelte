@@ -86,7 +86,18 @@ async function loadHighlights(targetScope: "current" | "library", docId: string,
     }
     try {
         const next = targetScope === "library" ? await listLibraryHighlights(facade.pluginInstance, settings) : await listDocHighlights(docId);
-        const title = targetScope === "current" ? next[0]?.title || await highlightDocumentTitle(docId) : "";
+        // 标题查询失败不应把"暂无摘录"污染成"加载失败"：降级为空串即可
+        let title = "";
+        if (targetScope === "current") {
+            title = next[0]?.title || "";
+            if (!title) {
+                try {
+                    title = await highlightDocumentTitle(docId);
+                } catch (titleError) {
+                    console.warn("[glean] 摘录标题查询失败:", titleError);
+                }
+            }
+        }
         if (request !== generation) return;
         items = next;
         selected = retainHighlightSelection(next, selected);
@@ -132,6 +143,8 @@ function clearFilters() {
     aiTag = "";
     page = 1;
 }
+
+const hasFilters = $derived(Boolean(search.trim() || site || tag || aiTag));
 
 function reasonText(reason: HighlightSaveReason): string {
     const keys: Record<HighlightSaveReason, string> = {
@@ -287,8 +300,13 @@ function openDoc(id: string) {
     {#if !loading && !loadError && scope === "current" && !currentDocId}
         <div class="glean-empty glean-highlights__empty"><div class="glean-empty__art"><svg aria-hidden="true"><use href="#iconGleanWheat" /></svg></div><div class="glean-empty__title">{t(i18n, "highlight.noDoc")}</div><div class="glean-empty__hint">{t(i18n, "highlight.noDocHint")}</div></div>
     {:else if !loading && !loadError && !visible.items.length}
-        <div class="glean-empty glean-highlights__empty"><div class="glean-empty__art"><svg aria-hidden="true"><use href="#iconGleanWheat" /></svg></div><div class="glean-empty__title">{t(i18n, "highlight.empty")}</div><div class="glean-empty__hint">{t(i18n, "highlight.emptyHint")}</div></div>
+        {#if hasFilters}
+            <div class="glean-empty glean-highlights__empty" role="status"><div class="glean-empty__hint">{t(i18n, "library.noMatch")}</div><button class="glean-btn glean-btn--ghost" onclick={clearFilters}>{t(i18n, "library.clearFilters")}</button></div>
+        {:else}
+            <div class="glean-empty glean-highlights__empty"><div class="glean-empty__art"><svg aria-hidden="true"><use href="#iconGleanWheat" /></svg></div><div class="glean-empty__title">{t(i18n, "highlight.empty")}</div><div class="glean-empty__hint">{t(i18n, "highlight.emptyHint")}</div></div>
+        {/if}
     {/if}
+    {#if !loadError}
     <div class="glean-highlights__items">
         {#each visible.items as item (item.id)}
             <article class="glean-highlights__item" aria-busy={cardingKey === item.id}>
@@ -308,6 +326,7 @@ function openDoc(id: string) {
             </article>
         {/each}
     </div>
+    {/if}
     {#if !loading && !loadError && visible.pages > 1}
         <nav class="glean-highlights__tools glean-highlights__pagination" aria-label={t(i18n, "highlight.pageInfo", { page: visible.page, pages: visible.pages, n: visible.total })}>
             <button disabled={visible.page <= 1} onclick={() => page = visible.page - 1}>{t(i18n, "highlight.previousPage")}</button>

@@ -1,5 +1,16 @@
 # 进度（PROGRESS）
 
+## T-3316 第四轮全方位走查：解析器防御 / 剩余模块 / 数据契约（2026-10-09）
+
+- [x] 解析器防御：Pocket HTML 全局正则的 O(n²) 惰性扫描改为 indexOf 状态机（20 万未闭合锚点 2ms）；四格式导入字段统一截断（title/site 512 码点、url 8KB、标签 64 字×20 个）；`toSiyuanTime` 拒绝 1-9999 之外年份；CSV 解析 200 万行上限；属性内嵌 `>` 锚点计入 dropped；单引号 href 支持。防御确认完备的：原型链污染（全链白名单重建）、URL 协议注入（normalizeUrl http(s) 网关 + noopener）、备份结构校验（parseBackup 最严）、进度文件校验本体。
+- [x] 进度文件逃生：损坏的 import-progress.json 此前会永久锁死选新文件/恢复/丢弃（readImportProgress 与 discard 同一读取路径）；`discardImportProgress` 支持按文件名强制删除，UI 在 progressReadFailed 时提供「重置导入状态」确认入口；进度明细渲染上限 200 条（原 5 万行全量 DOM）。
+- [x] 剩余模块：收集箱区分查询失败（重试入口）与未订阅、双 toast 互覆修复、dismiss 先更新列表、非 InboxRecoveryError 回落本地化；归档对话框 purge 前置读取失败补 catch；摘录视图标题查询失败降级、筛选空态 noMatch+清除筛选、加载失败门控列表渲染；恢复对话框部分失败提示已完成进度；归档入口注释与 D-0032 实际行为对齐。
+- [x] 引述墙（QuotesView）状态确认：功能完整（分面/搜索/颜色/导出/分享卡）但**从未接入任何视图分支**，数据源（全库引述块）与已接线的摘录视图（读库高亮聚合）不同——属产品决策项，头注释已标记；接线前先修内部竞态（latest-request 门禁、颜色循环 busy 守卫、颜色基于局部快照）。
+- [x] 数据契约核对（铁律 1 落实验证）：代码与 DATA-CONTRACT.md 的 27 个 `custom-clip-*` 键双向差集为空。
+- [x] i18n 新增 5 键（双语各 1034）；recovery.test 结构断言同步双 toast 修复后的行为。
+- [x] 门禁：`pnpm check` 0 错误/0 警告、`pnpm test` 1223/1223、`pnpm build`、`pnpm check:release`、账本、`git diff --check` 通过。
+- [ ] 真实验收归 B-0002；版本保持 `1.2.1`，不升版、不打 tag、不创建 Release。
+
 ## T-3315 第三轮全方位走查：变更自查 / CSS / 文档一致性 / E2E 修复（2026-10-09）
 
 - [x] 变更自查（T-3312..3314 diff 全量重审）：修复设置页分类切换静默中止进行中的备份恢复/闪卡恢复/AI 标签扫描（data/maintenance 分类首次访问后常驻挂载、切分类仅 display 切换）；`kernelPost` 回退分支补 `clearTimeout`；备份预览取消改共享常量 `BACKUP_PREVIEW_CANCELLED`（消除三处裸字符串耦合）；AI 标签合并后重扫失败保留剩余分组（手动扫描仍报错）；设置冲突后二次读盘加兜底。自查确认跨分类脏检查、keepalive、锁无死锁、pickDaily、currentDocId、i18n 占位符等 20+ 项无新缺陷。

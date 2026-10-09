@@ -17,6 +17,7 @@ import { t } from "../libs/i18n";
 import type { GleanFacade } from "../types";
 import { ImportProgressError, summarizeImportProgress, type ImportProgress } from "../domain/import-progress";
 import { discardImportProgress, fingerprintImportSource, loadImportProgress } from "../services/import-progress";
+import { IMPORT_PROGRESS_FILE } from "../domain/import-progress";
 
 /** 导入文件读取上限（32 MiB，与备份同数量级）：整文件解码/指纹/解析都在主线程。 */
 const MAX_IMPORT_BYTES = 32 * 1024 * 1024;
@@ -63,6 +64,7 @@ let progressLoading = $state(false);
 let progressReadFailed = $state(false);
 let resumeConfirmed = $state(false);
 let discardConfirmed = $state(false);
+let forceResetConfirmed = $state(false);
 let stopping = $state(false);
 let mounted = false;
 let controller: AbortController | null = null;
@@ -101,14 +103,19 @@ async function refreshProgress(): Promise<void> {
 }
 
 async function discardProgress(): Promise<void> {
-    if (busy || !progressRecord || !discardConfirmed) return;
+    if (busy || !discardConfirmed) return;
+    if (!progressRecord && !forceResetConfirmed) return;
     busy = true;
     try {
-        await discardImportProgress(facade.pluginInstance, progressRecord.taskId, true);
+        // 进度文件损坏（progressReadFailed）时无 taskId 可校验：传文件名走强制逃生路径
+        const target = progressRecord?.taskId ?? IMPORT_PROGRESS_FILE;
+        await discardImportProgress(facade.pluginInstance, target, true);
         if (!mounted) return;
         progressRecord = null;
         progressError = "";
+        progressReadFailed = false;
         discardConfirmed = false;
+        forceResetConfirmed = false;
         resetToPick();
     } catch (error) { if (mounted) progressError = progressFailure(error); }
     finally { if (mounted) busy = false; }
@@ -272,6 +279,12 @@ function openProgressDocument(id: string): void {
             {#if progressLoading}<span role="status">{t(i18n, "panel.loading")}</span>{/if}
             <button class="glean-btn glean-btn--ghost" disabled={progressLoading || busy} onclick={() => void refreshProgress()}>{t(i18n, "action.retry")}</button>
         </div>
+        {#if progressReadFailed}
+            <label class="glean-import-progress__check"><input type="checkbox" bind:checked={forceResetConfirmed} disabled={busy || progressLoading} />{t(i18n, "import.progress.confirmForceReset")}</label>
+            <div class="glean-import-progress__actions">
+                <button class="glean-btn glean-btn--ghost" disabled={busy || progressLoading || !forceResetConfirmed} onclick={() => void discardProgress()}>{t(i18n, "import.progress.forceReset")}</button>
+            </div>
+        {/if}
     {/if}
     {#if progressRecord && progressCounts}
         <section class="glean-import-progress" aria-labelledby={progressTitleId}>
@@ -283,13 +296,17 @@ function openProgressDocument(id: string): void {
             <details>
                 <summary>{t(i18n, "import.progress.entries")}</summary>
                 <div class="glean-import-progress__rows">
-                    {#each progressRecord.rows as entry, index (entry.key)}
+                    <!-- 最多渲染前 200 条：5 万行全量建 DOM 会造成数秒级卡顿（T-3316） -->
+                    {#each progressRecord.rows.slice(0, 200) as entry, index (entry.key)}
                         <div class="glean-import-progress__row">
                             <span>{preview?.rows[index]?.title || entry.hpath} · {t(i18n, `import.progress.row.${entry.state}`)}</span>
                             {#if entry.reason}<span>{t(i18n, `import.progress.reason.${entry.reason}`)}</span>{/if}
                             {#if entry.docId}<button class="glean-btn glean-btn--ghost" onclick={() => openProgressDocument(entry.docId)}>{t(i18n, "action.openDoc")}</button>{/if}
                         </div>
                     {/each}
+                    {#if progressRecord.rows.length > 200}
+                        <div class="glean-import-progress__row"><span>{t(i18n, "import.progress.entriesTruncated", { n: progressRecord.rows.length - 200 })}</span></div>
+                    {/if}
                 </div>
             </details>
             {#if unfinished && !busy}

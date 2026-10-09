@@ -1,7 +1,10 @@
 <script lang="ts">
 /** 全库摘录墙（T-1750）：引述块聚合视图 + 站点/标签/AI 标签/关键词筛选 + 跳回 + 批量导出（T-1752）。
  * 只读投影：引述块来自 highlights.listLibraryQuotes，root 元数据从派生索引与 root 标题查询映射，
- * 筛选不写任何属性（domain/quotes 纯函数）。 */
+ * 筛选不写任何属性（domain/quotes 纯函数）。
+ * ⚠️ 状态（T-3316 走查确认）：本组件功能完整但尚未接入 DockPanel 的视图分支
+ * （PanelView 无 "quotes"，数据源与已接线的 HighlightView 不同——本组件聚合全库引述块、
+ * 不依赖读库收录）。接线与否是产品决策；接线时需同步加导航、i18n 与路由测试。 */
 import { onMount } from "svelte";
 import { openTab, showMessage } from "siyuan";
 import type { GleanFacade } from "../types";
@@ -10,6 +13,7 @@ import type { GleanIndex } from "../services/index-store";
 import { listLibraryQuotes, listQuoteRoots, getQuoteColor, setQuoteColor } from "../services/highlights";
 import { exportQuotesToDoc } from "../services/excerpt-service";
 import { filterQuotes, formatQuoteShare, quoteFacets, type QuoteEntry, type QuoteFilter } from "../domain/quotes";
+import { createLatestRequestGate } from "../libs/latest-request";
 
 type QuoteEntryWithColor = QuoteEntry & { color: string };
 
@@ -26,9 +30,11 @@ let entries = $state<QuoteEntryWithColor[]>([]);
 let loading = $state(true);
 let loadFailed = $state(false);
 let exporting = $state(false);
+let colorBusyId = $state("");
 /** 单页上限；超出时提示仅展示最近 N 条（地基分页已备好，翻页随视图走查再开）。 */
 const PAGE_SIZE = 500;
 let truncated = $state(false);
+const requests = createLatestRequestGate();
 
 let filter = $state<QuoteFilter>({});
 
@@ -37,17 +43,21 @@ const filtered = $derived(filterQuotes(entries, filter));
 
 onMount(() => {
     void loadQuotes();
+    return () => requests.invalidate();
 });
 
 async function loadQuotes() {
+    const isCurrent = requests.begin();
     loading = true;
     loadFailed = false;
     try {
         const rows = await listLibraryQuotes(PAGE_SIZE + 1, 0);
+        if (!isCurrent()) return;
         truncated = rows.length > PAGE_SIZE;
         const page = rows.slice(0, PAGE_SIZE);
         const rootTitles = await listQuoteRoots(page.map((row) => row.rootId));
-        entries = page.map((row) => {
+        if (!isCurrent()) return;
+        const next: QuoteEntryWithColor[] = page.map((row) => {
             const clip = index.clips[row.rootId];
             return {
                 id: row.id,
@@ -60,19 +70,23 @@ async function loadQuotes() {
                 color: "",
             };
         });
+        entries = next;
         // T-1901 延伸：颜色标记逐块补齐（getBlockAttrs 可靠；SQL ial 列同步有限）
-        const colors = await Promise.all(entries.map((entry) => getQuoteColor(entry.id)));
-        entries = entries.map((entry, i) => ({ ...entry, color: colors[i] }));
+        const colors = await Promise.all(next.map((entry) => getQuoteColor(entry.id)));
+        if (!isCurrent()) return;
+        entries = next.map((entry, i) => ({ ...entry, color: colors[i] }));
     } catch (error) {
         console.warn("[glean] 摘录墙加载失败:", error);
-        loadFailed = true;
+        if (isCurrent()) loadFailed = true;
     } finally {
-        loading = false;
+        if (isCurrent()) loading = false;
     }
 }
 
-/** T-1901 延伸：单条颜色循环切换（写引述块级 IAL）。 */
+/** T-1901 延伸：单条颜色循环切换（写引述块级 IAL）。忙碌守卫防止快速双击以过期颜色计算循环。 */
 async function cycleQuoteColor(entry: QuoteEntryWithColor): Promise<void> {
+    if (colorBusyId) return;
+    colorBusyId = entry.id;
     const order = ["", "yellow", "red", "blue", "green"];
     const next = order[(order.indexOf(entry.color) + 1) % order.length];
     try {
@@ -81,6 +95,8 @@ async function cycleQuoteColor(entry: QuoteEntryWithColor): Promise<void> {
     } catch (error) {
         console.warn("[glean] 摘录颜色切换失败:", error);
         showMessage(t(i18n, "msg.actionFailed"), 3000);
+    } finally {
+        colorBusyId = "";
     }
 }
 
@@ -230,6 +246,8 @@ async function doExport(): Promise<void> {
                         <button
                             class="glean-quote__src glean-hl__color glean-hl__color--{quote.color || 'none'}"
                             title={t(i18n, "highlight.cycleColor")}
+                            disabled={Boolean(colorBusyId)}
+                            aria-busy={colorBusyId === quote.id}
                             onclick={() => void cycleQuoteColor(quote)}
                         >{quote.color ? "●" : "○"}</button>
                         <!-- T-1803 分享卡：复制格式化引用 -->

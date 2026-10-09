@@ -71,13 +71,13 @@ function siteFromUrl(rawUrl: string): string {
     }
 }
 
-/** unix 秒/毫秒 / ISO 8601 → YYYYMMDDHHmmss；解析不出为空串 */
+/** unix 秒/毫秒 / ISO 8601 → YYYYMMDDHHmmss；解析不出或年份落在 1-9999 之外为空串（防负数/巨值产生垃圾年份）。 */
 export function toSiyuanTime(value: unknown): string {
     if (typeof value !== "string" && typeof value !== "number") return "";
     const num = typeof value === "number" ? value : /^\d{10}$|^\d{13}$/.test(value.trim()) ? Number(value) : Date.parse(value);
     if (typeof num !== "number" || !Number.isFinite(num)) return "";
     const date = new Date(num < 10_000_000_000 ? num * 1000 : num);
-    if (Number.isNaN(date.getTime())) return "";
+    if (Number.isNaN(date.getTime()) || date.getFullYear() < 1 || date.getFullYear() > 9999) return "";
     const pad = (n: number) => String(n).padStart(2, "0");
     return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`;
 }
@@ -140,31 +140,68 @@ function dedupe(items: ImportedItem[]): { items: ImportedItem[]; dropped: number
 
 /* ---------- Pocket HTML ---------- */
 
+const MAX_IMPORT_FIELD = 8 * 1024;
+const MAX_IMPORT_TEXT = 512;
+const MAX_IMPORT_TAGS = 20;
+
+/** 截断外部字段：title/site 等纯文本上限 512，url 上限 8KB（正常远小于此，防巨型属性写入文档 IAL）。 */
+function capText(value: string, max = MAX_IMPORT_TEXT): string {
+    const text = value.trim();
+    return [...text].length > max ? [...text].slice(0, max).join("") : text;
+}
+
+function capTags(tags: string[]): string[] {
+    return tags
+        .slice(0, MAX_IMPORT_TAGS)
+        .map((tag) => capText(tag, 64))
+        .filter(Boolean);
+}
+
 export function parsePocketHtml(raw: string): ParseResult {
     const items: ImportedItem[] = [];
-    // 属性顺序不固定的 <a> 锚点逐条解析，再分别取 href/time_added/tags/文本
-    const fullRe = /<a\b([^>]*)>([\s\S]*?)<\/a>/gi;
-    let match: RegExpExecArray | null;
-    while ((match = fullRe.exec(raw)) !== null) {
-        const attrs = match[1];
-        const href = /href="([^"]+)"/i.exec(attrs)?.[1] ?? "";
+    let dropped = 0;
+    // 用 indexOf 状态机逐个 <a>…</a> 切片：全局正则的惰性匹配在"存在未闭合 <a>"时
+    // 每个开标签都要扫到文件尾（O(n²)，32MiB 输入可冻结主线程数小时）
+    const lower = raw.toLowerCase();
+    let cursor = 0;
+    while (cursor < raw.length) {
+        const openStart = lower.indexOf("<a", cursor);
+        if (openStart < 0) break;
+        // <a 后必须是空白或属性结束符，避免命中 <abbr> 等标签
+        const afterOpen = lower.charCodeAt(openStart + 2);
+        if (!(afterOpen === 32 || afterOpen === 9 || afterOpen === 10 || afterOpen === 13 || afterOpen === 62)) {
+            cursor = openStart + 2;
+            continue;
+        }
+        const tagEnd = raw.indexOf(">", openStart + 2);
+        if (tagEnd < 0) break;
+        const closeStart = lower.indexOf("</a>", tagEnd + 1);
+        if (closeStart < 0) break; // 未闭合锚点：其后内容按无锚点处理，扫描结束
+        const attrs = raw.slice(openStart + 2, tagEnd);
+        const inner = raw.slice(tagEnd + 1, closeStart);
+        cursor = closeStart + 4;
+        const hrefMatch = /href="([^"]+)"|href='([^']+)'/i.exec(attrs);
+        const href = (hrefMatch?.[1] ?? hrefMatch?.[2] ?? "").trim();
+        if (!href) {
+            dropped += 1;
+            continue;
+        }
         const timeAdded = /time_added="([^"]*)"/i.exec(attrs)?.[1] ?? "";
         const timeRead = /time_read="([^"]*)"/i.exec(attrs)?.[1] ?? "";
         const tags = /tags="([^"]*)"/i.exec(attrs)?.[1] ?? "";
-        const title = stripPocketHtmlTags(match[2]);
-        if (!href) continue;
+        const title = stripPocketHtmlTags(inner);
         items.push({
-            title,
-            url: href,
-            site: siteFromUrl(href),
+            title: capText(title),
+            url: capText(href, MAX_IMPORT_FIELD),
+            site: capText(siteFromUrl(href)),
             time: toSiyuanTime(timeAdded),
             doneTime: toSiyuanTime(timeRead),
-            tags: tags.split(",").map((tag) => tag.trim()).filter(Boolean),
+            tags: capTags(tags.split(",").map((tag) => tag.trim())),
             status: "inbox",
         });
     }
     const deduped = dedupe(items);
-    return { format: "pocket-html", items: deduped.items, dropped: deduped.dropped };
+    return { format: "pocket-html", items: deduped.items, dropped: deduped.dropped + dropped };
 }
 
 /* ---------- Pocket CSV ---------- */
@@ -188,15 +225,14 @@ export function parsePocketCsv(raw: string): ParseResult {
         const url = cell(iUrl).trim();
         if (!url) continue;
         items.push({
-            title: cell(iTitle).trim(),
-            url,
-            site: siteFromUrl(url),
+            title: capText(cell(iTitle)),
+            url: capText(url, MAX_IMPORT_FIELD),
+            site: capText(siteFromUrl(url)),
             time: toSiyuanTime(cell(iTime)),
             doneTime: toSiyuanTime(cell(iRead)),
-            tags: cell(iTags)
+            tags: capTags(cell(iTags)
                 .split(",")
-                .map((tag) => tag.trim().replace(/^#/, ""))
-                .filter(Boolean),
+                .map((tag) => tag.trim().replace(/^#/, ""))),
             status: normalizeStatus(cell(iStatus)),
         });
     }
@@ -204,7 +240,9 @@ export function parsePocketCsv(raw: string): ParseResult {
     return { format: "pocket-csv", items: deduped.items, dropped: deduped.dropped };
 }
 
-/** 最小 CSV 解析：支持双引号包裹与转义引号("")，不支持多行单元格。 */
+/** 最小 CSV 解析：支持双引号包裹与转义引号("")，不支持多行单元格；行数上限防巨型输入耗尽内存。 */
+const MAX_CSV_ROWS = 2_000_000;
+
 export function parseCsv(raw: string): string[][] {
     const rows: string[][] = [];
     let row: string[] = [];
@@ -236,6 +274,7 @@ export function parseCsv(raw: string): string[][] {
             cell = "";
             if (row.length > 1 || row[0] !== "") rows.push(row);
             row = [];
+            if (rows.length > MAX_CSV_ROWS) return rows;
         } else {
             cell += ch;
         }
@@ -279,12 +318,12 @@ export function parseOmnivoreJson(raw: string): ParseResult {
         const state = String(page.state ?? "").toUpperCase();
         const archived = page.isArchived === true || state.includes("ARCHIVED");
         items.push({
-            title: String(page.title ?? ""),
-            url,
-            site: String(page.siteName ?? "") || siteFromUrl(url),
+            title: capText(String(page.title ?? "")),
+            url: capText(url, MAX_IMPORT_FIELD),
+            site: capText(String(page.siteName ?? "")) || siteFromUrl(url),
             time: toSiyuanTime(page.savedAt),
             doneTime: "",
-            tags: labels,
+            tags: capTags(labels),
             status: archived ? "archived" : "inbox",
         });
     }
@@ -327,12 +366,12 @@ export function parseWallabagJson(raw: string): ParseResult {
         const archived = entry.is_archived === 1 || entry.is_archived === true;
         const read = entry.is_read === 1 || entry.is_read === true;
         items.push({
-            title: String(entry.title ?? ""),
-            url,
-            site: String(entry.domain_name ?? "") || siteFromUrl(url),
+            title: capText(String(entry.title ?? "")),
+            url: capText(url, MAX_IMPORT_FIELD),
+            site: capText(String(entry.domain_name ?? "")) || siteFromUrl(url),
             time: toSiyuanTime(entry.created_at),
             doneTime: "",
-            tags,
+            tags: capTags(tags),
             status: archived ? "archived" : read ? "done" : "inbox",
         });
     }

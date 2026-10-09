@@ -135,8 +135,12 @@ test("后台对账保留列表和收集箱 DOM，部分成功只移除成功选�
 
 test("云端删除失败保留条目，迁入与删除不能并发", () => {
     const inbox = read("src/ui/InboxSection.svelte");
-    assert.match(inbox, /if \(result\.cloudRemoved\) \{\s*items = items\.filter/);
+    // T-3316：云端删除成功才弹"已迁入"并移除条目；失败路径只弹失败提示并保留 pendingRemoval
+    assert.match(inbox, /if \(result\.cloudRemoved\) \{\s*showMessage\(t\(i18n, "inbox\.migrated"\), 3000\);\s*items = items\.filter/);
+    assert.match(inbox, /pendingRemoval\[item\.oId\] = result\.docId;\s*showMessage\(t\(i18n, "inbox\.cloudRemoveFailed"\), 3500\)/);
+    // dismiss 先更新本地列表，检查点清理失败单独提示（不再让已删条目留在界面上）
     assert.match(inbox, /async function dismiss\(item: Shorthand\) \{\s*if \(busyId\) return/);
+    assert.match(inbox, /items = items\.filter\(\(entry\) => entry\.oId !== item\.oId\);\s*delete pendingRemoval\[item\.oId\];/);
     assert.match(inbox, /disabled=\{Boolean\(busyId\)\}/);
     assert.match(inbox, /pendingRemoval\[item\.oId\] \? void dismiss\(item\) : void migrate\(item\)/);
     assert.match(inbox, /inbox\.retryCloudRemoval/);

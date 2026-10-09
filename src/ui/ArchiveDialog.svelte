@@ -1,7 +1,8 @@
 <script lang="ts">
     /**
      * 归档后处理三选对话框（T-1866，D-0032 / DATA-CONTRACT §7）。
-     * 统一 Dock、工作台、看板、阅读页签、命令面板的归档入口语义：
+     * 阅读页签与命令面板走本对话框；Dock 行、工作台预览与看板的归档按钮为快速语义（直写 archived，
+     * 同今日拾遗口径），宿主内恢复走 RestoreDialog：
      * 保留原位置（默认）/ 移入【归档】文档 / 删除文章（移入【回收】），
      * 彻底删除为二级动作（二次确认，purgeDoc 防误删同名新文档由服务层保证）。
      * 今日拾遗与自动化批量不进此对话框（快速归档=默认项语义，T-1875 禁止批量默认不可逆）。
@@ -71,6 +72,9 @@
             // §7.3：确认框必须列标题/路径/来源；不可逆提示；思源数据历史兜底
             if (!window.confirm(t(i18n, "archive.purgeConfirm", { info: summary }))) return;
             await runSettled("archive.donePurged", () => purgeDoc(facade.pluginInstance, docId));
+        } catch (error) {
+            console.warn("[glean] 删除前置信息读取失败:", error);
+            showMessage(t(i18n, "msg.actionFailed"), 3000);
         } finally {
             pending = false;
         }

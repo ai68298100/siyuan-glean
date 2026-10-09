@@ -42,6 +42,11 @@ Improved: third-walkthrough experience details
 
 - Running backup restores, flashcard recovery or AI tag cleanup no longer aborts when you switch settings categories; settings conflict recovery is more robust; category navigation supports arrow keys and Home/End; the notebook list distinguishes "no notebooks yet" from "no matches"; touch targets apply in narrow panels on wide viewports; keyboard focus indicators are more complete.
 
+Hardened: fourth-walkthrough import and failure defenses
+
+- Import parsing is hardened against malformed export files: oversized fields are capped, malformed timestamps rejected, a corrupted import-progress file can now be reset from the UI (previously required deleting the data file manually), and the progress detail list no longer stutters on tens of thousands of rows.
+- The inbox shows a retry entry when its query fails instead of hiding silently, without overlapping toasts; the highlights view distinguishes "no matches" from "no highlights" and no longer shows a stale list after load failures; local documents read "Local note" in the source column.
+
 Fixed: missing user entry for the AI tag service
 
 - The existing suggestion/merge service is now available from Settings. Bulk author backfill remains a separate task with per-article confirmation boundaries.

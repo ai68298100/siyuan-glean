@@ -55,7 +55,19 @@ export async function saveImportProgress(plugin: Plugin, next: ImportProgress, e
 export async function discardImportProgress(plugin: Plugin, taskId: string, confirmed: boolean): Promise<void> {
     if (!confirmed) throw new ImportProgressError("confirmation");
     await withImportLock(plugin, async () => {
-        const current = await readImportProgress(plugin);
+        let current: ImportProgress | null;
+        try {
+            current = await readImportProgress(plugin);
+        } catch (error) {
+            // 进度文件损坏时的强制逃生：传文件名作为 taskId 可按名直接删除，
+            // 否则一条坏记录会把选新文件/恢复/丢弃全部锁死（T-3316）
+            if (taskId === IMPORT_PROGRESS_FILE) {
+                checkStorageResponse(await storageOperation(plugin, "save", () => plugin.removeData(IMPORT_PROGRESS_FILE)));
+                if (await readImportProgress(plugin)) throw new ImportProgressError("save");
+                return;
+            }
+            throw error;
+        }
         if (!current || current.taskId !== taskId) throw new ImportProgressError("changed");
         checkStorageResponse(await storageOperation(plugin, "save", () => plugin.removeData(IMPORT_PROGRESS_FILE)));
         if (await readImportProgress(plugin)) throw new ImportProgressError("save");
