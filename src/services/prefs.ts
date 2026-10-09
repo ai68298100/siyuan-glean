@@ -151,14 +151,42 @@ export async function saveUiPrefs(plugin: Plugin, patch: UiPrefsPatch, options: 
 }
 
 /**
- * 工作台视图字段的合并保存（T-3317）：DockPanel 会被挂载两个实例（dock + 工作台 tab），
- * 各自内存里的 savedViews 快照互不同步——整体写回会让后写者抹掉另一实例刚创建的视图。
- * 这里在串行队列内读最新文件后做**条目级并集**（按 id，同名以传入为准），
- * lastView/defaultSavedViewId 取传入值；读取失败时拒绝写回，防止用初始空值清空用户数据。
+ * 工作台视图字段的**精确写**API（T-3318）：DockPanel 挂载两个实例（dock + 工作台 tab），
+ * 内存快照互不同步，任何“整体写回”都会造成跨实例丢视图或已删视图复活。
+ * 因此视图相关的持久化只提供四种精确操作，全部在串行队列内读最新文件后定点修改；
+ * 读取失败拒绝写回，防止空快照覆盖用户数据。UI 侧本地状态只用于渲染，不作为写回来源。
  */
-export async function saveLibraryViewPrefs(
+
+/** 只更新 lastView（高频、无冲突面）。 */
+export async function saveLastViewPref(plugin: Plugin, lastView: string): Promise<UiPrefs> {
+    return queueViewPrefOp(plugin, (current) => ({ ...current, lastView }));
+}
+
+/** 新建/更新单个保存视图（幂等：同 id 覆盖）。 */
+export async function upsertSavedViewPref(plugin: Plugin, view: UiPrefs["savedViews"][number]): Promise<UiPrefs> {
+    return queueViewPrefOp(plugin, (current) => {
+        const rest = current.savedViews.filter((item) => item.id !== view.id);
+        return { ...current, savedViews: [...rest, view] };
+    });
+}
+
+/** 删除单个保存视图；若默认视图指向它则一并清空。 */
+export async function deleteSavedViewPref(plugin: Plugin, id: string): Promise<UiPrefs> {
+    return queueViewPrefOp(plugin, (current) => ({
+        ...current,
+        savedViews: current.savedViews.filter((item) => item.id !== id),
+        defaultSavedViewId: current.defaultSavedViewId === id ? "" : current.defaultSavedViewId,
+    }));
+}
+
+/** 只更新默认视图。 */
+export async function setDefaultSavedViewPref(plugin: Plugin, id: string): Promise<UiPrefs> {
+    return queueViewPrefOp(plugin, (current) => ({ ...current, defaultSavedViewId: id }));
+}
+
+function queueViewPrefOp(
     plugin: Plugin,
-    fields: { lastView: string; savedViews: UiPrefs["savedViews"]; defaultSavedViewId: string },
+    mutate: (current: UiPrefs) => UiPrefs,
 ): Promise<UiPrefs> {
     const previous = saveQueues.get(plugin as object) ?? Promise.resolve();
     const operation = previous.catch(() => undefined).then(async () => {
@@ -169,14 +197,7 @@ export async function saveLibraryViewPrefs(
             // 读失败（含文件损坏）：拒绝写回，避免空快照覆盖
             throw new UiPrefsConflictError();
         }
-        const byId = new Map(current.savedViews.map((view) => [view.id, view]));
-        for (const view of fields.savedViews) byId.set(view.id, view);
-        const merged = normalizeUiPrefs({
-            ...current,
-            lastView: fields.lastView,
-            defaultSavedViewId: fields.defaultSavedViewId,
-            savedViews: [...byId.values()],
-        });
+        const merged = normalizeUiPrefs(mutate(current));
         if (merged.onboardingDone) {
             merged.onboardingStep = 1;
             merged.onboardingInterrupted = false;

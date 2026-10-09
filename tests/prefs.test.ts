@@ -2,7 +2,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { loadUiPrefs, normalizeUiPrefs, saveLibraryViewPrefs, saveUiPrefs } from "../src/services/prefs.ts";
+import { deleteSavedViewPref, loadUiPrefs, normalizeUiPrefs, saveLastViewPref, setDefaultSavedViewPref, upsertSavedViewPref, saveUiPrefs } from "../src/services/prefs.ts";
 import type { ReaderAppearance } from "../src/domain/ui-prefs.ts";
 
 function createPlugin(initial: unknown = undefined) {
@@ -200,29 +200,46 @@ test("治理提醒按日静默：只接受日期，跨日自动恢复", async ()
     assert.deepEqual(saved.governanceMuted, muted);
 });
 
-test("saveLibraryViewPrefs：双实例并集合并，后写者不抹掉另一实例新建的视图（T-3317）", async () => {
+test("保存视图精确写：双实例 upsert/delete 互不覆盖，删除不复活（T-3318）", async () => {
     const harness = createPlugin(undefined);
-    await saveLibraryViewPrefs(harness.plugin, { lastView: "library", defaultSavedViewId: "", savedViews: [
-        { id: "v1", name: "视图一", createdAt: "2026-10-09T00:00:00.000Z", filter: {}, layout: "list" },
-    ] });
-    // 另一实例（工作台 tab）基于同一文件新建 v2
-    await saveLibraryViewPrefs(harness.plugin, { lastView: "library", defaultSavedViewId: "v2", savedViews: [
-        { id: "v2", name: "视图二", createdAt: "2026-10-09T01:00:00.000Z", filter: {}, layout: "list" },
-    ] });
-    const prefs = await loadUiPrefs(harness.plugin);
-    const ids = prefs.savedViews.map((view) => view.id).sort();
-    assert.deepEqual(ids, ["v1", "v2"]);
+    // 实例 A（dock）新建 v1；实例 B（工作台 tab）新建 v2——精确写基于最新文件，互不覆盖
+    await upsertSavedViewPref(harness.plugin, { id: "v1", name: "视图一", createdAt: "2026-10-09T00:00:00.000Z", filter: {}, layout: "list" });
+    await upsertSavedViewPref(harness.plugin, { id: "v2", name: "视图二", createdAt: "2026-10-09T01:00:00.000Z", filter: {}, layout: "list" });
+    let prefs = await loadUiPrefs(harness.plugin);
+    assert.deepEqual(prefs.savedViews.map((view) => view.id).sort(), ["v1", "v2"]);
+    // 实例 A 删除 v1：精确删除，不把 v2 拉回来
+    await deleteSavedViewPref(harness.plugin, "v1");
+    prefs = await loadUiPrefs(harness.plugin);
+    assert.deepEqual(prefs.savedViews.map((view) => view.id), ["v2"]);
+    // 设默认后重命名 v2：upsert 幂等覆盖且默认保持
+    await setDefaultSavedViewPref(harness.plugin, "v2");
+    await upsertSavedViewPref(harness.plugin, { id: "v2", name: "视图二改", createdAt: "2026-10-09T01:00:00.000Z", filter: {}, layout: "list" });
+    prefs = await loadUiPrefs(harness.plugin);
+    assert.equal(prefs.savedViews.length, 1);
+    assert.equal(prefs.savedViews[0].name, "视图二改");
     assert.equal(prefs.defaultSavedViewId, "v2");
 });
 
-test("saveLibraryViewPrefs：读取失败拒绝写回，不用空快照清空用户数据（T-3317）", async () => {
+test("保存视图精确写：读取失败拒绝写回，不用空快照清空用户数据（T-3318）", async () => {
     const harness = createPlugin({ lastView: "library", savedViews: [
         { id: "v1", name: "重要视图", createdAt: "2026-10-09T00:00:00.000Z", filter: {}, layout: "list" },
     ] });
     harness.plugin.loadData = async () => { throw new Error("transient io failure"); };
-    await assert.rejects(saveLibraryViewPrefs(harness.plugin, { lastView: "resurface", defaultSavedViewId: "", savedViews: [] }), /Preferences changed/);
+    await assert.rejects(upsertSavedViewPref(harness.plugin, { id: "v9", name: "x", createdAt: "2026-10-09T00:00:00.000Z", filter: {}, layout: "list" }), /Preferences changed/);
+    await assert.rejects(deleteSavedViewPref(harness.plugin, "v1"), /Preferences changed/);
+    await assert.rejects(saveLastViewPref(harness.plugin, "resurface"), /Preferences changed/);
     harness.plugin.loadData = async () => harness.read();
     const prefs = await loadUiPrefs(harness.plugin);
     assert.equal(prefs.savedViews.length, 1);
     assert.equal(prefs.savedViews[0].name, "重要视图");
+});
+
+test("deleteSavedViewPref：默认视图指向被删视图时一并清空（T-3318）", async () => {
+    const harness = createPlugin(undefined);
+    await upsertSavedViewPref(harness.plugin, { id: "v1", name: "默认", createdAt: "2026-10-09T00:00:00.000Z", filter: {}, layout: "list" });
+    await setDefaultSavedViewPref(harness.plugin, "v1");
+    await deleteSavedViewPref(harness.plugin, "v1");
+    const prefs = await loadUiPrefs(harness.plugin);
+    assert.equal(prefs.savedViews.length, 0);
+    assert.equal(prefs.defaultSavedViewId, "");
 });

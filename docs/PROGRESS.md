@@ -1,5 +1,13 @@
 # 进度（PROGRESS）
 
+## T-3318 保存视图持久化回归修复：精确写 API 重构（2026-10-09）
+
+- [x] 回归确认（脚本实证）：T-3317 的"条目级并集合并写回"会让**已删除的保存视图复活**——删除后写回的快照不含该条目，并集把它从文件拉回，删除功能完全失效。并集方案无法区分"另一实例新建要保留"与"本实例删除要移除"，属方案级错误。
+- [x] 重构：`saveLibraryViewPrefs`（整体字段写）废弃，改为四个**精确写 API**——`saveLastViewPref`（只写 lastView）、`upsertSavedViewPref`（幂等 upsert 单视图）、`deleteSavedViewPref`（精确删除 + 默认视图回落）、`setDefaultSavedViewPref`（只改默认）——全部在串行队列内读最新文件后定点修改，读取失败拒绝写回。DockPanel 的自动保存 effect 只同步 lastView；新建/删除/设默认由各操作点精确写回并带失败提示。
+- [x] 回归测试改写为精确写语义：双实例 upsert/delete 互不覆盖、删除不复活、upsert 幂等覆盖、默认视图随删回落、三种 API 读取失败均拒绝写回（14/14）。
+- [x] 门禁：`pnpm check` 0 错误/0 警告、`pnpm test` 1226/1226、`pnpm build`、`pnpm check:release`、`git diff --check` 通过。
+- [ ] 真实验收归 B-0002；版本保持 `1.2.1`，不升版、不打 tag、不创建 Release。
+
 ## T-3317 第五轮全方位走查：近两轮回归自查 / 次级模块 / 数据风险（2026-10-09）
 
 - [x] P1 修复一：T-3316 引入的导入进度强制逃生按钮从 UI 永远无法触发（`discardProgress` 守卫要求 `discardConfirmed`，而损坏场景该勾选框所在区块不渲染）——守卫按场景分流，`progressReadFailed` 时强制走按文件名逃生路径。

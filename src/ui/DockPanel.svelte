@@ -27,7 +27,7 @@ import InboxSection from "./InboxSection.svelte";
 import ResurfaceView from "./ResurfaceView.svelte";
 import { archiveStaleCandidates, setSurfacePinned } from "../services/resurface-service";
 import { computeDailyFromIndex } from "../services/resurface-service";
-import { loadUiPrefs, saveLibraryViewPrefs, saveUiPrefs } from "../services/prefs";
+import { deleteSavedViewPref, loadUiPrefs, saveLastViewPref, saveUiPrefs, setDefaultSavedViewPref, upsertSavedViewPref } from "../services/prefs";
 import { ageDays, todayStamp } from "../domain/resurface.ts";
 import { recordReadingDone } from "../services/checkin-bridge";
 import { hasSourceAction, openTargetForCarrier, resolveCarrier, sourceUrlForCarrier } from "../domain/carrier";
@@ -714,10 +714,10 @@ $effect(() => {
 });
 
 $effect(() => {
-    // 读取失败时拒绝写回：否则初始空快照会在重试前清空用户的保存视图（T-3317）
+    // 读取失败时拒绝写回（T-3317）；视图条目的增删改由各操作精确写回（T-3318），此处只同步 lastView
     if (prefsLoading || prefsLoadFailed) return;
-    void saveLibraryViewPrefs(facade.pluginInstance, { lastView: view, savedViews, defaultSavedViewId }).catch((error) => {
-        console.warn("[glean] 工作台偏好保存失败:", error);
+    void saveLastViewPref(facade.pluginInstance, view).catch((error) => {
+        console.warn("[glean] 工作台视图偏好保存失败:", error);
     });
 });
 
@@ -771,6 +771,10 @@ function saveCurrentView(): void {
     savedViews = [...savedViews, created];
     savedViewId = created.id;
     savedViewName = "";
+    void upsertSavedViewPref(facade.pluginInstance, created).catch((error) => {
+        console.warn("[glean] 保存视图写回失败:", error);
+        showMessage(t(i18n, 'settings.saveFailed'), 3000);
+    });
 }
 
 function removeSavedView(): void {
@@ -778,11 +782,20 @@ function removeSavedView(): void {
     const result = deleteSavedView(savedViews, savedViewId, defaultSavedViewId);
     savedViews = result.views;
     defaultSavedViewId = result.defaultSavedViewId;
+    const removedId = savedViewId;
     savedViewId = "";
+    void deleteSavedViewPref(facade.pluginInstance, removedId).catch((error) => {
+        console.warn("[glean] 保存视图删除写回失败:", error);
+        showMessage(t(i18n, 'settings.saveFailed'), 3000);
+    });
 }
 
 function makeDefaultSavedView(): void {
     defaultSavedViewId = setDefaultSavedView(savedViews, savedViewId);
+    void setDefaultSavedViewPref(facade.pluginInstance, defaultSavedViewId).catch((error) => {
+        console.warn("[glean] 默认视图写回失败:", error);
+        showMessage(t(i18n, 'settings.saveFailed'), 3000);
+    });
 }
 
 // 插件壳广播的数据变更（迁移完成、右键收录等）触发面板对账
