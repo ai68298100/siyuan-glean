@@ -8,7 +8,7 @@
 
 [English](README.en-US.md) · [下载最新版](https://github.com/ai68298100/siyuan-glean/releases/latest) · [能力矩阵](docs/CAPABILITY-MATRIX.md) · [反馈与问题](https://github.com/ai68298100/siyuan-glean/issues/new/choose)
 
-## 本次更新（main · v1.2.1 之后，2026-10-09）
+## v1.3.0 更新（2026-10-09）
 
 新增：设置页分类导航
 

@@ -8,7 +8,7 @@ Lv Glean organizes clippings and articles already in SiYuan. It does not crawl t
 
 [中文说明](README.md) · [Latest Release](https://github.com/ai68298100/siyuan-glean/releases/latest) · [Capability matrix](docs/CAPABILITY-MATRIX.md) · [Feedback](https://github.com/ai68298100/siyuan-glean/issues/new/choose)
 
-## Latest update (main · after v1.2.1, 2026-10-09)
+## v1.3.0 update (2026-10-09)
 
 Added: settings category navigation
 
