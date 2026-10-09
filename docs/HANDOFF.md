@@ -2,9 +2,9 @@
 
 ## 当前有效交接（2026-10-10 T-3325/D-0200 v1.3.2 发布）
 
-- `package.json`/`plugin.json` 和双语 README/CHANGELOG/RELEASE 文档已切换到 `1.3.2`；本地门禁、隔离 S1 E2E 58/58 与 `package.zip` 校验已通过。候选提交推送后的 GitHub workflows 通过后，再创建 tag/Release 并回填远端附件 SHA-256。
+- `package.json`/`plugin.json` 和双语 README/CHANGELOG/RELEASE 文档已切换到 `1.3.2`；本地门禁、隔离 S1 E2E 58/58、GitHub Quality gates/CodeQL、tag 和 Release 已通过。Release 附件 380247B，SHA-256 `FFC8CF51A06238DB1FF243CC0A78E1E8345FF6472F9A2CF320418C6D5172E214`，远端下载与本地一致。
 - 发布内容覆盖 v1.3.1 之后的交互/视觉修复和 README 系列表；稳定版链接改为 v1.3.2，真实宿主视觉、读屏、大库和外部能力仍归 B-0002/B-0005。
-- 只做 GitHub 发布，不提交集市 PR；tag、Release 和附件必须来自同一提交和同一构建产物。
+- 只做 GitHub 发布，不提交集市 PR；annotated tag `v1.3.2`、Release 与附件对应候选提交 `d23dd1a59271066f0c1e6298eca9d807acb597d1`。
 
 ## 当前有效交接（2026-10-10 T-3324/D-0199 双语 README 优化）
 

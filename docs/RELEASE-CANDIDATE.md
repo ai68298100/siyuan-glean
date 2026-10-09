@@ -17,8 +17,8 @@
 | 性能门禁 | 通过当前机器合成基线 | `pnpm perf:check` |
 | 视觉矩阵 | 登记检查通过；24 个真实宿主案例仍待 B-0002 | `pnpm visual:check` |
 | 发布产物 | 通过，380247B | `pnpm check:release`；SHA-256：`FFC8CF51A06238DB1FF243CC0A78E1E8345FF6472F9A2CF320418C6D5172E214` |
-| GitHub 工作流 | 待候选提交推送后确认 | Quality gates、CodeQL |
-| GitHub 发布 | 待工作流通过后完成 | `v1.3.2` tag、Release 和远端附件校验 |
+| GitHub 工作流 | Quality gates、CodeQL 均通过 | [Quality gates 37966314661](https://github.com/ai68298100/siyuan-glean/actions/runs/37966314661)、[CodeQL 37966319033](https://github.com/ai68298100/siyuan-glean/actions/runs/37966319033) |
+| GitHub 发布 | 已完成，远端下载校验一致 | [v1.3.2 Release](https://github.com/ai68298100/siyuan-glean/releases/tag/v1.3.2)；tag 指向 `d23dd1a59271066f0c1e6298eca9d807acb597d1`；附件 380247B，远端 SHA-256 与本地一致 |
 
 版本已按 D-0005 定版为 `1.3.2`。本轮主要变更为 T-3322/T-3323 的操作与视觉修复，以及 T-3324 的双语 README 信息结构整理，明细见 `docs/CHANGELOG.md` 与 `docs/PROGRESS.md`。集市仍需单独授权。
 
@@ -34,8 +34,8 @@
 
 1. 确认版本号与 CHANGELOG，`dist` 重新构建并校验 `package.zip`（已通过）。
 2. `pnpm check`、`pnpm test`、`pnpm build`、`pnpm check:release`、`pnpm perf:check`、`pnpm visual:check` 和隔离 S1 E2E 均已通过。
-3. 推送候选提交并确认 GitHub Quality gates 与 CodeQL 通过。
-4. 创建 annotated tag `v1.3.2`，创建 GitHub Release 并上传同一 `package.zip`；回填 Release URL 与远端附件校验值。
+3. 候选提交 `d23dd1a59271066f0c1e6298eca9d807acb597d1` 已推送；GitHub Quality gates 和 CodeQL 均通过。
+4. annotated tag `v1.3.2` 与 GitHub Release 已发布；远端下载 `package.zip` 大小为 380247B，SHA-256 为 `FFC8CF51A06238DB1FF243CC0A78E1E8345FF6472F9A2CF320418C6D5172E214`，与本地一致。
 
 ## 4. 不得提前承诺
 

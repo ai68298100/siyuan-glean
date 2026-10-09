@@ -41,4 +41,4 @@
 3. 版本号以 `package.json`/`plugin.json` 当前候选为准（本轮为 v1.3.2）；运行 `pnpm update-version` 后再构建
 4. `pnpm check:release` 14/14
 5. preview.png 换成真机截图（1920×1280，首屏 + 面板拼图）
-6. **打 tag / 发 Release 已按本轮授权完成；提集市 PR 仍需单独请示作者**
+6. **v1.3.2 tag / GitHub Release 已按本轮授权完成；提集市 PR 仍需单独请示作者**

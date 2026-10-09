@@ -4,8 +4,9 @@
 
 - [x] 已同步 `package.json`/`plugin.json` 为 1.3.2、双语 README、CHANGELOG、发布候选和媒体清单；`package.zip` 380247B，SHA-256 `FFC8CF51A06238DB1FF243CC0A78E1E8345FF6472F9A2CF320418C6D5172E214`。
 - [x] 隔离门禁：`pnpm check` 0 错误/0 警告、`pnpm test` 1229/1229、`pnpm build`、`pnpm check:release`、`pnpm perf:check`、`pnpm visual:check`、任务账本、`git diff --check` 和隔离 S1 E2E 58/58 通过；E2E 使用独立临时工作区及真实内核 3.8.6。
-- [ ] GitHub Quality gates/CodeQL、annotated tag、Release 与远端附件哈希待完成后回填。
-- [ ] 本次发布内容为 T-3322/T-3323 的操作/视觉修复与 T-3324 的 README 信息结构；不新增文章属性、端点或设置字段，不提交集市 PR。
+- [x] 候选提交 `d23dd1a59271066f0c1e6298eca9d807acb597d1` 已推送；Quality gates [37966314661](https://github.com/ai68298100/siyuan-glean/actions/runs/37966314661) 与 CodeQL [37966319033](https://github.com/ai68298100/siyuan-glean/actions/runs/37966319033) 均成功。
+- [x] annotated tag `v1.3.2` 和 [GitHub Release](https://github.com/ai68298100/siyuan-glean/releases/tag/v1.3.2) 指向同一候选提交；Release 附件远端下载 380247B，SHA-256 与本地 `FFC8CF51A06238DB1FF243CC0A78E1E8345FF6472F9A2CF320418C6D5172E214` 一致，Latest 已切换至 v1.3.2。
+- [x] 本次发布内容为 T-3322/T-3323 的操作/视觉修复与 T-3324 的 README 信息结构；不新增文章属性、端点或设置字段，不提交集市 PR。
 - [ ] 真实宿主视觉、读屏、大库和外部能力仍待 B-0002/B-0005；本地门禁或 GitHub workflow 不替代这些验收。
 
 ## T-3324/D-0199 双语 README 信息架构优化（2026-10-10）

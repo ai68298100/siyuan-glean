@@ -4,7 +4,7 @@
 
 | 任务 | 看板状态 | 代码状态 | 隔离验证 | 真实验收 | 延后/阻塞原因 |
 | --- | --- | --- | --- | --- | --- |
-| T-3325 | ◐ | 进行中 | 本地 check/test 1229/1229/build/check:release/perf/visual、任务账本、diff 和 S1 E2E 58/58 已通过，待 GitHub workflows 与远端附件校验 | 真实宿主视觉、读屏、大库与外部能力仍待 B-0002/B-0005 | 无 |
+| T-3325 | x | 完成 | 本地 check/test 1229/1229/build/check:release/perf/visual、任务账本、diff 和 S1 E2E 58/58 已通过，GitHub Quality gates 37966314661 与 CodeQL 37966319033 成功，远端 Release 包哈希与本地一致 | 真实宿主视觉、读屏、大库与外部能力仍待 B-0002/B-0005 | 无 |
 | T-3324 | x | 完成 | `pnpm check`、`pnpm test` 1229/1229、`pnpm build`、`pnpm check:release`、`pnpm task:ledger -- --check`、`git diff --check` 通过 | 不适用（文档整理） | 无 |
 | T-3323 | x | 完成 | `pnpm check`、`pnpm test`、`pnpm build`、`pnpm check:release`、`pnpm task:ledger -- --check`、`git diff --check` 通过 | 待 B-0002（今日拾遗三卡底线、筛选控件和统计层级） | 静态检查无法替代真实宿主视觉 |
 | T-3322 | x | 完成 | `pnpm check`、`pnpm test` 1227/1227、`pnpm build`、`pnpm check:release`、`pnpm task:ledger -- --check`、`git diff --check` 通过 | 待 B-0002（真实宿主/读屏与三视口视觉） | 静态审查无法替代宿主实测 |
