@@ -4,8 +4,8 @@
 
 - `v1.3.1` 发布内容是 T-3320 的大库刷新查重与看板分桶优化；版本、双语 README、CHANGELOG 和发布记录已同步。
 - `pnpm check`、`pnpm test` 1226/1226、`pnpm build`、`pnpm check:release`、`pnpm perf:check`、任务账本和 `git diff --check` 已通过；`package.zip` 377958B，SHA-256 为 `e7419db06a5e3c293be5a763d118f2a85035d9a3ca1fa46411f5e8310b898c10`。
-- 发布提交 `64b537ca76172f51dd7b18056950ab078a9210af` 已通过 `gh api` 更新至 GitHub；annotated tag `v1.3.1` 与 [GitHub Release](https://github.com/ai68298100/siyuan-glean/releases/tag/v1.3.1) 对齐。远端下载的 `package.zip` 大小与 SHA-256 均与本地一致。
-- 发布提交 CodeQL 通过；Quality gates 发现候选文档漏掉授权边界固定措辞，已补回并重新验证。发布记录提交继续执行远端门禁，真实验收边界不因此改变。
+- 初始发布提交 `64b537ca76172f51dd7b18056950ab078a9210af` 已通过 `gh api` 更新至 GitHub；最终发布记录提交 `33b81df9ffb0fbb8aab9bc7a0c4b6cdb8921461a` 已推送 `main`，annotated tag `v1.3.1` 与 [GitHub Release](https://github.com/ai68298100/siyuan-glean/releases/tag/v1.3.1) 对齐。远端下载的 `package.zip` 大小与 SHA-256 均与本地一致。
+- 初次 Quality gates 发现候选文档漏掉授权边界固定措辞，已补回；最终 Quality gates `37896900427` 与 CodeQL `37896900418` 均通过，真实验收边界不因此改变。
 - 不提交集市 PR；真实宿主大库首屏、滚动、内存和低端设备收益继续归 B-0002/B-0005。
 
 ## 当前有效交接（2026-10-09 T-3320/D-0195 性能热点优化）
