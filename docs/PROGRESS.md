@@ -1,5 +1,14 @@
 # 进度（PROGRESS）
 
+## T-3319/D-0194 v1.3.0 发布（2026-10-09）
+
+- [x] 版本由 `1.2.1` 升至 `1.3.0`（设置页分类导航重构为用户可见结构性变化，按语义化版本升 minor）；`package.json` 与 `plugin.json` 一致。
+- [x] 发布内容覆盖 T-3311..T-3318：设置页分类导航（T-3314）、AI 标签规范化（T-3311）、六轮全方位走查的约 108 项修复与加固（T-3312/3313/3315/3316/3317/3318）、差距调研立项（T-3330..3337 待办）。CHANGELOG、双语 README 版本区块、RELEASE-CANDIDATE、RELEASE 历史与 RELEASE-MEDIA 已同步。
+- [x] 门禁：`pnpm check` 0 错误/0 警告、`pnpm test` **1226/1226**、`pnpm build`、`pnpm check:release`（14/14）、`pnpm perf:check`、`pnpm visual:check`（24 个案例仍待真实宿主）、任务账本、`git diff --check` 全通过；隔离内核 S1 服务级 E2E **58/58**（本机当日实跑，见 T-3315）。
+- [x] 发布提交 `197833f` 已推送 `main`；annotated tag `v1.3.0` 与 [GitHub Release](https://github.com/ai68298100/siyuan-glean/releases/tag/v1.3.0)（release id 407403183）对齐。附件 `package.zip` 为 377582B，本地与远端下载 SHA-256 均为 `70f5d917183bd4b1e25550b89c1ce917e8f175b09b2525a8918789c8feba0e21`。
+- [x] GitHub Quality gates [37869343819](https://github.com/ai68298100/siyuan-glean/actions/runs/37869343819) 与 CodeQL [37869343826](https://github.com/ai68298100/siyuan-glean/actions/runs/37869343826) 在发布提交上均成功。
+- [ ] 真实桌面、移动端、AI、外部集成和 24 个宿主视觉案例仍按能力矩阵与 B-0001/B-0002/B-0004–B-0008 待作者验收；集市 PR 未授权，不执行。
+
 ## T-3318 保存视图持久化回归修复：精确写 API 重构（2026-10-09）
 
 - [x] 回归确认（脚本实证）：T-3317 的"条目级并集合并写回"会让**已删除的保存视图复活**——删除后写回的快照不含该条目，并集把它从文件拉回，删除功能完全失效。并集方案无法区分"另一实例新建要保留"与"本实例删除要移除"，属方案级错误。
