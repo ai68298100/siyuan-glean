@@ -115,8 +115,12 @@ async function bindClipsToLibrary(plugin: Plugin, settings: GleanSettings): Prom
     const existingDocIds = rows
         .map((row) => row.cells.find((cell) => cell.value.type === "block")?.value.block?.id)
         .filter((id): id is string => Boolean(id));
+    // Membership checks dominate refreshes for large libraries. Keep the
+    // ordered array for the result contract, but use O(1) lookups while
+    // computing the missing rows instead of scanning it for every clip.
+    const existingDocIdSet = new Set(existingDocIds);
 
-    const missing = clips.filter((clip) => !existingDocIds.includes(clip.id));
+    const missing = clips.filter((clip) => !existingDocIdSet.has(clip.id));
     const bindingErrors = new Set<string>();
     if (missing.length > 0) {
         // 分批 ≤50 绑定（与迁移器同款纪律）

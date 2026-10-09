@@ -8,6 +8,14 @@
 
 [English](README.en-US.md) · [下载最新版](https://github.com/ai68298100/siyuan-glean/releases/latest) · [能力矩阵](docs/CAPABILITY-MATRIX.md) · [反馈与问题](https://github.com/ai68298100/siyuan-glean/issues/new/choose)
 
+## v1.3.1 更新（2026-10-09）
+
+优化：大库刷新与看板性能
+
+- 读库数据库绑定刷新改用高效查重，避免大库中逐篇扫描已有绑定列表。
+- 看板按状态分列时减少重复筛选和映射，保持原有排序与显示结果。
+- 本次为性能补丁，不改变文章属性、索引格式、端点或设置字段。
+
 ## v1.3.0 更新（2026-10-09）
 
 新增：设置页分类导航
@@ -97,7 +105,7 @@
 
 ## 兼容性与验收
 
-当前稳定版为 [v1.2.1](https://github.com/ai68298100/siyuan-glean/releases/tag/v1.2.1)。该版本的自动门禁和隔离 S1 服务级 E2E 已通过；这不代表所有真实环境都已验收。
+当前稳定版为 [v1.3.1](https://github.com/ai68298100/siyuan-glean/releases/tag/v1.3.1)。该版本的自动门禁和隔离 S1 服务级 E2E 已通过；这不代表所有真实环境都已验收。
 
 桌面宿主、Android/移动端、浏览器前端、真实模型、官方剪藏、外部文件和订阅服务仍按环境分别验收。使用前提、降级方式和阻塞项以[能力矩阵](docs/CAPABILITY-MATRIX.md)及[已知阻塞](docs/BLOCKERS.md)为准；请勿把单元测试或隔离 E2E 当作真机通过。
 

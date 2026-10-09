@@ -8,6 +8,14 @@ Lv Glean organizes clippings and articles already in SiYuan. It does not crawl t
 
 [中文说明](README.md) · [Latest Release](https://github.com/ai68298100/siyuan-glean/releases/latest) · [Capability matrix](docs/CAPABILITY-MATRIX.md) · [Feedback](https://github.com/ai68298100/siyuan-glean/issues/new/choose)
 
+## v1.3.1 update (2026-10-09)
+
+Improved: large-library refresh and Kanban performance
+
+- Library database binding now uses constant-time membership checks instead of scanning existing bindings for every article.
+- Kanban columns are bucketed in one pass after filtering and sorting, while preserving the existing order and results.
+- This performance patch does not change article attributes, index format, endpoints, or settings fields.
+
 ## v1.3.0 update (2026-10-09)
 
 Added: settings category navigation
@@ -97,7 +105,7 @@ Ordinary notes are not bulk-captured just because of their location, and opening
 
 ## Compatibility and acceptance
 
-The current stable release is [v1.2.1](https://github.com/ai68298100/siyuan-glean/releases/tag/v1.2.1). Its automated gates and isolated S1 service E2E have passed; this does not mean every real environment has been accepted.
+The current stable release is [v1.3.1](https://github.com/ai68298100/siyuan-glean/releases/tag/v1.3.1). Its automated gates and isolated S1 service E2E have passed; this does not mean every real environment has been accepted.
 
 Desktop host, Android/mobile, browser frontend, real models, the official clipper, external files, and subscription services still require environment-specific checks. Prerequisites, fallbacks, and open blockers are listed in the [capability matrix](docs/CAPABILITY-MATRIX.md) and [known blockers](docs/BLOCKERS.md). Unit tests and isolated E2E are not device acceptance.
 

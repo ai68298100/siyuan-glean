@@ -608,16 +608,29 @@ function applyMobileFilters(): void {
 }
 
 const kanbanCols = $derived.by(() => {
-    const clips = filterAndSortLibrary(libraryItems, {
+    const filtered = filterAndSortLibrary(libraryItems, {
         ...activeFilter,
         status: "all",
         includeCandidates: false,
-    }).filter((item) => item.kind === "clip").map((item) => item.id);
-    return queues.map((status) => ({
-        status,
-        label: queueLabel(status),
-        items: clips.map((id) => index.clips[id]).filter((entry): entry is ClipIndexEntry => Boolean(entry && entry.status === status)),
-    }));
+    });
+    // The sorted result is already in the order each column should display.
+    // Bucket it in one pass instead of rescanning the full list once per queue.
+    const byStatus: Record<QueueKey, ClipIndexEntry[]> = {
+        inbox: [],
+        later: [],
+        reading: [],
+        done: [],
+        archived: [],
+    };
+    for (const item of filtered) {
+        if (item.kind !== "clip") continue;
+        const entry = index.clips[item.id];
+        if (entry?.status) {
+            const status = entry.status as QueueKey;
+            if (status in byStatus) byStatus[status].push(entry);
+        }
+    }
+    return queues.map((status) => ({ status, label: queueLabel(status), items: byStatus[status] }));
 });
 const visibleKanbanCols = $derived(kanbanCols.map((column) => ({ ...column, items: column.items.slice(0, renderLimit) })));
 const renderedKanbanCount = $derived(visibleKanbanCols.reduce((total, column) => total + column.items.length, 0));
