@@ -1,5 +1,11 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-09 T-3320/D-0195 性能热点优化）
+
+- `src/services/library-db.ts` 的大库绑定刷新已将 `existingDocIds.includes()` 改为预建 `Set` + `.has()`；保留 `existingDocIds` 返回顺序和绑定语义。10 万 ID 微基准约 7070ms→2.28ms。
+- `src/ui/DockPanel.svelte` 的看板派生已改为一次筛选/排序后单遍按五态分桶，保持每列原排序和内容，减少重复映射/过滤。
+- 完整门禁已通过：`pnpm check`、`pnpm test` 1226/1226、`pnpm build`、`pnpm check:release`、`pnpm perf:check`、任务账本和 `git diff --check`；本轮不升版本、不改数据契约、不打 tag/Release。真实宿主首屏、滚动、内存和低端设备验收继续归 B-0002/B-0005。
+
 ## 当前有效交接（2026-10-09 v1.3.0 发布）
 
 `v1.3.0` 已发布。源提交 `197833f`、annotated tag 和 [GitHub Release](https://github.com/ai68298100/siyuan-glean/releases/tag/v1.3.0) 对齐；Release 附件 `package.zip` 为 377582B，本地与远端下载 SHA-256 均为 `70f5d917183bd4b1e25550b89c1ce917e8f175b09b2525a8918789c8feba0e21`。发布提交上 Quality gates `37869343819` 与 CodeQL `37869343826` 均成功；隔离 S1 E2E 58/58（本机当日实跑）。
