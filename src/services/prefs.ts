@@ -149,3 +149,46 @@ export async function saveUiPrefs(plugin: Plugin, patch: UiPrefsPatch, options: 
     });
     return operation;
 }
+
+/**
+ * 工作台视图字段的合并保存（T-3317）：DockPanel 会被挂载两个实例（dock + 工作台 tab），
+ * 各自内存里的 savedViews 快照互不同步——整体写回会让后写者抹掉另一实例刚创建的视图。
+ * 这里在串行队列内读最新文件后做**条目级并集**（按 id，同名以传入为准），
+ * lastView/defaultSavedViewId 取传入值；读取失败时拒绝写回，防止用初始空值清空用户数据。
+ */
+export async function saveLibraryViewPrefs(
+    plugin: Plugin,
+    fields: { lastView: string; savedViews: UiPrefs["savedViews"]; defaultSavedViewId: string },
+): Promise<UiPrefs> {
+    const previous = saveQueues.get(plugin as object) ?? Promise.resolve();
+    const operation = previous.catch(() => undefined).then(async () => {
+        let current: UiPrefs;
+        try {
+            current = normalizeUiPrefs(await plugin.loadData(PREFS_FILE));
+        } catch {
+            // 读失败（含文件损坏）：拒绝写回，避免空快照覆盖
+            throw new UiPrefsConflictError();
+        }
+        const byId = new Map(current.savedViews.map((view) => [view.id, view]));
+        for (const view of fields.savedViews) byId.set(view.id, view);
+        const merged = normalizeUiPrefs({
+            ...current,
+            lastView: fields.lastView,
+            defaultSavedViewId: fields.defaultSavedViewId,
+            savedViews: [...byId.values()],
+        });
+        if (merged.onboardingDone) {
+            merged.onboardingStep = 1;
+            merged.onboardingInterrupted = false;
+            merged.onboardingHintDismissed = true;
+        }
+        const result = clonePrefs(merged);
+        await plugin.saveData(PREFS_FILE, result);
+        return result;
+    });
+    saveQueues.set(plugin as object, operation);
+    void operation.then(() => undefined, () => undefined).then(() => {
+        if (saveQueues.get(plugin as object) === operation) saveQueues.delete(plugin as object);
+    });
+    return operation;
+}

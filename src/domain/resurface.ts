@@ -46,16 +46,18 @@ export interface SurfaceReason {
 
 const DAY_MS = 86_400_000;
 
-/** 入库天数（time=YYYYMMDDHHmmss）；非法返回 0。 */
+/** 入库天数（time=YYYYMMDDHHmmss）；非法（含 13 月等日历非法日期）返回 0。 */
 export function ageDays(time: string, now: Date = new Date()): number {
     if (!/^\d{14}$/.test(time)) return 0;
-    const t = new Date(
+    const parsed = new Date(
         Number(time.slice(0, 4)),
         Number(time.slice(4, 6)) - 1,
         Number(time.slice(6, 8)),
         12
-    ).getTime();
-    return Math.max(0, Math.round((now.getTime() - t) / DAY_MS));
+    );
+    // Date 会把 20240231 归一化为 3 月：与输入往返不一致即日历非法
+    if (parsed.getFullYear() !== Number(time.slice(0, 4)) || parsed.getMonth() !== Number(time.slice(4, 6)) - 1 || parsed.getDate() !== Number(time.slice(6, 8))) return 0;
+    return Math.max(0, Math.round((now.getTime() - parsed.getTime()) / DAY_MS));
 }
 
 export function todayStamp(now: Date = new Date()): string {

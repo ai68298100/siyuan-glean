@@ -2,7 +2,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { loadUiPrefs, normalizeUiPrefs, saveUiPrefs } from "../src/services/prefs.ts";
+import { loadUiPrefs, normalizeUiPrefs, saveLibraryViewPrefs, saveUiPrefs } from "../src/services/prefs.ts";
 import type { ReaderAppearance } from "../src/domain/ui-prefs.ts";
 
 function createPlugin(initial: unknown = undefined) {
@@ -198,4 +198,31 @@ test("治理提醒按日静默：只接受日期，跨日自动恢复", async ()
     const harness = createPlugin();
     const saved = await saveUiPrefs(harness.plugin, { governanceMuted: muted });
     assert.deepEqual(saved.governanceMuted, muted);
+});
+
+test("saveLibraryViewPrefs：双实例并集合并，后写者不抹掉另一实例新建的视图（T-3317）", async () => {
+    const harness = createPlugin(undefined);
+    await saveLibraryViewPrefs(harness.plugin, { lastView: "library", defaultSavedViewId: "", savedViews: [
+        { id: "v1", name: "视图一", createdAt: "2026-10-09T00:00:00.000Z", filter: {}, layout: "list" },
+    ] });
+    // 另一实例（工作台 tab）基于同一文件新建 v2
+    await saveLibraryViewPrefs(harness.plugin, { lastView: "library", defaultSavedViewId: "v2", savedViews: [
+        { id: "v2", name: "视图二", createdAt: "2026-10-09T01:00:00.000Z", filter: {}, layout: "list" },
+    ] });
+    const prefs = await loadUiPrefs(harness.plugin);
+    const ids = prefs.savedViews.map((view) => view.id).sort();
+    assert.deepEqual(ids, ["v1", "v2"]);
+    assert.equal(prefs.defaultSavedViewId, "v2");
+});
+
+test("saveLibraryViewPrefs：读取失败拒绝写回，不用空快照清空用户数据（T-3317）", async () => {
+    const harness = createPlugin({ lastView: "library", savedViews: [
+        { id: "v1", name: "重要视图", createdAt: "2026-10-09T00:00:00.000Z", filter: {}, layout: "list" },
+    ] });
+    harness.plugin.loadData = async () => { throw new Error("transient io failure"); };
+    await assert.rejects(saveLibraryViewPrefs(harness.plugin, { lastView: "resurface", defaultSavedViewId: "", savedViews: [] }), /Preferences changed/);
+    harness.plugin.loadData = async () => harness.read();
+    const prefs = await loadUiPrefs(harness.plugin);
+    assert.equal(prefs.savedViews.length, 1);
+    assert.equal(prefs.savedViews[0].name, "重要视图");
 });

@@ -27,7 +27,7 @@ import InboxSection from "./InboxSection.svelte";
 import ResurfaceView from "./ResurfaceView.svelte";
 import { archiveStaleCandidates, setSurfacePinned } from "../services/resurface-service";
 import { computeDailyFromIndex } from "../services/resurface-service";
-import { loadUiPrefs, saveUiPrefs } from "../services/prefs";
+import { loadUiPrefs, saveLibraryViewPrefs, saveUiPrefs } from "../services/prefs";
 import { ageDays, todayStamp } from "../domain/resurface.ts";
 import { recordReadingDone } from "../services/checkin-bridge";
 import { hasSourceAction, openTargetForCarrier, resolveCarrier, sourceUrlForCarrier } from "../domain/carrier";
@@ -150,6 +150,7 @@ let savedViewId = $state("");
 let savedViewName = $state("");
 let prefsLoading = $state(true);
 let prefsError = $state(false);
+let prefsLoadFailed = $state(false);
 let prefsUserTouched = false;
 let applyingPrefs = false;
 let governanceMuted = $state<GovernanceMuted>({ quota: "", stale: "", candidates: "" });
@@ -682,6 +683,7 @@ $effect(() => {
 async function restorePreferences(): Promise<void> {
     prefsLoading = true;
     prefsError = false;
+    prefsLoadFailed = false;
     try {
         const prefs = await loadUiPrefs(facade.pluginInstance);
         const valid = views.some((item) => item.key === prefs.lastView);
@@ -702,6 +704,7 @@ async function restorePreferences(): Promise<void> {
         console.warn("[glean] 工作台偏好读取失败:", error);
         applyingPrefs = false;
         prefsError = true;
+        prefsLoadFailed = true;
         prefsLoading = false;
     }
 }
@@ -711,8 +714,11 @@ $effect(() => {
 });
 
 $effect(() => {
-    if (prefsLoading) return;
-    void saveUiPrefs(facade.pluginInstance, { lastView: view, savedViews, defaultSavedViewId });
+    // 读取失败时拒绝写回：否则初始空快照会在重试前清空用户的保存视图（T-3317）
+    if (prefsLoading || prefsLoadFailed) return;
+    void saveLibraryViewPrefs(facade.pluginInstance, { lastView: view, savedViews, defaultSavedViewId }).catch((error) => {
+        console.warn("[glean] 工作台偏好保存失败:", error);
+    });
 });
 
 function currentSavedFilter() {
@@ -758,7 +764,10 @@ function saveCurrentView(): void {
     if (!name || savedViews.length >= 20) return;
     const id = `view-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const created = createSavedView(name, currentSavedFilter(), layoutMode, savedViews, id);
-    if (!created) return;
+    if (!created) {
+        showMessage(t(i18n, 'library.viewNameDuplicate'), 3500);
+        return;
+    }
     savedViews = [...savedViews, created];
     savedViewId = created.id;
     savedViewName = "";
@@ -1231,7 +1240,10 @@ async function toggleSurfacePin(entry: ClipIndexEntry) {
 }
 
 async function setPriority(entry: ClipIndexEntry, value: number) {
-    if (statusActionId) return;
+    if (statusActionId) {
+        showMessage(t(i18n, 'msg.statusBusy'), 2500);
+        return;
+    }
     statusActionId = entry.id;
     try {
         await writeClip(facade.pluginInstance, entry.id, { priority: value }, { force: true });
@@ -1246,7 +1258,10 @@ async function setPriority(entry: ClipIndexEntry, value: number) {
 }
 
 async function setRating(entry: ClipIndexEntry, value: number) {
-    if (statusActionId) return;
+    if (statusActionId) {
+        showMessage(t(i18n, 'msg.statusBusy'), 2500);
+        return;
+    }
     statusActionId = entry.id;
     try {
         await writeClip(facade.pluginInstance, entry.id, { rating: value }, { force: true });
@@ -1862,7 +1877,7 @@ function metaLine(entry: Row): string {
                                 <ClipStatusActions
                                     {i18n}
                                     status={entry.status || "inbox"}
-                                    disabled={statusActionId === entry.id}
+                                    disabled={Boolean(statusActionId)}
                                     onStartReading={() => void startReading(entry)}
                                     onSetStatus={(status) => void setStatus(entry, status)}
                                 />
@@ -2157,7 +2172,7 @@ function metaLine(entry: Row): string {
                                         title={surfacePinLabel(entry)}
                                         aria-label={surfacePinLabel(entry)}
                                         aria-pressed={isPinnedToday(entry)}
-                                        disabled={statusActionId === entry.id}
+                                        disabled={Boolean(statusActionId)}
                                         onclick={(e) => { e.stopPropagation(); void toggleSurfacePin(entry); }}
                                     ><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanPin" /></svg></button>
                                      {#if hasSourceAction(entry.contentType, entry.url)}
@@ -2175,14 +2190,14 @@ function metaLine(entry: Row): string {
                                     {i18n}
                                     priority={entry.priority}
                                     rating={entry.rating}
-                                    disabled={statusActionId === entry.id}
+                                    disabled={Boolean(statusActionId)}
                                     onPriority={(value) => void setPriority(entry, value)}
                                     onRating={(value) => void setRating(entry, value)}
                                 />
                                 <ClipStatusActions
                                     {i18n}
                                     status={entry.status || "inbox"}
-                                    disabled={statusActionId === entry.id}
+                                    disabled={Boolean(statusActionId)}
                                     onStartReading={() => void startReading(entry)}
                                     onSetStatus={(status) => void setStatus(entry, status)}
                                 />

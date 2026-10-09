@@ -34,6 +34,8 @@ let preview = $state<ScanPreview | null>(null);
 let completed = false;
 let disposed = false;
 let progressTouched = false;
+/** 用户已请求的目标步骤：moveTo 的 await 期间关窗时，onDestroy 保存意图步骤而非旧值 */
+let requestedStep: OnboardingStep = 1;
 
 onMount(() => {
     anchorNotebooks = [...facade.settings.anchorNotebooks];
@@ -66,7 +68,7 @@ onDestroy(() => {
     // 原生弹窗右上角关闭与“稍后继续”都会走这里；只记 UI 进度，不记扫描结果。
     void saveUiPrefs(facade.pluginInstance, {
         onboardingDone: false,
-        onboardingStep: step,
+        onboardingStep: requestedStep > step ? requestedStep : step,
         onboardingInterrupted: true,
     }).catch(() => undefined);
 });
@@ -101,6 +103,7 @@ async function markDone(): Promise<void> {
 
 async function moveTo(nextStep: OnboardingStep): Promise<void> {
     if (disposed || completed) return;
+    requestedStep = nextStep;
     progressTouched = true;
     try {
         await saveUiPrefs(facade.pluginInstance, {

@@ -160,7 +160,7 @@
             <button class="glean-btn glean-btn--ghost" disabled={busy} onclick={() => facade.openReadingDocument(docId)}>{t(i18n, "reading.position.openDocument")}</button>
         {/if}
     </div>
-    <div class="glean-reading-position__status" class:glean-reading-position__status--visible={busy || Boolean(messageKey)} class:glean-reading-position__status--error={messageKey.endsWith("Failed") || messageKey.endsWith("Missing") || messageKey.endsWith("changed")} class:glean-reading-position__status--success={messageKey === "reading.position.saved" || messageKey === "reading.position.restored"} role="status" aria-live="polite">{busy ? t(i18n, "panel.loading") : messageKey ? t(i18n, messageKey) : ""}</div>
+    <div class="glean-reading-position__status" class:glean-reading-position__status--visible={busy || Boolean(messageKey)} class:glean-reading-position__status--error={/(Failed|Missing)$/.test(messageKey) || messageKey.endsWith("Missing") || messageKey.endsWith("changed")} class:glean-reading-position__status--success={messageKey === "reading.position.saved" || messageKey === "reading.position.restored"} role="status" aria-live="polite">{busy ? t(i18n, "panel.loading") : messageKey ? t(i18n, messageKey) : ""}</div>
 </section>
 
 <style>

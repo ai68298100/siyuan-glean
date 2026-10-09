@@ -96,6 +96,7 @@ async function refreshProgress(): Promise<void> {
         progressError = "";
         progressReadFailed = false;
         progressLoaded = true;
+        forceResetConfirmed = false;
         if (record && record.state !== "finished") { notebookId = record.notebookId; folder = record.folder; format = record.format; }
     } catch (error) {
         if (mounted) { progressError = progressFailure(error); progressReadFailed = true; progressLoaded = false; }
@@ -103,12 +104,14 @@ async function refreshProgress(): Promise<void> {
 }
 
 async function discardProgress(): Promise<void> {
-    if (busy || !discardConfirmed) return;
+    // 常规丢弃走 discardConfirmed；强制逃生（进度文件损坏、progressRecord 为 null）走 forceResetConfirmed
+    if (busy) return;
     if (!progressRecord && !forceResetConfirmed) return;
+    if (progressRecord && !discardConfirmed) return;
     busy = true;
     try {
         // 进度文件损坏（progressReadFailed）时无 taskId 可校验：传文件名走强制逃生路径
-        const target = progressRecord?.taskId ?? IMPORT_PROGRESS_FILE;
+        const target = progressReadFailed || !progressRecord ? IMPORT_PROGRESS_FILE : progressRecord.taskId;
         await discardImportProgress(facade.pluginInstance, target, true);
         if (!mounted) return;
         progressRecord = null;

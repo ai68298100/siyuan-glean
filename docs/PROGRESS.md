@@ -1,5 +1,15 @@
 # 进度（PROGRESS）
 
+## T-3317 第五轮全方位走查：近两轮回归自查 / 次级模块 / 数据风险（2026-10-09）
+
+- [x] P1 修复一：T-3316 引入的导入进度强制逃生按钮从 UI 永远无法触发（`discardProgress` 守卫要求 `discardConfirmed`，而损坏场景该勾选框所在区块不渲染）——守卫按场景分流，`progressReadFailed` 时强制走按文件名逃生路径。
+- [x] P1 修复二：DockPanel 被挂载两个实例（dock + 工作台 tab），各自内存快照**整体写回** `savedViews` 导致跨画布静默丢用户视图（A 建的 V3 被 B 的旧快照覆盖）。新增 `services/prefs.ts` 的 `saveLibraryViewPrefs`：串行队列内读最新文件做**条目级并集**（按 id，同名以传入为准），读取失败拒绝写回；DockPanel 加载失败时阻断自动保存（此前瞬时读取失败会把初始空快照写回清空用户数据）。补 2 条回归测试。
+- [x] P1 修复三：强制逃生语义收窄——服务层删除前 200ms 二次校验仍读取失败才删，瞬时 busy/超时不再误删健康的进行中进度。
+- [x] P2/P3 批量：保存视图重名时提示（原静默失败）；行内状态/优先级/评分按钮改全局忙碌互斥（原跨行点击静默无反应）、优先级/评分早退时提示"上一项操作进行中"；归档/恢复对话框按文档 ID 防重复叠开；恢复对话框部分失败文案区分移出成败；`ageDays` 拒绝日历非法日期（13 月/2 月 31 日的回滚误算）；stats 的 totalWords 口径统一与 bySite locale 归一；quotes 分面对同篇重复标签去重（与 stats 口径一致）；引导向导 `onDestroy` 保存"已请求的目标步骤"（moveTo await 期间关窗不再回退进度）；阅读位置控件状态着色改显式正则（键名重命名不再静默破坏）；收集箱失败态 aria-label 悬空修复；Pocket HTML 状态机在 raw 上扫描（toLowerCase 非保长码点的索引错位隐患）；Omnivore/wallabag 的 site 兜底补截断；`forceResetConfirmed` 在刷新成功后复位。
+- [x] 回归自查确认 T-3315/3316 其余改动（keepalive、timer 清理、取消常量、capText、QuotesView 门禁、i18n 占位符等）20+ 项无新缺陷。
+- [x] 门禁：`pnpm check` 0 错误/0 警告、`pnpm test` 1225/1225（含 2 条新回归）、`pnpm build`、`pnpm check:release`、`pnpm perf:check`、任务账本、`git diff --check` 通过。
+- [ ] 真实验收归 B-0002；版本保持 `1.2.1`，不升版、不打 tag、不创建 Release。
+
 ## T-3316 第四轮全方位走查：解析器防御 / 剩余模块 / 数据契约（2026-10-09）
 
 - [x] 解析器防御：Pocket HTML 全局正则的 O(n²) 惰性扫描改为 indexOf 状态机（20 万未闭合锚点 2ms）；四格式导入字段统一截断（title/site 512 码点、url 8KB、标签 64 字×20 个）；`toSiyuanTime` 拒绝 1-9999 之外年份；CSV 解析 200 万行上限；属性内嵌 `>` 锚点计入 dropped；单引号 href 支持。防御确认完备的：原型链污染（全链白名单重建）、URL 协议注入（normalizeUrl http(s) 网关 + noopener）、备份结构校验（parseBackup 最严）、进度文件校验本体。

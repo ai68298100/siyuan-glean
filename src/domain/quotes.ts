@@ -43,12 +43,12 @@ export function quoteFacets(entries: QuoteEntry[]): { sites: NameCount[]; tags: 
     const aiTags = new Map<string, number>();
     const colors = new Map<string, number>();
     for (const entry of entries) {
-        const site = entry.site.trim().toLowerCase();
+        const site = entry.site.trim().toLocaleLowerCase();
         if (site) sites.set(site, (sites.get(site) ?? 0) + 1);
-        for (const tag of entry.tags) {
+        for (const tag of new Set(entry.tags)) {
             if (tag) tags.set(tag, (tags.get(tag) ?? 0) + 1);
         }
-        for (const tag of entry.aiTags) {
+        for (const tag of new Set(entry.aiTags)) {
             if (tag) aiTags.set(tag, (aiTags.get(tag) ?? 0) + 1);
         }
         if (entry.color) colors.set(entry.color, (colors.get(entry.color) ?? 0) + 1);

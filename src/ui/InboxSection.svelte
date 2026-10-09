@@ -150,7 +150,7 @@ async function dismiss(item: Shorthand) {
 </script>
 
 {#if checked && inboxCheckFailed}
-    <div class="glean-inbox" role="region" aria-labelledby={titleId}>
+    <div class="glean-inbox" role="region" aria-label={t(i18n, "inbox.title")}>
         <div class="glean-inbox__empty" role="status">
             {t(i18n, "inbox.checkFailed")}
             <button class="glean-linkish" type="button" onclick={() => void refresh()}>{t(i18n, "action.retry")}</button>

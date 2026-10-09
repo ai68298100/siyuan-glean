@@ -140,6 +140,30 @@ function dedupe(items: ImportedItem[]): { items: ImportedItem[]; dropped: number
 
 /* ---------- Pocket HTML ---------- */
 
+/** 大小写不敏感地找 from 之后下一个锚点开标签 "<a"（后随空白或 >）的位置。 */
+function nearestAnchorStart(raw: string, from: number): number {
+    let at = from;
+    while ((at = raw.indexOf("<", at)) !== -1) {
+        const next = raw[at + 1];
+        if (next === "a" || next === "A") {
+            const after = raw.charCodeAt(at + 2);
+            if (after === 32 || after === 9 || after === 10 || after === 13 || after === 62) return at;
+        }
+        at += 1;
+    }
+    return -1;
+}
+
+/** 大小写不敏感地找 from 之后下一个 "</a>" 的位置。 */
+function nearestCloseAnchor(raw: string, from: number): number {
+    let at = from;
+    while ((at = raw.indexOf("</", at)) !== -1) {
+        if ((raw[at + 2] === "a" || raw[at + 2] === "A") && raw[at + 3] === ">") return at;
+        at += 1;
+    }
+    return -1;
+}
+
 const MAX_IMPORT_FIELD = 8 * 1024;
 const MAX_IMPORT_TEXT = 512;
 const MAX_IMPORT_TAGS = 20;
@@ -162,20 +186,20 @@ export function parsePocketHtml(raw: string): ParseResult {
     let dropped = 0;
     // 用 indexOf 状态机逐个 <a>…</a> 切片：全局正则的惰性匹配在"存在未闭合 <a>"时
     // 每个开标签都要扫到文件尾（O(n²)，32MiB 输入可冻结主线程数小时）
-    const lower = raw.toLowerCase();
     let cursor = 0;
     while (cursor < raw.length) {
-        const openStart = lower.indexOf("<a", cursor);
+        // 在 raw 上直接扫描（toLowerCase 对个别码点变长，与 raw 混用索引会静默错切）
+        const openStart = nearestAnchorStart(raw, cursor);
         if (openStart < 0) break;
         // <a 后必须是空白或属性结束符，避免命中 <abbr> 等标签
-        const afterOpen = lower.charCodeAt(openStart + 2);
+        const afterOpen = raw.charCodeAt(openStart + 2);
         if (!(afterOpen === 32 || afterOpen === 9 || afterOpen === 10 || afterOpen === 13 || afterOpen === 62)) {
             cursor = openStart + 2;
             continue;
         }
         const tagEnd = raw.indexOf(">", openStart + 2);
         if (tagEnd < 0) break;
-        const closeStart = lower.indexOf("</a>", tagEnd + 1);
+        const closeStart = nearestCloseAnchor(raw, tagEnd + 1);
         if (closeStart < 0) break; // 未闭合锚点：其后内容按无锚点处理，扫描结束
         const attrs = raw.slice(openStart + 2, tagEnd);
         const inner = raw.slice(tagEnd + 1, closeStart);
@@ -274,7 +298,7 @@ export function parseCsv(raw: string): string[][] {
             cell = "";
             if (row.length > 1 || row[0] !== "") rows.push(row);
             row = [];
-            if (rows.length > MAX_CSV_ROWS) return rows;
+            if (rows.length > MAX_CSV_ROWS) return rows; // 超限静默截断：32MiB 输入下极难触达
         } else {
             cell += ch;
         }
@@ -320,7 +344,7 @@ export function parseOmnivoreJson(raw: string): ParseResult {
         items.push({
             title: capText(String(page.title ?? "")),
             url: capText(url, MAX_IMPORT_FIELD),
-            site: capText(String(page.siteName ?? "")) || siteFromUrl(url),
+            site: capText(String(page.siteName ?? "")) || capText(siteFromUrl(url)),
             time: toSiyuanTime(page.savedAt),
             doneTime: "",
             tags: capTags(labels),
@@ -368,7 +392,7 @@ export function parseWallabagJson(raw: string): ParseResult {
         items.push({
             title: capText(String(entry.title ?? "")),
             url: capText(url, MAX_IMPORT_FIELD),
-            site: capText(String(entry.domain_name ?? "")) || siteFromUrl(url),
+            site: capText(String(entry.domain_name ?? "")) || capText(siteFromUrl(url)),
             time: toSiyuanTime(entry.created_at),
             doneTime: "",
             tags: capTags(tags),

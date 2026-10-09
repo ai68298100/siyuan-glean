@@ -477,8 +477,11 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
     }
 
     /** 归档后处理入口：策略细节由 ArchiveDialog 负责，入口保持与阅读上下文解耦。 */
+    private openDialogDocIds = new Set<string>();
+
     openArchiveDialog(docId: string): void {
-        if (!docId) return;
+        if (!docId || this.openDialogDocIds.has(docId)) return;
+        this.openDialogDocIds.add(docId);
         svelteDialog({
             title: t(this.i18n, "archive.title"),
             closeLabel: t(this.i18n, "action.close"),
@@ -486,6 +489,7 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
             props: { facade: this, docId },
             width: "440px",
             height: "360px",
+            callback: () => { this.openDialogDocIds.delete(docId); },
         });
     }
 
@@ -504,6 +508,8 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
                     showMessage(t(this.i18n, "msg.statusChanged"), 2500);
                     return;
                 }
+                if (this.openDialogDocIds.has(docId)) return;
+                this.openDialogDocIds.add(docId);
                 svelteDialog({
                     title: t(this.i18n, "restore.title"),
                     closeLabel: t(this.i18n, "action.close"),
@@ -511,6 +517,7 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
                     props: { facade: this, docId },
                     width: "440px",
                     height: "300px",
+                    callback: () => { this.openDialogDocIds.delete(docId); },
                 });
             } catch (error) {
                 console.warn("[glean] 恢复入口检查失败:", error);

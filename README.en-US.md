@@ -42,6 +42,11 @@ Improved: third-walkthrough experience details
 
 - Running backup restores, flashcard recovery or AI tag cleanup no longer aborts when you switch settings categories; settings conflict recovery is more robust; category navigation supports arrow keys and Home/End; the notebook list distinguishes "no notebooks yet" from "no matches"; touch targets apply in narrow panels on wide viewports; keyboard focus indicators are more complete.
 
+Hardened: fifth-walkthrough data and experience fixes
+
+- Saved views created on one canvas are no longer silently overwritten by actions on the other; auto-save pauses when workbench preferences fail to load, so an empty snapshot cannot wipe user data.
+- Duplicate saved-view names now show a notice; busy exclusion for row actions is complete; archive/restore dialogs no longer stack; the corrupted-import-progress reset entry actually works and no longer deletes healthy progress.
+
 Hardened: fourth-walkthrough import and failure defenses
 
 - Import parsing is hardened against malformed export files: oversized fields are capped, malformed timestamps rejected, a corrupted import-progress file can now be reset from the UI (previously required deleting the data file manually), and the progress detail list no longer stutters on tens of thousands of rows.

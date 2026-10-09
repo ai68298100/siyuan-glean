@@ -60,7 +60,7 @@ export function aggregateStats(items: StatsInput[], now: Date = new Date()): Rea
         if (item.status === "done") done += 1;
         else if (item.status === "reading") reading += 1;
         else if (item.status === "inbox") inbox += 1;
-        totalWords += item.words || 0;
+        totalWords += Number.isFinite(item.words) && item.words > 0 ? item.words : 0;
 
         if (trustedTimestamp(item.time, now)) {
             const daysAgo = todayOrdinal - calendarOrdinal(item.time.slice(0, 8));
@@ -70,7 +70,7 @@ export function aggregateStats(items: StatsInput[], now: Date = new Date()): Rea
         // 不用 updated 伪造，只计入上面的状态总数。
         if (item.status === "done" && trustedTimestamp(item.doneTime, now) && withinWeek(item.doneTime, todayNoon)) doneThisWeek += 1;
 
-        const site = (item.site || "").trim().toLowerCase();
+        const site = (item.site || "").trim().toLocaleLowerCase();
         if (site) siteCounts.set(site, (siteCounts.get(site) ?? 0) + 1);
         // 与 reviewNameCounts 同口径：同一篇文章的重复标签只计一次
         for (const tag of new Set((item.aiTags ?? []).map((value) => value.trim()).filter(Boolean))) {

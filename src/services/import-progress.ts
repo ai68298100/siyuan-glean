@@ -60,8 +60,18 @@ export async function discardImportProgress(plugin: Plugin, taskId: string, conf
             current = await readImportProgress(plugin);
         } catch (error) {
             // 进度文件损坏时的强制逃生：传文件名作为 taskId 可按名直接删除，
-            // 否则一条坏记录会把选新文件/恢复/丢弃全部锁死（T-3316）
+            // 否则一条坏记录会把选新文件/恢复/丢弃全部锁死（T-3316）。
+            // 二次校验：短暂等待后仍读取失败（损坏持续）才删；已恢复可读说明是瞬时故障，
+            // 拒绝删除以保护健康的进行中进度（T-3317）
             if (taskId === IMPORT_PROGRESS_FILE) {
+                await new Promise((resolve) => setTimeout(resolve, 200));
+                let stillBroken = false;
+                try {
+                    await readImportProgress(plugin);
+                } catch {
+                    stillBroken = true;
+                }
+                if (!stillBroken) throw new ImportProgressError("busy");
                 checkStorageResponse(await storageOperation(plugin, "save", () => plugin.removeData(IMPORT_PROGRESS_FILE)));
                 if (await readImportProgress(plugin)) throw new ImportProgressError("save");
                 return;
