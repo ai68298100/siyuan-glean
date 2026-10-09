@@ -8,9 +8,9 @@
 
 [English](README.en-US.md) · [下载最新版](https://github.com/ai68298100/siyuan-glean/releases/latest) · [能力矩阵](docs/CAPABILITY-MATRIX.md) · [反馈与问题](https://github.com/ai68298100/siyuan-glean/issues/new/choose)
 
-## v1.3.1 发布后的更新（待发布）
+## v1.3.2 更新（2026-10-10）
 
-本轮围绕操作完整性与界面一致性收口，补齐关键失败反馈，并统一今日拾遗、筛选和统计的视觉层级。以下为主线代码更新；真实宿主视觉与读屏验收仍待 B-0002。
+本次围绕操作完整性与界面一致性收口，补齐关键失败反馈，并统一今日拾遗、筛选和统计的视觉层级。真实宿主视觉与读屏验收仍待 B-0002。
 
 **新增：**
 
@@ -142,7 +142,7 @@
 
 ## 兼容性与验收
 
-当前稳定版为 [v1.3.1](https://github.com/ai68298100/siyuan-glean/releases/tag/v1.3.1)。该版本的自动门禁和隔离 S1 服务级 E2E 已通过；这不代表所有真实环境都已验收。
+当前稳定版为 [v1.3.2](https://github.com/ai68298100/siyuan-glean/releases/tag/v1.3.2)。该版本的自动门禁已通过；这不代表所有真实环境都已验收。
 
 桌面宿主、Android/移动端、浏览器前端、真实模型、官方剪藏、外部文件和订阅服务仍按环境分别验收。使用前提、降级方式和阻塞项以[能力矩阵](docs/CAPABILITY-MATRIX.md)及[已知阻塞](docs/BLOCKERS.md)为准；请勿把单元测试或隔离 E2E 当作真机通过。
 
