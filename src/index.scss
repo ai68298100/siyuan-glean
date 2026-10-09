@@ -4157,6 +4157,7 @@ body.b3-theme-dark {
 .glean-filter-clear {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 5px;
     border: 1px solid var(--b3-border-color);
     border-radius: 8px;
@@ -4166,6 +4167,7 @@ body.b3-theme-dark {
     padding: 3px 8px;
     cursor: pointer;
     font-size: 11px;
+    text-align: center;
 }
 
 .glean-filter-clear {
@@ -5042,11 +5044,18 @@ body.b3-theme-dark {
 
 .glean-surf-act {
     flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--glean-space-2);
+    min-height: 32px;
     border: 1px solid var(--glean-border-soft);
     padding: 7px 0;
     border-radius: 10px;
     font-size: 11.5px;
     font-weight: 600;
+    line-height: 1.3;
+    text-align: center;
     cursor: pointer;
     background: var(--glean-inset-surface);
     color: var(--b3-theme-on-background);
@@ -5139,12 +5148,34 @@ body.b3-theme-dark {
     }
 
     .glean-surf__acts {
-        flex-wrap: wrap;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        align-items: stretch;
     }
 
     .glean-surf-act {
-        flex: 1 1 120px;
+        width: 100%;
         min-width: 0;
+    }
+
+    .glean-surf-act--pri {
+        grid-column: 1 / -1;
+    }
+
+    .glean-surf-source-missing {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        min-width: 0;
+        min-height: 32px;
+        box-sizing: border-box;
+        padding: 7px 6px;
+        border: 1px solid var(--glean-border-soft);
+        border-radius: var(--glean-radius-sm);
+        line-height: 1.3;
+        text-align: center;
+        white-space: normal;
     }
 
     .glean-surf-foot {
@@ -7032,8 +7063,19 @@ body.b3-theme-dark {
     margin-top: var(--glean-space-1);
     color: var(--b3-theme-on-surface);
     font-size: var(--glean-text-xs);
+    font-weight: 500;
     line-height: 1.35;
     opacity: .72;
+}
+
+.glean-stats__metric dd.glean-stats__metric-hint {
+    margin-top: var(--glean-space-1);
+    color: var(--b3-theme-on-surface);
+    font-size: var(--glean-text-xs);
+    font-weight: 500;
+    line-height: 1.35;
+    background: none;
+    -webkit-text-fill-color: currentColor;
 }
 
 .glean-stats__metric:nth-child(n + 4) dd {
@@ -9447,6 +9489,8 @@ body.b3-theme-dark .glean-panel--mobile,
     background: color-mix(in srgb, var(--b3-theme-surface) 86%, transparent);
     color: var(--b3-theme-on-surface);
     font-size: var(--glean-text-xs);
+    text-align: center;
+    text-align-last: center;
     transition: border-color 160ms var(--glean-ease-out), background-color 160ms var(--glean-ease-out), box-shadow 160ms var(--glean-ease-out);
 }
 

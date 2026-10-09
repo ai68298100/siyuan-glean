@@ -532,7 +532,7 @@ function downloadCsv(): void {
             line-height: 1.35;
         }
 
-        .glean-stats__metric dd {
+        .glean-stats__metric > dd:not(.glean-stats__metric-hint) {
             font-size: 20px;
         }
     }

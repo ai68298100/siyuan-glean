@@ -11,6 +11,8 @@
 
 > 评审结论与验收顺序见 [`docs/STATUS-REVIEW-2026-10-06.md`](docs/STATUS-REVIEW-2026-10-06.md)。这些任务优先收口真实可用性、恢复能力和对外承诺，再扩展新功能。
 
+- [x] **T-3323**（P1，2026-10-09）按真机截图收口今日拾遗与统计视觉：桌面拾遗卡动作区固定两列、来源缺失保留等宽占位、动作文字统一居中；读库下拉筛选文字居中；统计“期间完成”辅助说明恢复小字号；确认五态仍是生命周期状态，新增分类继续使用标签/来源/载体筛选，不改状态枚举。代码状态：完成；隔离验证：`pnpm check`、`pnpm test`、`pnpm build`、`pnpm check:release`、`pnpm task:ledger -- --check`、`git diff --check` 通过；真实验收：待 B-0002（今日拾遗三卡底线、筛选控件和统计层级）；延后原因：静态检查无法替代真实宿主视觉。
+
 - [x] **T-3322**（P1，2026-10-09）全插件 UI 入口、按钮条件、反馈、空态与文案核对：修复无块定位摘录仍可制卡、超龄归档失败结果不可重试/反馈不完整、设置测试连接异常无提示；保存设置时锁定草稿；读库行/卡/看板改用标题原生按钮，解除交互卡片嵌套按钮语义；保留 AI 相关旧文失败静默降级契约；不新增数据字段、端点或设置。代码状态：完成；隔离验证：`pnpm check`、`pnpm test` 1227/1227、`pnpm build`、`pnpm check:release`、`pnpm task:ledger -- --check`、`git diff --check` 通过；真实验收：待 B-0002（真实宿主/读屏与三视口视觉）；延后原因：静态审查无法替代宿主实测。
 
 - [x] **T-3321**（P1，2026-10-09）发布 v1.3.1 性能补丁：同步双 manifest、双语 README、CHANGELOG、RELEASE、发布候选与交接记录；构建并校验 `package.zip`，推送 `main`、annotated tag 和 GitHub Release；不提交集市 PR；代码状态：完成；隔离验证：`pnpm check`、`pnpm test` 1226/1226、`pnpm build`、`pnpm check:release`、`pnpm perf:check`、任务账本、`git diff --check` 全通过；真实验收：真实宿主大库首屏、滚动、内存和低端设备仍待 B-0002/B-0005；延后原因：无。

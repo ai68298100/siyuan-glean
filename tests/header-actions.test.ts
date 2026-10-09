@@ -178,6 +178,21 @@ test("wide canvas exposes labels for compact popovers and sort direction", () =>
     assert.match(styles, /@container\s+glean-workbench\s*\(min-width:\s*760px\)[\s\S]*\.glean-action-popover__trigger-label,[\s\S]*\.glean-filter-dir__label\s*\{\s*display:\s*inline/);
 });
 
+test("resurface cards keep action slots and metric hints aligned", () => {
+    const styles = read("src/index.scss");
+    const view = read("src/ui/ResurfaceView.svelte");
+    const stats = read("src/ui/StatsView.svelte");
+    const filters = read("src/ui/LibraryFilters.svelte");
+    assert.match(styles, /\.glean-surf__acts\s*\{[\s\S]*display:\s*grid[\s\S]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
+    assert.match(styles, /\.glean-surf-act--pri\s*\{[\s\S]*grid-column:\s*1 \/ -1/);
+    assert.match(styles, /\.glean-surf-source-missing\s*\{[\s\S]*justify-content:\s*center/);
+    assert.match(styles, /\.glean-filters--compact \.glean-filter\s*\{[\s\S]*text-align:\s*center[\s\S]*text-align-last:\s*center/);
+    assert.match(styles, /\.glean-stats__metric dd\.glean-stats__metric-hint\s*\{[\s\S]*font-size:\s*var\(--glean-text-xs\)[\s\S]*background:\s*none/);
+    assert.match(stats, /\.glean-stats__metric > dd:not\(\.glean-stats__metric-hint\)/);
+    assert.match(view, /class="glean-surf-source-missing"/);
+    assert.match(filters, /class="b3-select glean-filter"/);
+});
+
 test("desktop header subtitle reflects the current view and active library filters", () => {
     const source = read("src/ui/DockPanel.svelte");
     const zh = read("public/i18n/zh_CN.json");
