@@ -17,7 +17,7 @@
 | 性能门禁 | 通过当前机器合成基线 | `pnpm perf:check` |
 | 视觉矩阵 | 通过登记检查；24 张仍待真实宿主 | `pnpm visual:check`，B-0002 |
 | 发布产物 | 通过，377958B | `pnpm check:release` 14/14；`package.zip` SHA-256：`e7419db06a5e3c293be5a763d118f2a85035d9a3ca1fa46411f5e8310b898c10` |
-| GitHub 发布 | 已完成，远端附件下载校验一致 | [v1.3.1 Release](https://github.com/ai68298100/siyuan-glean/releases/tag/v1.3.1)，annotated tag 指向最终发布记录提交 `33b81df9ffb0fbb8aab9bc7a0c4b6cdb8921461a` |
+| GitHub 发布 | 已完成，远端附件下载校验一致 | [v1.3.1 Release](https://github.com/ai68298100/siyuan-glean/releases/tag/v1.3.1)，annotated tag 与最终 `main` 发布记录一致 |
 
 版本已按 D-0005 定版为 `1.3.1`。本轮主要变更为 T-3320 的大库刷新查重与看板分桶性能优化，明细见 `docs/CHANGELOG.md` 与 `docs/PROGRESS.md`。集市仍需单独授权。
 

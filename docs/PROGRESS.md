@@ -5,7 +5,7 @@
 - [x] 版本由 `1.3.0` 升至 `1.3.1`，`package.json` 与 `plugin.json` 一致；双语 README、CHANGELOG、RELEASE、发布候选和媒体清单同步。
 - [x] 发布内容为 T-3320 的大库刷新查重与看板分桶性能优化；不新增文章属性、端点或设置字段。
 - [x] `pnpm build`、`pnpm check:release` 通过；`package.zip` 377958B，SHA-256 `e7419db06a5e3c293be5a763d118f2a85035d9a3ca1fa46411f5e8310b898c10`。
-- [x] 初始发布提交 `64b537ca76172f51dd7b18056950ab078a9210af` 已通过 `gh api` 更新至 GitHub；最终发布记录提交 `33b81df9ffb0fbb8aab9bc7a0c4b6cdb8921461a` 已推送 `main`，annotated tag `v1.3.1` 与 [GitHub Release](https://github.com/ai68298100/siyuan-glean/releases/tag/v1.3.1) 对齐。远端下载 `package.zip` 为 377958B，SHA-256 与本地一致。
+- [x] 初始发布提交 `64b537ca76172f51dd7b18056950ab078a9210af` 已通过 `gh api` 更新至 GitHub；最终发布记录已推送 `main`，annotated tag `v1.3.1` 与 [GitHub Release](https://github.com/ai68298100/siyuan-glean/releases/tag/v1.3.1) 对齐。远端下载 `package.zip` 为 377958B，SHA-256 与本地一致。
 - [x] 初次 Quality gates `37894806713` 发现候选文档漏掉授权边界固定措辞，已补回；最终 Quality gates `37896900427` 与 CodeQL `37896900418` 均通过。
 - [ ] 真实宿主大库首屏、滚动、内存、移动低端设备收益仍待 B-0002/B-0005；不把 Node 合成基线写成真机验收。
 
