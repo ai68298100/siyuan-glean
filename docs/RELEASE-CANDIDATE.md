@@ -2,7 +2,7 @@
 
 > 2026-10-09 定版 v1.3.1：本轮发布 T-3320 的大库刷新与看板分桶性能补丁；真实宿主/作者验收边界仍按 B-0002/B-0005 保留。
 >
-> 本文记录本次 `v1.3.1` 候选、构建和 GitHub 发布证据；集市 PR 仍需单独授权。
+> 本文记录本次 `v1.3.1` 候选、构建和 GitHub 发布证据；集市 PR 仍需单独授权，未获授权前不执行这些外部动作。
 
 ## 1. 当前候选
 
@@ -12,11 +12,12 @@
 | 变更记录 | 已有 `v1.3.1` 条目 | `docs/CHANGELOG.md` |
 | 类型与 Svelte 检查 | 通过，0 错误/0 警告 | `pnpm check` |
 | 全量测试 | 通过，1226/1226 | `pnpm test` |
-| 隔离内核主链 | 通过，58/58 | `node scripts/e2e/s1-flow.mjs`（真实内核 3.8.6、独立临时工作区，2026-10-09 实跑），含恢复检查点、备份恢复、AV、制卡和导入实证 |
+| 隔离内核主链 | 沿用同日 v1.3.0 的 58/58 实跑证据 | `node scripts/e2e/s1-flow.mjs`（真实内核 3.8.6、独立临时工作区，2026-10-09 实跑），含恢复检查点、备份恢复、AV、制卡和导入实证；本补丁未另行重跑 |
 | 生产构建 | 通过 | `pnpm build` |
 | 性能门禁 | 通过当前机器合成基线 | `pnpm perf:check` |
 | 视觉矩阵 | 通过登记检查；24 张仍待真实宿主 | `pnpm visual:check`，B-0002 |
 | 发布产物 | 通过，377958B | `pnpm check:release` 14/14；`package.zip` SHA-256：`e7419db06a5e3c293be5a763d118f2a85035d9a3ca1fa46411f5e8310b898c10` |
+| GitHub 发布 | 已完成，远端附件下载校验一致 | [v1.3.1 Release](https://github.com/ai68298100/siyuan-glean/releases/tag/v1.3.1)，annotated tag 指向 `64b537ca76172f51dd7b18056950ab078a9210af` |
 
 版本已按 D-0005 定版为 `1.3.1`。本轮主要变更为 T-3320 的大库刷新查重与看板分桶性能优化，明细见 `docs/CHANGELOG.md` 与 `docs/PROGRESS.md`。集市仍需单独授权。
 
@@ -32,7 +33,7 @@
 
 1. 确认版本号与 CHANGELOG，`dist` 已重新构建并校验 `package.zip`。
 2. `pnpm check && pnpm test && pnpm check:release` 全部通过（已执行）。
-3. tag/Release 动作逐次执行并记录链接和校验值。
+3. GitHub API 已完成发布提交；annotated tag、Release 和附件上传完成，远端下载校验一致（见上表）。
 
 ## 4. 不得提前承诺
 

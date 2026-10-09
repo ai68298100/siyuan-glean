@@ -5,7 +5,8 @@
 - [x] 版本由 `1.3.0` 升至 `1.3.1`，`package.json` 与 `plugin.json` 一致；双语 README、CHANGELOG、RELEASE、发布候选和媒体清单同步。
 - [x] 发布内容为 T-3320 的大库刷新查重与看板分桶性能优化；不新增文章属性、端点或设置字段。
 - [x] `pnpm build`、`pnpm check:release` 通过；`package.zip` 377958B，SHA-256 `e7419db06a5e3c293be5a763d118f2a85035d9a3ca1fa46411f5e8310b898c10`。
-- [ ] tag、GitHub Release 和远端附件 URL 待本轮发布动作完成后回填。
+- [x] 发布提交 `64b537ca76172f51dd7b18056950ab078a9210af` 已通过 `gh api` 更新至 GitHub；annotated tag `v1.3.1` 与 [GitHub Release](https://github.com/ai68298100/siyuan-glean/releases/tag/v1.3.1) 对齐。远端下载 `package.zip` 为 377958B，SHA-256 与本地一致。
+- [x] CodeQL `37894806699` 通过；Quality gates `37894806713` 发现候选文档漏掉授权边界固定措辞，已补回并重新验证，后续发布记录提交继续执行远端门禁。
 - [ ] 真实宿主大库首屏、滚动、内存、移动低端设备收益仍待 B-0002/B-0005；不把 Node 合成基线写成真机验收。
 
 ## T-3320/D-0195 大库刷新与看板分桶性能优化（2026-10-09）
