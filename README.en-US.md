@@ -2,21 +2,56 @@
 
 [![Quality gates](https://github.com/ai68298100/siyuan-glean/actions/workflows/ci.yml/badge.svg)](https://github.com/ai68298100/siyuan-glean/actions/workflows/ci.yml) [![CodeQL](https://github.com/ai68298100/siyuan-glean/actions/workflows/codeql.yml/badge.svg)](https://github.com/ai68298100/siyuan-glean/actions/workflows/codeql.yml) [![Latest release](https://img.shields.io/github/v/release/ai68298100/siyuan-glean?label=latest%20release)](https://github.com/ai68298100/siyuan-glean/releases/latest)
 
-> Turn the clippings already saved in SiYuan into a library you can confirm, triage, read, and review.
+> Organize SiYuan clippings into a library for confirmation, read-later queues, reading management, and review; eligible SiYuan inbox items can also be imported when prerequisites are met.
 
 Lv Glean organizes clippings and articles already in SiYuan. It does not crawl the web, and ordinary notes are never captured just because they sit in a selected notebook. You review the source evidence and confirm each candidate before it enters the library.
 
 [中文说明](README.md) · [Latest Release](https://github.com/ai68298100/siyuan-glean/releases/latest) · [Capability matrix](docs/CAPABILITY-MATRIX.md) · [Feedback](https://github.com/ai68298100/siyuan-glean/issues/new/choose)
 
-## v1.3.1 update (2026-10-09)
+## Updates since v1.3.1 (not yet released)
+
+This round tightens action completeness and visual consistency, adds missing failure feedback, and aligns the hierarchy of Today's Gleaning, filters, and statistics. These are mainline code changes; real-host visual and screen-reader acceptance is still pending under B-0002.
+
+**Added:**
+
+- Retrying failed imports now requires explicit confirmation; AI channel test exceptions show localized feedback; failed items from bulk archiving remain selected and can be retried.
+
+**Improved:**
+
+- Article preview and open actions now use title buttons consistently; related controls are locked during settings saves and bulk actions to prevent accidental changes.
+- Today's Gleaning actions use a fixed two-column layout with centered labels and equal-width unavailable-source slots; filter labels are centered and the period-completed note uses a smaller type size.
+
+**Fixed:**
+
+- Flashcards can no longer be created from excerpts without a locatable source block; partial archive failures now provide feedback, and alignment and type-size issues in Today's Gleaning, filters, and statistics are corrected.
+
+## The Lv plugin family
+
+| Plugin | One-line description | GitHub repository |
+| --- | --- | --- |
+| Lv Quickcut / 小驴雷切 | A unified workspace and context-switching platform. | [siyuan-speed-switch](https://github.com/ai68298100/siyuan-speed-switch) |
+| Lv Checkin / 小驴打卡 | A local-first workspace for habits, check-ins, and reviews. | [siyuan-checkin](https://github.com/ai68298100/siyuan-checkin) |
+| Lv Contacts / 小驴人脉 | Manage contacts, relationships, and related information in SiYuan. | [siyuan-contacts](https://github.com/ai68298100/siyuan-contacts) |
+| Lv Glean / 小驴拾遗 | Organize clippings with reading management and later review. | [siyuan-glean](https://github.com/ai68298100/siyuan-glean) |
+| Lv Exam / 小驴考试 (Beta) | A local question bank, practice, mock exams, review of mistakes, and AI assistance. | [siyuan-exam](https://github.com/ai68298100/siyuan-exam) |
+| Lv Home / 小驴管家 (Beta) | Household and life records, due-date reminders, and task follow-up. | [siyuan-home](https://github.com/ai68298100/siyuan-home) |
+| Lv Cards / 小驴闪卡 (Beta) | A local-first lifecycle flashcard learning platform in SiYuan. | [siyuan-lv-cards](https://github.com/ai68298100/siyuan-lv-cards) |
+| Lv Common / 小驴常用 (Beta) | Quickly insert common phrases, templates, and code from SiYuan blocks. | [xiaolv-common](https://github.com/ai68298100/xiaolv-common) |
+
+QQ group: **871707735** for bug reports, feature requests, and discussion.
+
+<details>
+<summary>Released version history (click to expand)</summary>
+
+### v1.3.1 (2026-10-09)
 
 Improved: large-library refresh and Kanban performance
 
-- Library database binding now uses constant-time membership checks instead of scanning existing bindings for every article.
+- Library database binding refresh now uses efficient membership checks instead of scanning the existing binding list for every article.
 - Kanban columns are bucketed in one pass after filtering and sorting, while preserving the existing order and results.
 - This performance patch does not change article attributes, index format, endpoints, or settings fields.
 
-## v1.3.0 update (2026-10-09)
+### v1.3.0 (2026-10-09)
 
 Added: settings category navigation
 
@@ -64,7 +99,7 @@ Fixed: missing user entry for the AI tag service
 
 - The existing suggestion/merge service is now available from Settings. Bulk author backfill remains a separate task with per-article confirmation boundaries.
 
-## v1.2.1 release update (2026-10-08)
+### v1.2.1 (2026-10-08)
 
 Added: v1.2.1 mainline release
 
@@ -77,6 +112,8 @@ Improved: wide-canvas and standalone popup layout
 Fixed: accidental narrow-layout activation
 
 - Fixed host dialog content shrinking and incorrectly activating narrow-container rules; flashcard recovery, source ownership checks, and data sovereignty boundaries are unchanged.
+
+</details>
 
 ## Install and get started
 
@@ -119,18 +156,9 @@ Desktop host, Android/mobile, browser frontend, real models, the official clippe
 
 > Shortcut: `⌥⌘G` opens the workbench (customizable in SiYuan's Settings → Hotkeys).
 
-## The Lv plugin family
-
-Four Lv (小驴) SiYuan plugins are currently developed:
-
-- [Lv Quickcut / 小驴雷切](https://github.com/ai68298100/siyuan-speed-switch): navigation and work-context switching
-- [Lv Checkin / 小驴打卡](https://github.com/ai68298100/siyuan-checkin): reading and habit check-ins
-- [Lv Contacts / 小驴人脉](https://github.com/ai68298100/siyuan-contacts): contact and relationship management
-- **Lv Glean / 小驴拾遗**: clipping organization, reading triage and daily resurfacing
-
 ## Feedback and community
 
-Use the [issue templates](https://github.com/ai68298100/siyuan-glean/issues/new/choose) and include your SiYuan version, plugin version, frontend type, and reproduction steps. Remove document titles, body text, URLs, and secrets from screenshots or logs before sharing. QQ group: **871707735**.
+Use the [issue templates](https://github.com/ai68298100/siyuan-glean/issues/new/choose) and include your SiYuan version, plugin version, frontend type, and reproduction steps. Remove document titles, body text, URLs, and secrets from screenshots or logs before sharing. The QQ group **871707735** is also available for bug reports, feature requests, and discussion.
 
 ## Development
 

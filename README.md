@@ -2,13 +2,48 @@
 
 [![Quality gates](https://github.com/ai68298100/siyuan-glean/actions/workflows/ci.yml/badge.svg)](https://github.com/ai68298100/siyuan-glean/actions/workflows/ci.yml) [![CodeQL](https://github.com/ai68298100/siyuan-glean/actions/workflows/codeql.yml/badge.svg)](https://github.com/ai68298100/siyuan-glean/actions/workflows/codeql.yml) [![Latest release](https://img.shields.io/github/v/release/ai68298100/siyuan-glean?label=latest%20release)](https://github.com/ai68298100/siyuan-glean/releases/latest)
 
-> 把思源里已经保存的剪藏，变成可以确认、分拣、阅读和回顾的本地读库。
+> 围绕思源剪藏，提供候选确认、稍后读、阅读管理与文章库（读库）；满足相应条件后，也可迁入思源收件箱内容并回顾阅读记录。
 
 小驴拾遗管理思源中已有的剪藏与文章。它不抓取网页，也不会因为普通笔记位于某个笔记本就自动收录；每篇文章都由你核对来源并确认后进入读库。
 
 [English](README.en-US.md) · [下载最新版](https://github.com/ai68298100/siyuan-glean/releases/latest) · [能力矩阵](docs/CAPABILITY-MATRIX.md) · [反馈与问题](https://github.com/ai68298100/siyuan-glean/issues/new/choose)
 
-## v1.3.1 更新（2026-10-09）
+## v1.3.1 发布后的更新（待发布）
+
+本轮围绕操作完整性与界面一致性收口，补齐关键失败反馈，并统一今日拾遗、筛选和统计的视觉层级。以下为主线代码更新；真实宿主视觉与读屏验收仍待 B-0002。
+
+**新增：**
+
+- 导入失败项重试增加明确确认；AI 通道测试异常会显示本地化反馈；批量归档保留失败项并支持重试。
+
+**优化：**
+
+- 文章预览与打开入口统一为标题按钮；设置保存和批量操作期间锁定相关控件，减少误操作。
+- 今日拾遗动作区固定两列并居中文案，缺失来源时保留等宽占位；筛选文字居中，统计“期间完成”说明恢复小字号。
+
+**修复：**
+
+- 没有可定位来源块的摘录不能再制卡；补齐归档部分失败反馈，并修正今日拾遗、筛选和统计的对齐与字号问题。
+
+## 小驴系列插件
+
+| 插件名称 | 一句话简介 | GitHub 仓库 |
+| --- | --- | --- |
+| 小驴雷切 | 统一切换与工作上下文平台。 | [siyuan-speed-switch](https://github.com/ai68298100/siyuan-speed-switch) |
+| 小驴打卡 | 本地优先的习惯、打卡与复盘工作台。 | [siyuan-checkin](https://github.com/ai68298100/siyuan-checkin) |
+| 小驴人脉 | 在思源中管理联系人、人际关系及相关资料。 | [siyuan-contacts](https://github.com/ai68298100/siyuan-contacts) |
+| 小驴拾遗 | 整理剪藏文章，支持阅读管理与日后回顾。 | [siyuan-glean](https://github.com/ai68298100/siyuan-glean) |
+| 小驴考试（内测版） | 本地题库、刷题、模考、错题复盘与 AI 辅助。 | [siyuan-exam](https://github.com/ai68298100/siyuan-exam) |
+| 小驴管家（内测版） | 家庭与生活台账、到期提醒及事务跟进。 | [siyuan-home](https://github.com/ai68298100/siyuan-home) |
+| 小驴闪卡（内测版） | 思源笔记中的本地优先全生命周期闪卡学习平台。 | [siyuan-lv-cards](https://github.com/ai68298100/siyuan-lv-cards) |
+| 小驴常用（内测版） | 基于思源块快速调用常用语、模板、代码等内容。 | [xiaolv-common](https://github.com/ai68298100/xiaolv-common) |
+
+交流与反馈 QQ 群：**871707735**，可反馈 Bug、提交需求和交流使用体验。
+
+<details>
+<summary>已发布版本更新记录（点击展开）</summary>
+
+### v1.3.1（2026-10-09）
 
 优化：大库刷新与看板性能
 
@@ -16,7 +51,7 @@
 - 看板按状态分列时减少重复筛选和映射，保持原有排序与显示结果。
 - 本次为性能补丁，不改变文章属性、索引格式、端点或设置字段。
 
-## v1.3.0 更新（2026-10-09）
+### v1.3.0（2026-10-09）
 
 新增：设置页分类导航
 
@@ -64,7 +99,7 @@
 
 - 将已有的标签建议/合并服务接入设置页；作者批量回填仍按独立任务和逐篇确认边界推进。
 
-## v1.2.1 发布更新（2026-10-08）
+### v1.2.1（2026-10-08）
 
 新增：v1.2.1 主线发布
 
@@ -77,6 +112,8 @@
 修复：浮窗窄布局误触发
 
 - 修复宿主弹窗内容区收缩导致的窄容器规则误判；制卡恢复、来源归属校验和数据主权边界保持不变。
+
+</details>
 
 ## 安装与快速开始
 
