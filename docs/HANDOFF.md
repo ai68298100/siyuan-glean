@@ -1,5 +1,12 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-09 T-3321/D-0196 v1.3.1 性能补丁发布）
+
+- `v1.3.1` 发布内容是 T-3320 的大库刷新查重与看板分桶优化；版本、双语 README、CHANGELOG 和发布记录已同步。
+- `pnpm check`、`pnpm test` 1226/1226、`pnpm build`、`pnpm check:release`、`pnpm perf:check`、任务账本和 `git diff --check` 已通过；`package.zip` 377958B，SHA-256 为 `e7419db06a5e3c293be5a763d118f2a85035d9a3ca1fa46411f5e8310b898c10`。
+- 待完成：提交发布变更并推送 `main`，创建 annotated tag `v1.3.1`，上传 `package.zip`，再回填 Release URL 和远端附件校验。
+- 不提交集市 PR；真实宿主大库首屏、滚动、内存和低端设备收益继续归 B-0002/B-0005。
+
 ## 当前有效交接（2026-10-09 T-3320/D-0195 性能热点优化）
 
 - `src/services/library-db.ts` 的大库绑定刷新已将 `existingDocIds.includes()` 改为预建 `Set` + `.has()`；保留 `existingDocIds` 返回顺序和绑定语义。10 万 ID 微基准约 7070ms→2.28ms。

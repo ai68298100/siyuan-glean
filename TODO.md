@@ -11,6 +11,8 @@
 
 > 评审结论与验收顺序见 [`docs/STATUS-REVIEW-2026-10-06.md`](docs/STATUS-REVIEW-2026-10-06.md)。这些任务优先收口真实可用性、恢复能力和对外承诺，再扩展新功能。
 
+- [x] **T-3321**（P1，2026-10-09）发布 v1.3.1 性能补丁：同步双 manifest、双语 README、CHANGELOG、RELEASE、发布候选与交接记录；构建并校验 `package.zip`，推送 `main`、annotated tag 和 GitHub Release；不提交集市 PR；代码状态：完成；隔离验证：`pnpm check`、`pnpm test` 1226/1226、`pnpm build`、`pnpm check:release`、`pnpm perf:check`、任务账本、`git diff --check` 全通过；真实验收：真实宿主大库首屏、滚动、内存和低端设备仍待 B-0002/B-0005；延后原因：无。
+
 - [x] **T-3320**（P1，2026-10-09）大库性能热点优化：读库数据库绑定刷新用 `Set` 替代逐篇 `includes` 查重；看板列由五次重复扫描改为一次筛选排序后单遍分桶；不改数据契约、端点或版本；代码状态：完成；隔离验证：定向类型检查、`library-db` 55/55、看板/架构定向测试、`pnpm perf:check`、`git diff --check` 通过；真实验收：待 B-0002/B-0005（真实宿主首屏、滚动、内存与低端设备）；延后原因：无。
 
 - [x] **T-3319**（P1，2026-10-09）发布 v1.3.0：同步双 manifest 版本 1.2.1→1.3.0、CHANGELOG v1.3.0 条目（六轮走查汇总）、双语 README 版本区块与发布候选/发布手册版本引用刷新；重新构建并校验 package.zip（377582B，SHA-256 70f5d917…ba0e21，远端附件校验一致）；幂等发布脚本修复与 E2E token 修复后的 S1 E2E 58/58；代码状态：完成；隔离验证：pnpm check 0 错误/0 警告、pnpm test 1226/1226、pnpm build、pnpm check:release、pnpm perf:check、pnpm visual:check、任务账本、git diff --check 全通过；发布提交 197833f 已推送 main，annotated tag v1.3.0 与 GitHub Release（release id 407403183，附件 package.zip）对齐，Quality gates 37869343819 与 CodeQL 37869343826 成功；真实验收：保留能力矩阵与 blockers 边界，集市 PR 未授权不执行；延后原因：无。
