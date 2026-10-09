@@ -26,6 +26,8 @@ test("阅读页签覆盖正文诊断、载体降级、摘录、制卡、回跳�
     assert.match(preview, /selectionBelongsToHost/);
     assert.match(reader, /insertQuoteExcerpt/);
     assert.match(reader, /makeQuoteCard/);
+    assert.match(reader, /if \(!excerpt\?\.text \|\| !excerpt\.blockId \|\| !context/);
+    assert.match(reader, /disabled=\{!excerpt\.blockId\} title=\{excerpt\.blockId \? "" : t\(i18n, "reader\.excerptNoBlock"\)\}/);
     assert.match(reader, /openLibraryArticle/);
     assert.match(reader, /doneAndNext/);
     assert.equal((reader.match(/>✓→ \{t\(i18n, "reader\.doneNext"\)\}<\/button>/g) ?? []).length, 1);

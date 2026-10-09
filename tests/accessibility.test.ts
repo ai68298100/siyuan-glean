@@ -29,6 +29,7 @@ test("settings exposes names for groups, controls and save state", () => {
     assert.match(source, /role="group" aria-label=\{t\(i18n, "settings\.readerMode"\)\}/);
     assert.match(source, /aria-label=\{t\(i18n, "settings\.aiDailyCap"\)\}/);
     assert.match(source, /aria-label=\{t\(i18n, "settings\.checkinItem"\)\}/);
+    assert.match(source, /role="tabpanel"[\s\S]*?inert=\{saveBusy\}/);
     assert.match(source, /customBaseUrlInsecure/);
     assert.match(source, /notebookLoadFailed/);
     assert.match(source, /checkinLoadFailed/);
@@ -177,6 +178,19 @@ test("icon-only actions expose labels independent of hover tooltips", () => {
     assert.match(dock, /title=\{t\(i18n, "candidate\.fixUrl"\)\} aria-label=\{t\(i18n, "candidate\.fixUrl"\)\}/);
     assert.match(resurface, /title=\{t\(i18n, "action\.refresh"\)\} aria-label=\{t\(i18n, "action\.refresh"\)\}/);
     assert.match(readingContext, /title=\{t\(i18n, "clip\.bodyCheckHint"\)\}\s*aria-label=\{t\(i18n, "clip\.bodyCheckHint"\)\}/);
+});
+
+test("library card actions use native title buttons without nested button roles", () => {
+    const dock = read("src/ui/DockPanel.svelte");
+    assert.doesNotMatch(dock, /role="button"/);
+    assert.match(dock, /draggable="true"\s+role="group"\s+aria-label=\{entry\.title/);
+    for (const className of ["glean-kcard__t", "glean-drow__ti", "glean-card__title"]) {
+        assert.match(dock, new RegExp(`<button type="button" class="${className}" aria-label=`));
+    }
+    assert.match(dock, /if \(failed\.length\) staleSelected = new Set\(failed\)/);
+    assert.match(dock, /panel\.staleArchivePartial/);
+    assert.match(dock, /aria-busy=\{archivingStale\}/);
+    assert.match(dock, /aria-busy=\{loading\} disabled=\{loading\} onclick=\{\(\) => \{ closeMobileMore\(\); void reload\(\); \}\}/);
 });
 
 test("status semantics and accessibility modes do not rely on color or motion alone", () => {

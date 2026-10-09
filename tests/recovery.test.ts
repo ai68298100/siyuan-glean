@@ -34,6 +34,8 @@ test("导入失败按 URL 保留并支持只重试失败项", () => {
     assert.match(dialog, /startImport\(retryRows\)/);
     assert.match(dialog, /mergeSummaries/);
     assert.match(dialog, /retryFailures: rowsOverride \? summary\?\.failedItems/);
+    assert.match(dialog, /import\.retryConfirm/);
+    assert.match(dialog, /disabled=\{busy \|\| !resumeConfirmed \|\| progressReadFailed/);
     assert.match(dialog, /import\.notebookFailed/);
     assert.match(dialog, /void loadNotebooks\(\)/);
     assert.match(dialog, /notebookLoading \|\| notebookError/);

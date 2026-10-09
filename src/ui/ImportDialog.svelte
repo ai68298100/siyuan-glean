@@ -448,6 +448,10 @@ function openProgressDocument(id: string): void {
         </div>
         {#if retryRows.length > 0}
             <p class="glean-set-row__desc" role="status">{t(i18n, "import.retryHint")}</p>
+            <label class="glean-import-progress__check">
+                <input type="checkbox" bind:checked={resumeConfirmed} disabled={busy || progressReadFailed || notebookLoading || notebookError || !targetAvailable} />
+                {t(i18n, "import.retryConfirm")}
+            </label>
         {/if}
         <div class="glean-migrate__ops glean-migrate__ops--footer">
             {#if retryRows.length > 0}

@@ -329,6 +329,9 @@ async function testChannel() {
             result.ok ? t(i18n, "ai.testOk", { message: result.message }) : t(i18n, "ai.testFail", { message: result.message }),
             4500
         );
+    } catch {
+        console.warn("[glean] AI 通道测试异常");
+        showMessage(t(i18n, "ai.testError"), 4500);
     } finally {
         testBusy = false;
     }
@@ -443,6 +446,7 @@ async function doMountBoard() {
                         role="tab"
                         aria-selected={activeSection === section.id}
                         aria-controls={panelId}
+                        disabled={saveBusy}
                         onclick={() => selectSection(section.id)}
                     >
                         <span class="glean-settings__tab-label">{t(i18n, section.labelKey)}</span>
@@ -453,7 +457,7 @@ async function doMountBoard() {
                 {/each}
             </div>
         </nav>
-        <div id={panelId} class="glean-settings__content" role="tabpanel" aria-labelledby={`${idPrefix}-tab-${activeSection}`} tabindex="-1">
+        <div id={panelId} class="glean-settings__content" role="tabpanel" aria-labelledby={`${idPrefix}-tab-${activeSection}`} tabindex="-1" inert={saveBusy}>
             <header class="glean-settings__pagehead">
                 <div class="glean-settings__page-title" role="heading" aria-level="2">{t(i18n, activeSectionMeta.titleKey)}</div>
                 <div class="glean-settings__page-desc">{t(i18n, activeSectionMeta.descKey)}</div>

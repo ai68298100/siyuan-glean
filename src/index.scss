@@ -937,7 +937,7 @@ body.b3-theme-dark {
     border-radius: var(--glean-radius);
     background: var(--b3-theme-surface);
     border: 1px solid var(--b3-border-color);
-    cursor: pointer;
+    cursor: default;
     position: relative;
     transition: transform 0.22s var(--glean-ease-spring), box-shadow 0.22s, border-color 0.22s;
 
@@ -979,11 +979,19 @@ body.b3-theme-dark {
 }
 
 .glean-card__title {
+    width: 100%;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
     font-size: 12.8px;
     font-weight: 600;
     line-height: 1.45;
     letter-spacing: 0.1px;
     transition: color 0.2s;
+    text-align: left;
+    cursor: pointer;
 }
 
 .glean-card__meta {
@@ -4330,12 +4338,15 @@ body.b3-theme-dark {
         opacity: 0.68;
     }
 
-    &:focus-visible {
-        outline: 2px solid var(--b3-theme-primary);
-        outline-offset: 2px;
-    }
-
     .glean-kcard__t {
+        width: 100%;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        color: inherit;
+        font: inherit;
+        text-align: left;
+        cursor: pointer;
         font-weight: 600;
         line-height: 1.45;
         display: -webkit-box;
@@ -4645,7 +4656,7 @@ body.b3-theme-dark {
     border-radius: 14px;
     background: var(--b3-theme-surface);
     border: 1px solid var(--glean-border-soft);
-    cursor: pointer;
+    cursor: default;
     transition: transform 0.2s var(--glean-ease-out), box-shadow 0.2s, border-color 0.2s, background-color 0.2s;
 
     &:hover {
@@ -4667,6 +4678,13 @@ body.b3-theme-dark {
     .glean-drow__ti {
         flex: 1;
         min-width: 0;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        color: inherit;
+        font: inherit;
+        text-align: left;
+        cursor: pointer;
         font-size: 13px;
         font-weight: 600;
         line-height: 1.4;
@@ -6908,7 +6926,9 @@ body.b3-theme-dark {
 .glean-surf-act:focus-visible,
 .glean-views__btn:focus-visible,
 .glean-q:focus-visible,
-.glean-card:focus-visible,
+.glean-card__title:focus-visible,
+.glean-drow__ti:focus-visible,
+.glean-kcard__t:focus-visible,
 .glean-dialog-root :where(button, a, input, select, textarea, [tabindex]):focus-visible {
     outline: 2px solid var(--b3-theme-primary);
     outline-offset: 2px;

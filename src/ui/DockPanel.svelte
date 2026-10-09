@@ -4,7 +4,6 @@ import { onMount, tick } from "svelte";
 import { openTab, showMessage } from "siyuan";
 import type { GleanFacade } from "../types";
 import { t } from "../libs/i18n";
-import { isActivationKey } from "../domain/keyboard";
 import type { ClipStatus } from "../domain/schema";
 import { normalizeUrl } from "../domain/url";
 import { batchSetStatus, batchSetStatusDetailed, captureDocument, findClipUrlConflict, reconcileIndex, writeClip } from "../services/clip-store";
@@ -417,9 +416,18 @@ async function doArchiveStale() {
     try {
         const ids = stalePool.filter((entry) => staleSelected.has(entry.id)).map((entry) => entry.id);
         const result = await archiveStaleCandidates(facade.pluginInstance, ids);
-        showMessage(t(i18n, "panel.staleArchived", { n: result.ok }), 3000);
-        stalePreviewOpen = false;
+        const succeeded = new Set(result.succeeded);
+        const failed = ids.filter((id) => !succeeded.has(id));
+        showMessage(
+            t(i18n, failed.length ? "panel.staleArchivePartial" : "panel.staleArchived", failed.length ? { ok: result.ok, total: ids.length } : { n: result.ok }),
+            failed.length ? 5000 : 3000,
+        );
+        if (failed.length) staleSelected = new Set(failed);
+        else stalePreviewOpen = false;
         await reload();
+    } catch (error) {
+        console.warn("[glean] 超龄文章归档失败:", error);
+        showMessage(t(i18n, "msg.actionFailed"), 4000);
     } finally {
         archivingStale = false;
     }
@@ -1084,6 +1092,11 @@ function openDoc(docId: string) {
     facade.openReadingDocument(docId);
 }
 
+function articleActionLabel(title: string, preview = false): string {
+    const key = preview && previewEnabled && (isTabCanvas || facade.isMobile) ? "preview.title" : "action.openDoc";
+    return `${t(i18n, key)}: ${title || t(i18n, "panel.untitled")}`;
+}
+
 function selectPreview(id: string): void {
     if (!previewEnabled || (!isTabCanvas && !facade.isMobile)) { openDoc(id); return; }
     previewReturnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -1416,7 +1429,7 @@ function metaLine(entry: Row): string {
                     </button>
                     {#if mobileMoreOpen}
                         <div id="glean-mobile-more-menu" class="glean-mobile-more" bind:this={mobileMoreMenu} role="menu" tabindex="-1" aria-orientation="vertical" aria-label={t(i18n, "mobile.moreLabel")} onkeydown={mobileMoreKeydown}>
-                            <button type="button" class="glean-mobile-more__item" role="menuitem" onclick={() => { closeMobileMore(); void reload(); }}>
+                            <button type="button" class="glean-mobile-more__item" role="menuitem" aria-busy={loading} disabled={loading} onclick={() => { closeMobileMore(); void reload(); }}>
                                 <svg class="glean-mobile-more__icon" aria-hidden="true"><use href="#iconGleanRefresh" /></svg>
                                 {t(i18n, "action.refresh")}
                             </button>
@@ -1799,6 +1812,7 @@ function metaLine(entry: Row): string {
                             <input
                                 type="checkbox"
                                 checked={staleSelected.has(entry.id)}
+                                disabled={archivingStale}
                                 onchange={() => toggleStalePick(entry.id)}
                             />
                             <span class="glean-stale-preview__title" title={entry.title}>{entry.title || t(i18n, "panel.untitled")}</span>
@@ -1806,14 +1820,15 @@ function metaLine(entry: Row): string {
                         </label>
                     {/each}
                     <div class="glean-stale-preview__ops">
-                        <button class="glean-cap-btn" onclick={() => { staleSelected = new Set(stalePool.map((entry) => entry.id)); }}>
+                        <button class="glean-cap-btn" disabled={archivingStale} onclick={() => { staleSelected = new Set(stalePool.map((entry) => entry.id)); }}>
                             {t(i18n, "panel.staleSelectAll")}
                         </button>
                         <button
                             class="glean-cap-btn glean-cap-btn--pri"
                             disabled={archivingStale || staleSelected.size === 0}
+                            aria-busy={archivingStale}
                             onclick={() => void doArchiveStale()}
-                        >{t(i18n, "panel.staleConfirm", { n: staleSelected.size })}</button>
+                        >{archivingStale ? t(i18n, "panel.loading") : t(i18n, "panel.staleConfirm", { n: staleSelected.size })}</button>
                     </div>
                 </div>
             {/if}
@@ -1867,22 +1882,15 @@ function metaLine(entry: Row): string {
                                 class:glean-kcard--selected={selection.has(entry.id)}
                                 data-glean-clip-id={entry.id}
                                 draggable="true"
+                                role="group"
+                                aria-label={entry.title || t(i18n, "panel.untitled")}
                                 ondragstart={(e) => { dragId = entry.id; e.dataTransfer?.setData("text/plain", entry.id); }}
                                 ondragend={() => { dragId = ""; dragOverCol = null; }}
-                                onclick={() => openDoc(entry.id)}
-                                onkeydown={(event) => {
-                                    if (event.target === event.currentTarget && isActivationKey(event.key)) {
-                                        event.preventDefault();
-                                        openDoc(entry.id);
-                                    }
-                                }}
-                                role="button"
-                                tabindex="0"
                             >
                                 <label class="glean-kcard__select" title={t(i18n, "library.selectArticle")}>
                                     <input type="checkbox" checked={selection.has(entry.id)} aria-label={t(i18n, "library.selectArticle")} onclick={(event) => event.stopPropagation()} onchange={(event) => toggleSelect(entry.id, event)} />
                                 </label>
-                                <div class="glean-kcard__t">{entry.title || t(i18n, "panel.untitled")}</div>
+                                <button type="button" class="glean-kcard__t" aria-label={articleActionLabel(entry.title)} onclick={() => openDoc(entry.id)}>{entry.title || t(i18n, "panel.untitled")}</button>
                                 <div class="glean-kcard__m">
                                     <span class={carrierClass(entry)}>{carrierLabel(entry)}</span>
                                     {#if bodyPending(entry)}
@@ -1906,6 +1914,8 @@ function metaLine(entry: Row): string {
                                     disabled={Boolean(statusActionId)}
                                     onStartReading={() => void startReading(entry)}
                                     onSetStatus={(status) => void setStatus(entry, status)}
+                                    onArchive={() => facade.openArchiveDialog(entry.id)}
+                                    onRestore={() => facade.openRestoreDialog(entry.id)}
                                 />
                             </div>
                         {/each}
@@ -1972,21 +1982,12 @@ function metaLine(entry: Row): string {
                                         data-glean-clip-id={entry.id}
                                         class:glean-drow--selected={selection.has(entry.id)}
                                         class:glean-drow--preview={previewId === entry.id}
-                                        onclick={() => selectPreview(entry.id)}
-                                        onkeydown={(event) => {
-                                            if (event.target === event.currentTarget && isActivationKey(event.key)) {
-                                                event.preventDefault();
-                                                selectPreview(entry.id);
-                                            }
-                                        }}
-                                        role="button"
-                                        tabindex="0"
                                     >
                                         <label class="glean-drow__select" title={t(i18n, "library.selectArticle")}>
                                             <input type="checkbox" checked={selection.has(entry.id)} aria-label={t(i18n, "library.selectArticle")} onclick={(event) => event.stopPropagation()} onchange={(event) => toggleSelect(entry.id, event)} />
                                         </label>
                                         <span class={statusDotClass(entry.status)}></span>
-                                        <span class="glean-drow__ti" title={entry.title || t(i18n, "panel.untitled")}>{entry.title || t(i18n, "panel.untitled")}</span>
+                                        <button type="button" class="glean-drow__ti" aria-label={articleActionLabel(entry.title, true)} title={entry.title || t(i18n, "panel.untitled")} onclick={() => selectPreview(entry.id)}>{entry.title || t(i18n, "panel.untitled")}</button>
                                         <span class="glean-drow__site">{entry.site || sourceFallback(entry)}{#if entry.author}<button class="glean-source-author" onclick={(event) => { event.stopPropagation(); selectAuthor(entry.author!); }}>· {entry.author}</button>{/if}</span>
                                          <span class={carrierClass(entry)} title={entry.contentType === "link" && !hasSourceAction(entry.contentType, entry.url) ? t(i18n, "clip.sourceMissing") : carrierLabel(entry)}>{carrierLabel(entry)}</span>
                                         {#if entry.contentType === "link" && !hasSourceAction(entry.contentType, entry.url)}
@@ -2001,7 +2002,7 @@ function metaLine(entry: Row): string {
                                         </span>
                                         <div class="glean-drow__ops">
                                             {#if entry.status === "archived"}
-                                                <button class="glean-btn glean-btn--ghost" disabled={Boolean(statusActionId)} onclick={(event) => { event.stopPropagation(); void setStatus(entry, "later"); }}>{t(i18n, "action.restore")}</button>
+                                                <button class="glean-btn glean-btn--ghost" disabled={Boolean(statusActionId)} onclick={(event) => { event.stopPropagation(); facade.openRestoreDialog(entry.id); }}>{t(i18n, "action.restore")}</button>
                                             {:else}
                                                 <button class="glean-btn glean-btn--ghost" disabled={Boolean(statusActionId)} onclick={(event) => { event.stopPropagation(); void startReading(entry); }}>{t(i18n, entry.status === "reading" ? "action.continueReading" : entry.status === "done" ? "action.readAgain" : "action.startReading")}</button>
                                                 <button class="glean-btn glean-btn--ghost" disabled={Boolean(statusActionId) || entry.status === "done"} onclick={(event) => { event.stopPropagation(); void setStatus(entry, "done"); }}>{t(i18n, "action.markDone")}</button>
@@ -2010,7 +2011,7 @@ function metaLine(entry: Row): string {
                                                 <AuthorEditor {facade} docId={entry.id} onSaved={reload} />
                                                 {#if entry.status !== "archived"}
                                                     <button class="glean-btn glean-btn--ghost" disabled={Boolean(statusActionId) || entry.status === "later"} onclick={() => void setStatus(entry, "later")}>{t(i18n, "action.moveToLater")}</button>
-                                                    <button class="glean-btn glean-btn--ghost" disabled={Boolean(statusActionId)} onclick={() => void setStatus(entry, "archived")}>{t(i18n, "action.archive")}</button>
+                                                    <button class="glean-btn glean-btn--ghost" disabled={Boolean(statusActionId)} onclick={() => facade.openArchiveDialog(entry.id)}>{t(i18n, "action.archive")}</button>
                                                 {/if}
                                                 <button class="glean-btn glean-btn--ghost" disabled={snappingId === entry.id} onclick={() => void takeSnapshot(entry)}>{snapshotLabel(entry)}</button>
                                                 <button class="glean-btn glean-btn--ghost" disabled={enrichingId === entry.id} onclick={() => void enrich(entry)}>{t(i18n, "ai.actionEnrich")}</button>
@@ -2026,18 +2027,9 @@ function metaLine(entry: Row): string {
                                         class="glean-drow glean-drow--candidate"
                                         data-glean-clip-id={entry.id}
                                         class:glean-drow--preview={previewId === entry.id}
-                                        onclick={() => selectPreview(entry.id)}
-                                        onkeydown={(event) => {
-                                            if (event.target === event.currentTarget && isActivationKey(event.key)) {
-                                                event.preventDefault();
-                                                selectPreview(entry.id);
-                                            }
-                                        }}
-                                        role="button"
-                                        tabindex="0"
                                     >
                                         <span class="glean-dot glean-dot--inbox"></span>
-                                        <span class="glean-drow__ti" title={entry.title || t(i18n, "panel.untitled")}>{entry.title || t(i18n, "panel.untitled")}</span>
+                                        <button type="button" class="glean-drow__ti" aria-label={articleActionLabel(entry.title, true)} title={entry.title || t(i18n, "panel.untitled")} onclick={() => selectPreview(entry.id)}>{entry.title || t(i18n, "panel.untitled")}</button>
                                         <span class="glean-drow__site" title={entry.url || entry.hpath}>{entry.site || candidateEvidence(entry)}</span>
                                         {#if candidateMissing(entry)}<span class="glean-drow__len">{candidateMissing(entry)}</span>{/if}
                                         <span class="glean-drow__st">
@@ -2045,7 +2037,7 @@ function metaLine(entry: Row): string {
                                             {#if entry.url}<button class="glean-card__capture" disabled={Boolean(candidateBusyId)} aria-busy={candidateBusyId === entry.id} onclick={(e) => { e.stopPropagation(); void capture(entry); }}>{t(i18n, "action.addToInbox")}</button>{/if}
                                         </span>
                                         <div class="glean-drow__ops">
-                                            <button class="glean-op-btn" title={t(i18n, "candidate.fixUrl")} aria-label={t(i18n, "candidate.fixUrl")} onclick={(e) => { e.stopPropagation(); startCandidateUrlEdit(entry); }}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanEdit" /></svg></button>
+                                            <button class="glean-op-btn" disabled={Boolean(candidateBusyId)} title={t(i18n, "candidate.fixUrl")} aria-label={t(i18n, "candidate.fixUrl")} onclick={(e) => { e.stopPropagation(); startCandidateUrlEdit(entry); }}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanEdit" /></svg></button>
                                             {#if !entry.url}<button class="glean-op-btn" disabled={Boolean(candidateBusyId)} title={t(i18n, "candidate.captureLocal")} aria-label={t(i18n, "candidate.captureLocal")} onclick={(e) => { e.stopPropagation(); void captureAsLocal(entry); }}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanLocal" /></svg></button>{/if}
                                             <button class="glean-op-btn" disabled={Boolean(candidateBusyId)} title={t(i18n, "candidate.exclude")} aria-label={t(i18n, "candidate.exclude")} onclick={(e) => { e.stopPropagation(); void excludeCandidate(entry); }}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanClose" /></svg></button>
                                         </div>
@@ -2114,19 +2106,8 @@ function metaLine(entry: Row): string {
                             class:glean-card--candidate={entry.kind === "candidate"}
                             class:glean-card--selected={selection.has(entry.id)}
                         >
-                            <div
-                                class="glean-card__body"
-                                onclick={() => selectPreview(entry.id)}
-                                onkeydown={(event) => {
-                                    if (event.target === event.currentTarget && isActivationKey(event.key)) {
-                                        event.preventDefault();
-                                        selectPreview(entry.id);
-                                    }
-                                }}
-                                role="button"
-                                tabindex="0"
-                            >
-                                <div class="glean-card__title" title={entry.title || t(i18n, "panel.untitled")}>{entry.title || t(i18n, "panel.untitled")}</div>
+                            <div class="glean-card__body">
+                                <button type="button" class="glean-card__title" aria-label={articleActionLabel(entry.title, true)} title={entry.title || t(i18n, "panel.untitled")} onclick={() => selectPreview(entry.id)}>{entry.title || t(i18n, "panel.untitled")}</button>
                                 <div class="glean-card__meta">
                                     {#if entry.kind === "clip"}
                                         <span class={statusDotClass(entry.status)}></span>
@@ -2160,7 +2141,7 @@ function metaLine(entry: Row): string {
                             {#if entry.kind === "candidate"}
                                 <div class="glean-card__ops">
                                     {#if entry.url}<button class="glean-card__capture" disabled={Boolean(candidateBusyId)} aria-busy={candidateBusyId === entry.id} onclick={() => void capture(entry)}>{t(i18n, "action.addToInbox")}</button>{/if}
-                                    <button class="glean-op-btn" title={t(i18n, "candidate.fixUrl")} aria-label={t(i18n, "candidate.fixUrl")} onclick={() => startCandidateUrlEdit(entry)}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanEdit" /></svg></button>
+                                    <button class="glean-op-btn" disabled={Boolean(candidateBusyId)} title={t(i18n, "candidate.fixUrl")} aria-label={t(i18n, "candidate.fixUrl")} onclick={() => startCandidateUrlEdit(entry)}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanEdit" /></svg></button>
                                     {#if !entry.url}<button class="glean-op-btn" disabled={Boolean(candidateBusyId)} title={t(i18n, "candidate.captureLocal")} aria-label={t(i18n, "candidate.captureLocal")} onclick={() => void captureAsLocal(entry)}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanLocal" /></svg></button>{/if}
                                     <button class="glean-op-btn" disabled={Boolean(candidateBusyId)} title={t(i18n, "candidate.exclude")} aria-label={t(i18n, "candidate.exclude")} onclick={() => void excludeCandidate(entry)}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanClose" /></svg></button>
                                 </div>
@@ -2226,6 +2207,8 @@ function metaLine(entry: Row): string {
                                     disabled={Boolean(statusActionId)}
                                     onStartReading={() => void startReading(entry)}
                                     onSetStatus={(status) => void setStatus(entry, status)}
+                                    onArchive={() => facade.openArchiveDialog(entry.id)}
+                                    onRestore={() => facade.openRestoreDialog(entry.id)}
                                 />
                             {/if}
                             {#if entry.kind === "clip"}

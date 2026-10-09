@@ -564,7 +564,7 @@
     }
 
     async function cardFromExcerpt(): Promise<void> {
-        if (!excerpt?.text || !context || context.id !== docId) return;
+        if (!excerpt?.text || !excerpt.blockId || !context || context.id !== docId) return;
         try {
             makeQuoteCardPreview(facade, { title: context.title, quote: excerpt.text, docId: context.id, blockId: excerpt.blockId });
         } catch (error) {
@@ -1138,7 +1138,7 @@
                                     title={excerpt.blockId ? "" : t(i18n, "reader.excerptNoBlock")}
                                     onclick={() => void quoteExcerpt()}
                                 >{t(i18n, "reader.excerptQuote")}</button>
-                                <button class="glean-btn glean-btn--ghost" onclick={() => void cardFromExcerpt()}>
+                                <button class="glean-btn glean-btn--ghost" disabled={!excerpt.blockId} title={excerpt.blockId ? "" : t(i18n, "reader.excerptNoBlock")} onclick={() => void cardFromExcerpt()}>
                                     {t(i18n, "flashcard.make")}
                                 </button>
                                 <button class="glean-btn glean-btn--ghost" onclick={() => void copyExcerpt()}>
