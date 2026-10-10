@@ -498,8 +498,11 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
      * 打开策略对话框，让用户明确选择是否移出宿主。
      */
     openRestoreDialog(docId: string): void {
-        if (!docId) return;
+        // 先登记异步检查中的文档，避免双击在 docUnderHostKind 返回前打开两个策略弹窗。
+        if (!docId || this.openDialogDocIds.has(docId)) return;
+        this.openDialogDocIds.add(docId);
         void (async () => {
+            let dialogOpened = false;
             try {
                 const kind = await docUnderHostKind(docId);
                 if (!kind) {
@@ -508,8 +511,6 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
                     showMessage(t(this.i18n, "msg.statusChanged"), 2500);
                     return;
                 }
-                if (this.openDialogDocIds.has(docId)) return;
-                this.openDialogDocIds.add(docId);
                 svelteDialog({
                     title: t(this.i18n, "restore.title"),
                     closeLabel: t(this.i18n, "action.close"),
@@ -519,9 +520,12 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
                     height: "300px",
                     callback: () => { this.openDialogDocIds.delete(docId); },
                 });
+                dialogOpened = true;
             } catch (error) {
                 console.warn("[glean] 恢复入口检查失败:", error);
                 showMessage(t(this.i18n, "msg.statusFailed"), 3000);
+            } finally {
+                if (!dialogOpened) this.openDialogDocIds.delete(docId);
             }
         })();
     }

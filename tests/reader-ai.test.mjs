@@ -14,7 +14,7 @@ registerHooks({
     },
 });
 
-const { readerArticleQuestion, readerSummarize, readerTranslate, saveReaderSummary } = await import("../src/services/reader-ai.ts");
+const { clearReaderMarkdownCache, readerArticleQuestion, readerSummarize, readerTranslate, saveReaderSummary } = await import("../src/services/reader-ai.ts");
 const { enrichClip, enqueueEnrich, usageToday } = await import("../src/services/enrich-service.ts");
 const { loadFormattingSession, planAiFormatting } = await import("../src/services/formatting-service.ts");
 const { DEFAULT_SETTINGS } = await import("../src/services/settings.ts");
@@ -405,6 +405,38 @@ test("本文问答选区须属于当前正文并核验块根归属，成功调�
     assert.equal(fixture.calls.filter((call) => call.route === "/api/query/sql" && call.body.stmt.includes(selectionBlockId)).length, 2);
     assert.equal(fixture.modelCalls(), 1);
     assert.equal(await usageToday(fixture.plugin), 1);
+});
+
+test("同一阅读会话内总结与本文问答复用正文导出，正文变化后可清除缓存", async () => {
+    const fixture = harness("# 测试文章\n\n正文的核心观点。");
+    fixture.settings.ai.articleQuestionEnabled = true;
+    fixture.answers.push("总结结果", JSON.stringify({ answer: "核心观点", evidence: ["正文的核心观点。"], insufficient: false }), "再次总结");
+
+    assert.deepEqual(await readerSummarize(fixture.plugin, docId, fixture.settings), { ok: true, text: "总结结果" });
+    assert.deepEqual(await readerArticleQuestion(fixture.plugin, docId, "核心观点是什么？", fixture.settings), {
+        ok: true,
+        result: { answer: "核心观点", evidence: ["正文的核心观点。"], insufficient: false },
+        truncated: false,
+    });
+    assert.equal(fixture.calls.filter((call) => call.route === "/api/export/exportMdContent").length, 1);
+
+    clearReaderMarkdownCache(fixture.plugin, docId);
+    assert.deepEqual(await readerSummarize(fixture.plugin, docId, fixture.settings), { ok: true, text: "再次总结" });
+    assert.equal(fixture.calls.filter((call) => call.route === "/api/export/exportMdContent").length, 2);
+});
+
+test("正文导出进行中失效缓存时，迟到结果不会重新写入旧缓存", async () => {
+    const fixture = harness();
+    fixture.answers.push("第一次总结", "第二次总结");
+    const gate = deferred();
+    fixture.holdExport(gate.promise);
+    const pending = readerSummarize(fixture.plugin, docId, fixture.settings);
+    await within(fixture.exportStarted.promise);
+    clearReaderMarkdownCache(fixture.plugin, docId);
+    gate.resolve();
+    assert.deepEqual(await within(pending), { ok: true, text: "第一次总结" });
+    assert.deepEqual(await readerSummarize(fixture.plugin, docId, fixture.settings), { ok: true, text: "第二次总结" });
+    assert.equal(fixture.calls.filter((call) => call.route === "/api/export/exportMdContent").length, 2);
 });
 
 test("本文问答拒绝外部块、失效块、正文不含的选区和超长选区", async () => {

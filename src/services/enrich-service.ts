@@ -261,27 +261,52 @@ export function autoEnrich(plugin: Plugin, docId: string, settings: GleanSetting
     void enrichClip(plugin, docId, settings);
 }
 
-/** 相关旧文（T-1301）：嵌入未启用返回空数组（UI 整块隐藏）。 */
+export type RelatedReason = "disabled" | "embedding-disabled" | "no-hits" | "error" | "ok";
+
+export interface RelatedOutcome {
+    items: Array<{ id: string; title: string }>;
+    reason: RelatedReason;
+}
+
+/**
+ * 相关旧文查询结果带状态，避免 UI 把关闭、未配置、无命中和失败混成同一个空态。
+ * 数组兼容入口见下方 findRelated；新 UI 应优先使用本函数。
+ */
+export async function findRelatedOutcome(
+    docId: string,
+    query: string,
+    excludeIds: string[] = [],
+    context?: { plugin: Plugin; settings: GleanSettings }
+): Promise<RelatedOutcome> {
+    if (!context || !query.trim()) return { items: [], reason: "disabled" };
+    const enabled = () => {
+        const current = activeAiSettings(context.plugin, context.settings);
+        return aiEnabled(current) && current.ai.relatedWhileReading;
+    };
+    if (!enabled()) return { items: [], reason: "disabled" };
+    try {
+        const stat = await embeddingStat();
+        if (!stat?.enabled) return { items: [], reason: "embedding-disabled" };
+        if (!enabled()) return { items: [], reason: "disabled" };
+        const hits = await semanticSearchBlock({ query, types: { d: true }, page: 1, pageSize: 8 });
+        if (!enabled()) return { items: [], reason: "disabled" };
+        if (hits.length === 0) return { items: [], reason: "no-hits" };
+        const exclude = new Set([docId, ...excludeIds]);
+        const confirmed = await confirmedSemanticHits(hits.filter((hit) => hit.id && !exclude.has(hit.id)));
+        return enabled()
+            ? { items: confirmed, reason: confirmed.length > 0 ? "ok" : "no-hits" }
+            : { items: [], reason: "disabled" };
+    } catch {
+        return { items: [], reason: "error" };
+    }
+}
+
+/** 兼容既有调用方：相关旧文不可用时继续返回空数组。 */
 export async function findRelated(
     docId: string,
     query: string,
     excludeIds: string[] = [],
     context?: { plugin: Plugin; settings: GleanSettings }
 ): Promise<Array<{ id: string; title: string }>> {
-    if (!context || !query.trim()) return [];
-    const enabled = () => {
-        const current = activeAiSettings(context.plugin, context.settings);
-        return aiEnabled(current) && current.ai.relatedWhileReading;
-    };
-    if (!enabled()) return [];
-    try {
-        const stat = await embeddingStat();
-        if (!stat?.enabled || !enabled()) return [];
-        const hits = await semanticSearchBlock({ query, types: { d: true }, page: 1, pageSize: 8 });
-        const exclude = new Set([docId, ...excludeIds]);
-        const confirmed = await confirmedSemanticHits(hits.filter((hit) => hit.id && !exclude.has(hit.id)));
-        return enabled() ? confirmed : [];
-    } catch {
-        return [];
-    }
+    return (await findRelatedOutcome(docId, query, excludeIds, context)).items;
 }

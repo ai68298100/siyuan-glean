@@ -24,7 +24,7 @@ registerHooks({
     },
 });
 
-const { autoEnrich, enrichClip, findDuplicates, findRelated, usageToday } = await import("../src/services/enrich-service.ts");
+const { autoEnrich, enrichClip, findDuplicates, findRelated, findRelatedOutcome, usageToday } = await import("../src/services/enrich-service.ts");
 
 function harness() {
     const attrs = new Map();
@@ -271,6 +271,19 @@ test("相关旧文缺上下文、关闭模式、关闭功能或空查询时不�
         assert.deepEqual(await findRelated(fixture.ids.self, query, [], { plugin: fixture.plugin, settings }), []);
     }
     assert.equal(fixture.calls.length, 0);
+});
+
+test("相关旧文结果区分关闭、嵌入未启用、无命中和请求失败", async () => {
+    const fixture = semanticFixture();
+    const context = { plugin: fixture.plugin, settings: fixture.settings("manual") };
+    assert.equal((await findRelatedOutcome(fixture.ids.self, fixture.query)).reason, "disabled");
+    fixture.setEmbeddingEnabled(false);
+    assert.equal((await findRelatedOutcome(fixture.ids.self, fixture.query, [], context)).reason, "embedding-disabled");
+    fixture.setEmbeddingEnabled(true);
+    fixture.hits.length = 0;
+    assert.equal((await findRelatedOutcome(fixture.ids.self, fixture.query, [], context)).reason, "no-hits");
+    fixture.failures.search = true;
+    assert.equal((await findRelatedOutcome(fixture.ids.self, fixture.query, [], context)).reason, "error");
 });
 
 test("相关旧文只保留已确认文章、遵守排除列表并去重，不信任旧索引", async () => {

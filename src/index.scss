@@ -1783,6 +1783,12 @@ body.b3-theme-dark {
     opacity: 0.72;
 }
 
+.glean-reader__ai-scope {
+    font-size: var(--glean-text-xs);
+    color: var(--b3-theme-primary);
+    opacity: 0.86;
+}
+
 .glean-reader__ai-text {
     font-size: 11.5px;
     line-height: 1.6;

@@ -25,6 +25,79 @@ export interface ArticleQuestionOutcome {
     skipped?: "off" | "cap" | "error" | "changed" | "invalid";
 }
 
+/**
+ * 阅读页正文会被总结和本文问答分别读取。缓存只存在当前插件实例的
+ * 内存中，不进入 saveData，也不作为文章事实源；插件实例被销毁后自然释放。
+ * Promise 缓存还可以合并同一篇正文在队列外意外发生的并发导出。
+ */
+const readerMarkdownCache = new WeakMap<object, Map<string, string>>();
+const readerMarkdownLoads = new WeakMap<object, Map<string, Promise<string>>>();
+const readerMarkdownVersions = new WeakMap<object, Map<string, number>>();
+const READER_MARKDOWN_CACHE_MAX_ENTRIES = 4;
+
+function readerMarkdownVersion(plugin: Plugin, docId: string): number {
+    const versions = readerMarkdownVersions.get(plugin) ?? new Map<string, number>();
+    readerMarkdownVersions.set(plugin, versions);
+    return versions.get(docId) ?? 0;
+}
+
+async function readReaderMarkdown(plugin: Plugin, docId: string): Promise<string> {
+    const cache = readerMarkdownCache.get(plugin) ?? new Map<string, string>();
+    readerMarkdownCache.set(plugin, cache);
+    const cached = cache.get(docId);
+    if (cached !== undefined) {
+        // LRU：阅读页通常只会在当前文档内重复调用，避免切换很多大文档后无限增长。
+        cache.delete(docId);
+        cache.set(docId, cached);
+        return cached;
+    }
+
+    const loads = readerMarkdownLoads.get(plugin) ?? new Map<string, Promise<string>>();
+    readerMarkdownLoads.set(plugin, loads);
+    const active = loads.get(docId);
+    if (active) return active;
+
+    const version = readerMarkdownVersion(plugin, docId);
+    const load = exportMdContent(docId).then((exported) => {
+        const markdown = exported?.content ?? "";
+        if (markdown && readerMarkdownVersion(plugin, docId) === version) {
+            cache.delete(docId);
+            cache.set(docId, markdown);
+            while (cache.size > READER_MARKDOWN_CACHE_MAX_ENTRIES) {
+                const oldest = cache.keys().next().value;
+                if (typeof oldest !== "string") break;
+                cache.delete(oldest);
+            }
+        }
+        return markdown;
+    });
+    loads.set(docId, load);
+    try {
+        return await load;
+    } finally {
+        // 失败不进入缓存，下一次动作仍可重试；成功的值已留在 cache 中。
+        if (loads.get(docId) === load) loads.delete(docId);
+    }
+}
+
+/** 正文被外部编辑后由阅读页清除对应会话缓存；不影响任何持久化数据。 */
+export function clearReaderMarkdownCache(plugin: Plugin, docId?: string): void {
+    if (!docId) {
+        const versions = readerMarkdownVersions.get(plugin);
+        if (versions) for (const id of new Set([...(readerMarkdownCache.get(plugin)?.keys() ?? []), ...(readerMarkdownLoads.get(plugin)?.keys() ?? [])])) {
+            versions.set(id, (versions.get(id) ?? 0) + 1);
+        }
+        readerMarkdownCache.delete(plugin);
+        readerMarkdownLoads.delete(plugin);
+        return;
+    }
+    const versions = readerMarkdownVersions.get(plugin) ?? new Map<string, number>();
+    versions.set(docId, (versions.get(docId) ?? 0) + 1);
+    readerMarkdownVersions.set(plugin, versions);
+    readerMarkdownCache.get(plugin)?.delete(docId);
+    readerMarkdownLoads.get(plugin)?.delete(docId);
+}
+
 const NODE_ID_PATTERN = /^\d{14}-[0-9a-z]{7}$/;
 
 /** AI 伴读总开关与富化模式一致（D-0013）：off 即整段禁用。 */
@@ -34,8 +107,7 @@ export function readerAiEnabled(settings: GleanSettings): boolean {
 
 export async function readerSummarize(plugin: Plugin, docId: string, settings: GleanSettings): Promise<ReaderAiOutcome> {
     return readerCall(plugin, docId, settings, "reader-summarize", async () => {
-        const exported = await exportMdContent(docId);
-        const markdown = exported?.content ?? "";
+        const markdown = await readReaderMarkdown(plugin, docId);
         const title = markdown.match(/^#\s+(.+)$/m)?.[1]?.trim() ?? "";
         const plain = stripMarkdown(markdown).trim();
         return plain ? buildSummarizePrompt(title, plain) : "";
@@ -76,14 +148,13 @@ export async function readerArticleQuestion(
             if (!(await aiQuotaAvailable(plugin, currentSettings))) return { ok: false, skipped: "cap" as const };
             let context = "";
             if (hasSelection) {
-                const exported = await exportMdContent(docId);
-                const documentText = stripMarkdown(exported?.content ?? "").replace(/\s+/g, " ").trim();
+                const markdown = await readReaderMarkdown(plugin, docId);
+                const documentText = stripMarkdown(markdown).replace(/\s+/g, " ").trim();
                 const selectedText = selectionText.replace(/\s+/g, " ").trim();
                 if (!documentText.includes(selectedText) || !(await selectionBlockBelongsToDoc(selectionBlockId, docId))) return { ok: false, skipped: "invalid" as const };
                 context = selectionText.trim();
             } else {
-                const exported = await exportMdContent(docId);
-                context = stripMarkdown(exported?.content ?? "").trim();
+                context = stripMarkdown(await readReaderMarkdown(plugin, docId)).trim();
             }
             if (!context) return { ok: false, skipped: "invalid" as const };
             // 与选区校验同用码点口径，避免 emoji 选区"未超限却提示已截断"

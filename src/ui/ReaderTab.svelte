@@ -31,9 +31,9 @@
     import { recordReadingDone } from "../services/checkin-bridge";
     import { excerptFromSelection, insertQuoteExcerpt, selectionBelongsToHost } from "../services/excerpt-service";
     import { makeQuoteCardPreview } from "./flashcard-dialog";
-    import { findRelated } from "../services/enrich-service";
+    import { findRelatedOutcome, type RelatedReason } from "../services/enrich-service";
     import { pickNextUnread } from "../services/resurface-service";
-    import { articleQuestionEnabled, readerAiEnabled, readerArticleQuestion, readerSummarize, readerTranslate, saveReaderSummary } from "../services/reader-ai";
+    import { articleQuestionEnabled, clearReaderMarkdownCache, readerAiEnabled, readerArticleQuestion, readerSummarize, readerTranslate, saveReaderSummary } from "../services/reader-ai";
     import ClipStatusActions from "./ClipStatusActions.svelte";
     import ClipRankControls from "./ClipRankControls.svelte";
     import { openFormattingDialog } from "./formatting-dialog";
@@ -195,7 +195,14 @@
 
     // AI 伴读段（D-0030）：显式动作 + 结果卡；额度与富化共享。
     const aiOn = $derived(readerAiEnabled(facade.settings));
-    const relatedOn = $derived(aiOn && facade.settings.ai.relatedWhileReading);
+    // 自定义通道缺少地址、模型或密钥名时，动作保持禁用并给出可操作的配置入口。
+    // 思源内置通道的具体模型由内核设置管理，插件不臆测其可用性。
+    const aiConfigured = $derived(
+        facade.settings.ai.channel !== "custom"
+            || Boolean(facade.settings.ai.customBaseUrl.trim() && facade.settings.ai.customModel.trim() && facade.settings.ai.customSecretName.trim())
+    );
+    const aiReady = $derived(aiOn && aiConfigured);
+    const relatedOn = $derived(aiReady && facade.settings.ai.relatedWhileReading);
     const articleQuestionOn = $derived(articleQuestionEnabled(facade.settings));
     const channelLabel = $derived(
         facade.settings.ai.channel === "custom"
@@ -203,12 +210,15 @@
             : t(i18n, "reader.aiChannelSiyuan")
     );
     let aiBusy = $state("");
-    let aiResult = $state<{ kind: "summarize" | "translate"; action: string; text: string } | null>(null);
+    let aiResult = $state<{ kind: "summarize" | "translate"; action: string; text: string; scope: "full" | "selection" } | null>(null);
+    let summarySaving = $state(false);
+    let summarySaved = $state(false);
     let question = $state("");
     let questionMode = $state<"full" | "selection">("full");
-    let questionResult = $state<{ answer: string; evidence: string[]; truncated: boolean } | null>(null);
+    let questionResult = $state<{ answer: string; evidence: string[]; truncated: boolean; scope: "full" | "selection" } | null>(null);
     let relatedItems = $state<Array<{ id: string; title: string }>>([]);
     let relatedShown = $state(false);
+    let relatedReason = $state<RelatedReason | null>(null);
 
     function speechSynthesis(): SpeechSynthesis | null {
         return speechSupported ? window.speechSynthesis : null;
@@ -468,11 +478,14 @@
         appearanceOpen = false;
         outline = [];
         aiResult = null;
+        summarySaving = false;
+        summarySaved = false;
         questionResult = null;
         question = "";
         questionMode = "full";
         relatedShown = false;
         relatedItems = [];
+        relatedReason = null;
         excerpt = null;
         speechChunks = [];
         speechChunkIndex = 0;
@@ -498,6 +511,8 @@
         const onResize = () => protyle?.resize();
         const onData = () => {
             if (docId) {
+                // 正文可能已在 Protyle 或其他页签中修改，避免伴读继续使用旧导出。
+                clearReaderMarkdownCache(facade.pluginInstance, docId);
                 void loadContext(docId);
                 void loadOutline(docId);
             }
@@ -543,8 +558,11 @@
         facade.recordRecentReading(id, title);
         docId = id;
         aiResult = null;
+        summarySaving = false;
+        summarySaved = false;
         relatedShown = false;
         relatedItems = [];
+        relatedReason = null;
         excerpt = null;
     }
 
@@ -583,15 +601,17 @@
     }
 
     async function runSummarize(): Promise<void> {
-        if (!context || context.id !== docId || aiBusy) return;
+        if (!context || context.id !== docId || aiBusy || !aiReady) return;
         const current = context;
         const generation = sessionGeneration;
         aiBusy = "summarize";
+        aiResult = null;
+        summarySaved = false;
         try {
             const outcome = await readerSummarize(facade.pluginInstance, current.id, facade.settings);
             if (!currentSession(current.id, generation)) return;
             if (outcome.ok && outcome.text) {
-                aiResult = { kind: "summarize", action: t(i18n, "reader.aiSummarize"), text: outcome.text };
+                aiResult = { kind: "summarize", action: t(i18n, "reader.aiSummarize"), text: outcome.text, scope: "full" };
             } else if (outcome.skipped === "cap") {
                 showMessage(t(i18n, "ai.capReached", { n: facade.settings.ai.enrichDailyCap }), 4000);
             } else if (outcome.skipped !== "off") {
@@ -603,15 +623,17 @@
     }
 
     async function runTranslate(): Promise<void> {
-        if (!context || context.id !== docId || aiBusy || !excerpt?.text) return;
+        if (!context || context.id !== docId || aiBusy || !aiReady || !excerpt?.text) return;
         const current = context;
         const generation = sessionGeneration;
         aiBusy = "translate";
+        aiResult = null;
+        summarySaved = false;
         try {
             const outcome = await readerTranslate(facade.pluginInstance, current.id, excerpt.text, facade.settings);
             if (!currentSession(current.id, generation)) return;
             if (outcome.ok && outcome.text) {
-                aiResult = { kind: "translate", action: t(i18n, "reader.aiTranslate"), text: outcome.text };
+                aiResult = { kind: "translate", action: t(i18n, "reader.aiTranslate"), text: outcome.text, scope: "selection" };
             } else if (outcome.skipped === "cap") {
                 showMessage(t(i18n, "ai.capReached", { n: facade.settings.ai.enrichDailyCap }), 4000);
             } else if (outcome.skipped !== "off") {
@@ -623,7 +645,7 @@
     }
 
     async function runArticleQuestion(): Promise<void> {
-        if (!context || context.id !== docId || aiBusy || !articleQuestionOn) return;
+        if (!context || context.id !== docId || aiBusy || !aiReady || !articleQuestionOn) return;
         const current = context;
         const generation = sessionGeneration;
         const source = questionMode === "selection" && excerpt?.blockId ? excerpt.text : "";
@@ -637,7 +659,7 @@
             const outcome = await readerArticleQuestion(facade.pluginInstance, current.id, question, facade.settings, source, questionMode === "selection" ? excerpt?.blockId ?? "" : "");
             if (!currentSession(current.id, generation)) return;
             if (outcome.ok && outcome.result) {
-                questionResult = { answer: outcome.result.answer, evidence: outcome.result.evidence, truncated: Boolean(outcome.truncated) };
+                questionResult = { answer: outcome.result.answer, evidence: outcome.result.evidence, truncated: Boolean(outcome.truncated), scope: questionMode };
             } else if (outcome.skipped === "cap") {
                 showMessage(t(i18n, "ai.capReached", { n: facade.settings.ai.enrichDailyCap }), 4000);
             } else if (outcome.skipped === "changed") {
@@ -653,19 +675,45 @@
     }
 
     async function runRelated(): Promise<void> {
-        if (!context || context.id !== docId || aiBusy) return;
+        if (!context || context.id !== docId || aiBusy || !aiReady) return;
         const current = context;
         const generation = sessionGeneration;
         aiBusy = "related";
+        relatedReason = null;
         try {
-            const items = await findRelated(current.id, current.title, [], { plugin: facade.pluginInstance, settings: facade.settings });
+            const outcome = await findRelatedOutcome(current.id, current.title, [], { plugin: facade.pluginInstance, settings: facade.settings });
             if (!currentSession(current.id, generation)) return;
-            relatedItems = items;
+            relatedItems = outcome.items;
+            relatedReason = outcome.reason;
             relatedShown = true;
-            if (relatedItems.length === 0) showMessage(t(i18n, "reader.relatedNone"), 3000);
+        } catch {
+            if (currentSession(current.id, generation)) {
+                relatedItems = [];
+                relatedReason = "error";
+                relatedShown = true;
+                showMessage(t(i18n, "reader.relatedFailed"), 3500);
+            }
         } finally {
             aiBusy = "";
         }
+    }
+
+    function relatedStatusMessage(reason: RelatedReason | null): string {
+        if (reason === "embedding-disabled") return t(i18n, "reader.relatedEmbeddingDisabled");
+        if (reason === "error") return t(i18n, "reader.relatedFailed");
+        if (reason === "disabled") return t(i18n, "reader.relatedDisabled");
+        return t(i18n, "reader.relatedNone");
+    }
+
+    function aiBusyMessage(): string {
+        const action = aiBusy === "translate"
+            ? t(i18n, "reader.aiTranslate")
+            : aiBusy === "question"
+                ? t(i18n, "reader.articleQuestion.action")
+                : aiBusy === "related"
+                    ? t(i18n, "reader.aiRelated")
+                    : t(i18n, "reader.aiSummarize");
+        return t(i18n, "reader.aiWorking", { action });
     }
 
     async function copyExcerpt(): Promise<void> {
@@ -679,13 +727,17 @@
     }
 
     async function keepSummary(): Promise<void> {
-        if (!aiResult || aiResult.kind !== "summarize" || !context || context.id !== docId) return;
+        if (!aiResult || aiResult.kind !== "summarize" || !context || context.id !== docId || summarySaving || summarySaved) return;
+        summarySaving = true;
         try {
             await saveReaderSummary(facade.pluginInstance, context.id, aiResult.text);
+            summarySaved = true;
             showMessage(t(i18n, "reader.aiSummarySaved"), 2500);
             facade.notifyDataChanged();
         } catch {
             showMessage(t(i18n, "reader.actionFailed"), 3000);
+        } finally {
+            summarySaving = false;
         }
     }
 
@@ -807,8 +859,11 @@
             showMessage(t(i18n, "msg.statusChanged"), 2000);
             docId = next;
             aiResult = null;
+            summarySaving = false;
+            summarySaved = false;
             relatedShown = false;
             relatedItems = [];
+            relatedReason = null;
             excerpt = null;
         } catch (error) {
             console.warn("[glean] 阅读完成变更失败:", error);
@@ -1153,18 +1208,25 @@
                         <div id={aiTitleId} class="glean-reader__section-title" role="heading" aria-level="3">{t(i18n, "reader.aiTitle")}</div>
                         {#if !aiOn}
                             <div class="glean-reader__hint">{t(i18n, "reader.aiOff")}</div>
+                            <button class="glean-btn glean-btn--ghost" onclick={() => facade.openSettings()}>{t(i18n, "panel.settings")}</button>
                         {:else}
+                            <div class="glean-reader__hint">
+                                {t(i18n, aiConfigured ? "reader.aiPrivacy" : "reader.aiSetupMissing")}
+                            </div>
+                            {#if !aiConfigured}
+                                <button class="glean-btn glean-btn--ghost" onclick={() => facade.openSettings()}>{t(i18n, "panel.settings")}</button>
+                            {/if}
                             <div class="glean-reader__ops">
-                                <button class="glean-btn glean-btn--pri" aria-busy={Boolean(aiBusy)} disabled={Boolean(aiBusy)} onclick={() => void runSummarize()}>
+                                <button class="glean-btn glean-btn--pri" aria-busy={Boolean(aiBusy)} disabled={Boolean(aiBusy) || !aiReady} onclick={() => void runSummarize()}>
                                     <svg class="glean-icon" aria-hidden="true"><use href="#iconGleanSpark" /></svg>{t(i18n, "reader.aiSummarize")}
                                 </button>
                                 <button
                                     class="glean-btn glean-btn--ghost"
                                     aria-busy={Boolean(aiBusy)}
-                                    disabled={Boolean(aiBusy) || !excerpt?.text}
+                                    disabled={Boolean(aiBusy) || !aiReady || !excerpt?.text}
                                     title={excerpt?.text ? "" : t(i18n, "reader.excerptHint")}
                                     onclick={() => void runTranslate()}
-                                >文A {t(i18n, "reader.aiTranslate")}</button>
+                                >{t(i18n, "reader.aiTranslate")}</button>
                                 {#if relatedOn}
                                     <button class="glean-btn glean-btn--ghost" aria-busy={Boolean(aiBusy)} disabled={Boolean(aiBusy)} onclick={() => void runRelated()}>
                                         🔗 {t(i18n, "reader.aiRelated")}
@@ -1172,11 +1234,11 @@
                                 {/if}
                                 {#if articleQuestionOn}
                                     <div class="glean-reader__question">
-                                        <input class="glean-mini-input" maxlength="1000" placeholder={t(i18n, "reader.articleQuestion.placeholder")} aria-label={t(i18n, "reader.articleQuestion.action")} bind:value={question} onkeydown={(event) => event.key === "Enter" && void runArticleQuestion()} />
+                                        <input class="glean-mini-input" disabled={!aiReady} maxlength="1000" placeholder={t(i18n, "reader.articleQuestion.placeholder")} aria-label={t(i18n, "reader.articleQuestion.action")} bind:value={question} onkeydown={(event) => event.key === "Enter" && void runArticleQuestion()} />
                                         <div class="glean-reader__ops">
-                                            <button class="glean-btn glean-btn--ghost" class:glean-seg__btn--on={questionMode === "full"} onclick={() => { questionMode = "full"; }}>{t(i18n, "reader.articleQuestion.full")}</button>
-                                            <button class="glean-btn glean-btn--ghost" disabled={!excerpt?.blockId} class:glean-seg__btn--on={questionMode === "selection"} onclick={() => { questionMode = "selection"; }}>{t(i18n, "reader.articleQuestion.selection")}</button>
-                                            <button class="glean-btn glean-btn--pri" aria-busy={Boolean(aiBusy)} disabled={Boolean(aiBusy) || !question.trim()} onclick={() => void runArticleQuestion()}>{t(i18n, "reader.articleQuestion.ask")}</button>
+                                            <button class="glean-btn glean-btn--ghost" disabled={!aiReady} class:glean-seg__btn--on={questionMode === "full"} onclick={() => { questionMode = "full"; }}>{t(i18n, "reader.articleQuestion.full")}</button>
+                                            <button class="glean-btn glean-btn--ghost" disabled={!aiReady || !excerpt?.blockId} class:glean-seg__btn--on={questionMode === "selection"} onclick={() => { questionMode = "selection"; }}>{t(i18n, "reader.articleQuestion.selection")}</button>
+                                            <button class="glean-btn glean-btn--pri" aria-busy={Boolean(aiBusy)} disabled={Boolean(aiBusy) || !aiReady || !question.trim()} onclick={() => void runArticleQuestion()}>{t(i18n, "reader.articleQuestion.ask")}</button>
                                         </div>
                                     </div>
                                 {/if}
@@ -1184,7 +1246,7 @@
                             {#if aiBusy}
                                 <div class="glean-reader__ai-status" role="status" aria-live="polite">
                                     <span class="glean-reader__ai-status-dot" aria-hidden="true"></span>
-                                    {t(i18n, "panel.loading")}
+                                    {aiBusyMessage()}
                                 </div>
                             {/if}
                             {#if aiResult}
@@ -1192,14 +1254,15 @@
                                     <div class="glean-reader__ai-src">
                                         {t(i18n, "reader.aiSource", { channel: channelLabel, action: aiResult.action })}
                                     </div>
+                                    <div class="glean-reader__ai-scope">{t(i18n, aiResult.scope === "full" ? "reader.aiScopeFull" : "reader.aiScopeSelection")}</div>
                                     <div class="glean-reader__ai-text">{aiResult.text}</div>
                                     <div class="glean-reader__ops">
                                         <button class="glean-btn glean-btn--ghost" onclick={() => void copyAiResult()}>
                                             {t(i18n, "reader.copy")}
                                         </button>
                                         {#if aiResult.kind === "summarize"}
-                                            <button class="glean-btn glean-btn--ghost" onclick={() => void keepSummary()}>
-                                                {t(i18n, "reader.aiSaveSummary")}
+                                            <button class="glean-btn glean-btn--ghost" aria-busy={summarySaving} disabled={summarySaving || summarySaved} onclick={() => void keepSummary()}>
+                                                {t(i18n, summarySaved ? "reader.aiSummarySaved" : "reader.aiSaveSummary")}
                                             </button>
                                         {/if}
                                     </div>
@@ -1208,6 +1271,7 @@
                             {#if questionResult}
                                 <div class="glean-reader__ai-card" role="status" aria-live="polite">
                                     <div class="glean-reader__ai-src">{t(i18n, "reader.articleQuestion.action")}</div>
+                                    <div class="glean-reader__ai-scope">{t(i18n, questionResult.scope === "full" ? "reader.aiScopeFull" : "reader.aiScopeSelection")}</div>
                                     <div class="glean-reader__ai-text">{questionResult.answer}</div>
                                     {#if questionResult.truncated}<div class="glean-reader__hint">{t(i18n, "reader.articleQuestion.truncated")}</div>{/if}
                                     {#if questionResult.evidence.length > 0}
@@ -1224,6 +1288,10 @@
                                             {item.title}
                                         </button>
                                     {/each}
+                                </div>
+                            {:else if relatedShown}
+                                <div class="glean-reader__hint" role={relatedReason === "error" ? "alert" : "status"}>
+                                    {relatedStatusMessage(relatedReason)}
                                 </div>
                             {/if}
                         {/if}
