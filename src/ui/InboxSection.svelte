@@ -110,6 +110,7 @@ async function migrate(item: Shorthand, allowDuplicate = false) {
         if (result.cloudRemoved) {
             showMessage(t(i18n, "inbox.migrated"), 3000);
             items = items.filter((entry) => entry.oId !== item.oId);
+            facade.notifyDataChanged();
         } else {
             // 云端删除失败时只弹失败提示（文案已含"本地已创建"），避免两条 toast 互相覆盖
             pendingRemoval[item.oId] = result.docId;
@@ -129,6 +130,7 @@ async function dismiss(item: Shorthand) {
     busyId = item.oId;
     try {
         await removeShorthands([item.oId]);
+        facade.notifyDataChanged();
         // 先更新本地列表：检查点清理失败不应让已删除的云端条目继续留在界面上
         items = items.filter((entry) => entry.oId !== item.oId);
         delete pendingRemoval[item.oId];

@@ -56,6 +56,8 @@ let aborted = $state(false);
 let resumeAvailable = $state(false);
 let editingRowId = $state("");
 let manualUrl = $state("");
+/** 逐条决策写回期间锁住该行，避免快速点击触发重复端点请求。 */
+let rowBusyId = $state("");
 
 const step = $derived<Step>(phase === "intro" || phase === "scanning" ? 1 : phase === "done" ? 3 : 2);
 
@@ -204,6 +206,8 @@ function openExisting(row: MigrateRow) {
 }
 
 async function resolveManual(row: MigrateRow, decision: "url" | "local" | "exclude", allowDuplicate = false) {
+    if (rowBusyId) return;
+    rowBusyId = row.id;
     try {
         if (phase === "running") return;
         const decisionUrl = allowDuplicate ? row.url : manualUrl.trim() || row.url;
@@ -227,6 +231,8 @@ async function resolveManual(row: MigrateRow, decision: "url" | "local" | "exclu
     } catch (error) {
         console.warn("[glean] 迁移行处理失败:", error);
         showMessage(t(i18n, "msg.actionFailed"), 4000);
+    } finally {
+        rowBusyId = "";
     }
 }
 
@@ -311,18 +317,18 @@ function rowStateLabel(row: MigrateRow): string {
         </div>
         <div class="glean-mtable">
             {#each visibleRows as row (row.id)}
-                <div class="glean-mrow">
+                <div class="glean-mrow" aria-busy={rowBusyId === row.id}>
                     <span class="glean-mrow__ti">{row.title || row.hpath}</span>
                         <span class="glean-mrow__url" title={row.detail || ""}>{row.url || "—"}</span>
                     <span class={rowStateClass(row)} title={row.detail || ""}>{rowStateLabel(row)}</span>
                         {#if row.state === "manual" || !!row.resolution}
                             <span class="glean-mrow__ops">
-                                <button class="glean-op-btn" title={t(i18n, "migrate.fixUrl")} aria-label={t(i18n, "migrate.fixUrl")} onclick={() => editManual(row)}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanEdit" /></svg></button>
-                                <button class="glean-op-btn" title={t(i18n, "migrate.asLocal")} aria-label={t(i18n, "migrate.asLocal")} onclick={() => void resolveManual(row, "local")}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanLocal" /></svg></button>
-                                <button class="glean-op-btn" title={t(i18n, "migrate.exclude")} aria-label={t(i18n, "migrate.exclude")} onclick={() => void resolveManual(row, "exclude")}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanClose" /></svg></button>
+                                <button class="glean-op-btn" disabled={Boolean(rowBusyId)} title={t(i18n, "migrate.fixUrl")} aria-label={t(i18n, "migrate.fixUrl")} onclick={() => editManual(row)}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanEdit" /></svg></button>
+                                <button class="glean-op-btn" disabled={Boolean(rowBusyId)} title={t(i18n, "migrate.asLocal")} aria-label={t(i18n, "migrate.asLocal")} onclick={() => void resolveManual(row, "local")}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanLocal" /></svg></button>
+                                <button class="glean-op-btn" disabled={Boolean(rowBusyId)} title={t(i18n, "migrate.exclude")} aria-label={t(i18n, "migrate.exclude")} onclick={() => void resolveManual(row, "exclude")}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanClose" /></svg></button>
                                 {#if row.conflictDocId}
-                                    <button class="glean-op-btn" title={t(i18n, "migrate.openExisting")} aria-label={t(i18n, "migrate.openExisting")} onclick={() => openExisting(row)}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanExternal" /></svg></button>
-                                    <button class="glean-op-btn" title={t(i18n, "migrate.keepDuplicate")} aria-label={t(i18n, "migrate.keepDuplicate")} onclick={() => void resolveManual(row, "url", true)}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanPlus" /></svg></button>
+                                    <button class="glean-op-btn" disabled={Boolean(rowBusyId)} title={t(i18n, "migrate.openExisting")} aria-label={t(i18n, "migrate.openExisting")} onclick={() => openExisting(row)}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanExternal" /></svg></button>
+                                    <button class="glean-op-btn" disabled={Boolean(rowBusyId)} title={t(i18n, "migrate.keepDuplicate")} aria-label={t(i18n, "migrate.keepDuplicate")} onclick={() => void resolveManual(row, "url", true)}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanPlus" /></svg></button>
                                 {/if}
                             </span>
                         {/if}
@@ -340,9 +346,9 @@ function rowStateLabel(row: MigrateRow): string {
                 </div>
                     {#if editingRowId === row.id}
                         <div class="glean-candidate-edit">
-                            <input class="b3-text-field" type="url" bind:value={manualUrl} placeholder={t(i18n, "candidate.urlPlaceholder")} aria-label={t(i18n, "candidate.urlPlaceholder")} onkeydown={(event) => { if (event.key === "Enter") { event.preventDefault(); void resolveManual(row, "url"); } }} />
-                            <button class="glean-btn" onclick={() => void resolveManual(row, "url")}>{t(i18n, "action.save")}</button>
-                            <button class="glean-btn glean-btn--ghost" onclick={() => (editingRowId = "")}>{t(i18n, "action.cancel")}</button>
+                            <input class="b3-text-field" type="url" bind:value={manualUrl} disabled={Boolean(rowBusyId)} placeholder={t(i18n, "candidate.urlPlaceholder")} aria-label={t(i18n, "candidate.urlPlaceholder")} onkeydown={(event) => { if (event.key === "Enter") { event.preventDefault(); void resolveManual(row, "url"); } }} />
+                            <button class="glean-btn" disabled={Boolean(rowBusyId)} onclick={() => void resolveManual(row, "url")}>{t(i18n, "action.save")}</button>
+                            <button class="glean-btn glean-btn--ghost" disabled={Boolean(rowBusyId)} onclick={() => (editingRowId = "")}>{t(i18n, "action.cancel")}</button>
                         </div>
                     {/if}
             {:else}
@@ -357,7 +363,7 @@ function rowStateLabel(row: MigrateRow): string {
                 <option value="skipped">{t(i18n, "migrate.skipHasAttrs")}</option>
                 <option value="error">{t(i18n, "import.failed")}</option>
             </select>
-            <button class="glean-btn glean-btn--ghost" onclick={() => void startScan()}>{t(i18n, "migrate.rescan")}</button>
+            <button class="glean-btn glean-btn--ghost" disabled={Boolean(rowBusyId)} onclick={() => void startScan()}>{t(i18n, "migrate.rescan")}</button>
             <label class="glean-migrate__batch-size">
                 {t(i18n, "migrate.batchSize")}
                 <input
@@ -388,18 +394,18 @@ function rowStateLabel(row: MigrateRow): string {
         </div>
         <div class="glean-mtable">
             {#each rows as row (row.id)}
-                <div class="glean-mrow">
+                <div class="glean-mrow" aria-busy={rowBusyId === row.id}>
                     <span class="glean-mrow__ti" title={row.hpath}>{row.title || row.hpath}</span>
                     <span class="glean-mrow__url">{row.url || "—"}</span>
                     <span class={rowStateClass(row)} title={row.detail || ""}>{rowStateLabel(row)}</span>
                         {#if (row.state === "manual" || (phase === "paused" && !!row.resolution)) && phase !== "running"}
                             <span class="glean-mrow__ops">
-                                <button class="glean-op-btn" title={t(i18n, "migrate.fixUrl")} aria-label={t(i18n, "migrate.fixUrl")} onclick={() => editManual(row)}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanEdit" /></svg></button>
-                                <button class="glean-op-btn" title={t(i18n, "migrate.asLocal")} aria-label={t(i18n, "migrate.asLocal")} onclick={() => void resolveManual(row, "local")}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanLocal" /></svg></button>
-                                <button class="glean-op-btn" title={t(i18n, "migrate.exclude")} aria-label={t(i18n, "migrate.exclude")} onclick={() => void resolveManual(row, "exclude")}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanClose" /></svg></button>
+                                <button class="glean-op-btn" disabled={Boolean(rowBusyId)} title={t(i18n, "migrate.fixUrl")} aria-label={t(i18n, "migrate.fixUrl")} onclick={() => editManual(row)}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanEdit" /></svg></button>
+                                <button class="glean-op-btn" disabled={Boolean(rowBusyId)} title={t(i18n, "migrate.asLocal")} aria-label={t(i18n, "migrate.asLocal")} onclick={() => void resolveManual(row, "local")}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanLocal" /></svg></button>
+                                <button class="glean-op-btn" disabled={Boolean(rowBusyId)} title={t(i18n, "migrate.exclude")} aria-label={t(i18n, "migrate.exclude")} onclick={() => void resolveManual(row, "exclude")}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanClose" /></svg></button>
                                 {#if row.conflictDocId}
-                                    <button class="glean-op-btn" title={t(i18n, "migrate.openExisting")} aria-label={t(i18n, "migrate.openExisting")} onclick={() => openExisting(row)}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanExternal" /></svg></button>
-                                    <button class="glean-op-btn" title={t(i18n, "migrate.keepDuplicate")} aria-label={t(i18n, "migrate.keepDuplicate")} onclick={() => void resolveManual(row, "url", true)}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanPlus" /></svg></button>
+                                    <button class="glean-op-btn" disabled={Boolean(rowBusyId)} title={t(i18n, "migrate.openExisting")} aria-label={t(i18n, "migrate.openExisting")} onclick={() => openExisting(row)}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanExternal" /></svg></button>
+                                    <button class="glean-op-btn" disabled={Boolean(rowBusyId)} title={t(i18n, "migrate.keepDuplicate")} aria-label={t(i18n, "migrate.keepDuplicate")} onclick={() => void resolveManual(row, "url", true)}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanPlus" /></svg></button>
                                 {/if}
                             </span>
                         {/if}
@@ -413,9 +419,9 @@ function rowStateLabel(row: MigrateRow): string {
                 </div>
                     {#if editingRowId === row.id}
                         <div class="glean-candidate-edit">
-                            <input class="b3-text-field" type="url" bind:value={manualUrl} placeholder={t(i18n, "candidate.urlPlaceholder")} aria-label={t(i18n, "candidate.urlPlaceholder")} onkeydown={(event) => { if (event.key === "Enter") { event.preventDefault(); void resolveManual(row, "url"); } }} />
-                            <button class="glean-btn" onclick={() => void resolveManual(row, "url")}>{t(i18n, "action.save")}</button>
-                            <button class="glean-btn glean-btn--ghost" onclick={() => (editingRowId = "")}>{t(i18n, "action.cancel")}</button>
+                            <input class="b3-text-field" type="url" bind:value={manualUrl} disabled={Boolean(rowBusyId)} placeholder={t(i18n, "candidate.urlPlaceholder")} aria-label={t(i18n, "candidate.urlPlaceholder")} onkeydown={(event) => { if (event.key === "Enter") { event.preventDefault(); void resolveManual(row, "url"); } }} />
+                            <button class="glean-btn" disabled={Boolean(rowBusyId)} onclick={() => void resolveManual(row, "url")}>{t(i18n, "action.save")}</button>
+                            <button class="glean-btn glean-btn--ghost" disabled={Boolean(rowBusyId)} onclick={() => (editingRowId = "")}>{t(i18n, "action.cancel")}</button>
                         </div>
                     {/if}
             {:else}
@@ -439,26 +445,26 @@ function rowStateLabel(row: MigrateRow): string {
         {#if counts.manual > 0 || counts.errors > 0}
             <div class="glean-mtable">
                 {#each rows.filter((row) => row.state === "manual" || row.state === "error") as row (row.id)}
-                    <div class="glean-mrow">
+                    <div class="glean-mrow" aria-busy={rowBusyId === row.id}>
                         <span class="glean-mrow__ti" title={row.hpath}>{row.title || row.hpath}</span>
                         <span class={rowStateClass(row)} title={row.detail || ""}>{rowStateLabel(row)}</span>
                         {#if row.state === "manual"}
                             <span class="glean-mrow__ops">
-                                <button class="glean-op-btn" title={t(i18n, "migrate.fixUrl")} aria-label={t(i18n, "migrate.fixUrl")} onclick={() => editManual(row)}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanEdit" /></svg></button>
-                                <button class="glean-op-btn" title={t(i18n, "migrate.asLocal")} aria-label={t(i18n, "migrate.asLocal")} onclick={() => void resolveManual(row, "local")}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanLocal" /></svg></button>
-                                <button class="glean-op-btn" title={t(i18n, "migrate.exclude")} aria-label={t(i18n, "migrate.exclude")} onclick={() => void resolveManual(row, "exclude")}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanClose" /></svg></button>
+                                <button class="glean-op-btn" disabled={Boolean(rowBusyId)} title={t(i18n, "migrate.fixUrl")} aria-label={t(i18n, "migrate.fixUrl")} onclick={() => editManual(row)}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanEdit" /></svg></button>
+                                <button class="glean-op-btn" disabled={Boolean(rowBusyId)} title={t(i18n, "migrate.asLocal")} aria-label={t(i18n, "migrate.asLocal")} onclick={() => void resolveManual(row, "local")}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanLocal" /></svg></button>
+                                <button class="glean-op-btn" disabled={Boolean(rowBusyId)} title={t(i18n, "migrate.exclude")} aria-label={t(i18n, "migrate.exclude")} onclick={() => void resolveManual(row, "exclude")}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanClose" /></svg></button>
                                 {#if row.conflictDocId}
-                                    <button class="glean-op-btn" title={t(i18n, "migrate.openExisting")} aria-label={t(i18n, "migrate.openExisting")} onclick={() => openExisting(row)}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanExternal" /></svg></button>
-                                    <button class="glean-op-btn" title={t(i18n, "migrate.keepDuplicate")} aria-label={t(i18n, "migrate.keepDuplicate")} onclick={() => void resolveManual(row, "url", true)}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanPlus" /></svg></button>
+                                    <button class="glean-op-btn" disabled={Boolean(rowBusyId)} title={t(i18n, "migrate.openExisting")} aria-label={t(i18n, "migrate.openExisting")} onclick={() => openExisting(row)}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanExternal" /></svg></button>
+                                    <button class="glean-op-btn" disabled={Boolean(rowBusyId)} title={t(i18n, "migrate.keepDuplicate")} aria-label={t(i18n, "migrate.keepDuplicate")} onclick={() => void resolveManual(row, "url", true)}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanPlus" /></svg></button>
                                 {/if}
                             </span>
                         {/if}
                     </div>
                     {#if editingRowId === row.id}
                         <div class="glean-candidate-edit">
-                            <input class="b3-text-field" type="url" bind:value={manualUrl} placeholder={t(i18n, "candidate.urlPlaceholder")} aria-label={t(i18n, "candidate.urlPlaceholder")} onkeydown={(event) => { if (event.key === "Enter") { event.preventDefault(); void resolveManual(row, "url"); } }} />
-                            <button class="glean-btn" onclick={() => void resolveManual(row, "url")}>{t(i18n, "action.save")}</button>
-                            <button class="glean-btn glean-btn--ghost" onclick={() => (editingRowId = "")}>{t(i18n, "action.cancel")}</button>
+                            <input class="b3-text-field" type="url" bind:value={manualUrl} disabled={Boolean(rowBusyId)} placeholder={t(i18n, "candidate.urlPlaceholder")} aria-label={t(i18n, "candidate.urlPlaceholder")} onkeydown={(event) => { if (event.key === "Enter") { event.preventDefault(); void resolveManual(row, "url"); } }} />
+                            <button class="glean-btn" disabled={Boolean(rowBusyId)} onclick={() => void resolveManual(row, "url")}>{t(i18n, "action.save")}</button>
+                            <button class="glean-btn glean-btn--ghost" disabled={Boolean(rowBusyId)} onclick={() => (editingRowId = "")}>{t(i18n, "action.cancel")}</button>
                         </div>
                     {/if}
                 {/each}

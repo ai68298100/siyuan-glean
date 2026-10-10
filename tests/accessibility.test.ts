@@ -220,6 +220,28 @@ test("preview and today's gleaning keep the full state path and actionable candi
     assert.match(resurface, /disabled=\{Boolean\(actingId \|\| undoingId\)\}/);
 });
 
+test("successful library mutations broadcast cross-view refreshes", () => {
+    const dock = read("src/ui/DockPanel.svelte");
+    const resurface = read("src/ui/ResurfaceView.svelte");
+    const inbox = read("src/ui/InboxSection.svelte");
+    assert.match(dock, /if \(ok === 1\) facade\.notifyDataChanged\(\);/);
+    assert.match(dock, /if \(result\.ok > 0\) facade\.notifyDataChanged\(\);/);
+    assert.match(dock, /await setSurfacePinned\([\s\S]*?facade\.notifyDataChanged\(\);/);
+    assert.match(dock, /await snapshotClip\([\s\S]*?facade\.notifyDataChanged\(\);/);
+    assert.match(resurface, /await actOnSurface\([\s\S]*?facade\.notifyDataChanged\(\);/);
+    assert.match(resurface, /await undoSurfaceAction\([\s\S]*?facade\.notifyDataChanged\(\);/);
+    assert.match(inbox, /if \(result\.cloudRemoved\) \{[\s\S]*?facade\.notifyDataChanged\(\);/);
+});
+
+test("migration row decisions lock while a write is in flight", () => {
+    const migrate = read("src/ui/MigrateDialog.svelte");
+    assert.match(migrate, /let rowBusyId = \$state\(""\)/);
+    assert.match(migrate, /if \(rowBusyId\) return;\s*rowBusyId = row\.id/);
+    assert.match(migrate, /finally \{\s*rowBusyId = "";\s*\}/);
+    assert.match(migrate, /disabled=\{Boolean\(rowBusyId\)\}[^>]*title=\{t\(i18n, "migrate\.fixUrl"\)/);
+    assert.match(migrate, /disabled=\{Boolean\(rowBusyId\)\}[^>]*onclick=\{\(\) => void startScan\(\)\}/);
+});
+
 test("status semantics and accessibility modes do not rely on color or motion alone", () => {
     const styles = read("src/index.scss");
     assert.match(styles, /\.glean-st-badge\s*\{[\s\S]*&::before/);

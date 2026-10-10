@@ -426,6 +426,7 @@ async function doArchiveStale() {
         );
         if (failed.length) staleSelected = new Set(failed);
         else stalePreviewOpen = false;
+        if (result.ok > 0) facade.notifyDataChanged();
         await reload();
     } catch (error) {
         console.warn("[glean] 超龄文章归档失败:", error);
@@ -894,6 +895,7 @@ async function capture(entry: CandidateEntry) {
         if (result.captured) {
             showMessage(t(i18n, "msg.added"), 2500);
             autoEnrich(facade.pluginInstance, entry.id, facade.settings);
+            facade.notifyDataChanged();
         } else if (result.conflict) {
             showMessage(`${t(i18n, "inbox.duplicate")}: ${result.conflict.title || result.conflict.hpath}`, 4000);
         } else {
@@ -914,6 +916,7 @@ async function captureAsLocal(entry: CandidateEntry) {
     try {
         const result = await captureDocument(facade.pluginInstance, entry.id, { contentType: "local" });
         showMessage(t(i18n, result.captured ? "msg.added" : "msg.alreadyIn"), 2500);
+        if (result.captured) facade.notifyDataChanged();
         await reload();
     } catch (error) {
         console.warn("[glean] 本地文档收录失败:", error);
@@ -929,6 +932,7 @@ async function excludeCandidate(entry: CandidateEntry) {
     try {
         await writeClip(facade.pluginInstance, entry.id, { excluded: true });
         showMessage(t(i18n, "msg.candidateExcluded"), 2500);
+        facade.notifyDataChanged();
         await reload();
     } catch (error) {
         console.warn("[glean] 忽略候选失败:", error);
@@ -959,6 +963,7 @@ async function saveCandidateUrl(entry: CandidateEntry) {
         }
         await writeClip(facade.pluginInstance, entry.id, { url }, { force: true });
         editingCandidateId = "";
+        facade.notifyDataChanged();
         await reload();
     } catch (error) {
         console.warn("[glean] 修正来源失败:", error);
@@ -1011,6 +1016,7 @@ async function enrich(entry: ClipIndexEntry) {
         } else {
             showMessage(t(i18n, "ai.enrichFailed"), 3000);
         }
+        if (outcome.ok) facade.notifyDataChanged();
     } finally {
         enrichingId = "";
         await reload();
@@ -1026,6 +1032,7 @@ async function setStatus(entry: ClipIndexEntry, status: ClipStatus) {
             void recordReadingDone(facade.settings.integration.checkinItemId, entry.id, entry.title);
         }
         showMessage(t(i18n, ok === 1 ? "msg.statusChanged" : "msg.statusFailed"), 3000);
+        if (ok === 1) facade.notifyDataChanged();
         await reload();
         return ok === 1;
     } catch (error) {
@@ -1069,6 +1076,7 @@ async function applySelectedStatus(status: ClipStatus) {
     let result: { ok: number; succeeded: string[] };
     try {
         result = await batchSetStatusDetailed(facade.pluginInstance, [...selection], status);
+        if (result.ok > 0) facade.notifyDataChanged();
         await reload();
     } catch (error) {
         console.warn("[glean] 批量状态变更失败:", error);
@@ -1293,6 +1301,7 @@ async function toggleSurfacePin(entry: ClipIndexEntry) {
     try {
         await setSurfacePinned(facade.pluginInstance, entry.id, nextPinned);
         showMessage(t(i18n, nextPinned ? "resurface.pinToday" : "resurface.unpinToday"), 2500);
+        facade.notifyDataChanged();
         await reload();
     } catch (error) {
         console.warn("[glean] 今日置顶写入失败:", error);
@@ -1311,6 +1320,7 @@ async function setPriority(entry: ClipIndexEntry, value: number) {
     try {
         await writeClip(facade.pluginInstance, entry.id, { priority: value }, { force: true });
         showMessage(t(i18n, "msg.rankSaved"), 2500);
+        facade.notifyDataChanged();
         await reload();
     } catch (error) {
         console.warn("[glean] 优先级写入失败:", error);
@@ -1329,6 +1339,7 @@ async function setRating(entry: ClipIndexEntry, value: number) {
     try {
         await writeClip(facade.pluginInstance, entry.id, { rating: value }, { force: true });
         showMessage(t(i18n, "msg.rankSaved"), 2500);
+        facade.notifyDataChanged();
         await reload();
     } catch (error) {
         console.warn("[glean] 评分写入失败:", error);
@@ -1375,6 +1386,7 @@ async function takeSnapshot(entry: ClipIndexEntry) {
         const { path } = await snapshotClip(facade.pluginInstance, entry.id);
         showMessage(t(i18n, "snapshot.done"), 3000);
         entry.snapshot = path;
+        facade.notifyDataChanged();
         await reload();
     } catch (error) {
         console.warn("[glean] 快照生成失败:", error);

@@ -105,6 +105,7 @@ async function togglePin(pick: SurfacePick): Promise<void> {
     actingId = pick.item.id;
     try {
         await setSurfacePinned(facade.pluginInstance, pick.item.id, !isPinnedToday(pick));
+        facade.notifyDataChanged();
         onMutated();
     } catch (error) {
         console.warn("[glean] 置顶失败:", error);
@@ -136,6 +137,7 @@ async function act(pick: SurfacePick, action: SurfaceAction) {
         }
         sessionPicks = picks.filter((candidate) => candidate.item.id !== pick.item.id);
         replacementExcluded = [...new Set([...replacementExcluded, pick.item.id])];
+        facade.notifyDataChanged();
         onMutated();
     } catch (error) {
         console.warn("[glean] 拾遗动作失败:", error);
@@ -250,6 +252,7 @@ async function undoLastAction(): Promise<void> {
     try {
         await undoSurfaceAction(facade.pluginInstance, notice.id, notice.token);
         undoNotice = null;
+        facade.notifyDataChanged();
         onMutated();
     } catch {
         showMessage(t(i18n, "resurface.undoUnavailable"), 4000);
