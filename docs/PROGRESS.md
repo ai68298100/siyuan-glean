@@ -5,7 +5,7 @@
 - [x] 挂库刷新在已有文章行暂时不可见时按预期行数等待并重试，避免把异步事务窗口误判为缺失而重复绑定；空库仍允许合法空结果。
 - [x] 新增 `tests/library-db.test.mjs` 回归：第二次刷新遇到短暂空 `rows` 时等待已有行，保持 `bound=0` 且不重复调用绑定端点。
 - [x] 决策、任务账本、双语 CHANGELOG 和候选发布文档同步记录；不改变文章属性、AV 单向投影、端点或插件存储字段。
-- [x] `pnpm check`、`pnpm test` 1245/1245、`pnpm build`、`pnpm check:release`、`pnpm perf:check`、`pnpm visual:check`、任务账本、差异检查和 GitHub Quality gates 38068573521/CodeQL 38068573513 均通过；`v1.3.3` tag、Release 和附件哈希待最后创建并核对。
+- [x] `pnpm check`、`pnpm test` 1245/1245、`pnpm build`、`pnpm check:release`、`pnpm perf:check`、`pnpm visual:check`、任务账本、差异检查和 GitHub Quality gates 38068573521/CodeQL 38068573513 均通过；`v1.3.3` tag、Release 和附件已发布，远端 `package.zip` 388844B，SHA-256 `A032295B06990F065B21BE02D425CE72F1E465035F476044B10E96B8E8523AC8`，与本地一致。
 - [ ] 真实思源 AV 看板的异步刷新、重复行和失败重试仍待 B-0002；隔离回归不能替代真实宿主验收。
 
 ## T-3340/D-0207 阅读伴读体验与性能增强（2026-10-10）

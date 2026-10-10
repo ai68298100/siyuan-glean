@@ -5,7 +5,7 @@
 - `src/services/library-db.ts` 的 AV 刷新现在区分空库合法空结果和已有文章行尚未可见的异步窗口；已有文章时最多重试 5 次、每次等待 500ms，避免把暂时空 `rows` 当成缺失而重复绑定。
 - `tests/library-db.test.mjs` 已加入第二次刷新短暂空行回归，确认不重复调用绑定端点且已有文档仍计为 `existingDocIds`；`scripts/spike/av-spike.mjs` 同时兼容当前隔离内核 token 配置。
 - 本轮新增 D-0208/T-3341，并已同步 CHANGELOG、TODO、PROGRESS、TASK-LEDGER 和 RELEASE-CANDIDATE；不新增文章属性、AV 端点或 saveData 字段。
-- 当前工作树已预置 `package.json`/`plugin.json` `1.3.3`；本地完整门禁、独立内核 E2E 58/58、AV spike 6/6、GitHub Quality gates 38068573521 和 CodeQL 38068573513 已通过，待创建 tag/Release 并核对 `package.zip` 远端哈希；真实 AV 看板刷新与失败重试仍归 B-0002。
+- 当前工作树已预置 `package.json`/`plugin.json` `1.3.3`；本地完整门禁、独立内核 E2E 58/58、AV spike 6/6、GitHub Quality gates 38068573521 和 CodeQL 38068573513 已通过。`v1.3.3` [GitHub Release](https://github.com/ai68298100/siyuan-glean/releases/tag/v1.3.3) 已发布，附件 388844B，SHA-256 `A032295B06990F065B21BE02D425CE72F1E465035F476044B10E96B8E8523AC8` 与本地一致；真实 AV 看板刷新与失败重试仍归 B-0002。
 
 ## 当前有效交接（2026-10-10 T-3340/D-0207 阅读伴读体验与性能增强）
 
