@@ -75,11 +75,13 @@ async function ensureFields(av: AvRef): Promise<Record<string, string>> {
     return fieldMap;
 }
 
-async function renderWithRetry(avId: string, dbBlockId: string, attempts: number) {
+async function renderWithRetry(avId: string, dbBlockId: string, attempts: number, expectedRows = 0) {
     let last: Awaited<ReturnType<typeof renderView>> | null = null;
     for (let i = 0; i < attempts; i += 1) {
         last = await renderView(avId, dbBlockId, false);
-        if ((last?.view?.rows?.length ?? -1) >= 0) return last;
+        // 思源事务落库后，alpha/稳定版都可能短暂返回空 rows。空库仍是合法结果，
+        // 但已有候选文档时必须等绑定行可见，避免把全部文章重复绑定。
+        if ((last?.view?.rows?.length ?? 0) >= expectedRows) return last;
         await new Promise((resolve) => setTimeout(resolve, 500));
     }
     return last;
@@ -109,7 +111,7 @@ async function bindClipsToLibrary(plugin: Plugin, settings: GleanSettings): Prom
     const clips = Object.values(index.clips).filter((clip) => clip.status && !clip.internal);
     const anchor = await ensureLibraryAnchor(settings, plugin);
 
-    const rendered = await renderWithRetry(anchor.av.avId, anchor.av.dbBlockId, 3);
+    const rendered = await renderWithRetry(anchor.av.avId, anchor.av.dbBlockId, 5, clips.length > 0 ? 1 : 0);
     const rows = rendered?.view?.rows ?? [];
     // 主键单元格 value.block.id = 绑定文档 ID（人脉 DATA-CONTRACT §1.3）
     const existingDocIds = rows

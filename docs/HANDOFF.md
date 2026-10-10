@@ -1,5 +1,12 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-11 T-3341/D-0208 v1.3.3 候选：AV 异步空行防重复绑定）
+
+- `src/services/library-db.ts` 的 AV 刷新现在区分空库合法空结果和已有文章行尚未可见的异步窗口；已有文章时最多重试 5 次、每次等待 500ms，避免把暂时空 `rows` 当成缺失而重复绑定。
+- `tests/library-db.test.mjs` 已加入第二次刷新短暂空行回归，确认不重复调用绑定端点且已有文档仍计为 `existingDocIds`；`scripts/spike/av-spike.mjs` 同时兼容当前隔离内核 token 配置。
+- 本轮新增 D-0208/T-3341，并已同步 CHANGELOG、TODO、PROGRESS、TASK-LEDGER 和 RELEASE-CANDIDATE；不新增文章属性、AV 端点或 saveData 字段。
+- 当前工作树已预置 `package.json`/`plugin.json` `1.3.3`，但本轮完整门禁、tag、GitHub Release 和 `package.zip` 尚未完成；真实 AV 看板刷新与失败重试仍归 B-0002。
+
 ## 当前有效交接（2026-10-10 T-3340/D-0207 阅读伴读体验与性能增强）
 
 - 阅读页 AI 入口补充开关/自定义通道配置引导、隐私说明和设置直达；未配置时动作与本文问答输入禁用。

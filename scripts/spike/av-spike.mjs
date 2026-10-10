@@ -100,7 +100,8 @@ async function main() {
         const kernelVersion = typeof version === "string" ? version : version.version;
         console.log(`内核 ${kernelVersion} @ ${BASE}\n`);
         if (!ATTACHED_BASE) {
-            const token = options.token || process.env.SIYUAN_TOKEN || JSON.parse(fs.readFileSync(path.join(WORKSPACE, "conf", "conf.json"), "utf8")).accessAuthCode || "";
+            const conf = JSON.parse(fs.readFileSync(path.join(WORKSPACE, "conf", "conf.json"), "utf8"));
+            const token = options.token || process.env.SIYUAN_TOKEN || conf.api?.token || conf.accessAuthCode || "";
             if (!token) throw new Error("隔离内核未生成 token；请传入 --token 或设置 SIYUAN_TOKEN");
             client.setToken(token);
         }

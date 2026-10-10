@@ -8,12 +8,13 @@ Lv Glean organizes clippings and articles already in SiYuan. It does not crawl t
 
 [中文说明](README.md) · [Latest Release](https://github.com/ai68298100/siyuan-glean/releases/latest) · [Capability matrix](docs/CAPABILITY-MATRIX.md) · [Feedback](https://github.com/ai68298100/siyuan-glean/issues/new/choose)
 
-## v1.3.2 update (2026-10-10)
+## v1.3.3 update (2026-10-10)
 
-This release tightens action completeness and visual consistency, adds missing failure feedback, and aligns the hierarchy of Today's Gleaning, filters, and statistics. Real-host visual and screen-reader acceptance is still pending under B-0002.
+This release prevents duplicate library bindings during SiYuan's asynchronous database refresh window and improves reading-companion performance and action feedback. Real-host visual and screen-reader acceptance is still pending under B-0002.
 
 **Added:**
 
+- AV refresh retry protection: when existing rows are temporarily unavailable, the refresh waits before deciding that bindings are missing.
 - Retrying failed imports now requires explicit confirmation; AI channel test exceptions show localized feedback; failed items from bulk archiving remain selected and can be retried.
 
 **Improved:**
@@ -42,6 +43,14 @@ QQ group: **871707735** for bug reports, feature requests, and discussion.
 
 <details>
 <summary>Released version history (click to expand)</summary>
+
+### v1.3.2 (2026-10-10)
+
+This release tightened action completeness and visual consistency, added missing failure feedback, and aligned Today's Gleaning, filters, and statistics.
+
+Improved: article preview, settings saves, bulk actions and Today's Gleaning entry points, busy states, alignment and type hierarchy; import, AI-channel testing and bulk archive failures now explain and preserve retryable work.
+
+Fixed: excerpt flashcard preconditions, Today's Gleaning/filter/statistics display issues and related bilingual copy.
 
 ### v1.3.1 (2026-10-09)
 
@@ -142,7 +151,7 @@ Ordinary notes are not bulk-captured just because of their location, and opening
 
 ## Compatibility and acceptance
 
-The current stable release is [v1.3.2](https://github.com/ai68298100/siyuan-glean/releases/tag/v1.3.2). Its automated gates have passed; this does not mean every real environment has been accepted.
+The current stable release is [v1.3.3](https://github.com/ai68298100/siyuan-glean/releases/tag/v1.3.3). Its automated gates have passed; this does not mean every real environment has been accepted.
 
 Desktop host, Android/mobile, browser frontend, real models, the official clipper, external files, and subscription services still require environment-specific checks. Prerequisites, fallbacks, and open blockers are listed in the [capability matrix](docs/CAPABILITY-MATRIX.md) and [known blockers](docs/BLOCKERS.md). Unit tests and isolated E2E are not device acceptance.
 

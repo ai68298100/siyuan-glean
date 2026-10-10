@@ -62,7 +62,7 @@ test("README 和集市描述引用同一能力边界", () => {
 });
 
 test("双语 README 展示待发布摘要、系列插件和折叠历史", () => {
-    const currentUpdate = readme.indexOf("## v1.3.2 更新（2026-10-10）");
+    const currentUpdate = readme.indexOf("## v1.3.3 更新（2026-10-10）");
     const historyStart = readme.indexOf("<details>", currentUpdate);
     const v131History = readme.indexOf("### v1.3.1（2026-10-09）", historyStart);
     const historyEnd = readme.indexOf("</details>", historyStart);
@@ -90,7 +90,7 @@ test("双语 README 展示待发布摘要、系列插件和折叠历史", () => 
     assert.match(readme, /QQ 群：\*\*871707735\*\*/);
     assert.match(readme, /反馈 Bug、提交需求和交流使用体验/);
 
-    const currentUpdateEn = readmeEn.indexOf("## v1.3.2 update (2026-10-10)");
+    const currentUpdateEn = readmeEn.indexOf("## v1.3.3 update (2026-10-10)");
     const historyStartEn = readmeEn.indexOf("<details>", currentUpdateEn);
     const v131HistoryEn = readmeEn.indexOf("### v1.3.1 (2026-10-09)", historyStartEn);
     const historyEndEn = readmeEn.indexOf("</details>", historyStartEn);

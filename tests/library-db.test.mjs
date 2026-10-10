@@ -536,6 +536,26 @@ test("再次显式刷新复用宿主、字段和绑定行；AV 用户改值只�
     assertSourcesUnchanged(fixture, before);
 });
 
+test("AV 刷新遇到事务短暂空 rows 时等待已有行，不重复绑定", async () => {
+    const fixture = harness();
+    let delayed = true;
+    fixture.controls.onRender = (rendered) => {
+        // 模拟思源事务刚落库时的短暂空响应：只发生在第二次刷新识别已有行的阶段。
+        if (delayed && fixture.bindingCalls().length === 1 && fixture.cellWrites().length >= 1) {
+            delayed = false;
+            return { view: { ...rendered.view, rows: [] } };
+        }
+        return rendered;
+    };
+    const first = await bindAllClipsToLibrary(fixture.plugin, fixture.settings);
+    assert.equal(first.bound, 1);
+    const second = await bindAllClipsToLibrary(fixture.plugin, fixture.settings);
+    assert.equal(second.bound, 0);
+    assert.deepEqual(second.existingDocIds, [firstId]);
+    assert.equal(fixture.bindingCalls().length, 1);
+    assert.equal(second.synced, 1);
+});
+
 test("部分绑定后显式再刷新仅补缺失行，已绑定文章不会重复绑定", async () => {
     const fixture = harness();
     fixture.add(secondId);
