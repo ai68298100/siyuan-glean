@@ -36,6 +36,8 @@ let replacementExcluded = $state<string[]>([]);
 let replacementNotice = $state<{ from: string; to: string } | null>(null);
 const picks = $derived(sessionPicks ?? daily.picks);
 const recentCount = $derived(daily.recentCount);
+const clipCount = $derived(Object.keys(index.clips).length);
+const candidateCount = $derived(Object.keys(index.candidates).length);
 let observedIndex = $state<GleanIndex | null>(null);
 let actingId = $state("");
 let undoingId = $state("");
@@ -298,7 +300,7 @@ function reasonText(reason: SurfaceReason): string {
                 </div>
             </div>
             <div class="glean-head-actions">
-                <button class="glean-icon-btn" title={t(i18n, "action.refresh")} aria-label={t(i18n, "action.refresh")} onclick={refreshDaily}>
+                <button class="glean-icon-btn" title={t(i18n, "action.refresh")} aria-label={t(i18n, "action.refresh")} aria-busy={Boolean(actingId || undoingId)} disabled={Boolean(actingId || undoingId)} onclick={refreshDaily}>
                     <svg><use href="#iconGleanRefresh" /></svg>
                 </button>
             </div>
@@ -342,7 +344,18 @@ function reasonText(reason: SurfaceReason): string {
                 </button>
             </div>
         </div>
-    {:else if picks.length === 0 && Object.keys(index.clips).length === 0 && startedToday.length === 0}
+    {:else if picks.length === 0 && clipCount === 0 && candidateCount > 0 && startedToday.length === 0}
+        <div class="glean-empty" role="status">
+            <div class="glean-empty__art"><svg aria-hidden="true"><use href="#iconGleanInbox" /></svg></div>
+            <div class="glean-empty__title">{t(i18n, "panel.candidatesDetected", { n: candidateCount })}</div>
+            <div class="glean-empty__hint">{t(i18n, "onboarding.previewNote")}</div>
+            {#if onQuickCandidates}
+                <div class="glean-empty__actions">
+                    <button class="glean-btn glean-btn--pri" onclick={onQuickCandidates}>{t(i18n, "panel.viewCandidates")}</button>
+                </div>
+            {/if}
+        </div>
+    {:else if picks.length === 0 && clipCount === 0 && candidateCount === 0 && startedToday.length === 0}
         <div class="glean-empty" role="status">
             <div class="glean-empty__art"><svg aria-hidden="true"><use href="#iconGleanWheat" /></svg></div>
             <div class="glean-empty__title">{t(i18n, "panel.empty")}</div>

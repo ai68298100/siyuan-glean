@@ -210,6 +210,16 @@ test("library card actions use native title buttons without nested button roles"
     assert.match(dock, /aria-busy=\{loading\} disabled=\{loading\} onclick=\{\(\) => \{ closeMobileMore\(\); void reload\(\); \}\}/);
 });
 
+test("preview and today's gleaning keep the full state path and actionable candidate empty state", () => {
+    const preview = read("src/ui/WorkbenchPreview.svelte");
+    const resurface = read("src/ui/ResurfaceView.svelte");
+    assert.match(preview, /const statuses: ClipStatus\[\] = \["inbox", "later", "reading", "done", "archived"\]/);
+    assert.match(resurface, /candidateCount = \$derived\(Object\.keys\(index\.candidates\)\.length\)/);
+    assert.match(resurface, /panel\.candidatesDetected/);
+    assert.match(resurface, /panel\.viewCandidates/);
+    assert.match(resurface, /disabled=\{Boolean\(actingId \|\| undoingId\)\}/);
+});
+
 test("status semantics and accessibility modes do not rely on color or motion alone", () => {
     const styles = read("src/index.scss");
     assert.match(styles, /\.glean-st-badge\s*\{[\s\S]*&::before/);

@@ -43,7 +43,9 @@
     const candidate = $derived(entry.kind === "candidate" && attrs && !attrs.status && !attrs.internal && !attrs.excluded);
     const confirmed = $derived(entry.kind === "clip" && attrs?.status && !attrs.internal);
     const sourceUrl = $derived(attrs?.url || entry.url);
-    const statuses: ClipStatus[] = ["inbox", "later", "done", "archived"];
+    // 预览里的状态动作应覆盖读库五态，避免“阅读中”的文章只能回到收件箱/稍后。
+    // 与 ClipStatusActions、LibraryBatchBar 保持同一套状态入口。
+    const statuses: ClipStatus[] = ["inbox", "later", "reading", "done", "archived"];
 
     async function load(): Promise<void> {
         const id = entry.id;
