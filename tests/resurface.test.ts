@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import {
     ageDays,
     pickDaily,
+    pickRandomSurfaceReplacement,
     recentlySurfaced,
     stableHash,
     staleCandidates,
@@ -71,6 +72,24 @@ test("pickDaily：当天已 surfaced 的不再出现（幂等）", () => {
     ];
     const picks = pickDaily(pool, [], { count: 3, now: NOW });
     assert.deepEqual(picks.map((p) => p.item.id), ["b"]);
+});
+
+test("pickRandomSurfaceReplacement：从当前排除集之外取一篇，允许当天已 surfaced 的补位", () => {
+    const pool = [
+        item({ id: "shown", lastSurfaced: "20261010" }),
+        item({ id: "new", lastSurfaced: "" }),
+        item({ id: "done", status: "done", lastSurfaced: "" }),
+    ];
+    const pick = pickRandomSurfaceReplacement(pool, ["new"], false, () => 0);
+    assert.equal(pick?.item.id, "shown");
+    assert.equal(pickRandomSurfaceReplacement(pool, ["shown", "new", "done"], false, () => 0), null);
+});
+
+test("pickRandomSurfaceReplacement：includeDone 控制已读文章是否可补位且随机值越界安全", () => {
+    const pool = [item({ id: "done", status: "done" }), item({ id: "later", status: "later" })];
+    assert.equal(pickRandomSurfaceReplacement(pool, [], false, () => 0)?.item.id, "later");
+    assert.equal(pickRandomSurfaceReplacement(pool, [], true, () => 0)?.item.id, "done");
+    assert.equal(pickRandomSurfaceReplacement(pool, [], true, () => 99)?.item.id, "later");
 });
 
 test("pickDaily：priority 高者优先（同吃灰天数）", () => {

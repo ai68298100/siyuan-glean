@@ -12,10 +12,11 @@ import { t } from "../libs/i18n";
 import { DEFAULT_SETTINGS, cloneSettings, loadSettings, mergeSettingsDraft, normalizeSettings, SettingsConflictError, settingsEqual, type GleanSettings } from "../services/settings";
 import { loadUiPrefs, saveUiPrefs } from "../services/prefs";
 import type { GleanFacade } from "../types";
-import { exportAnonymousDiagnostic, exportLibraryCsv } from "../services/library-export-service";
+import { exportAnonymousDiagnostic, exportLibraryCsv, exportLibraryMarkdownArchive } from "../services/library-export-service";
 import BackupPanel from "./BackupPanel.svelte";
 import FlashcardRecoveryPanel from "./FlashcardRecoveryPanel.svelte";
 import AiTagMergePanel from "./AiTagMergePanel.svelte";
+import SnapshotGovernance from "./SnapshotGovernance.svelte";
 
 interface Props {
     facade: GleanFacade;
@@ -85,9 +86,9 @@ let originalSettings = $state<GleanSettings>(cloneSettings(DEFAULT_SETTINGS));
 let saveBusy = $state(false);
 let showNewbieHint = $state(false);
 let dismissHintBusy = $state(false);
-let exportBusy = $state<"csv" | "diagnostic" | "">("");
+let exportBusy = $state<"csv" | "diagnostic" | "markdownArchive" | "">("");
 let exportError = $state("");
-let lastExport = $state<"csv" | "diagnostic" | "">("");
+let lastExport = $state<"csv" | "diagnostic" | "markdownArchive" | "">("");
 
 let aiLog = $state<AiLogEntry[] | null>(null);
 let aiLogLoading = $state(false);
@@ -351,7 +352,7 @@ async function doRebuildIndex() {
     }
 }
 
-function downloadText(filename: string, content: string, mime: string): void {
+function downloadBlob(filename: string, content: BlobPart, mime: string): void {
     const url = URL.createObjectURL(new Blob([content], { type: mime }));
     const anchor = document.createElement("a");
     anchor.href = url;
@@ -360,7 +361,11 @@ function downloadText(filename: string, content: string, mime: string): void {
     window.setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
-async function exportData(kind: "csv" | "diagnostic"): Promise<void> {
+function downloadText(filename: string, content: string, mime: string): void {
+    downloadBlob(filename, content, mime);
+}
+
+async function exportData(kind: "csv" | "diagnostic" | "markdownArchive"): Promise<void> {
     if (exportBusy) return;
     exportBusy = kind;
     lastExport = kind;
@@ -369,9 +374,15 @@ async function exportData(kind: "csv" | "diagnostic"): Promise<void> {
         if (kind === "csv") {
             const csv = await exportLibraryCsv(facade.pluginInstance, facade.settings);
             downloadText("siyuan-glean-library.csv", csv, "text/csv;charset=utf-8");
-        } else {
+        } else if (kind === "diagnostic") {
             const diagnostic = await exportAnonymousDiagnostic(facade.pluginInstance, facade.settings, getFrontend());
             downloadText("siyuan-glean-diagnostic.json", diagnostic, "application/json;charset=utf-8");
+        } else {
+            const parts = await exportLibraryMarkdownArchive(facade.pluginInstance, facade.settings);
+            if (parts.length === 0) throw new Error("没有可导出的文章");
+            for (const part of parts) downloadBlob(part.filename, part.bytes as unknown as BlobPart, "application/zip");
+            const failed = parts.reduce((count, part) => count + part.failedCount, 0);
+            showMessage(t(i18n, failed > 0 ? "settings.exportMarkdownArchivePartial" : "settings.exportMarkdownArchiveDone", { n: parts.length, failed }), 5000);
         }
     } catch (error) {
         console.warn("[glean] 读库导出失败:", error);
@@ -737,6 +748,15 @@ async function doMountBoard() {
                     {exportBusy === "diagnostic" ? t(i18n, "settings.exporting") : t(i18n, "settings.exportDiagnostic")}
                 </button>
             </div>
+            <div class="glean-set-row">
+                <div class="glean-set-row__lb">
+                    {t(i18n, "settings.exportMarkdownArchive")}
+                    <div class="glean-set-row__desc">{t(i18n, "settings.exportMarkdownArchiveDesc")}</div>
+                </div>
+                <button class="glean-btn glean-action-btn" aria-busy={exportBusy === "markdownArchive"} disabled={Boolean(exportBusy)} onclick={() => void exportData("markdownArchive")}>
+                    {exportBusy === "markdownArchive" ? t(i18n, "settings.exporting") : t(i18n, "settings.exportMarkdownArchive")}
+                </button>
+            </div>
             {#if exportError}
                 <div class="glean-set-row" role="alert">
                     <span class="glean-settings__error">{exportError}</span>
@@ -771,6 +791,9 @@ async function doMountBoard() {
     {/if}
     {#if maintenanceVisited}
     <div class="glean-settings__section glean-settings__section--maintenance" style:display={activeSection === "maintenance" ? "" : "none"}>
+        <div class="glean-set-group glean-settings__extension-card">
+            <SnapshotGovernance {facade} />
+        </div>
         <div class="glean-set-group glean-settings__extension-card">
             <AiTagMergePanel {facade} />
         </div>

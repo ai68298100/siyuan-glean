@@ -1,5 +1,13 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-10 T-3331/T-3332/T-3333/T-3335）
+
+- 今日拾遗“换一篇”已接入 `ResurfaceView`。替换是会话级显示投影：不改 `last-surfaced`、其他文章属性或 saveData；当前会话排除换出/当前 ID并保持卡片数量，刷新或父级重新对账后回到确定性清单。契约见 DATA-CONTRACT 与 D-0204。
+- 快照治理已接入设置“维护”分类。只统计 `index.clips` 中非 internal 且有状态文章；逐篇补拍串行执行，写回前核对空快照，失败项保留并可重试。资产写入后属性回写失败可能保留孤儿资产，这是现有端点边界，见 D-0203。
+- 单篇 Markdown 在工作台预览和读库行更多操作提供下载；全库归档在设置“数据与恢复”提供 ZIP 分卷。两者都先完整 `reconcileIndex`，正文固定使用 `yfm:false, addTitle:false, refMode:2`；归档每卷含 `index.json`，逐篇失败进入失败清单，目标 16 MiB 不截断超大篇。
+- 验证：导出/快照/今日拾遗/i18n 定向 62/62；`pnpm check`、`pnpm test` 1237/1237、`pnpm build`、`pnpm check:release`、`pnpm perf:check`、`pnpm visual:check`、`pnpm task:ledger -- --check` 和 `git diff --check` 均通过。版本仍为 1.3.2，本轮未打 tag、未创建 Release、未 push。
+- 待作者验收：B-0002（预览/读库行/维护页真实交互）、B-0005（真实导出文件/大库）、B-0006（assets 快照保真）。
+
 ## 当前有效交接（2026-10-10 T-3327/D-0202 OCR 延后与待办选择）
 
 - 思源 3.8.7 仍处 alpha；OCR 调研记于 [`docs/RESEARCH-siyuan-ocr-3.8.7.md`](RESEARCH-siyuan-ocr-3.8.7.md)，任务 T-3327 暂缓到正式版发布后。不要基于 alpha 端点开发；正式版后重新核对配置、API 和缓存/索引副作用，再先做隔离 spike。

@@ -9,6 +9,7 @@ import { normalizeUrl } from "../domain/url";
 import { batchSetStatus, batchSetStatusDetailed, captureDocument, findClipUrlConflict, reconcileIndex, writeClip } from "../services/clip-store";
 import { autoEnrich, enrichClip } from "../services/enrich-service";
 import { snapshotClip } from "../services/snapshot-service";
+import { exportArticleMarkdown } from "../services/library-export-service";
 import { filterAndSortLibrary, libraryFacets, type LibraryItem, type LibrarySortDirection, type LibrarySortKey } from "../domain/library-view.ts";
 import { loadIndex, type ClipIndexEntry, type CandidateEntry, type GleanIndex } from "../services/index-store";
 import StatsView from "./StatsView.svelte";
@@ -201,6 +202,7 @@ function mobileMoreKeydown(event: KeyboardEvent) {
     }
 }
 let snappingId = $state("");
+let exportingMarkdownId = $state("");
 let archivingStale = $state(false);
 let editingCandidateId = $state("");
 let candidateUrlInput = $state("");
@@ -1090,6 +1092,28 @@ async function applySelectedStatus(status: ClipStatus) {
 
 function openDoc(docId: string) {
     facade.openReadingDocument(docId);
+}
+
+async function exportMarkdown(entry: ClipIndexEntry): Promise<void> {
+    if (exportingMarkdownId || entry.internal || !entry.status) return;
+    exportingMarkdownId = entry.id;
+    try {
+        const output = await exportArticleMarkdown(facade.pluginInstance, facade.settings, entry.id);
+        const url = URL.createObjectURL(new Blob([output.content], { type: "text/markdown;charset=utf-8" }));
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download = output.filename;
+        document.body.append(anchor);
+        anchor.click();
+        anchor.remove();
+        window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+        showMessage(t(i18n, "export.markdownDone"), 2500);
+    } catch (error) {
+        console.warn("[glean] Markdown 导出失败:", error);
+        showMessage(t(i18n, "export.markdownFailed"), 4000);
+    } finally {
+        exportingMarkdownId = "";
+    }
 }
 
 function articleActionLabel(title: string, preview = false): string {
@@ -2014,6 +2038,7 @@ function metaLine(entry: Row): string {
                                                     <button class="glean-btn glean-btn--ghost" disabled={Boolean(statusActionId)} onclick={() => facade.openArchiveDialog(entry.id)}>{t(i18n, "action.archive")}</button>
                                                 {/if}
                                                 <button class="glean-btn glean-btn--ghost" disabled={snappingId === entry.id} onclick={() => void takeSnapshot(entry)}>{snapshotLabel(entry)}</button>
+                                                <button class="glean-btn glean-btn--ghost" disabled={Boolean(exportingMarkdownId)} aria-busy={exportingMarkdownId === entry.id} onclick={() => void exportMarkdown(entry)}>{t(i18n, "export.markdown")}</button>
                                                 <button class="glean-btn glean-btn--ghost" disabled={enrichingId === entry.id} onclick={() => void enrich(entry)}>{t(i18n, "ai.actionEnrich")}</button>
                                                 <button class="glean-btn glean-btn--ghost" disabled={Boolean(statusActionId)} aria-pressed={isPinnedToday(entry)} onclick={() => void toggleSurfacePin(entry)}>{surfacePinLabel(entry)}</button>
                                                 {#if hasSourceAction(entry.contentType, entry.url)}

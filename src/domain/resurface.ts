@@ -168,6 +168,25 @@ export function pickDaily(pool: SurfaceItem[], recentTagSets: Set<string>[], opt
     return picked;
 }
 
+/** 从有效的重浮池中均匀抽取一篇；排除集合由会话调用方维护，不写文章状态。 */
+export function pickRandomSurfaceReplacement(
+    pool: SurfaceItem[],
+    excludedIds: Iterable<string>,
+    includeDone: boolean,
+    random: () => number = Math.random,
+): SurfacePick | null {
+    const excluded = new Set(excludedIds);
+    const eligible = pool.filter((item) =>
+        !excluded.has(item.id) &&
+        (item.status === "inbox" || item.status === "later" || (includeDone && item.status === "done"))
+    );
+    if (eligible.length === 0) return null;
+    const raw = random();
+    const value = Number.isFinite(raw) ? Math.min(1 - Number.EPSILON, Math.max(0, raw)) : 0;
+    const item = eligible[Math.floor(value * eligible.length)];
+    return { item, score: surfaceScore(item, []) };
+}
+
 /** 近 7 天被重浮过的文章（供多样性惩罚）。 */
 export function recentlySurfaced(items: SurfaceItem[], now: Date = new Date()): SurfaceItem[] {
     const today = todayStamp(now);

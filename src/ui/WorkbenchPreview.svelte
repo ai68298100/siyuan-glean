@@ -14,6 +14,7 @@
     import { confirmPreviewCandidate, excludePreviewCandidate, PreviewActionError, quotePreviewExcerpt, savePreviewCandidateUrl, setPreviewStatus } from "../services/workbench-preview";
     import ProtyleHost from "./ProtyleHost.svelte";
     import AuthorEditor from "./AuthorEditor.svelte";
+    import { exportArticleMarkdown } from "../services/library-export-service";
 
     type PreviewItem = ({ kind: "clip" } & ClipIndexEntry) | ({ kind: "candidate" } & CandidateEntry);
     interface Props {
@@ -32,6 +33,7 @@
     let attrs = $state<ClipAttrs | null>(null);
     let loadFailed = $state(false);
     let busy = $state(false);
+    let exporting = $state(false);
     let editingUrl = $state(false);
     let urlDraft = $state("");
     let expectedUrl = "";
@@ -150,6 +152,28 @@
         try { await navigator.clipboard.writeText(text); showMessage(t(i18n, "reader.copied"), 2000); }
         catch (error) { fail(error); }
     }
+
+    async function downloadMarkdown(): Promise<void> {
+        if (exporting || entry.kind !== "clip") return;
+        exporting = true;
+        try {
+            const output = await exportArticleMarkdown(facade.pluginInstance, facade.settings, entry.id);
+            const url = URL.createObjectURL(new Blob([output.content], { type: "text/markdown;charset=utf-8" }));
+            const anchor = document.createElement("a");
+            anchor.href = url;
+            anchor.download = output.filename;
+            document.body.append(anchor);
+            anchor.click();
+            anchor.remove();
+            window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+            showMessage(t(i18n, "export.markdownDone"), 2500);
+        } catch (error) {
+            console.warn("[glean] Markdown 导出失败:", error);
+            showMessage(t(i18n, "export.markdownFailed"), 4000);
+        } finally {
+            exporting = false;
+        }
+    }
 </script>
 
 <section class="glean-preview" aria-labelledby={titleId} aria-describedby={metaId} aria-busy={busy}>
@@ -157,6 +181,7 @@
         <h2 id={titleId} title={entry.title}>{entry.title || t(i18n, "panel.untitled")}</h2>
         <div class="glean-preview__header-actions" role="group" aria-label={t(i18n, "preview.title")}>
             <button type="button" class="glean-btn glean-btn--ghost" onclick={() => facade.openReadingDocument(entry.id)}>{t(i18n, "preview.openDocument")}</button>
+            {#if entry.kind === "clip"}<button type="button" class="glean-btn glean-btn--ghost" disabled={busy || exporting} onclick={() => void downloadMarkdown()}>{exporting ? t(i18n, "settings.exporting") : t(i18n, "export.markdown")}</button>{/if}
             <button type="button" class="glean-btn glean-btn--ghost" onclick={onClose}>{t(i18n, "preview.close")}</button>
         </div>
     </div>

@@ -8,6 +8,7 @@ import type { Plugin } from "siyuan";
 import { parseClipAttrs, type ClipStatus } from "../domain/schema";
 import {
     pickDaily,
+    pickRandomSurfaceReplacement,
     recentlySurfaced,
     staleCandidates,
     surfaceReasons,
@@ -58,6 +59,19 @@ export function computeDailyFromIndex(index: GleanIndex, settings: GleanSettings
         includeDone: settings.resurface.includeDoneHighlights,
     }).map((pick) => ({ ...pick, reasons: surfaceReasons(pick.item, recentTagSets) }));
     return { picks, recentCount: recent.length };
+}
+
+/** 会话内“换一篇”：允许从当日已展示池补位，但不写 last-surfaced 或其他文章属性。 */
+export function pickSurfaceReplacementFromIndex(
+    index: GleanIndex,
+    settings: GleanSettings,
+    excludedIds: Iterable<string>,
+    random: () => number = Math.random,
+): (SurfacePick & { reasons: SurfaceReason[] }) | null {
+    const items = indexToSurfaceItems(index);
+    const recentTagSets = tagSetsOf(recentlySurfaced(items));
+    const pick = pickRandomSurfaceReplacement(items, excludedIds, settings.resurface.includeDoneHighlights, random);
+    return pick ? { ...pick, reasons: surfaceReasons(pick.item, recentTagSets) } : null;
 }
 
 /** 兼容入口：先读当前缓存索引再投影；UI 主路径应使用 computeDailyFromIndex。 */

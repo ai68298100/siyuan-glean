@@ -4,7 +4,7 @@
 import { showMessage } from "siyuan";
 import type { GleanFacade } from "../types";
 import { t } from "../libs/i18n";
-import { actOnSurface, computeDailyFromIndex, setSurfacePinned, undoSurfaceAction, type SurfaceAction, type SurfaceUndoToken } from "../services/resurface-service";
+import { actOnSurface, computeDailyFromIndex, pickSurfaceReplacementFromIndex, setSurfacePinned, undoSurfaceAction, type SurfaceAction, type SurfaceUndoToken } from "../services/resurface-service";
 import type { GleanIndex } from "../services/index-store";
 import { todayStamp, type SurfacePick, type SurfaceReason } from "../domain/resurface";
 import { hasSourceAction, openTargetForCarrier, resolveCarrier, sourceUrlForCarrier } from "../domain/carrier";
@@ -30,8 +30,13 @@ const quickActionsTitleId = `glean-resurface-quick-actions-title-${instanceId}`;
 const i18n = $derived(facade.i18n);
 
 const daily = $derived(computeDailyFromIndex(index, facade.settings));
-const picks = $derived(daily.picks);
+type SurfaceDisplayPick = SurfacePick & { reasons: SurfaceReason[] };
+let sessionPicks = $state<SurfaceDisplayPick[] | null>(null);
+let replacementExcluded = $state<string[]>([]);
+let replacementNotice = $state<{ from: string; to: string } | null>(null);
+const picks = $derived(sessionPicks ?? daily.picks);
 const recentCount = $derived(daily.recentCount);
+let observedIndex = $state<GleanIndex | null>(null);
 let actingId = $state("");
 let undoingId = $state("");
 let undoNotice = $state<{ id: string; title: string; action: SurfaceAction; token: SurfaceUndoToken } | null>(null);
@@ -46,6 +51,18 @@ let swipeState = $state<{
 } | null>(null);
 /** UX 审计 #10：本会话"开始阅读"过的文章回执（纯视图状态，不写属性）。 */
 let startedToday = $state<Array<{ id: string; title: string }>>([]);
+
+$effect(() => {
+    if (observedIndex === null) {
+        observedIndex = index;
+        return;
+    }
+    if (observedIndex === index) return;
+    observedIndex = index;
+    sessionPicks = null;
+    replacementExcluded = [];
+    replacementNotice = null;
+});
 
 function openDoc(docId: string) {
     if (suppressedClickId === docId) {
@@ -115,6 +132,8 @@ async function act(pick: SurfacePick, action: SurfaceAction) {
             ];
             openReading(pick);
         }
+        sessionPicks = picks.filter((candidate) => candidate.item.id !== pick.item.id);
+        replacementExcluded = [...new Set([...replacementExcluded, pick.item.id])];
         onMutated();
     } catch (error) {
         console.warn("[glean] 拾遗动作失败:", error);
@@ -122,6 +141,32 @@ async function act(pick: SurfacePick, action: SurfaceAction) {
     } finally {
         actingId = "";
     }
+}
+
+function replacePick(slot: number, pick: SurfacePick): void {
+    if (actingId || undoingId) return;
+    const currentIds = new Set(picks.map((candidate) => candidate.item.id));
+    const excluded = new Set([...currentIds, ...replacementExcluded]);
+    const replacement = pickSurfaceReplacementFromIndex(index, facade.settings, excluded);
+    if (!replacement) {
+        showMessage(t(i18n, "resurface.noAlternative"), 3000);
+        return;
+    }
+    const nextPicks = [...picks];
+    nextPicks[slot] = replacement;
+    sessionPicks = nextPicks;
+    replacementExcluded = [...new Set([...replacementExcluded, pick.item.id])];
+    replacementNotice = {
+        from: pick.item.title || t(i18n, "panel.untitled"),
+        to: replacement.item.title || t(i18n, "panel.untitled"),
+    };
+}
+
+function refreshDaily(): void {
+    sessionPicks = null;
+    replacementExcluded = [];
+    replacementNotice = null;
+    onMutated();
 }
 
 function swipeOffsetFor(docId: string): number {
@@ -253,7 +298,7 @@ function reasonText(reason: SurfaceReason): string {
                 </div>
             </div>
             <div class="glean-head-actions">
-                <button class="glean-icon-btn" title={t(i18n, "action.refresh")} aria-label={t(i18n, "action.refresh")} onclick={() => onMutated()}>
+                <button class="glean-icon-btn" title={t(i18n, "action.refresh")} aria-label={t(i18n, "action.refresh")} onclick={refreshDaily}>
                     <svg><use href="#iconGleanRefresh" /></svg>
                 </button>
             </div>
@@ -271,6 +316,15 @@ function reasonText(reason: SurfaceReason): string {
                 {undoingId === undoNotice.id ? t(i18n, "resurface.undoing") : t(i18n, "resurface.undo")}
             </button>
             <button class="glean-surf-undo__dismiss" aria-label={t(i18n, "resurface.dismissUndo")} disabled={undoingId === undoNotice.id} onclick={dismissUndo}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanClose" /></svg></button>
+        </div>
+    {/if}
+
+    {#if replacementNotice}
+        <div class="glean-surf-undo" role="status" aria-live="polite">
+            <span class="glean-surf-undo__text">{t(i18n, "resurface.replaced", { from: replacementNotice.from, to: replacementNotice.to })}</span>
+            <button class="glean-surf-undo__dismiss" aria-label={t(i18n, "resurface.dismissReplacement")} onclick={() => replacementNotice = null}>
+                <svg class="glean-icon" aria-hidden="true"><use href="#iconGleanClose" /></svg>
+            </button>
         </div>
     {/if}
 
@@ -363,6 +417,9 @@ function reasonText(reason: SurfaceReason): string {
                         {:else if pick.item.contentType === "link"}
                             <span class="glean-surf-source-missing">{t(i18n, "clip.sourceMissing")}</span>
                         {/if}
+                        <button class="glean-surf-act" aria-busy={false} disabled={!!actingId || !!undoingId} onclick={() => replacePick(index, pick)}>
+                            <svg class="glean-icon glean-icon--sm" aria-hidden="true"><use href="#iconGleanRefresh" /></svg>{t(i18n, "resurface.replace")}
+                        </button>
                         <button class="glean-surf-act" aria-busy={actingId === pick.item.id} disabled={!!actingId || !!undoingId} onclick={() => void act(pick, "later")}>
                             {t(i18n, "resurface.later")}
                         </button>

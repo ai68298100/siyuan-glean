@@ -280,23 +280,28 @@ test("收录未执行成功时不删除云条目或伪报迁入", async () => {
 });
 
 test("快照非文本导出不写资产或快照属性", async () => {
+    const docId = "20261005000000-snap001";
     for (const content of [42, {}, [], null]) {
         const context = serviceHarness();
+        context.paths.set(docId, "/article");
+        context.attrs.set(docId, { "custom-clip-status": "done" });
         context.responses.set("/api/export/exportHTML", { code: 0, data: { name: "article", content } });
-        await assert.rejects(snapshotClip(context.plugin, "article"), /缺少 HTML 正文/);
+        await assert.rejects(snapshotClip(context.plugin, docId), /缺少 HTML 正文/);
         assert.equal(context.calls.some((call) => call.route === "/api/file/putFile"), false);
         assert.equal(context.calls.some((call) => call.route === "/api/attr/setBlockAttrs"), false);
     }
 });
 
 test("快照资产异常时原快照和文章属性保持不变", async () => {
+    const docId = "20261005000000-snap001";
     for (const response of [{}, { code: -1 }, new TypeError("offline")]) {
         const context = serviceHarness();
-        context.attrs.set("article", { "custom-clip-status": "done", "custom-clip-snapshot": "assets/old.html", tags: "保留" });
-        const before = structuredClone(context.attrs.get("article"));
+        context.paths.set(docId, "/article");
+        context.attrs.set(docId, { "custom-clip-status": "done", tags: "保留" });
+        const before = structuredClone(context.attrs.get(docId));
         context.responses.set("/api/file/putFile", response);
-        await assert.rejects(snapshotClip(context.plugin, "article"));
-        assert.deepEqual(context.attrs.get("article"), before);
+        await assert.rejects(snapshotClip(context.plugin, docId));
+        assert.deepEqual(context.attrs.get(docId), before);
         assert.equal(context.calls.some((call) => call.route === "/api/attr/setBlockAttrs"), false);
     }
 });
