@@ -4,7 +4,7 @@
 
 | 任务 | 看板状态 | 代码状态 | 隔离验证 | 真实验收 | 延后/阻塞原因 |
 | --- | --- | --- | --- | --- | --- |
-| T-3341 | ◐ | 完成 | `tests/library-db.test.mjs` AV 空 `rows` 定向回归待本轮门禁确认 | 待 B-0002（真实思源 AV 看板刷新、重复行和失败重试） | v1.3.3 尚未完成本轮 check/test/build/release 门禁，尚未创建 tag 或 GitHub Release |
+| T-3341 | x | 完成 | `pnpm check`、`pnpm test` 1245/1245、`pnpm build`、`pnpm check:release`、`pnpm perf:check`、`pnpm visual:check`、独立内核 S1 58/58、AV spike 6/6、GitHub Quality gates 38068573521 和 CodeQL 38068573513 通过 | 待 B-0002（真实思源 AV 看板刷新、重复行和失败重试） | 无，GitHub tag/Release 待本轮最后创建并核对附件 |
 | T-3338 | ◐ | 完成 | `pnpm check`、`pnpm test`、i18n/无障碍/任务账本与 `git diff --check` 通过 | 待 B-0002（桌面首启、移动端空态、窄 Dock 与读屏） | 真实宿主交互需作者环境验证 |
 | T-3339 | ◐ | 完成 | `pnpm check`、`pnpm test`、无障碍/交互静态回归与 `git diff --check` 通过 | 待 B-0002（多画布刷新、迁移弹窗和阅读页签联动） | 真实宿主事件时序和多窗口响应需作者环境验证 |
 | T-3340 | ◐ | 完成 | `pnpm check`、阅读 AI/相关旧文/i18n 回归通过 | 待 B-0002/B-0004（真实 Protyle、模型、嵌入与多端 UI） | 当前环境不能替代真实宿主和模型验收 |
