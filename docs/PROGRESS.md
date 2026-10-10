@@ -1,5 +1,12 @@
 # 进度（PROGRESS）
 
+## T-3326/D-0201 窄侧栏显示与鼠标卡顿排查（2026-10-10）
+
+- [x] 根因定位：桌面侧栏不是 mobile frontend，旧的 760px 工作台容器断点不会触发；动作区仍 flex 五列，窄按钮导致中文逐字换行。移动端滑动的 pointerdown/move/up/cancel 监听此前无条件绑定到每张卡片；桌面鼠标经过卡片也会进入移动事件代理。
+- [x] 窄容器改用两列动作网格、主动作通栏，源缺失占位保持可见且居中；桌面不注册滑动事件，窄侧栏跳过卡片入场动画。
+- [x] 验证：`pnpm check` 0 错误/0 警告，`pnpm test` 1230/1230，定向 UI 回归 37/37，`pnpm build`、`pnpm check:release`、`pnpm perf:check`、`pnpm visual:check`、任务账本和 `git diff --check` 通过。性能基准 1k/5k/10k 全通过；它测算法/索引，不代表真实宿主鼠标延迟。
+- [ ] 真实思源侧栏截图与鼠标响应待 B-0002；本轮没有真实宿主可交互测量。
+
 ## T-3325/D-0200 v1.3.2 发布（2026-10-10）
 
 - [x] 已同步 `package.json`/`plugin.json` 为 1.3.2、双语 README、CHANGELOG、发布候选和媒体清单；`package.zip` 380247B，SHA-256 `FFC8CF51A06238DB1FF243CC0A78E1E8345FF6472F9A2CF320418C6D5172E214`。

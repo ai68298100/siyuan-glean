@@ -11,6 +11,7 @@
 
 > 评审结论与验收顺序见 [`docs/STATUS-REVIEW-2026-10-06.md`](docs/STATUS-REVIEW-2026-10-06.md)。这些任务优先收口真实可用性、恢复能力和对外承诺，再扩展新功能。
 
+- [x] **T-3326**（P1，2026-10-10）修复窄侧栏今日拾遗布局并降低鼠标事件开销：按 `.glean-workbench` 容器宽度切为两列动作网格、主动作通栏；桌面不注册移动滑动 pointer 事件，窄容器关闭卡片入场动画。代码状态：完成；隔离验证：`pnpm check`、`pnpm test` 1230/1230、`pnpm build`、`pnpm check:release`、`pnpm perf:check`、`pnpm visual:check`、定向回归、任务账本和 `git diff --check` 通过；真实验收：待 B-0002 的真实思源侧栏观感与鼠标响应；延后原因：当前环境不能替代作者宿主交互验收。
 - [x] **T-3325**（P1，2026-10-10）发布 v1.3.2：同步双 manifest、双语 README、CHANGELOG、RELEASE-CANDIDATE、RELEASE-MEDIA 和交接记录，构建并校验 `package.zip`，推送 `main`、annotated tag 和 GitHub Release；不提交集市 PR。代码状态：完成；隔离验证：本地 check/test 1229/1229/build/check:release/perf/visual、任务账本、diff 和 S1 E2E 58/58 已通过，GitHub Quality gates 37966314661 与 CodeQL 37966319033 成功，远端 Release 包哈希与本地一致；真实验收：真实宿主视觉、读屏、大库与外部能力仍待 B-0002/B-0005；延后原因：无。
 - [x] **T-3324**（P1，2026-10-10）优化双语 README：前置 v1.3.1 后待发布更新摘要与八款小驴插件表，标注四款内测插件，折叠已发布历史，补齐中文关键词和 QQ 群用途；核对四个内测仓库现有置顶说明并参考系列 README。代码状态：完成；隔离验证：`pnpm check`、`pnpm test` 1229/1229、`pnpm build`、`pnpm check:release`、`pnpm task:ledger -- --check`、`git diff --check` 通过；真实验收：不适用（文档整理）；延后原因：无。
 - [x] **T-3323**（P1，2026-10-09）按真机截图收口今日拾遗与统计视觉：桌面拾遗卡动作区固定两列、来源缺失保留等宽占位、动作文字统一居中；读库下拉筛选文字居中；统计“期间完成”辅助说明恢复小字号；确认五态仍是生命周期状态，新增分类继续使用标签/来源/载体筛选，不改状态枚举。代码状态：完成；隔离验证：`pnpm check`、`pnpm test`、`pnpm build`、`pnpm check:release`、`pnpm task:ledger -- --check`、`git diff --check` 通过；真实验收：待 B-0002（今日拾遗三卡底线、筛选控件和统计层级）；延后原因：静态检查无法替代真实宿主视觉。

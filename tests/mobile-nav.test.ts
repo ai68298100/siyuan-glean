@@ -150,8 +150,9 @@ test("mobile resurface swipe keeps explicit actions and guarded undo", () => {
     const view = read("src/ui/ResurfaceView.svelte");
     const service = read("src/services/resurface-service.ts");
     const styles = read("src/index.scss");
-    assert.match(view, /onpointerdown/);
-    assert.match(view, /onpointermove/);
+    for (const event of ["pointerdown", "pointermove", "pointerup", "pointercancel"]) {
+        assert.match(view, new RegExp(`on${event}=\\{facade\\.isMobile \\?`));
+    }
     assert.match(view, /undoSurfaceAction/);
     assert.match(view, /resurface\.swipeHint/);
     assert.match(service, /文章状态已变化，无法撤销/);

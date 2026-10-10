@@ -1,5 +1,11 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-10 T-3326/D-0201 窄侧栏显示与响应）
+
+- 窄工作台容器今日拾遗动作改为两列网格、主阅读动作通栏，缺失来源占位维持居中；桌面不注册移动端滑动 pointer handlers，窄容器关闭卡片入场动画。
+- 根因是窄桌面 Dock 不满足旧的 760px 容器查询且不是 mobile frontend，动作区落回五列 flex；桌面也无条件注册卡片级滑动事件。本轮未更改全锚点范围对账与数据刷新契约。
+- `pnpm check`、`pnpm test` 1230/1230、`pnpm build`、`pnpm check:release`、`pnpm perf:check`、`pnpm visual:check` 和任务账本均通过；版本保持 1.3.2，不打 tag、不创建 Release。真实思源侧栏观感/鼠标响应仍待 B-0002。
+
 ## 当前有效交接（2026-10-10 T-3325/D-0200 v1.3.2 发布）
 
 - `package.json`/`plugin.json` 和双语 README/CHANGELOG/RELEASE 文档已切换到 `1.3.2`；本地门禁、隔离 S1 E2E 58/58、GitHub Quality gates/CodeQL、tag 和 Release 已通过。Release 附件 380247B，SHA-256 `FFC8CF51A06238DB1FF243CC0A78E1E8345FF6472F9A2CF320418C6D5172E214`，远端下载与本地一致。

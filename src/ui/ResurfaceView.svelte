@@ -319,10 +319,10 @@ function reasonText(reason: SurfaceReason): string {
                         aria-labelledby={cardTitleId(pick.item.id)}
                         aria-busy={actingId === pick.item.id || undoingId === pick.item.id}
                         style="--glean-surf-index: {index}; --glean-swipe-offset: {swipeOffsetFor(pick.item.id)}px"
-                        onpointerdown={(event) => beginSwipe(pick, event)}
-                        onpointermove={(event) => moveSwipe(pick, event)}
-                        onpointerup={(event) => finishSwipe(pick, event)}
-                        onpointercancel={(event) => cancelSwipe(pick, event)}
+                        onpointerdown={facade.isMobile ? (event) => beginSwipe(pick, event) : undefined}
+                        onpointermove={facade.isMobile ? (event) => moveSwipe(pick, event) : undefined}
+                        onpointerup={facade.isMobile ? (event) => finishSwipe(pick, event) : undefined}
+                        onpointercancel={facade.isMobile ? (event) => cancelSwipe(pick, event) : undefined}
                     >
                     <div class="glean-surf__tag">✨ {t(i18n, "resurface.cardTag", { n: index + 1 })}</div>
                     <h3 class="glean-surf__title">

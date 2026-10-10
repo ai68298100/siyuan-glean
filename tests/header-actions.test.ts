@@ -79,6 +79,15 @@ test("wide canvas resurface cards use an adaptive grid while dock stays single c
     assert.match(narrow, /flex-direction:\s*column/);
 });
 
+test("narrow workbench containers keep resurface actions readable without entrance animation", () => {
+    const styles = read("src/index.scss");
+    const narrow = styles.slice(styles.indexOf("@container glean-workbench (max-width: 560px)"));
+    assert.match(narrow, /\.glean-surf__acts\s*\{[\s\S]*display:\s*grid[\s\S]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
+    assert.match(narrow, /\.glean-surf-act--pri\s*\{[\s\S]*grid-column:\s*1 \/ -1/);
+    assert.match(narrow, /\.glean-surf-act\s*\{[\s\S]*white-space:\s*normal[\s\S]*overflow-wrap:\s*anywhere/);
+    assert.match(narrow, /\.glean-surf-card\s*\{\s*animation:\s*none/);
+});
+
 test("mobile resurface exposes prototype quick actions through parent navigation callbacks", () => {
     const resurface = read("src/ui/ResurfaceView.svelte");
     const dock = read("src/ui/DockPanel.svelte");
