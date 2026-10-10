@@ -333,9 +333,25 @@ function reasonText(reason: SurfaceReason): string {
             <div class="glean-empty__art"><svg aria-hidden="true"><use href="#iconGleanWheat" /></svg></div>
             <div class="glean-empty__title">{t(i18n, "resurface.noAnchor")}</div>
             <div class="glean-empty__hint">{t(i18n, "panel.noAnchorHint")}</div>
-            <button class="glean-btn glean-resurface__setup" onclick={() => facade.openSettings()}>
-                {t(i18n, "panel.setupAnchor")}
-            </button>
+            <div class="glean-empty__actions">
+                <button class="glean-btn glean-btn--pri glean-resurface__setup" onclick={() => facade.openOnboarding()}>
+                    {t(i18n, "panel.openOnboarding")}
+                </button>
+                <button class="glean-btn glean-btn--ghost glean-resurface__setup" onclick={() => facade.openSettings()}>
+                    {t(i18n, "panel.setupAnchor")}
+                </button>
+            </div>
+        </div>
+    {:else if picks.length === 0 && Object.keys(index.clips).length === 0 && startedToday.length === 0}
+        <div class="glean-empty" role="status">
+            <div class="glean-empty__art"><svg aria-hidden="true"><use href="#iconGleanWheat" /></svg></div>
+            <div class="glean-empty__title">{t(i18n, "panel.empty")}</div>
+            <div class="glean-empty__hint">{t(i18n, "panel.emptyHint")}</div>
+            <div class="glean-empty__actions">
+                <button class="glean-btn glean-btn--pri" onclick={() => facade.openOnboarding()}>
+                    {t(i18n, "panel.openOnboarding")}
+                </button>
+            </div>
         </div>
     {:else if picks.length === 0 && startedToday.length === 0}
         <div class="glean-empty" role="status">

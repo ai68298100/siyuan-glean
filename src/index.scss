@@ -2193,6 +2193,24 @@ body.b3-theme-dark {
     min-width: 0;
 }
 
+.glean-settings__newbie-hint-open {
+    flex-shrink: 0;
+    min-height: 28px;
+    padding: 4px 9px;
+    font-size: 11px;
+}
+
+.glean-settings__guide-link {
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    min-height: 28px;
+    padding: 4px 6px;
+    color: var(--b3-theme-on-surface);
+    font-size: var(--glean-text-xs);
+}
+
 .glean-settings__newbie-hint-dismiss {
     flex-shrink: 0;
 }
@@ -2534,6 +2552,30 @@ body.b3-theme-dark {
     max-width: 240px;
     margin-left: auto;
     margin-right: auto;
+}
+
+.glean-empty__actions {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: var(--glean-space-3);
+}
+
+.glean-empty__actions .glean-empty__action,
+.glean-empty__actions .glean-resurface__setup {
+    margin-top: 0;
+}
+
+@media (max-width: 560px) {
+    .glean-settings__newbie-hint {
+        flex-wrap: wrap;
+    }
+
+    .glean-settings__newbie-hint-open {
+        order: 3;
+    }
 }
 
 .glean-panel__loading {

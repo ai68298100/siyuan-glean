@@ -476,10 +476,19 @@ async function doMountBoard() {
             {#if showNewbieHint && activeSection === "workspace"}
                 <div class="glean-set-group glean-settings__newbie-hint" role="status">
                     <span class="glean-settings__newbie-hint-text"><svg class="glean-icon glean-icon--sm" aria-hidden="true"><use href="#iconGleanWheat" /></svg>{t(i18n, "settings.newbieHint")}</span>
+                    <button class="glean-btn glean-btn--pri glean-settings__newbie-hint-open" type="button" onclick={() => facade.openOnboarding()}>
+                        {t(i18n, "settings.openOnboarding")}
+                    </button>
                     <button class="glean-linkish glean-settings__newbie-hint-dismiss" aria-busy={dismissHintBusy} disabled={dismissHintBusy} onclick={() => void dismissNewbieHint()}>
                         {t(i18n, "settings.dismissNewbieHint")}
                     </button>
                 </div>
+            {/if}
+            {#if activeSection === "workspace" && !showNewbieHint}
+                <button class="glean-linkish glean-settings__guide-link" type="button" onclick={() => facade.openOnboarding()}>
+                    <svg class="glean-icon glean-icon--xs" aria-hidden="true"><use href="#iconGleanWheat" /></svg>
+                    {t(i18n, "settings.openOnboarding")}
+                </button>
             {/if}
             {#if activeSection === "workspace"}
     <div class="glean-settings__section glean-settings__section--core glean-settings__section--workspace">

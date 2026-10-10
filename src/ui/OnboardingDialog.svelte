@@ -30,10 +30,15 @@ let anchorNotebooks = $state<string[]>([]);
 let scanning = $state(false);
 let scanFailed = $state(false);
 let actionFailed = $state(false);
+/** 保存设置、切换步骤和完成动作共用一把锁，避免双击产生并发写入。 */
+let actionBusy = $state(false);
 let preview = $state<ScanPreview | null>(null);
 let completed = false;
 let disposed = false;
 let progressTouched = false;
+let completionRequested = false;
+let doneBeforeOpen = false;
+let prefsLoaded = false;
 /** 用户已请求的目标步骤：moveTo 的 await 期间关窗时，onDestroy 保存意图步骤而非旧值 */
 let requestedStep: OnboardingStep = 1;
 
@@ -41,12 +46,19 @@ onMount(() => {
     anchorNotebooks = [...facade.settings.anchorNotebooks];
     let active = true;
     void loadUiPrefs(facade.pluginInstance).then((prefs) => {
-        if (!active || disposed || completed || progressTouched || prefs.onboardingDone) return;
+        if (!active || disposed || completed) return;
+        prefsLoaded = true;
+        if (prefs.onboardingDone && !progressTouched) {
+            doneBeforeOpen = true;
+            return;
+        }
+        if (progressTouched) return;
         // 扫描预览是派生数据，关闭后不落盘；从第 4 步恢复时回到第 3 步重算。
         step = prefs.onboardingStep === 4 ? 3 : prefs.onboardingStep;
         if (step === 3) void runScan();
     }).catch((error) => {
         if (!active || disposed || completed) return;
+        prefsLoaded = true;
         console.warn("[glean] 引导进度读取失败:", error);
         actionFailed = true;
     });
@@ -64,7 +76,7 @@ onMount(() => {
 
 onDestroy(() => {
     disposed = true;
-    if (completed) return;
+    if (completed || completionRequested || doneBeforeOpen || !prefsLoaded) return;
     // 原生弹窗右上角关闭与“稍后继续”都会走这里；只记 UI 进度，不记扫描结果。
     void saveUiPrefs(facade.pluginInstance, {
         onboardingDone: false,
@@ -74,6 +86,7 @@ onDestroy(() => {
 });
 
 function toggleNotebook(id: string) {
+    if (actionBusy || scanning) return;
     anchorNotebooks = anchorNotebooks.includes(id)
         ? anchorNotebooks.filter((item) => item !== id)
         : [...anchorNotebooks, id];
@@ -102,7 +115,8 @@ async function markDone(): Promise<void> {
 }
 
 async function moveTo(nextStep: OnboardingStep): Promise<void> {
-    if (disposed || completed) return;
+    if (disposed || completed || actionBusy || scanning) return;
+    actionBusy = true;
     requestedStep = nextStep;
     progressTouched = true;
     try {
@@ -115,12 +129,14 @@ async function moveTo(nextStep: OnboardingStep): Promise<void> {
         step = nextStep;
     } catch (error) {
         reportActionFailure("引导进度保存失败", error);
+    } finally {
+        actionBusy = false;
     }
 }
 
 /** T-1719：只读扫描（读属性 + 重建派生索引缓存），不写任何文章属性。 */
 async function runScan(): Promise<void> {
-    if (disposed || completed) return;
+    if (disposed || completed || scanning || actionBusy) return;
     scanning = true;
     scanFailed = false;
     preview = null;
@@ -138,13 +154,26 @@ async function runScan(): Promise<void> {
 }
 
 async function next(): Promise<void> {
+    if (disposed || completed || actionBusy || scanning) return;
+    actionBusy = true;
     try {
         await persist();
+        if (disposed || completed) return;
+        requestedStep = 3;
+        progressTouched = true;
+        await saveUiPrefs(facade.pluginInstance, {
+            onboardingDone: false,
+            onboardingStep: 3,
+            onboardingInterrupted: false,
+        });
+        step = 3;
+        actionFailed = false;
     } catch (error) {
         reportActionFailure("引导设置保存失败", error);
         return;
+    } finally {
+        actionBusy = false;
     }
-    await moveTo(3);
     if (!actionFailed) void runScan();
 }
 
@@ -153,40 +182,63 @@ async function moveToCapabilities(): Promise<void> {
 }
 
 async function finish(openImport: boolean): Promise<void> {
+    if (disposed || completed || actionBusy || scanning) return;
+    actionBusy = true;
+    completionRequested = true;
     try {
         await persist();
+        if (disposed || completed) return;
         await markDone();
+        if (disposed || completed) return;
         actionFailed = false;
         completed = true;
         onClose();
         if (openImport) facade.openImport();
     } catch (error) {
+        completionRequested = false;
         reportActionFailure("引导完成失败", error);
+    } finally {
+        actionBusy = false;
     }
 }
 
 /** 有待确认候选时，完成键直达工作台逐篇确认（T-1719 的行动闭环）。 */
 async function finishByConfirmingCandidates(): Promise<void> {
+    if (disposed || completed || actionBusy || scanning) return;
+    actionBusy = true;
+    completionRequested = true;
     try {
         await persist();
+        if (disposed || completed) return;
         await markDone();
+        if (disposed || completed) return;
         actionFailed = false;
         completed = true;
         onClose();
         facade.openWorkbenchPopup(preview?.examples.candidates[0]?.id);
     } catch (error) {
+        completionRequested = false;
         reportActionFailure("引导候选确认入口失败", error);
+    } finally {
+        actionBusy = false;
     }
 }
 
 async function skip(): Promise<void> {
+    if (disposed || completed || actionBusy || scanning) return;
+    actionBusy = true;
+    completionRequested = true;
     try {
         await markDone();
+        if (disposed || completed) return;
         actionFailed = false;
         completed = true;
         onClose();
     } catch (error) {
+        completionRequested = false;
         reportActionFailure("跳过引导失败", error);
+    } finally {
+        actionBusy = false;
     }
 }
 
@@ -195,7 +247,7 @@ function continueLater(): void {
 }
 </script>
 
-<div class="glean-migrate glean-onboarding" class:glean-onboarding--scanning={scanning} aria-labelledby={titleId} aria-describedby={descId} aria-busy={scanning}>
+<div class="glean-migrate glean-onboarding" class:glean-onboarding--scanning={scanning} aria-labelledby={titleId} aria-describedby={descId} aria-busy={scanning || actionBusy}>
     <div class="glean-dlg-head">
         <div class="glean-brand__mark glean-dlg-head__mark">
             <svg aria-hidden="true"><use href="#iconGleanWheat" /></svg>
@@ -226,11 +278,11 @@ function continueLater(): void {
             <div class="glean-empty__hint">{t(i18n, "onboarding.welcomeBody")}</div>
         </div>
         <div class="glean-migrate__ops">
-            <button class="glean-linkish glean-onb-pause" onclick={continueLater}>{t(i18n, "onboarding.continueLater")}</button>
-            <button class="glean-btn glean-btn--ghost" onclick={() => void skip()}>
+            <button class="glean-linkish glean-onb-pause" disabled={actionBusy} onclick={continueLater}>{t(i18n, "onboarding.continueLater")}</button>
+            <button class="glean-btn glean-btn--ghost" disabled={actionBusy || scanning} aria-busy={actionBusy} onclick={() => void skip()}>
                 {t(i18n, "onboarding.skip")}
             </button>
-            <button class="glean-btn glean-btn--pri" onclick={() => void moveTo(2)}>{t(i18n, "onboarding.next")}</button>
+            <button class="glean-btn glean-btn--pri" disabled={actionBusy || scanning} aria-busy={actionBusy} onclick={() => void moveTo(2)}>{t(i18n, "onboarding.next")}</button>
         </div>
     {:else if step === 2}
         <div id={anchorTitleId} class="glean-sect" role="heading" aria-level="3">{t(i18n, "settings.anchorNotebooks")}</div>
@@ -241,6 +293,7 @@ function continueLater(): void {
                         class="glean-nb"
                         class:glean-nb--on={anchorNotebooks.includes(notebook.id)}
                         aria-pressed={anchorNotebooks.includes(notebook.id)}
+                        disabled={actionBusy || scanning}
                         onclick={() => toggleNotebook(notebook.id)}
                     >{anchorNotebooks.includes(notebook.id) ? "✓ " : ""}{notebook.name}</button>
                 {/each}
@@ -259,9 +312,9 @@ function continueLater(): void {
             </div>
         </div>
         <div class="glean-migrate__ops">
-            <button class="glean-linkish glean-onb-pause" onclick={continueLater}>{t(i18n, "onboarding.continueLater")}</button>
-            <button class="glean-btn glean-btn--ghost" onclick={() => void moveTo(1)}>{t(i18n, "onboarding.back")}</button>
-            <button class="glean-btn glean-btn--pri" onclick={() => void next()}>{t(i18n, "onboarding.next")}</button>
+            <button class="glean-linkish glean-onb-pause" disabled={actionBusy} onclick={continueLater}>{t(i18n, "onboarding.continueLater")}</button>
+            <button class="glean-btn glean-btn--ghost" disabled={actionBusy || scanning} onclick={() => void moveTo(1)}>{t(i18n, "onboarding.back")}</button>
+            <button class="glean-btn glean-btn--pri" disabled={actionBusy || scanning} aria-busy={actionBusy} onclick={() => void next()}>{t(i18n, "onboarding.next")}</button>
         </div>
     {:else if step === 3}
         <div id={previewTitleId} class="glean-sect" role="heading" aria-level="3">{t(i18n, "onboarding.previewTitle")}</div>
@@ -272,9 +325,9 @@ function continueLater(): void {
                 <div class="glean-empty__hint">{t(i18n, "onboarding.scanFailed")}</div>
             </div>
             <div class="glean-migrate__ops">
-                <button class="glean-linkish glean-onb-pause" onclick={continueLater}>{t(i18n, "onboarding.continueLater")}</button>
-                <button class="glean-btn glean-btn--ghost" onclick={() => void moveTo(2)}>{t(i18n, "onboarding.back")}</button>
-                <button class="glean-btn glean-btn--pri" onclick={() => void runScan()}>{t(i18n, "onboarding.rescan")}</button>
+                <button class="glean-linkish glean-onb-pause" disabled={actionBusy} onclick={continueLater}>{t(i18n, "onboarding.continueLater")}</button>
+                <button class="glean-btn glean-btn--ghost" disabled={actionBusy || scanning} onclick={() => void moveTo(2)}>{t(i18n, "onboarding.back")}</button>
+                <button class="glean-btn glean-btn--pri" disabled={actionBusy || scanning} aria-busy={scanning} onclick={() => void runScan()}>{t(i18n, "onboarding.rescan")}</button>
             </div>
         {:else if preview}
             <div class="glean-mstats" role="region" aria-labelledby={previewTitleId}>
@@ -328,10 +381,10 @@ function continueLater(): void {
                 <div class="glean-empty__hint">{t(i18n, "onboarding.previewNote")}</div>
             </div>
             <div class="glean-migrate__ops">
-                <button class="glean-linkish glean-onb-pause" onclick={continueLater}>{t(i18n, "onboarding.continueLater")}</button>
-                <button class="glean-btn glean-btn--ghost" onclick={() => void moveTo(2)}>{t(i18n, "onboarding.back")}</button>
-                <button class="glean-btn glean-btn--ghost" onclick={() => void runScan()}>{t(i18n, "onboarding.rescan")}</button>
-                <button class="glean-btn glean-btn--pri" onclick={() => void moveToCapabilities()}>{t(i18n, "onboarding.next")}</button>
+                <button class="glean-linkish glean-onb-pause" disabled={actionBusy} onclick={continueLater}>{t(i18n, "onboarding.continueLater")}</button>
+                <button class="glean-btn glean-btn--ghost" disabled={actionBusy || scanning} onclick={() => void moveTo(2)}>{t(i18n, "onboarding.back")}</button>
+                <button class="glean-btn glean-btn--ghost" disabled={actionBusy || scanning} aria-busy={scanning} onclick={() => void runScan()}>{t(i18n, "onboarding.rescan")}</button>
+                <button class="glean-btn glean-btn--pri" disabled={actionBusy || scanning} aria-busy={actionBusy} onclick={() => void moveToCapabilities()}>{t(i18n, "onboarding.next")}</button>
             </div>
         {/if}
     {:else}
@@ -349,15 +402,15 @@ function continueLater(): void {
         <div class="glean-empty glean-onb-empty glean-onb-empty--import">
             <div class="glean-empty__hint">
                 {t(i18n, "onboarding.importLink")}
-                <button class="glean-linkish" onclick={() => void finish(true)}>{t(i18n, "import.title")} <svg class="glean-icon glean-icon--xs" aria-hidden="true"><use href="#iconGleanArrowRight" /></svg></button>
+                <button class="glean-linkish" disabled={actionBusy || scanning} aria-busy={actionBusy} onclick={() => void finish(true)}>{t(i18n, "import.title")} <svg class="glean-icon glean-icon--xs" aria-hidden="true"><use href="#iconGleanArrowRight" /></svg></button>
             </div>
         </div>
         <div class="glean-migrate__ops">
-            <button class="glean-linkish glean-onb-pause" onclick={continueLater}>{t(i18n, "onboarding.continueLater")}</button>
+            <button class="glean-linkish glean-onb-pause" disabled={actionBusy} onclick={continueLater}>{t(i18n, "onboarding.continueLater")}</button>
             {#if (preview?.candidates ?? 0) > 0}
-                <button class="glean-btn glean-btn--pri" onclick={() => void finishByConfirmingCandidates()}>{t(i18n, "onboarding.ctaConfirm")}</button>
+                <button class="glean-btn glean-btn--pri" disabled={actionBusy || scanning} aria-busy={actionBusy} onclick={() => void finishByConfirmingCandidates()}>{t(i18n, "onboarding.ctaConfirm")}</button>
             {:else}
-                <button class="glean-btn glean-btn--pri" onclick={() => void finish(false)}>{t(i18n, "onboarding.finish")}</button>
+                <button class="glean-btn glean-btn--pri" disabled={actionBusy || scanning} aria-busy={actionBusy} onclick={() => void finish(false)}>{t(i18n, "onboarding.finish")}</button>
             {/if}
         </div>
     {/if}

@@ -132,6 +132,23 @@ test("mobile onboarding entry remains guarded by frontend detection", () => {
     assert.match(source, /if \(this\.isMobile\) return;/);
 });
 
+test("新用户可从空库、今日拾遗和设置页重新打开引导，忙碌时锁住向导动作", () => {
+    const dock = read("src/ui/DockPanel.svelte");
+    const resurface = read("src/ui/ResurfaceView.svelte");
+    const settings = read("src/ui/SettingsView.svelte");
+    const onboarding = read("src/ui/OnboardingDialog.svelte");
+    assert.ok((dock.match(/facade\.openOnboarding\(\)/g) ?? []).length >= 2, "读库无锚点和空库状态均可打开引导");
+    assert.match(resurface, /facade\.openOnboarding\(\)/);
+    assert.match(settings, /facade\.openOnboarding\(\)/);
+    assert.match(onboarding, /disabled=\{actionBusy \|\| scanning\}/);
+    assert.match(onboarding, /if \(disposed \|\| completed \|\| scanning \|\| actionBusy\) return;/);
+    for (const file of ["public/i18n/zh_CN.json", "public/i18n/en_US.json"]) {
+        const i18n = JSON.parse(readFileSync(resolve(root, file), "utf8"));
+        assert.ok(i18n["panel.openOnboarding"]);
+        assert.ok(i18n["settings.openOnboarding"]);
+    }
+});
+
 test("responsive and visually-hidden UI contracts remain present", () => {
     const source = read("src/index.scss");
     assert.match(source, /@media \(max-width: 560px\)/);

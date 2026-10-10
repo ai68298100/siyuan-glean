@@ -16,6 +16,8 @@ export interface GleanFacade {
     openMigrate(): void;
     /** 打开设置弹窗 */
     openSettings(): void;
+    /** 打开首启引导（可由空态或设置页重复查看） */
+    openOnboarding(): void;
     /** 打开迁移导入弹窗 */
     openImport(): void;
     /** 归档后处理对话框（保留原位、移入归档、移入回收或彻底删除） */

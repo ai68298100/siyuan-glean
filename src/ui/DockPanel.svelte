@@ -1461,6 +1461,10 @@ function metaLine(entry: Row): string {
                                 <svg class="glean-mobile-more__icon" aria-hidden="true"><use href="#iconGleanPopup" /></svg>
                                 {t(i18n, "panel.popup")}
                             </button>
+                            <button type="button" class="glean-mobile-more__item" role="menuitem" onclick={() => { closeMobileMore(); facade.openOnboarding(); }}>
+                                <svg class="glean-mobile-more__icon" aria-hidden="true"><use href="#iconGleanWheat" /></svg>
+                                {t(i18n, "panel.openOnboarding")}
+                            </button>
                             <div class="glean-mobile-more__group" role="group" aria-label={t(i18n, "settings.maintenanceToolsGroup")}>
                                 <div class="glean-mobile-more__group-label">{t(i18n, "settings.maintenanceToolsGroup")}</div>
                                 <button type="button" class="glean-mobile-more__item" role="menuitem" onclick={() => { closeMobileMore(); facade.openMigrate(); }}>
@@ -1988,9 +1992,20 @@ function metaLine(entry: Row): string {
                                     : t(i18n, "panel.emptyHint")}
                             </div>
                             {#if facade.settings.anchorNotebooks.length === 0}
-                                <button class="glean-btn" style="margin-top:10px" onclick={() => facade.openSettings()}>
+                                <div class="glean-empty__actions">
+                                <button class="glean-btn glean-btn--pri" onclick={() => facade.openOnboarding()}>
+                                    {t(i18n, "panel.openOnboarding")}
+                                </button>
+                                <button class="glean-btn glean-btn--ghost" onclick={() => facade.openSettings()}>
                                     {t(i18n, "panel.setupAnchor")}
                                 </button>
+                                </div>
+                            {:else if !hasFilters && totalClips === 0}
+                                <div class="glean-empty__actions">
+                                    <button class="glean-btn glean-btn--pri" onclick={() => facade.openOnboarding()}>
+                                        {t(i18n, "panel.openOnboarding")}
+                                    </button>
+                                </div>
                             {:else if hasFilters}
                                 <button class="glean-btn glean-btn--ghost" style="margin-top:10px" onclick={clearFilters}>
                                     {t(i18n, "library.clearFilters")}
@@ -2114,9 +2129,20 @@ function metaLine(entry: Row): string {
                                 : t(i18n, "panel.emptyHint")}
                         </div>
                         {#if facade.settings.anchorNotebooks.length === 0}
-                            <button class="glean-btn glean-empty__action" onclick={() => facade.openSettings()}>
+                            <div class="glean-empty__actions">
+                            <button class="glean-btn glean-btn--pri glean-empty__action" onclick={() => facade.openOnboarding()}>
+                                {t(i18n, "panel.openOnboarding")}
+                            </button>
+                            <button class="glean-btn glean-btn--ghost glean-empty__action" onclick={() => facade.openSettings()}>
                                 {t(i18n, "panel.setupAnchor")}
                             </button>
+                            </div>
+                        {:else if !hasFilters && totalClips === 0}
+                            <div class="glean-empty__actions">
+                                <button class="glean-btn glean-btn--pri glean-empty__action" onclick={() => facade.openOnboarding()}>
+                                    {t(i18n, "panel.openOnboarding")}
+                                </button>
+                            </div>
                         {:else if hasFilters}
                             <button class="glean-btn glean-btn--ghost glean-empty__action" onclick={clearFilters}>
                                 {t(i18n, "library.clearFilters")}
