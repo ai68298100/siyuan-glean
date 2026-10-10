@@ -18,7 +18,7 @@
 | 视觉矩阵 | 登记检查通过；24 个真实宿主案例仍待 B-0002 | `pnpm visual:check` |
 | 发布产物 | 通过，388844B | `pnpm check:release`；SHA-256：`A032295B06990F065B21BE02D425CE72F1E465035F476044B10E96B8E8523AC8` |
 | GitHub 工作流 | Quality gates、CodeQL 均通过 | [Quality gates 38068573521](https://github.com/ai68298100/siyuan-glean/actions/runs/38068573521)、[CodeQL 38068573513](https://github.com/ai68298100/siyuan-glean/actions/runs/38068573513) |
-| GitHub 发布 | 待本轮构建后完成 | `v1.3.3` tag、Release 和 `package.zip` 远端哈希待回填 |
+| GitHub 发布 | 已完成，远端下载校验一致 | [v1.3.3 Release](https://github.com/ai68298100/siyuan-glean/releases/tag/v1.3.3)；目标提交 `e5a8306a55421fef853f1ffae162132ff427e19e`；附件 388844B，远端 SHA-256 与本地一致 |
 
 版本已按 D-0005 定版为 `1.3.3`。本轮主要变更为 AV 刷新异步竞态修复、阅读伴读缓存/反馈优化和双语 README 更新，明细见 `docs/CHANGELOG.md` 与 `docs/PROGRESS.md`。集市仍需单独授权。
 
@@ -34,8 +34,8 @@
 
 1. 确认版本号与 CHANGELOG，`dist` 重新构建并校验 `package.zip`（已通过）。
 2. `pnpm check`、`pnpm test`、`pnpm build`、`pnpm check:release`、`pnpm perf:check`、`pnpm visual:check` 和隔离 S1 E2E 均已通过。
-3. 候选提交和 GitHub workflow 结果待本轮推送后回填。
-4. annotated tag `v1.3.3` 与 GitHub Release 待本轮构建、提交和推送后完成；远端下载包大小与 SHA-256 待回填。
+3. 候选提交 `e5a8306a55421fef853f1ffae162132ff427e19e` 已推送；GitHub Quality gates 和 CodeQL 均通过。
+4. annotated tag `v1.3.3` 与 GitHub Release 已发布；远端下载 `package.zip` 大小为 388844B，SHA-256 为 `A032295B06990F065B21BE02D425CE72F1E465035F476044B10E96B8E8523AC8`，与本地一致。
 
 ## 4. 不得提前承诺
 
