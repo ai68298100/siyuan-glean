@@ -1407,7 +1407,36 @@ function metaLine(entry: Row): string {
 }
 </script>
 
-<div class="glean-panel" class:glean-panel--mobile={facade.isMobile} bind:this={rootEl} onchange={markPrefsInteraction} aria-busy={loading}>
+<div class="glean-panel glean-panel--shell" class:glean-panel--mobile={facade.isMobile} bind:this={rootEl} onchange={markPrefsInteraction} aria-busy={loading}>
+    {#if !facade.isMobile}
+        <aside class="glean-workbench-rail" aria-label={t(i18n, "view.resurface")}>
+            <div class="glean-workbench-rail__brand">
+                <span class="glean-workbench-rail__mark" aria-hidden="true"><svg><use href="#iconGleanWheat" /></svg></span>
+                <span class="glean-workbench-rail__name">{t(i18n, "pluginName")}</span>
+            </div>
+            <button type="button" class="glean-workbench-rail__capture glean-btn glean-btn--pri" aria-busy={quickCaptureBusy} disabled={quickCaptureBusy} onclick={() => void quickCapture()}>
+                <svg aria-hidden="true"><use href="#iconGleanPlus" /></svg>
+                <span>{t(i18n, "action.quickCapture")}</span>
+            </button>
+            <nav class="glean-workbench-rail__nav" aria-label={t(i18n, "view.resurface")}>
+                {#each views as item (item.key)}
+                    <button type="button" class="glean-workbench-rail__item" class:glean-workbench-rail__item--on={view === item.key} aria-current={view === item.key ? "page" : undefined} onclick={() => { markPrefsInteraction(); view = item.key; }}>
+                        {#if item.key === "resurface"}<svg aria-hidden="true"><use href="#iconGleanWheat" /></svg>
+                        {:else if item.key === "library"}<svg aria-hidden="true"><use href="#iconGleanCard" /></svg>
+                        {:else if item.key === "stats"}<svg aria-hidden="true"><use href="#iconGleanNews" /></svg>
+                        {:else}<svg aria-hidden="true"><use href="#iconGleanSpark" /></svg>{/if}
+                        <span>{t(i18n, item.labelKey)}</span>
+                    </button>
+                {/each}
+            </nav>
+            <div class="glean-workbench-rail__spacer"></div>
+            <button type="button" class="glean-workbench-rail__item" onclick={() => facade.openSettings()}>
+                <svg aria-hidden="true"><use href="#iconGleanGear" /></svg><span>{t(i18n, "panel.settings")}</span>
+            </button>
+            <div class="glean-workbench-rail__hint">{t(i18n, "resurface.calmNote")}</div>
+        </aside>
+    {/if}
+    <div class="glean-panel__body">
     <header class="glean-panel__head">
         {#if facade.isMobile}
             <div class="glean-mobile-topbar">
@@ -2356,6 +2385,7 @@ function metaLine(entry: Row): string {
             {/each}
         </nav>
     {/if}
+    </div>
 </div>
 
 <style>

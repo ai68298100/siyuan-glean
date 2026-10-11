@@ -1,5 +1,5 @@
 <script lang="ts">
-/** 设置视图（T-1101/T-1200）：iOS inset group 风格——锚点笔记本 chips、AI 开关、重浮参数、挂库、维护。 */
+/** 设置视图：分类导航与连续配置分组，保留草稿、保存回执及维护任务入口。 */
 import { onMount } from "svelte";
 import { getFrontend, showMessage } from "siyuan";
 import { listNotebooks, type NotebookMeta } from "../api/client";
@@ -840,7 +840,7 @@ async function doMountBoard() {
                             {#if checkinLoading}{t(i18n, "settings.checkinLoading")}{:else if checkinLoadError}{t(i18n, "settings.checkinLoadFailed")}{:else if checkinItems.length === 0}{t(i18n, "settings.checkinNoItems")}{:else}{checkinItems.length} {t(i18n, "settings.checkinItemsFound")}{/if}
                         </div>
                     </div>
-                    <select class="b3-select" style="font-size:12px" aria-label={t(i18n, "settings.checkinItem")} disabled={checkinLoading || checkinLoadError || checkinItems.length === 0} bind:value={checkinItemId}>
+                    <select class="b3-select" aria-label={t(i18n, "settings.checkinItem")} disabled={checkinLoading || checkinLoadError || checkinItems.length === 0} bind:value={checkinItemId}>
                         <option value="">—</option>
                         {#each checkinItems as item (item.id)}
                             <option value={item.id}>{item.name}</option>
@@ -958,44 +958,46 @@ async function doMountBoard() {
 </section>
 
 <style>
-    /* T-3314：分类导航版式。左导航 + 右内容；glean-settings 作为容器，窄容器降级为顶部横向 tab。 */
+    /* R54：平静表面、连续留白。设置仍是独立尺寸容器，窄 Dock 使用顶部分类导航。 */
     .glean-settings__layout {
         display: flex;
         align-items: stretch;
-        gap: var(--glean-space-3);
+        gap: var(--glean-space-6);
         flex: 1 1 auto;
         min-height: 0;
         min-width: 0;
     }
 
     .glean-settings__nav {
-        flex: 0 0 158px;
+        flex: 0 0 208px;
         min-width: 0;
         display: flex;
         flex-direction: column;
-        gap: var(--glean-space-2);
-        padding: 2px;
+        gap: var(--glean-space-4);
+        padding: 0 var(--glean-space-3) 0 0;
         border-right: 1px solid var(--glean-border-soft);
     }
 
     .glean-settings__brand {
         display: flex;
         align-items: center;
-        gap: var(--glean-space-2);
-        padding: var(--glean-space-2) var(--glean-space-2) var(--glean-space-3);
-        border-bottom: 1px solid var(--glean-border-soft);
+        gap: var(--glean-space-3);
+        padding: var(--glean-space-1) var(--glean-space-2) var(--glean-space-2);
     }
 
     .glean-settings__brand-mark {
-        width: 30px;
-        height: 30px;
-        flex: 0 0 30px;
+        width: 36px;
+        height: 36px;
+        flex: 0 0 36px;
         border-radius: var(--glean-radius-md);
+        background: var(--glean-primary-soft);
+        color: var(--glean-accent-b);
+        box-shadow: none;
     }
 
     .glean-settings__brand-mark svg {
-        width: 15px;
-        height: 15px;
+        width: 20px;
+        height: 20px;
     }
 
     .glean-settings__brand-copy {
@@ -1004,23 +1006,23 @@ async function doMountBoard() {
 
     .glean-settings__brand-title {
         margin: 0;
-        font-size: var(--glean-text-md);
-        font-weight: 700;
+        font-size: 18px;
+        font-weight: 650;
         line-height: 1.3;
         color: var(--b3-theme-on-background);
     }
 
     .glean-settings__brand-sub {
-        margin-top: 2px;
-        font-size: var(--glean-text-xs);
-        line-height: 1.5;
+        margin-top: 4px;
+        font-size: 12px;
+        line-height: 1.65;
         color: var(--b3-theme-on-surface);
     }
 
     .glean-settings__nav-list {
         display: flex;
         flex-direction: column;
-        gap: 2px;
+        gap: var(--glean-space-1);
         overflow-y: auto;
         min-height: 0;
         padding: var(--glean-space-1) 0;
@@ -1031,14 +1033,15 @@ async function doMountBoard() {
         align-items: center;
         gap: var(--glean-space-2);
         width: 100%;
-        min-height: 34px;
-        padding: 7px 10px;
+        min-height: 40px;
+        padding: 8px 12px;
         border: none;
-        border-radius: var(--glean-radius-sm);
+        border-radius: var(--glean-radius-md);
         background: none;
         color: var(--b3-theme-on-background);
         font: inherit;
-        font-size: var(--glean-text-sm);
+        font-size: 13px;
+        line-height: 1.5;
         text-align: left;
         cursor: pointer;
         position: relative;
@@ -1057,18 +1060,7 @@ async function doMountBoard() {
     .glean-settings__tab--on {
         background: var(--glean-primary-soft);
         color: var(--glean-accent-b);
-        font-weight: 700;
-    }
-
-    .glean-settings__tab--on::before {
-        content: "";
-        position: absolute;
-        left: 0;
-        top: 7px;
-        bottom: 7px;
-        width: 3px;
-        border-radius: 2px;
-        background: var(--glean-accent-b);
+        font-weight: 650;
     }
 
     .glean-settings__tab-label {
@@ -1082,11 +1074,11 @@ async function doMountBoard() {
     .glean-settings__tab-badge {
         flex: 0 0 auto;
         padding: 0 7px;
-        border-radius: 999px;
+        border-radius: var(--glean-radius-sm);
         background: var(--glean-inset-surface);
         color: var(--b3-theme-on-surface);
-        font-size: var(--glean-text-xs);
-        line-height: 18px;
+        font-size: 11px;
+        line-height: 20px;
     }
 
     .glean-settings__tab--on .glean-settings__tab-badge {
@@ -1101,25 +1093,29 @@ async function doMountBoard() {
         overflow-y: auto;
         display: flex;
         flex-direction: column;
-        gap: var(--glean-space-3);
-        padding: 2px 2px 2px 0;
+        gap: var(--glean-space-5);
+        padding: 0 var(--glean-space-1) var(--glean-space-1) 0;
+        scrollbar-gutter: stable;
     }
 
     .glean-settings__pagehead {
         display: flex;
         flex-direction: column;
-        gap: 4px;
+        gap: var(--glean-space-2);
+        padding: var(--glean-space-1) 0;
     }
 
     .glean-settings__page-title {
-        font-size: 15px;
-        font-weight: 700;
+        font-size: 26px;
+        font-weight: 650;
+        line-height: 1.3;
+        overflow-wrap: anywhere;
         color: var(--b3-theme-on-background);
     }
 
     .glean-settings__page-desc {
-        font-size: var(--glean-text-xs);
-        line-height: 1.6;
+        font-size: 14px;
+        line-height: 1.65;
         color: var(--b3-theme-on-surface);
     }
 
@@ -1127,8 +1123,9 @@ async function doMountBoard() {
     .glean-nb-tools {
         display: flex;
         align-items: center;
-        gap: var(--glean-space-2);
+        gap: var(--glean-space-3);
         flex-wrap: wrap;
+        padding: 0 var(--glean-space-5);
     }
 
     .glean-nb-search {
@@ -1137,10 +1134,12 @@ async function doMountBoard() {
         align-items: center;
         gap: 6px;
         min-width: 0;
-        padding: 5px 10px;
+        min-height: 40px;
+        box-sizing: border-box;
+        padding: 6px 12px;
         border: 1px solid var(--glean-border-soft);
-        border-radius: var(--glean-radius-sm);
-        background: var(--glean-inset-surface);
+        border-radius: var(--glean-radius-md);
+        background: var(--b3-theme-background);
         color: var(--b3-theme-on-surface);
     }
 
@@ -1156,13 +1155,17 @@ async function doMountBoard() {
         background: none;
         color: var(--b3-theme-on-background);
         font: inherit;
-        font-size: var(--glean-text-sm);
+        font-size: 13px;
         outline: none;
     }
 
     .glean-nb-search__clear {
         flex: 0 0 auto;
-        font-size: 15px;
+        display: grid;
+        place-items: center;
+        min-width: 32px;
+        min-height: 32px;
+        font-size: 18px;
         line-height: 1;
         padding: 2px 4px;
     }
@@ -1170,33 +1173,78 @@ async function doMountBoard() {
     .glean-nb-count {
         flex: 0 0 auto;
         color: var(--b3-theme-on-surface);
-        font-size: var(--glean-text-xs);
-        white-space: nowrap;
+        font-size: 12px;
+        overflow-wrap: anywhere;
     }
 
     .glean-settings__section {
         display: flex;
         flex-direction: column;
-        gap: var(--glean-space-2);
+        gap: var(--glean-space-4);
         min-width: 0;
     }
 
     .glean-settings__section > .glean-set-group {
         min-width: 0;
-        border-color: var(--glean-border-soft);
-        background: var(--glean-section-surface);
+        border: 1px solid var(--glean-border-soft);
+        border-radius: 18px;
+        background: var(--b3-theme-background);
+        box-shadow: none;
     }
 
     .glean-settings__section .glean-set-row {
         min-width: 0;
+        gap: var(--glean-space-4);
+        padding: var(--glean-space-4) var(--glean-space-5);
+        font-size: 14px;
+        line-height: 1.65;
+        border-color: var(--glean-border-soft);
+        box-shadow: none;
+    }
+
+    .glean-settings__section .glean-set-row:focus-within {
+        background: transparent;
+        box-shadow: none;
     }
 
     .glean-settings__section .glean-set-row__lb {
-        line-height: 1.4;
+        line-height: 1.65;
     }
 
     .glean-settings__section .glean-set-row__desc {
         max-width: 58ch;
+        margin-top: 4px;
+        font-size: 12px;
+        line-height: 1.65;
+        color: var(--b3-theme-on-surface);
+    }
+
+    .glean-settings .glean-mini-input,
+    .glean-settings .b3-select {
+        min-height: 40px;
+        border-radius: var(--glean-radius-md);
+        background: var(--b3-theme-background);
+        font-size: 13px;
+    }
+
+    .glean-settings .glean-nb-wrap {
+        gap: var(--glean-space-2);
+        padding: var(--glean-space-4) var(--glean-space-5);
+    }
+
+    .glean-settings .glean-nb {
+        min-height: 36px;
+        max-width: 100%;
+        padding: 6px 12px;
+        border-radius: var(--glean-radius-md);
+        font-size: 13px;
+        line-height: 1.5;
+        overflow-wrap: anywhere;
+    }
+
+    .glean-settings__extension-card {
+        background: transparent;
+        box-shadow: none;
     }
 
     .glean-settings__ai-toggle input[type="checkbox"] {
@@ -1210,8 +1258,9 @@ async function doMountBoard() {
         border: 1px solid var(--glean-border-soft);
         border-radius: 999px;
         background: var(--glean-inset-surface);
+        box-shadow: none;
         cursor: pointer;
-        transition: background-color 180ms var(--glean-ease-out), border-color 180ms var(--glean-ease-out), box-shadow 180ms var(--glean-ease-out);
+        transition: background-color 160ms var(--glean-ease-out), border-color 160ms var(--glean-ease-out);
     }
 
     .glean-settings__ai-toggle input[type="checkbox"]::after {
@@ -1223,14 +1272,14 @@ async function doMountBoard() {
         height: 16px;
         border-radius: 50%;
         background: var(--b3-theme-on-surface);
-        box-shadow: 0 1px 3px color-mix(in srgb, var(--b3-theme-on-background) 20%, transparent);
-        transition: transform 180ms var(--glean-ease-out), background-color 180ms var(--glean-ease-out);
+        box-shadow: none;
+        transition: transform 160ms var(--glean-ease-out), background-color 160ms var(--glean-ease-out);
     }
 
     .glean-settings__ai-toggle input[type="checkbox"]:checked {
         border-color: color-mix(in srgb, var(--b3-theme-primary) 58%, var(--glean-border-soft));
         background: var(--b3-theme-primary);
-        box-shadow: 0 0 0 3px var(--glean-primary-soft);
+        box-shadow: none;
     }
 
     .glean-settings__ai-toggle input[type="checkbox"]:checked::after {
@@ -1254,14 +1303,95 @@ async function doMountBoard() {
         color: var(--b3-theme-primary);
     }
 
-    @media (max-width: 560px) {
+    /* 本组件作为尺寸容器：窄容器（移动端 / 窄 Dock）时导航降级为顶部横向 tab */
+    .glean-settings {
+        container: glean-settings / inline-size;
+        overflow: hidden;
+        font-size: 14px;
+        line-height: 1.65;
+    }
+
+    @container glean-settings (max-width: 600px) {
+        .glean-settings__layout {
+            flex-direction: column;
+            gap: var(--glean-space-4);
+        }
+
+        .glean-settings__nav {
+            flex: 0 0 auto;
+            border-right: none;
+            border-bottom: 1px solid var(--glean-border-soft);
+            gap: var(--glean-space-2);
+            padding: 0 0 var(--glean-space-2);
+        }
+
+        .glean-settings__brand {
+            padding: 0 var(--glean-space-1);
+        }
+
+        .glean-settings__brand-sub {
+            display: none;
+        }
+
+        .glean-settings__nav-list {
+            flex-direction: row;
+            align-items: center;
+            overflow-x: auto;
+            overflow-y: hidden;
+            gap: var(--glean-space-1);
+            padding: 0;
+        }
+
+        .glean-settings__tab {
+            width: auto;
+            flex: 0 0 auto;
+            min-height: 44px;
+            padding: 6px 12px;
+            border-radius: var(--glean-radius-md);
+        }
+
+        .glean-settings__tab-badge {
+            display: none;
+        }
+
+        /* 触控命中区随容器断点走：宽视口下的窄 Dock 同样生效（T-3315） */
+        .glean-nb-search {
+            min-height: 44px;
+        }
+
+        .glean-settings__page-title {
+            font-size: 24px;
+        }
+
+        .glean-settings__content {
+            gap: var(--glean-space-4);
+        }
+
         .glean-settings__section .glean-set-row {
             align-items: flex-start;
             flex-wrap: wrap;
+            gap: var(--glean-space-3);
+            padding: var(--glean-space-4);
         }
 
         .glean-settings__section .glean-set-row > :last-child:not(.glean-set-row__lb) {
             margin-left: auto;
+        }
+
+        .glean-nb-tools,
+        .glean-settings .glean-nb-wrap {
+            padding-inline: var(--glean-space-4);
+        }
+
+        .glean-settings .glean-mini-input,
+        .glean-settings .b3-select,
+        .glean-settings .glean-nb,
+        .glean-nb-search__clear {
+            min-height: 44px;
+        }
+
+        .glean-nb-search__clear {
+            min-width: 44px;
         }
 
         .glean-settings__ai-toggle input[type="checkbox"] {
@@ -1276,70 +1406,6 @@ async function doMountBoard() {
 
         .glean-settings__ai-toggle input[type="checkbox"]:checked::after {
             transform: translateX(17px);
-        }
-    }
-
-    /* 本组件作为尺寸容器：窄容器（移动端 / 窄 Dock）时导航降级为顶部横向 tab */
-    .glean-settings {
-        container: glean-settings / inline-size;
-        overflow: hidden;
-    }
-
-    @container glean-settings (max-width: 600px) {
-        .glean-settings__layout {
-            flex-direction: column;
-            gap: var(--glean-space-2);
-        }
-
-        .glean-settings__nav {
-            flex: 0 0 auto;
-            border-right: none;
-            border-bottom: 1px solid var(--glean-border-soft);
-            padding: 0 0 2px;
-        }
-
-        .glean-settings__brand {
-            padding: var(--glean-space-1) var(--glean-space-1) var(--glean-space-2);
-            border-bottom: none;
-        }
-
-        .glean-settings__brand-sub {
-            display: none;
-        }
-
-        .glean-settings__nav-list {
-            flex-direction: row;
-            align-items: center;
-            overflow-x: auto;
-            overflow-y: hidden;
-            gap: 4px;
-            padding: 0 0 var(--glean-space-1);
-        }
-
-        .glean-settings__tab {
-            width: auto;
-            flex: 0 0 auto;
-            min-height: 44px;
-            padding: 6px 12px;
-            border-radius: 999px;
-            border: 1px solid var(--glean-border-soft);
-        }
-
-        .glean-settings__tab--on {
-            border-color: color-mix(in srgb, var(--glean-accent-b) 45%, transparent);
-        }
-
-        .glean-settings__tab--on::before {
-            display: none;
-        }
-
-        .glean-settings__tab-badge {
-            display: none;
-        }
-
-        /* 触控命中区随容器断点走：宽视口下的窄 Dock 同样生效（T-3315） */
-        .glean-nb-search {
-            min-height: 44px;
         }
     }
 </style>

@@ -1491,6 +1491,166 @@ body.b3-theme-dark {
     }
 }
 
+/* R54 final surface precedence: keep ordinary work surfaces calm after legacy overrides. */
+.glean-panel .glean-surf-card,
+.glean-panel .glean-card,
+.glean-panel .glean-tile,
+.glean-panel .glean-block,
+.glean-panel .glean-hl,
+.glean-panel .glean-set-group,
+.glean-panel .glean-set-row,
+.glean-panel .glean-rel {
+    box-shadow: none;
+}
+
+.glean-panel .glean-surf-card:hover,
+.glean-panel .glean-card:hover,
+.glean-panel .glean-tile:hover,
+.glean-panel .glean-block:hover,
+.glean-panel .glean-hl:hover,
+.glean-panel .glean-set-group:hover,
+.glean-panel .glean-set-row:hover,
+.glean-panel .glean-rel:hover {
+    transform: none;
+    box-shadow: none;
+}
+
+.glean-panel .glean-surf-card { animation: none; }
+.glean-panel .glean-surf-act:hover:not(:disabled),
+.glean-panel .glean-btn:hover:not(:disabled),
+.glean-panel .glean-primary-btn:hover:not(:disabled) { transform: none; filter: none; }
+
+/* ============ R54 工作台收口（D-0209） ============
+ * 结构借鉴系列插件的稳定页面壳，仍使用拾遗现有暖色和思源 b3 变量。
+ * 这里收敛共享工作面，避免玻璃滤镜、悬停位移和卡片阴影在窄 Dock 中造成重绘。
+ */
+.glean-panel__body {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.glean-workbench-rail {
+    display: none;
+}
+
+.glean-panel--shell:not(.glean-panel--mobile) .glean-panel__head {
+    padding: 20px 24px 16px;
+    gap: 16px;
+    background: var(--b3-theme-background);
+}
+
+.glean-panel--shell:not(.glean-panel--mobile) .glean-brand__name {
+    font-size: 24px;
+    line-height: 1.3;
+}
+
+.glean-panel--shell:not(.glean-panel--mobile) .glean-brand__sub {
+    font-size: 12px;
+    line-height: 1.65;
+    text-transform: none;
+}
+
+.glean-panel--shell:not(.glean-panel--mobile) .glean-views {
+    display: none;
+}
+
+.glean-panel :where(.glean-card, .glean-tile, .glean-block, .glean-hl, .glean-set-group, .glean-set-row, .glean-rel, .glean-surf-card) {
+    box-shadow: none;
+    transition: border-color 160ms ease, background-color 160ms ease;
+}
+
+.glean-panel :where(.glean-card, .glean-tile, .glean-block, .glean-hl, .glean-set-group, .glean-set-row, .glean-rel, .glean-surf-card):hover {
+    transform: none;
+    box-shadow: none;
+}
+
+.glean-panel .glean-surf-card {
+    animation: none;
+}
+
+.glean-panel :where(.glean-surf-act, .glean-btn, .glean-primary-btn):hover:not(:disabled) {
+    transform: none;
+    filter: none;
+}
+
+.glean-panel .glean-surf-card:focus-within {
+    box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--b3-theme-primary) 22%, transparent);
+}
+
+@container glean-workbench (min-width: 760px) {
+    .glean-panel--shell:not(.glean-panel--mobile) {
+        display: grid;
+        grid-template-columns: 184px minmax(0, 1fr);
+        grid-template-rows: minmax(0, 1fr);
+        align-items: stretch;
+    }
+
+    .glean-panel--shell:not(.glean-panel--mobile) .glean-workbench-rail {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        min-height: 0;
+        gap: 12px;
+        padding: 22px 14px 18px;
+        border-right: 1px solid var(--glean-border-soft);
+        background: var(--b3-theme-background);
+    }
+
+    .glean-workbench-rail__brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+        padding: 0 8px 10px;
+    }
+
+    .glean-workbench-rail__mark {
+        display: grid;
+        width: 34px;
+        height: 34px;
+        flex: 0 0 34px;
+        place-items: center;
+        border-radius: 10px;
+        background: var(--glean-primary-soft);
+        color: var(--glean-accent-b);
+    }
+
+    .glean-workbench-rail__mark svg { width: 19px; height: 19px; fill: currentColor; }
+    .glean-workbench-rail__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: 15px; font-weight: 700; }
+    .glean-workbench-rail__capture { min-height: 40px; justify-content: center; gap: 8px; }
+    .glean-workbench-rail__capture svg { width: 16px; height: 16px; fill: currentColor; }
+    .glean-workbench-rail__nav { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
+    .glean-workbench-rail__item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+        min-height: 40px;
+        width: 100%;
+        padding: 8px 10px;
+        border: 1px solid transparent;
+        border-radius: 10px;
+        background: transparent;
+        color: var(--b3-theme-on-surface);
+        font-size: 13px;
+        text-align: start;
+        cursor: pointer;
+    }
+    .glean-workbench-rail__item svg { width: 17px; height: 17px; flex: 0 0 17px; fill: currentColor; }
+    .glean-workbench-rail__item:hover { border-color: var(--glean-border-soft); background: var(--glean-primary-soft); color: var(--b3-theme-on-background); }
+    .glean-workbench-rail__item--on { background: var(--glean-primary-soft); color: var(--glean-accent-b); font-weight: 650; }
+    .glean-workbench-rail__item:focus-visible { outline: 2px solid var(--b3-theme-primary); outline-offset: 2px; }
+    .glean-workbench-rail__spacer { flex: 1 1 auto; min-height: 12px; }
+    .glean-workbench-rail__hint { padding: 10px; border-top: 1px solid var(--glean-border-soft); color: var(--b3-theme-on-surface); font-size: 11px; line-height: 1.6; }
+}
+
+@container glean-workbench (max-width: 759px) {
+    .glean-panel--shell:not(.glean-panel--mobile) .glean-panel__head { padding-inline: 14px; }
+}
+
 .glean-reader__toolbar-primary:disabled {
     box-shadow: none;
     cursor: wait;
@@ -10609,4 +10769,87 @@ body.b3-theme-dark .glean-panel--mobile,
 
 @container glean-workbench (max-width: 420px) {
     .glean-reader__main { flex: 0 0 min(56vh, 560px); min-height: 300px; }
+}
+
+/* R54 final precedence: ordinary work surfaces stay calm after legacy overrides. */
+.glean-panel .glean-surf-card,
+.glean-panel .glean-card,
+.glean-panel .glean-tile,
+.glean-panel .glean-block,
+.glean-panel .glean-hl,
+.glean-panel .glean-set-group,
+.glean-panel .glean-set-row,
+.glean-panel .glean-rel {
+    box-shadow: none;
+}
+.glean-panel .glean-surf-card:hover,
+.glean-panel .glean-card:hover,
+.glean-panel .glean-tile:hover,
+.glean-panel .glean-block:hover,
+.glean-panel .glean-hl:hover,
+.glean-panel .glean-set-group:hover,
+.glean-panel .glean-set-row:hover,
+.glean-panel .glean-rel:hover {
+    transform: none;
+    box-shadow: none;
+}
+.glean-panel .glean-surf-card { animation: none; }
+.glean-panel .glean-surf-act:hover:not(:disabled),
+.glean-panel .glean-btn:hover:not(:disabled),
+.glean-panel .glean-primary-btn:hover:not(:disabled) { transform: none; filter: none; }
+
+/* R54 action grid must win over the historical flex fallbacks on wide canvases. */
+@container glean-workbench (min-width: 760px) {
+    .glean-panel--shell .glean-surf-card .glean-surf__acts {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        align-items: stretch;
+        gap: 8px;
+    }
+    .glean-panel--shell .glean-surf-card .glean-surf-act {
+        width: 100%;
+        min-width: 0;
+        min-height: 36px;
+        padding: 7px 8px;
+        writing-mode: horizontal-tb;
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+    .glean-panel--shell .glean-surf-card .glean-surf-act--pri {
+        grid-column: 1 / -1;
+    }
+}
+
+@container glean-workbench (max-width: 759px) {
+    .glean-panel--shell:not(.glean-panel--mobile) .glean-surf-card .glean-surf__acts {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+    }
+    .glean-panel--shell:not(.glean-panel--mobile) .glean-surf-card .glean-surf-act {
+        min-width: 0;
+        min-height: 40px;
+        padding: 7px 8px;
+        writing-mode: horizontal-tb;
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+    .glean-panel--shell:not(.glean-panel--mobile) .glean-surf-card .glean-surf-act--pri { grid-column: 1 / -1; }
+}
+
+@container glean-workbench (max-width: 759px) {
+    .glean-panel--shell.glean-panel--mobile .glean-surf-card .glean-surf__acts {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+    }
+    .glean-panel--shell.glean-panel--mobile .glean-surf-card .glean-surf-act {
+        min-width: 0;
+        min-height: 44px;
+        padding: 7px 8px;
+        writing-mode: horizontal-tb;
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+    .glean-panel--shell.glean-panel--mobile .glean-surf-card .glean-surf-act--pri { grid-column: 1 / -1; }
 }

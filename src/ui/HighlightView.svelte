@@ -340,3 +340,272 @@ function openDoc(id: string) {
         <div class="glean-highlights__meta">AI · {t(i18n, "ai.actionsPreview")}</div>
     {/if}
 </div>
+
+<style>
+    .glean-highlights {
+        flex: 1 1 auto;
+        box-sizing: border-box;
+        min-height: 0;
+        padding: 24px;
+        gap: 20px;
+        overflow-y: auto;
+        font-size: 14px;
+        line-height: 1.6;
+    }
+
+    .glean-highlights__head {
+        gap: 16px;
+        padding: 0;
+        flex-wrap: wrap;
+    }
+
+    .glean-highlights__title {
+        font-size: 26px;
+        font-weight: 700;
+        line-height: 1.35;
+        letter-spacing: 0;
+    }
+
+    .glean-highlights__subtitle {
+        margin-top: 8px;
+        font-size: 13px;
+        line-height: 1.7;
+    }
+
+    .glean-highlights__tools--scope {
+        gap: 4px;
+        padding: 4px;
+        border: 0;
+        border-radius: 12px;
+        background: var(--glean-inset-surface);
+        box-shadow: none;
+    }
+
+    .glean-highlights__tools--scope button {
+        min-height: 34px;
+        padding: 6px 12px;
+        border: 0;
+        border-radius: 9px;
+        background: transparent;
+        font-size: 12px;
+    }
+
+    .glean-highlights__tools--scope button[aria-pressed="true"] {
+        background: var(--b3-theme-surface);
+        color: var(--glean-accent-b);
+        box-shadow: none;
+    }
+
+    .glean-highlights__filters {
+        gap: 12px;
+        padding: 16px;
+        border-radius: 16px;
+        background: var(--b3-theme-surface);
+        box-shadow: none;
+        align-items: end;
+    }
+
+    .glean-highlights__filters label {
+        min-width: 0;
+        gap: 6px;
+        font-size: 12px;
+        font-weight: 500;
+    }
+
+    .glean-highlights input[type="search"],
+    .glean-highlights select,
+    .glean-highlights button {
+        min-height: 36px;
+        border-radius: 10px;
+        font-size: 13px;
+        box-shadow: none;
+    }
+
+    .glean-highlights__filters input[type="search"] {
+        flex-basis: 240px;
+        min-width: 0;
+        background: var(--glean-inset-surface);
+    }
+
+    .glean-highlights__filters select {
+        min-width: 0;
+        width: 100%;
+        background: var(--glean-inset-surface);
+    }
+
+    .glean-highlights__tools--selection {
+        padding: 12px 16px;
+        border-radius: 12px;
+        background: var(--glean-primary-soft);
+        box-shadow: none;
+    }
+
+    .glean-highlights__selection-count {
+        background: transparent;
+        font-size: 13px;
+    }
+
+    .glean-highlights__items {
+        gap: 16px;
+    }
+
+    .glean-highlights__item,
+    .glean-highlights__preview,
+    .glean-highlights__loading-card {
+        padding: 20px;
+        border: 1px solid var(--glean-border-soft);
+        border-radius: 16px;
+        background: var(--b3-theme-surface);
+        box-shadow: none;
+    }
+
+    .glean-highlights__item {
+        display: flex;
+        flex-direction: column;
+        transition: border-color 160ms var(--glean-ease-out), background-color 160ms var(--glean-ease-out);
+    }
+
+    .glean-highlights .glean-highlights__item:hover {
+        border-color: color-mix(in srgb, var(--glean-accent-b) 32%, var(--glean-border-soft));
+        box-shadow: none;
+        transform: none;
+    }
+
+    .glean-highlights__item::before,
+    .glean-highlights__preview::before {
+        display: none;
+    }
+
+    .glean-highlights__item:has(input:checked) {
+        background: var(--glean-selection-surface);
+    }
+
+    .glean-highlights__item-head {
+        margin-bottom: 12px;
+        padding-left: 30px;
+        font-size: 12px;
+    }
+
+    .glean-highlights__quote span {
+        padding: 0;
+        font-size: 14px;
+        font-weight: 450;
+        line-height: 1.8;
+    }
+
+    .glean-highlights__quote input {
+        margin: 3px 0;
+    }
+
+    .glean-highlights__meta {
+        margin: 12px 0 0 30px;
+        font-size: 12px;
+        line-height: 1.65;
+    }
+
+    .glean-highlights__tools--card {
+        margin-top: auto;
+        padding-top: 16px;
+        gap: 8px;
+    }
+
+    .glean-highlights__item > .glean-highlights__tools--card {
+        margin-top: 16px;
+    }
+
+    .glean-highlights__preview h3 {
+        font-size: 16px;
+        line-height: 1.5;
+    }
+
+    .glean-highlights__empty {
+        min-height: 280px;
+        gap: 12px;
+    }
+
+    .glean-highlights__empty .glean-empty__title {
+        font-size: 19px;
+        line-height: 1.5;
+    }
+
+    .glean-highlights__empty .glean-empty__hint {
+        max-width: 42ch;
+        font-size: 13px;
+        line-height: 1.8;
+    }
+
+    .glean-highlights__status,
+    .glean-highlights__error {
+        padding: 12px 16px;
+        font-size: 13px;
+        box-shadow: none;
+    }
+
+    @container glean-workbench (min-width: 760px) {
+        .glean-highlights__items {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
+            align-items: start;
+        }
+
+        .glean-highlights__empty {
+            width: min(100%, 720px);
+            align-self: center;
+        }
+    }
+
+    @container glean-workbench (max-width: 560px) {
+        .glean-highlights {
+            padding: 16px;
+            gap: 16px;
+        }
+
+        .glean-highlights__title {
+            font-size: 24px;
+        }
+
+        .glean-highlights__tools--scope {
+            width: 100%;
+        }
+
+        .glean-highlights__tools--scope button {
+            flex: 1 1 auto;
+        }
+
+        .glean-highlights__filters {
+            padding: 16px;
+            gap: 12px;
+        }
+
+        .glean-highlights__filters input[type="search"] {
+            flex: 1 1 100%;
+            width: 100%;
+        }
+
+        .glean-highlights__item,
+        .glean-highlights__preview {
+            padding: 16px;
+        }
+
+        .glean-highlights input[type="search"],
+        .glean-highlights select,
+        .glean-highlights button {
+            min-height: 44px;
+        }
+
+        .glean-highlights__tools--card {
+            justify-content: flex-start;
+            flex-wrap: wrap;
+        }
+
+        .glean-highlights__error {
+            flex-wrap: wrap;
+        }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .glean-highlights__item {
+            transition: none;
+        }
+    }
+</style>

@@ -297,6 +297,119 @@ function downloadCsv(): void {
 </div>
 
 <style>
+    .glean-stats {
+        min-height: 0;
+        padding: 24px;
+        gap: 20px;
+        font-size: 14px;
+        line-height: 1.6;
+    }
+
+    .glean-stats__overview {
+        padding: 0;
+        gap: 16px;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        box-shadow: none;
+    }
+
+    .glean-stats__overview h2 {
+        font-size: 26px;
+        font-weight: 700;
+        line-height: 1.35;
+        letter-spacing: 0;
+    }
+
+    .glean-stats__overview .glean-stats__hint {
+        margin-top: 8px;
+        font-size: 13px;
+        line-height: 1.7;
+    }
+
+    .glean-stats__activity {
+        padding: 20px;
+        border: 1px solid var(--glean-border-soft);
+        border-radius: 16px;
+        background: var(--b3-theme-surface);
+        box-shadow: none;
+    }
+
+    .glean-stats__activity h3 {
+        margin: 0;
+        font-size: 16px;
+        font-weight: 650;
+        line-height: 1.5;
+    }
+
+    .glean-stats__metric,
+    .glean-stats__metric:hover {
+        min-height: 120px;
+        padding: 18px 20px;
+        border: 1px solid var(--glean-border-soft);
+        border-radius: 16px;
+        background: var(--b3-theme-surface);
+        box-shadow: none;
+        transform: none;
+        transition: none;
+    }
+
+    .glean-stats__metric dt {
+        font-size: 13px;
+        font-weight: 500;
+        line-height: 1.5;
+    }
+
+    .glean-stats__metric > dd:not(.glean-stats__metric-hint) {
+        margin: 8px 0 0;
+        color: var(--b3-theme-on-background);
+        background: none;
+        -webkit-text-fill-color: currentColor;
+        font-size: 28px;
+        font-weight: 680;
+        line-height: 1.25;
+        letter-spacing: 0;
+    }
+
+    .glean-stats__metric dd.glean-stats__metric-hint {
+        margin: 8px 0 0;
+        font-size: 12px;
+        line-height: 1.6;
+        opacity: 1;
+    }
+
+    .glean-stats__metrics {
+        gap: 12px;
+        margin: 0;
+    }
+
+    .glean-stats__analysis,
+    .glean-stats__completed-detail {
+        border-radius: 16px;
+        background: var(--b3-theme-surface);
+        box-shadow: none;
+    }
+
+    .glean-stats__analysis > summary,
+    .glean-stats__completed-detail > summary,
+    .glean-stats__detail > summary {
+        min-height: 44px;
+        font-size: 13px;
+        font-weight: 550;
+    }
+
+    .glean-stats__completed-section {
+        background: transparent;
+        border: 0;
+        box-shadow: none;
+    }
+
+    .glean-stats__toolbar .glean-btn {
+        min-height: 36px;
+        box-shadow: none;
+        font-size: 13px;
+    }
+
     .glean-stats__intro {
         align-items: flex-start;
     }
@@ -304,7 +417,7 @@ function downloadCsv(): void {
     .glean-stats__overview .glean-stats__toolbar--filters label {
         flex: 0 1 160px;
         color: var(--b3-theme-on-surface);
-        font-size: var(--glean-text-xs);
+        font-size: 12px;
         font-weight: 650;
         line-height: 1.35;
         white-space: nowrap;
@@ -330,7 +443,12 @@ function downloadCsv(): void {
 
     .glean-stats__overview .glean-stats__field {
         min-width: 136px;
-        margin-top: 3px;
+        min-height: 36px;
+        margin-top: 4px;
+        padding: 7px 10px;
+        border-radius: 10px;
+        font-size: 13px;
+        box-shadow: none;
     }
 
     .glean-stats__supplement {
@@ -367,7 +485,7 @@ function downloadCsv(): void {
     }
 
     .glean-stats__overview > .glean-stats__metrics > .glean-stats__metric {
-        background: var(--glean-section-surface);
+        background: var(--b3-theme-surface);
         border-color: var(--glean-border-soft);
     }
 
@@ -378,7 +496,7 @@ function downloadCsv(): void {
         padding: 0 var(--glean-space-3);
         border: 1px solid var(--glean-border-soft);
         border-radius: var(--glean-radius-sm);
-        background: var(--glean-inset-surface);
+        background: var(--b3-theme-surface);
         color: var(--b3-theme-on-surface);
         cursor: pointer;
         transition: color 160ms var(--glean-ease-out), border-color 160ms var(--glean-ease-out), background-color 160ms var(--glean-ease-out);
@@ -420,6 +538,10 @@ function downloadCsv(): void {
 
     .glean-stats__metrics--supplemental .glean-stats__metric dd {
         font-size: 19px;
+    }
+
+    .glean-stats__metrics--supplemental .glean-stats__metric > dd:not(.glean-stats__metric-hint) {
+        font-size: 22px;
     }
 
     .glean-stats__period {
@@ -552,9 +674,46 @@ function downloadCsv(): void {
     }
 
     @container glean-workbench (max-width: 560px) {
+        .glean-stats {
+            padding: 16px;
+            gap: 16px;
+        }
+
+        .glean-stats__overview h2 {
+            font-size: 24px;
+        }
+
+        .glean-stats__activity {
+            padding: 16px;
+        }
+
         .glean-stats__overview .glean-stats__toolbar--filters {
             display: grid;
             grid-template-columns: minmax(0, 1fr);
+        }
+
+        .glean-stats__overview > .glean-stats__metrics {
+            grid-template-columns: 1fr;
+        }
+
+        .glean-stats__overview .glean-stats__field {
+            width: 100%;
+            min-width: 0;
+            min-height: 44px;
+        }
+
+        .glean-stats__metric,
+        .glean-stats__metric:hover {
+            min-height: 0;
+            padding: 16px;
+        }
+
+        .glean-stats__metric > dd:not(.glean-stats__metric-hint) {
+            font-size: 24px;
+        }
+
+        .glean-stats__toolbar .glean-btn {
+            min-height: 44px;
         }
     }
 </style>
