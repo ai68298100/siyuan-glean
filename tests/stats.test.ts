@@ -6,7 +6,7 @@ import { summarizeDistribution } from "../src/domain/distribution.ts";
 
 import {
     aggregateStats, aggregateReadingReview, buildReadingReviewCsv, buildReadingReviewMarkdown,
-    completedReviewItems, csvCell, parseLocalTimestamp, parseReviewDate, reviewPeriod, withinWeek,
+    completedReviewItems, currentCompletionStreak, csvCell, parseLocalTimestamp, parseReviewDate, reviewPeriod, withinWeek,
     type ReadingReview, type StatsInput,
 } from "../src/domain/stats.ts";
 
@@ -115,6 +115,28 @@ test("aggregateStats：无完成时间或超一周的已读不计入本周（不
     );
     assert.equal(stats.done, 3);
     assert.equal(stats.doneThisWeek, 1);
+});
+
+test("连续完成记录按本地日期去重，今天或昨天可延续，缺两天后归零", () => {
+    const completed = [
+        item({ id: "today-a", status: "done", doneTime: "20260929100000" }),
+        item({ id: "today-b", status: "archived", doneTime: "20260929110000" }),
+        item({ id: "yesterday", status: "reading", doneTime: "20260928100000" }),
+        item({ id: "two-days-ago", status: "later", doneTime: "20260927100000" }),
+        item({ id: "internal", status: "done", doneTime: "20260926100000", internal: true }),
+        item({ id: "future", status: "done", doneTime: "20260930100000" }),
+        item({ id: "invalid", status: "done", doneTime: "20260932100000" }),
+        item({ id: "candidate", status: "", doneTime: "20260926100000" }),
+    ];
+    assert.equal(currentCompletionStreak(completed, NOW), 3);
+    assert.equal(currentCompletionStreak([
+        item({ id: "yesterday", status: "done", doneTime: "20260928100000" }),
+        item({ id: "two-days-ago", status: "archived", doneTime: "20260927100000" }),
+    ], NOW), 2);
+    assert.equal(currentCompletionStreak([
+        item({ id: "gap", status: "done", doneTime: "20260926100000" }),
+    ], NOW), 0);
+    assert.equal(currentCompletionStreak(completed, new Date(Number.NaN)), 0);
 });
 
 test("aggregateStats：近 7 天收录桶（今天在最后一位）", () => {

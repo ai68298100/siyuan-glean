@@ -6,6 +6,7 @@
  */
 import type { Plugin } from "siyuan";
 import { parseClipAttrs, type ClipStatus } from "../domain/schema";
+import { currentCompletionStreak } from "../domain/stats";
 import {
     pickDaily,
     pickRandomSurfaceReplacement,
@@ -43,6 +44,8 @@ export interface DailySurfaces {
     picks: Array<SurfacePick & { reasons: SurfaceReason[] }>;
     /** 近 7 天被重浮过的篇数（视图副标题用） */
     recentCount: number;
+    /** 连续日期上存在可信的显式完成记录；不代表阅读时长。 */
+    completionStreak: number;
 }
 
 /**
@@ -50,15 +53,20 @@ export interface DailySurfaces {
  * 调用方必须传入刚对账过的索引（面板打开/刷新时的 reconcileIndex 结果），
  * 保证挑选、略过判断与超龄清单和文档属性一致。
  */
-export function computeDailyFromIndex(index: GleanIndex, settings: GleanSettings): DailySurfaces {
+export function computeDailyFromIndex(index: GleanIndex, settings: GleanSettings, now: Date = new Date()): DailySurfaces {
     const items = indexToSurfaceItems(index);
-    const recent = recentlySurfaced(items);
+    const recent = recentlySurfaced(items, now);
     const recentTagSets = tagSetsOf(recent);
     const picks = pickDaily(items, recentTagSets, {
         count: settings.resurface.dailyCount,
         includeDone: settings.resurface.includeDoneHighlights,
-    }).map((pick) => ({ ...pick, reasons: surfaceReasons(pick.item, recentTagSets) }));
-    return { picks, recentCount: recent.length };
+        now,
+    }).map((pick) => ({ ...pick, reasons: surfaceReasons(pick.item, recentTagSets, now) }));
+    return {
+        picks,
+        recentCount: recent.length,
+        completionStreak: currentCompletionStreak(Object.values(index.clips), now),
+    };
 }
 
 /** 会话内“换一篇”：允许从当日已展示池补位，但不写 last-surfaced 或其他文章属性。 */

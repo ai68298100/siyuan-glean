@@ -46,6 +46,25 @@ interface Props {
 let { facade, initialPreviewId = "" }: Props = $props();
 
 const i18n = $derived(facade.i18n);
+let currentTime = $state(new Date());
+let dayRefreshTimer: number | null = null;
+
+function scheduleDayRefresh(): void {
+    if (typeof window === "undefined") return;
+    if (dayRefreshTimer !== null) window.clearTimeout(dayRefreshTimer);
+    const now = new Date();
+    const nextDay = new Date(now);
+    nextDay.setHours(24, 0, 0, 50);
+    dayRefreshTimer = window.setTimeout(() => {
+        currentTime = new Date();
+        scheduleDayRefresh();
+    }, Math.max(1, nextDay.getTime() - now.getTime()));
+}
+
+function syncDayClock(): void {
+    currentTime = new Date();
+    scheduleDayRefresh();
+}
 
 type PanelView = "resurface" | "library" | "stats" | "highlights";
 let view = $state<PanelView>("resurface");
@@ -116,15 +135,28 @@ let draggingPointer: number | null = null;
 let dragStartRatio = normalizePreviewRatio(undefined);
 onMount(() => {
     const cleanupViewport = installMobileViewportVars(rootEl, facade.isMobile);
+    scheduleDayRefresh();
+    const onVisibilityChange = () => {
+        if (document.visibilityState === "visible") syncDayClock();
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    window.addEventListener("focus", syncDayClock);
+    const cleanup = () => {
+        if (dayRefreshTimer !== null) window.clearTimeout(dayRefreshTimer);
+        dayRefreshTimer = null;
+        document.removeEventListener("visibilitychange", onVisibilityChange);
+        window.removeEventListener("focus", syncDayClock);
+        cleanupViewport();
+    };
     if (initialPreviewId) void focusClipById(initialPreviewId, true);
-    if (!facade.isMobile || typeof window === "undefined") return cleanupViewport;
+    if (!facade.isMobile || typeof window === "undefined") return cleanup;
     const syncOnlineState = () => (offline = !navigator.onLine);
     syncOnlineState();
     window.addEventListener("online", syncOnlineState);
     window.addEventListener("offline", syncOnlineState);
     return () => {
         disposeMobileFilterFocus();
-        cleanupViewport();
+        cleanup();
         window.removeEventListener("online", syncOnlineState);
         window.removeEventListener("offline", syncOnlineState);
     };
@@ -343,7 +375,9 @@ function closeSearch(): void {
 
 const candidateCount = $derived(Object.keys(index.candidates).length);
 const totalClips = $derived(Object.keys(index.clips).length);
-const resurfaceCount = $derived(computeDailyFromIndex(index, facade.settings).picks.length);
+const dailySummary = $derived(computeDailyFromIndex(index, facade.settings, currentTime));
+const resurfaceCount = $derived(dailySummary.picks.length);
+const completionStreak = $derived(dailySummary.completionStreak);
 
 /**
  * 治理提示和状态 rail 共用同一份索引扫描结果。
@@ -546,6 +580,9 @@ function removeFilterChip(key: FilterChipKey): void {
 const activeFilterCount = $derived([selectedAuthor, selectedSite, selectedTag, selectedAiTag, selectedSource, selectedTimeSource, selectedContentType, keyword.trim()].filter(Boolean).length);
 const headerSubtitle = $derived.by(() => {
     const viewLabel = t(i18n, views.find((item) => item.key === view)?.labelKey ?? "view.resurface");
+    if (view === "resurface") {
+        return `${t(i18n, "resurface.subtitle", { n: resurfaceCount })} · ${t(i18n, "resurface.completionStreak", { n: completionStreak })}`;
+    }
     return view === "library" && activeFilterCount > 0
         ? t(i18n, "panel.headerFiltered", { view: viewLabel, n: totalClips, filters: activeFilterCount })
         : t(i18n, "panel.headerView", { view: viewLabel, n: totalClips });
@@ -1457,7 +1494,7 @@ function metaLine(entry: Row): string {
                 </button>
                 <div class="glean-mobile-topbar__copy">
                     <h1 class="glean-mobile-topbar__title">{t(i18n, mobileTitleKey)}</h1>
-                    <span class="glean-mobile-topbar__sub">{view === "resurface" ? t(i18n, "resurface.subtitle", { n: resurfaceCount }) : t(i18n, "panel.libraryCount", { n: totalClips })}</span>
+                    <span class="glean-mobile-topbar__sub">{view === "resurface" ? `${t(i18n, "resurface.subtitle", { n: resurfaceCount })} · ${t(i18n, "resurface.completionStreak", { n: completionStreak })}` : t(i18n, "panel.libraryCount", { n: totalClips })}</span>
                 </div>
                 <span
                     class={`glean-mobile-task glean-mobile-task--${mobileTaskState}`}
@@ -2338,6 +2375,7 @@ function metaLine(entry: Row): string {
         <ResurfaceView
             {facade}
             {index}
+            {currentTime}
             embedded
             onMutated={() => void reload()}
             onQuickCapture={quickCapture}
@@ -2346,7 +2384,7 @@ function metaLine(entry: Row): string {
             {quickCaptureBusy}
         />
     {:else if view === "stats"}
-        <StatsView {facade} {index} onCaptured={() => void reload()} />
+        <StatsView {facade} {index} {currentTime} onCaptured={() => void reload()} />
     {:else}
         <HighlightView {facade} />
     {/if}

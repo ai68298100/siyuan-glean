@@ -14,6 +14,7 @@ interface Props {
     facade: GleanFacade;
     /** 面板对账后的派生索引；每次属性变化由父级传入新引用触发重算。 */
     index: GleanIndex;
+    currentTime: Date;
     onMutated: () => void;
     embedded?: boolean;
     onQuickCapture?: () => void;
@@ -22,14 +23,14 @@ interface Props {
     quickCaptureBusy?: boolean;
 }
 
-let { facade, index, onMutated, embedded = false, onQuickCapture, onQuickSearch, onQuickCandidates, quickCaptureBusy = false }: Props = $props();
+let { facade, index, currentTime, onMutated, embedded = false, onQuickCapture, onQuickSearch, onQuickCandidates, quickCaptureBusy = false }: Props = $props();
 const instanceId = $props.id();
 const panelTitleId = `glean-resurface-title-${instanceId}`;
 const quickActionsTitleId = `glean-resurface-quick-actions-title-${instanceId}`;
 
 const i18n = $derived(facade.i18n);
 
-const daily = $derived(computeDailyFromIndex(index, facade.settings));
+const daily = $derived(computeDailyFromIndex(index, facade.settings, currentTime));
 type SurfaceDisplayPick = SurfacePick & { reasons: SurfaceReason[] };
 let sessionPicks = $state<SurfaceDisplayPick[] | null>(null);
 let replacementExcluded = $state<string[]>([]);

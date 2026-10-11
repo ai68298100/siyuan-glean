@@ -1,5 +1,13 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-11 T-3343/D-0210 连续完成记录提示）
+
+- 新增 `domain/stats.ts` 的 `currentCompletionStreak`，只按文章当前最近一次可信 `doneTime` 聚合本地连续日期；今天或昨天可延续，缺两天归零，同日多篇只计一天，internal/候选/无效/未来时间排除。
+- 今日拾遗 `DailySurfaces` 和统计 `ReadingStats` 共用同一派生口径；统计次级指标与 Dock/移动页头均显示“连续完成记录”，文案明确不代表阅读时长或完整重读历史。Dock 在本地午夜后及窗口重新聚焦时刷新日期相关投影，并向两个视图传递同一时刻。
+- 新增 `tests/resurface-service.test.mjs` 与统计边界回归；未新增文章属性、索引持久字段、端点、`saveData` 或打卡桥联动。T-3330 已按 D-0210 收口为 T-3343 的实现。
+- 验证：`pnpm test` 1248/1248、`pnpm check`、`pnpm build`、`pnpm check:release`、`pnpm perf:check`、`pnpm visual:check`、`pnpm task:ledger -- --check`、`git diff --check` 全部通过。版本仍为 `1.3.3`，不升版、不发布、不 push。
+- 真实桌面/移动页头密度和真实完成数据仍待 B-0002；`doneTime` 被后续完成覆盖时，streak 不能恢复旧日期，这是已记录的数据边界。
+
 ## 当前有效交接（2026-10-11 T-3342/D-0209 系列 R54 工作台视觉与交互收口）
 
 - 已参考本机小驴闪卡 R54 和小驴打卡 page-shell/workbench，给拾遗宽工作台加入稳定左侧导航、清晰页头和单一主行动；保留拾遗现有暖色、文章属性、五态、AI 前置条件及服务契约。

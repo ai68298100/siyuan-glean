@@ -37,12 +37,21 @@ export interface ReadingStats {
     totalWords: number;
     /** 最近 7 天每天新增收录数（旧→新，最后一位是今天） */
     dailyCaptured: number[];
+    /** 按最近可信完成时间推导的当前连续完成日期数，不代表每日阅读时长。 */
+    completionStreak: number;
     bySite: NameCount[];
     byTag: NameCount[];
     doneThisWeek: number;
 }
 
+export interface CompletionFact {
+    status: string;
+    doneTime: string;
+    internal?: boolean;
+}
+
 const DAY_MS = 86_400_000;
+const VALID_REVIEW_STATUSES = new Set<string>(CLIP_STATUSES);
 
 export function aggregateStats(items: StatsInput[], now: Date = new Date()): ReadingStats {
     const dailyCaptured = new Array(7).fill(0) as number[];
@@ -85,10 +94,34 @@ export function aggregateStats(items: StatsInput[], now: Date = new Date()): Rea
         inbox,
         totalWords,
         dailyCaptured,
+        completionStreak: currentCompletionStreak(items, now),
         bySite: topNameCounts(siteCounts, 6),
         byTag: topNameCounts(tagCounts, 10),
         doneThisWeek,
     };
+}
+
+/**
+ * Counts consecutive local calendar dates with a trusted completion record.
+ * Today is the anchor when completed today; otherwise yesterday keeps the streak alive.
+ */
+export function currentCompletionStreak(items: CompletionFact[], now: Date = new Date()): number {
+    if (!Number.isFinite(now.getTime())) return 0;
+    const today = siyuanDate(now);
+    const todayOrdinal = calendarOrdinal(today);
+    const completedDays = new Set<number>();
+    for (const item of items) {
+        if (item.internal || !VALID_REVIEW_STATUSES.has(item.status) || !trustedTimestamp(item.doneTime, now)) continue;
+        completedDays.add(calendarOrdinal(item.doneTime.slice(0, 8)));
+    }
+
+    let day = completedDays.has(todayOrdinal) ? todayOrdinal : todayOrdinal - 1;
+    let streak = 0;
+    while (completedDays.has(day)) {
+        streak += 1;
+        day -= 1;
+    }
+    return streak;
 }
 
 function topNameCounts(map: Map<string, number>, limit: number): NameCount[] {
@@ -209,8 +242,6 @@ export const DEFAULT_REVIEW_LABELS: ReadingReviewLabels = {
     noCompleted: "此期间没有可信完成记录",
     untitled: "无标题",
 };
-
-const VALID_REVIEW_STATUSES = new Set<string>(CLIP_STATUSES);
 
 function calendarDate(year: number, monthIndex: number, day: number): Date {
     const date = new Date(0);

@@ -218,6 +218,20 @@ test("desktop header subtitle reflects the current view and active library filte
     assert.match(home, /今日拾遗 · 读库 128 篇 · 已筛选 2 项/);
 });
 
+test("local day rollover refreshes today's gleaning and statistics without polling", () => {
+    const dock = read("src/ui/DockPanel.svelte");
+    const resurface = read("src/ui/ResurfaceView.svelte");
+    const stats = read("src/ui/StatsView.svelte");
+    assert.match(dock, /nextDay\.setHours\(24, 0, 0, 50\)/);
+    assert.match(dock, /document\.addEventListener\("visibilitychange"/);
+    assert.match(dock, /dayRefreshTimer = window\.setTimeout/);
+    assert.match(dock, /window\.clearTimeout\(dayRefreshTimer\)/);
+    assert.match(dock, /<ResurfaceView[\s\S]*?\{currentTime\}/);
+    assert.match(resurface, /computeDailyFromIndex\(index, facade\.settings, currentTime\)/);
+    assert.match(dock, /<StatsView \{facade\} \{index\} \{currentTime\}/);
+    assert.match(stats, /now: currentTime/);
+});
+
 test("library cards and rows expose today pin through the shared resurface service", () => {
     const source = read("src/ui/DockPanel.svelte");
     assert.match(source, /import \{ archiveStaleCandidates, setSurfacePinned \} from "\.\.\/services\/resurface-service"/);

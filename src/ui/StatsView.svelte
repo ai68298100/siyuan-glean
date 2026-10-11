@@ -16,10 +16,11 @@ import { parseReviewDate, reviewDateInput, type ReadingReviewLabels, type Review
 interface Props {
     facade: GleanFacade;
     index: GleanIndex;
+    currentTime: Date;
     onCaptured?: () => void;
 }
 
-let { facade, index, onCaptured }: Props = $props();
+let { facade, index, currentTime, onCaptured }: Props = $props();
 
 const i18n = $derived(facade.i18n);
 const instanceId = $props.id();
@@ -34,7 +35,7 @@ let busy = $state(false);
 let message = $state("");
 let disposed = false;
 const reference = $derived(parseReviewDate(referenceDate));
-const liveReview = $derived(buildReadingReview(index, { period, reference: reference ?? new Date() }));
+const liveReview = $derived(buildReadingReview(index, { period, reference: reference ?? currentTime, now: currentTime }));
 const review = $derived(session?.review ?? liveReview);
 const stats = $derived(review.stats);
 const maxHeat = $derived(Math.max(1, ...stats.heatmap.map((day) => day.count)));
@@ -53,6 +54,7 @@ const primaryMetrics = $derived([
     { key: "review.candidateMetric", count: review.candidateCount, hint: "review.candidateHint" },
 ]);
 const supplementaryMetrics = $derived([
+    { key: "review.completionStreak", count: stats.completionStreak, hint: "review.completionStreakHint" },
     { key: "review.doneState", count: stats.done },
     { key: "review.archived", count: stats.archived },
     { key: "review.libraryWords", count: stats.totalWords },
@@ -200,7 +202,7 @@ function downloadCsv(): void {
             <summary>{t(i18n, "review.moreMetrics")}</summary>
             <dl class="glean-stats__metrics glean-stats__metrics--supplemental">
                 {#each supplementaryMetrics as metric (metric.key)}
-                    <div class="glean-stats__metric"><dt>{t(i18n, metric.key)}</dt><dd>{metric.count}</dd></div>
+                    <div class="glean-stats__metric"><dt>{t(i18n, metric.key)}</dt><dd>{metric.count}</dd>{#if metric.hint}<dd class="glean-stats__metric-hint">{t(i18n, metric.hint)}</dd>{/if}</div>
                 {/each}
             </dl>
         </details>
