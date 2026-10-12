@@ -1,11 +1,20 @@
 # 进度（PROGRESS）
 
+## T-3345/T-3346 ReaderTab 专注模式与用户标签筛选别名（2026-10-12）
+
+- [x] 完成契约与决策：D-0212 将一对一标签别名定义为 UI 偏好，D-0213 将专注阅读限定为复用原 Protyle 的页签布局；均不新增文章属性、内核 API 或全屏宿主行为。
+- [x] 实现 ReaderTab 专注状态、退出入口、伴生栏恢复和思源原生页签回退；桌面/窄屏样式保持同一个 Protyle DOM 与观察器生命周期。
+- [x] 实现根块用户标签别名的归一化、限量、队列精确写入、删除确认和跨 Dock 同步；桌面筛选、移动筛选与工作台标签 rail 显示别名，筛选值/芯片/保存视图仍为原标签。
+- [x] canonical 原型加入两项流程，并将 additions 作为历史线索迁入主原型；静态原型回归覆盖专注/退出、批注兼容边界、原标签筛选和别名动作。
+- [x] 完整门禁通过：`pnpm check`、`pnpm test`（1271/1271）、`pnpm build`、`pnpm check:release`、`pnpm perf:check`、`pnpm visual:check`、`pnpm task:ledger -- --check`、`git diff --check`；真实 ReaderTab 批注插件、桌面/窄 Dock/移动/读屏验收仍待 B-0002。
+
 ## T-3344/D-0211 原型、组件清单与交付文档收口（2026-10-12）
 
 - [x] 新增开发与交付指南，覆盖 Node/pnpm、项目结构、全部脚本、可选环境变量、隔离 E2E/spike、构建/部署、已知限制；README 增加入口。
 - [x] 新增 `docs/UI-COMPONENTS.md`，覆盖 `src/ui` 的 32/32 个 Svelte 组件，列出用途、主要参数、实际状态和键盘/移动端行为；标明 QuotesView 未接线与 ReaderTab 实验开关。
 - [x] 交互原型已按真实入口与状态收口：示例数据明确标示、画布/主题/状态可切换、去掉未实现动作并区分互斥状态；同步更新原型静态断言。
 - [x] `pnpm check`（0 错误/0 警告）、`pnpm test`（1264/1264）、`pnpm build`、`pnpm perf:baseline`、`pnpm perf:check`、`pnpm check:release`、`pnpm visual:check`、`pnpm task:ledger -- --check` 和 `git diff --check` 全部通过。
+- [x] 设计令牌审计（`scripts/audit-design-tokens.mjs`，同一声明扫描口径）：收敛前 `1407/2637` 条使用 `--glean-*`/`--b3-*` 变量（53.4%），硬编码 840 条；当前 `1522/2642` 条（57.6%），硬编码 729 条，覆盖率提升 4.2 个百分点、硬编码减少 111 条。该脚本会把组件尺寸等合法字面量也计入硬编码，结果用于趋势回归，不是把所有字面量判为缺陷。
 - [ ] 真实思源桌面/移动端、读屏和真实文章数据仍待 B-0002/B-0004；真实下载/归档文件仍待 B-0005。原型数据和浏览器预览都是合成的，不能用作上述验收证据。
 
 ## T-3343/D-0210 连续完成记录提示（2026-10-11）

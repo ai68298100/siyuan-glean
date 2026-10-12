@@ -12,8 +12,11 @@ import {
     normalizeGovernanceMuted,
     normalizeReaderAppearance,
     normalizeSavedViews,
+    normalizeTagAliases,
+    cloneTagAliases,
     type ReaderAppearance,
     type SavedView,
+    type TagAlias,
     type GovernanceMuted,
 } from "../domain/ui-prefs.ts";
 
@@ -36,6 +39,7 @@ export interface UiPrefs {
     workbenchPreviewRatio: number;
     libraryRailGroups: RailGroups;
     savedViews: SavedView[];
+    tagAliases: TagAlias[];
     defaultSavedViewId: string;
     governanceMuted: GovernanceMuted;
 }
@@ -54,6 +58,7 @@ const DEFAULTS: UiPrefs = {
     workbenchPreviewRatio: normalizePreviewRatio(undefined),
     libraryRailGroups: normalizeRailGroups(undefined),
     savedViews: [],
+    tagAliases: [],
     defaultSavedViewId: "",
     governanceMuted: { ...EMPTY_GOVERNANCE_MUTED },
 };
@@ -82,6 +87,7 @@ export function normalizeUiPrefs(raw: unknown): UiPrefs {
         workbenchPreviewRatio: normalizePreviewRatio(partial.workbenchPreviewRatio),
         libraryRailGroups: normalizeRailGroups(partial.libraryRailGroups),
         savedViews,
+        tagAliases: normalizeTagAliases(partial.tagAliases),
         defaultSavedViewId: savedViews.some((view) => view.id === requestedDefault) ? requestedDefault : "",
         governanceMuted: normalizeGovernanceMuted(partial.governanceMuted),
     };
@@ -93,6 +99,7 @@ function clonePrefs(prefs: UiPrefs): UiPrefs {
         readerAppearance: { ...prefs.readerAppearance },
         libraryRailGroups: normalizeRailGroups(prefs.libraryRailGroups),
         savedViews: prefs.savedViews.map((view) => ({ ...view, filter: { ...view.filter } })),
+        tagAliases: cloneTagAliases(prefs.tagAliases),
         governanceMuted: { ...prefs.governanceMuted },
     };
 }
@@ -105,6 +112,7 @@ function clonePatch(patch: UiPrefsPatch): UiPrefsPatch {
         ...(patch.readerAppearance ? { readerAppearance: { ...patch.readerAppearance } } : {}),
         ...(patch.libraryRailGroups ? { libraryRailGroups: Object.fromEntries(Object.entries(patch.libraryRailGroups).map(([name, group]) => [name, { ...group }])) } : {}),
         ...(patch.savedViews ? { savedViews: patch.savedViews.map((view) => ({ ...view, filter: { ...view.filter } })) } : {}),
+        ...(patch.tagAliases ? { tagAliases: cloneTagAliases(patch.tagAliases) } : {}),
         ...(patch.governanceMuted ? { governanceMuted: { ...patch.governanceMuted } } : {}),
     };
 }
@@ -120,6 +128,10 @@ export async function loadUiPrefs(plugin: Plugin, options: { strict?: boolean } 
 /** 增量保存：每个插件实例串行读取-合并-写回，失败不会污染后续保存。 */
 export class UiPrefsConflictError extends Error {
     constructor() { super("Preferences changed"); }
+}
+
+export class TagAliasConflictError extends Error {
+    constructor() { super("Tag alias conflicts with an existing alias"); }
 }
 
 export async function saveUiPrefs(plugin: Plugin, patch: UiPrefsPatch, options: { expected?: UiPrefs } = {}): Promise<UiPrefs> {
@@ -182,6 +194,23 @@ export async function deleteSavedViewPref(plugin: Plugin, id: string): Promise<U
 /** 只更新默认视图。 */
 export async function setDefaultSavedViewPref(plugin: Plugin, id: string): Promise<UiPrefs> {
     return queueViewPrefOp(plugin, (current) => ({ ...current, defaultSavedViewId: id }));
+}
+
+/** Upsert one UI-only user-tag alias without replacing aliases added by another canvas. */
+export async function upsertTagAliasPref(plugin: Plugin, alias: TagAlias): Promise<UiPrefs> {
+    return queueViewPrefOp(plugin, (current) => {
+        const tagAliases = normalizeTagAliases([...current.tagAliases.filter((item) => item.id !== alias.id), alias]);
+        if (!tagAliases.some((item) => item.id === alias.id)) throw new TagAliasConflictError();
+        return { ...current, tagAliases };
+    });
+}
+
+/** Delete one UI-only user-tag alias from the latest persisted preferences. */
+export async function deleteTagAliasPref(plugin: Plugin, id: string): Promise<UiPrefs> {
+    return queueViewPrefOp(plugin, (current) => ({
+        ...current,
+        tagAliases: current.tagAliases.filter((item) => item.id !== id),
+    }));
 }
 
 function queueViewPrefOp(

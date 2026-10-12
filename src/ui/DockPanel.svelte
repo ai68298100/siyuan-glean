@@ -27,7 +27,7 @@ import InboxSection from "./InboxSection.svelte";
 import ResurfaceView from "./ResurfaceView.svelte";
 import { archiveStaleCandidates, setSurfacePinned } from "../services/resurface-service";
 import { computeDailyFromIndex } from "../services/resurface-service";
-import { deleteSavedViewPref, loadUiPrefs, saveLastViewPref, saveUiPrefs, setDefaultSavedViewPref, upsertSavedViewPref } from "../services/prefs";
+import { deleteSavedViewPref, deleteTagAliasPref, loadUiPrefs, saveLastViewPref, saveUiPrefs, setDefaultSavedViewPref, TagAliasConflictError, upsertSavedViewPref, upsertTagAliasPref } from "../services/prefs";
 import { ageDays, todayStamp } from "../domain/resurface.ts";
 import { recordReadingDone } from "../services/checkin-bridge";
 import { hasSourceAction, openTargetForCarrier, resolveCarrier, sourceUrlForCarrier } from "../domain/carrier";
@@ -36,7 +36,7 @@ import ClipRankControls from "./ClipRankControls.svelte";
 import { installMobileViewportVars } from "../libs/mobile-viewport";
 import { installEscapeHandler, installModalFocus } from "../libs/modal-focus";
 import { createRefreshQueue } from "../libs/refresh-queue";
-import { applySavedView, createSavedView, deleteSavedView, governanceCueMuted, localDateStamp, setDefaultSavedView, type GovernanceCueKey, type GovernanceMuted, type SavedView } from "../domain/ui-prefs";
+import { applySavedView, createSavedView, deleteSavedView, displayTagAlias, governanceCueMuted, localDateStamp, setDefaultSavedView, normalizeTagAliases, type GovernanceCueKey, type GovernanceMuted, type SavedView, type TagAlias } from "../domain/ui-prefs";
 
 interface Props {
     facade: GleanFacade;
@@ -141,11 +141,17 @@ onMount(() => {
     };
     document.addEventListener("visibilitychange", onVisibilityChange);
     window.addEventListener("focus", syncDayClock);
+    const onTagAliasesChanged = () => {
+        void loadUiPrefs(facade.pluginInstance).then((prefs) => { tagAliases = prefs.tagAliases; }).catch(() => undefined);
+    };
+    document.addEventListener("glean:tag-aliases-changed", onTagAliasesChanged);
     const cleanup = () => {
+        disposeTagAliasFocus();
         if (dayRefreshTimer !== null) window.clearTimeout(dayRefreshTimer);
         dayRefreshTimer = null;
         document.removeEventListener("visibilitychange", onVisibilityChange);
         window.removeEventListener("focus", syncDayClock);
+        document.removeEventListener("glean:tag-aliases-changed", onTagAliasesChanged);
         cleanupViewport();
     };
     if (initialPreviewId) void focusClipById(initialPreviewId, true);
@@ -178,6 +184,16 @@ let mobileMoreMenu = $state<HTMLDivElement | null>(null);
 let savedViews = $state<SavedView[]>([]);
 let defaultSavedViewId = $state("");
 let savedViewId = $state("");
+let tagAliases = $state<TagAlias[]>([]);
+let tagAliasManagerOpen = $state(false);
+let tagAliasDraftId = $state("");
+let tagAliasDraftName = $state("");
+let tagAliasDraftTag = $state("");
+let tagAliasBusy = $state(false);
+let tagAliasDeleteConfirmId = $state("");
+let tagAliasDialog = $state<HTMLElement | null>(null);
+let tagAliasReturnFocus: HTMLElement | null = null;
+let disposeTagAliasFocus = () => {};
 let savedViewName = $state("");
 let prefsLoading = $state(true);
 let prefsError = $state(false);
@@ -425,7 +441,7 @@ async function muteGovernanceCue(key: GovernanceCueKey): Promise<void> {
     try {
         const saved = await saveUiPrefs(facade.pluginInstance, { governanceMuted: next });
         governanceMuted = saved.governanceMuted;
-    } catch {
+    } catch (error) {
         showMessage(t(i18n, "settings.saveFailed"), 3000);
     }
 }
@@ -752,6 +768,7 @@ async function restorePreferences(): Promise<void> {
         applyingPrefs = true;
         if (!prefsUserTouched && valid && !focusRequested) view = prefs.lastView as PanelView;
         savedViews = prefs.savedViews;
+        tagAliases = prefs.tagAliases;
         defaultSavedViewId = prefs.defaultSavedViewId;
         governanceMuted = prefs.governanceMuted;
         if (!previewPrefsTouched) {
@@ -836,6 +853,95 @@ function saveCurrentView(): void {
         console.warn("[glean] 保存视图写回失败:", error);
         showMessage(t(i18n, 'settings.saveFailed'), 3000);
     });
+}
+
+function aliasForTag(tag: string): string {
+    return displayTagAlias(tagAliases, tag);
+}
+
+function beginTagAliasEdit(alias?: TagAlias): void {
+    tagAliasDeleteConfirmId = "";
+    tagAliasDraftId = alias?.id ?? "";
+    tagAliasDraftName = alias?.name ?? "";
+    tagAliasDraftTag = alias?.tag ?? "";
+}
+
+function openTagAliasManager(): void {
+    beginTagAliasEdit();
+    tagAliasReturnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    tagAliasManagerOpen = true;
+    void tick().then(() => {
+        if (!tagAliasManagerOpen || !tagAliasDialog) return;
+        disposeTagAliasFocus = installModalFocus(tagAliasDialog, {
+            onClose: closeTagAliasManager,
+            returnFocus: tagAliasReturnFocus,
+        });
+    });
+}
+
+function closeTagAliasManager(): void {
+    tagAliasManagerOpen = false;
+    const dispose = disposeTagAliasFocus;
+    disposeTagAliasFocus = () => {};
+    dispose();
+    tagAliasReturnFocus = null;
+}
+
+async function saveTagAlias(): Promise<void> {
+    if (tagAliasBusy) return;
+    const name = tagAliasDraftName.trim();
+    const tag = tagAliasDraftTag.trim().replace(/^#+|#+$/g, "").trim();
+    if (!name || !tag) {
+        showMessage(t(i18n, "msg.actionFailed"), 3000);
+        return;
+    }
+    if (!facets.tags.some((item) => item.value.toLocaleLowerCase() === tag.toLocaleLowerCase())) {
+        showMessage(t(i18n, "library.tagAliasMissing"), 3500);
+        return;
+    }
+    if (tagAliases.length >= 20 && !tagAliasDraftId) {
+        showMessage(t(i18n, "library.tagAliasLimit"), 3000);
+        return;
+    }
+    const id = tagAliasDraftId || `tag-alias-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const candidate = normalizeTagAliases([...tagAliases.filter((item) => item.id !== id), { id, name, tag }]);
+    if (!candidate.some((item) => item.id === id)) {
+        showMessage(t(i18n, "library.tagAliasDuplicate"), 3000);
+        return;
+    }
+    tagAliasBusy = true;
+    try {
+        const saved = await upsertTagAliasPref(facade.pluginInstance, { id, name, tag });
+        tagAliases = saved.tagAliases;
+        document.dispatchEvent(new Event("glean:tag-aliases-changed"));
+        beginTagAliasEdit();
+        showMessage(t(i18n, "library.tagAliasSaved"), 2500);
+    } catch (error) {
+        showMessage(t(i18n, error instanceof TagAliasConflictError ? "library.tagAliasDuplicate" : "settings.saveFailed"), 3000);
+    } finally {
+        tagAliasBusy = false;
+    }
+}
+
+async function removeTagAlias(alias: TagAlias): Promise<void> {
+    if (tagAliasBusy) return;
+    if (tagAliasDeleteConfirmId !== alias.id) {
+        tagAliasDeleteConfirmId = alias.id;
+        return;
+    }
+    tagAliasBusy = true;
+    try {
+        const saved = await deleteTagAliasPref(facade.pluginInstance, alias.id);
+        tagAliases = saved.tagAliases;
+        document.dispatchEvent(new Event("glean:tag-aliases-changed"));
+        tagAliasDeleteConfirmId = "";
+        if (tagAliasDraftId === alias.id) beginTagAliasEdit();
+        showMessage(t(i18n, "library.tagAliasDeleted"), 2500);
+    } catch {
+        showMessage(t(i18n, "settings.saveFailed"), 3000);
+    } finally {
+        tagAliasBusy = false;
+    }
 }
 
 function removeSavedView(): void {
@@ -1732,7 +1838,7 @@ function metaLine(entry: Row): string {
                 <span class="glean-mobile-filter-results" role="status" aria-live="polite">{t(i18n, "library.resultCount", { n: rows.length })}</span>
             </div>
         {:else if !isTabCanvas}
-            <LibraryFilters {i18n} {facets} bind:site={selectedSite} bind:author={selectedAuthor} bind:tag={selectedTag} bind:aiTag={selectedAiTag} bind:source={selectedSource} bind:timeSource={selectedTimeSource} bind:contentType={selectedContentType} bind:sortBy bind:direction={sortDirection} {hasFilters} onClear={clearFilters} {sourceLabel} {facetLabel} />
+            <LibraryFilters {i18n} {facets} {tagAliases} onManageTagAliases={openTagAliasManager} bind:site={selectedSite} bind:author={selectedAuthor} bind:tag={selectedTag} bind:aiTag={selectedAiTag} bind:source={selectedSource} bind:timeSource={selectedTimeSource} bind:contentType={selectedContentType} bind:sortBy bind:direction={sortDirection} {hasFilters} onClear={clearFilters} {sourceLabel} {facetLabel} />
         {/if}
 
         {#if isTabCanvas}
@@ -1753,7 +1859,7 @@ function metaLine(entry: Row): string {
                 </div>
                 <div class="glean-libbar__spacer"></div>
                 <button class="glean-btn glean-btn--ghost" aria-pressed={previewEnabled} onclick={togglePreview}>{t(i18n, "preview.enabled")}</button>
-                <LibraryFilters {i18n} {facets} bind:site={selectedSite} bind:author={selectedAuthor} bind:tag={selectedTag} bind:aiTag={selectedAiTag} bind:source={selectedSource} bind:timeSource={selectedTimeSource} bind:contentType={selectedContentType} bind:sortBy bind:direction={sortDirection} {hasFilters} onClear={clearFilters} {sourceLabel} {facetLabel} />
+                <LibraryFilters {i18n} {facets} {tagAliases} onManageTagAliases={openTagAliasManager} bind:site={selectedSite} bind:author={selectedAuthor} bind:tag={selectedTag} bind:aiTag={selectedAiTag} bind:source={selectedSource} bind:timeSource={selectedTimeSource} bind:contentType={selectedContentType} bind:sortBy bind:direction={sortDirection} {hasFilters} onClear={clearFilters} {sourceLabel} {facetLabel} />
             </div>
         {/if}
 
@@ -1821,9 +1927,11 @@ function metaLine(entry: Row): string {
                             <span>{t(i18n, "library.filterTag")}</span>
                             <select class="b3-select" bind:value={mobileFilterDraft.tag}>
                                 <option value="">{t(i18n, "library.filterTag")}</option>
-                                {#each facets.tags as facet (facet.value)}<option value={facet.value}>#{facet.value} · {facet.count}</option>{/each}
+                                {#each facets.tags as facet (facet.value)}<option value={facet.value}>#{aliasForTag(facet.value)} · {facet.count}</option>{/each}
+                                {#if mobileFilterDraft.tag && !facets.tags.some((facet) => facet.value === mobileFilterDraft.tag)}<option value={mobileFilterDraft.tag}>#{aliasForTag(mobileFilterDraft.tag)}</option>{/if}
                             </select>
                         </label>
+                        <button type="button" class="glean-btn glean-btn--ghost" onclick={openTagAliasManager}>{t(i18n, "library.tagAliasManage")}</button>
                         <label class="glean-mobile-filter-field">
                             <span>{t(i18n, "library.filterAiTag")}</span>
                             <select class="b3-select" bind:value={mobileFilterDraft.aiTag}>
@@ -2060,7 +2168,7 @@ function metaLine(entry: Row): string {
                         <LibraryRailGroup plugin={facade.pluginInstance} {i18n} group="sites" label={t(i18n, "rail.sites")} items={railStats.sites} selected={selectedSite} onSelect={(value) => selectedSite = selectedSite.toLocaleLowerCase() === value.toLocaleLowerCase() ? "" : value} />
                     {/if}
                     {#if railStats.tags.length > 0 || selectedTag}
-                        <LibraryRailGroup plugin={facade.pluginInstance} {i18n} group="tags" label={t(i18n, "rail.tags")} prefix="#" items={railStats.tags} selected={selectedTag} onSelect={(value) => selectedTag = selectedTag.toLocaleLowerCase() === value.toLocaleLowerCase() ? "" : value} />
+                        <LibraryRailGroup plugin={facade.pluginInstance} {i18n} group="tags" label={t(i18n, "rail.tags")} prefix="#" items={railStats.tags} selected={selectedTag} itemLabel={aliasForTag} onSelect={(value) => selectedTag = selectedTag.toLocaleLowerCase() === value.toLocaleLowerCase() ? "" : value} />
                     {/if}
                     {#if railStats.aiTags.length > 0 || selectedAiTag}
                         <LibraryRailGroup plugin={facade.pluginInstance} {i18n} group="aiTags" label={`✨ ${t(i18n, "rail.aiTags")}`} hint={t(i18n, "library.filterAiTagHint")} prefix="✨" items={railStats.aiTags} selected={selectedAiTag} onSelect={(value) => selectedAiTag = selectedAiTag.toLocaleLowerCase() === value.toLocaleLowerCase() ? "" : value} />
@@ -2432,6 +2540,38 @@ function metaLine(entry: Row): string {
                 </button>
             {/each}
         </nav>
+    {/if}
+    {#if tagAliasManagerOpen}
+        <div class="glean-tag-alias-backdrop" role="presentation" onclick={(event) => event.target === event.currentTarget && closeTagAliasManager()}>
+            <dialog open class="glean-tag-alias-dialog" bind:this={tagAliasDialog} aria-modal="true" aria-labelledby="glean-tag-alias-title" aria-describedby="glean-tag-alias-help" tabindex="-1">
+                <header class="glean-tag-alias-dialog__head">
+                    <h2 id="glean-tag-alias-title">{t(i18n, "library.tagAliasManage")}</h2>
+                    <button type="button" class="glean-icon-btn" aria-label={t(i18n, "library.filterClose")} onclick={closeTagAliasManager}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanClose" /></svg></button>
+                </header>
+                <p id="glean-tag-alias-help" class="glean-tag-alias-dialog__help">{t(i18n, "library.tagAliasHelp")}</p>
+                {#if tagAliases.length === 0}<p class="glean-tag-alias-dialog__empty">{t(i18n, "library.tagAliasNone")}</p>{/if}
+                <div class="glean-tag-alias-list">
+                    {#each tagAliases as alias (alias.id)}
+                        <div class="glean-tag-alias-item">
+                            <div><strong>{alias.name}</strong><span>→ #{alias.tag}</span>{#if !facets.tags.some((facet) => facet.value.toLocaleLowerCase() === alias.tag.toLocaleLowerCase())}<small role="status">{t(i18n, "library.tagAliasMissing")}</small>{/if}</div>
+                            <div class="glean-tag-alias-item__actions">
+                                <button type="button" class="glean-btn glean-btn--ghost" disabled={tagAliasBusy} onclick={() => beginTagAliasEdit(alias)}>{t(i18n, "library.tagAliasEdit")}</button>
+                                <button type="button" class="glean-btn glean-btn--ghost" disabled={tagAliasBusy} onclick={() => void removeTagAlias(alias)}>{t(i18n, tagAliasDeleteConfirmId === alias.id ? "library.tagAliasConfirmDelete" : "library.tagAliasDelete")}</button>
+                            </div>
+                        </div>
+                    {/each}
+                </div>
+                <div class="glean-tag-alias-form">
+                    <label>{t(i18n, "library.tagAliasName")}<input class="b3-text-field" maxlength="40" bind:value={tagAliasDraftName} /></label>
+                    <label>{t(i18n, "library.tagAliasSource")}<select class="b3-select" bind:value={tagAliasDraftTag}><option value="">{t(i18n, "action.filterAll")}</option>{#each facets.tags as facet (facet.value)}<option value={facet.value}>#{facet.value} · {facet.count}</option>{/each}</select></label>
+                    <div class="glean-tag-alias-form__actions">
+                        <button type="button" class="glean-btn glean-btn--ghost" disabled={tagAliasBusy || (!tagAliasDraftName && !tagAliasDraftTag)} onclick={() => beginTagAliasEdit()}>{t(i18n, "library.tagAliasNew")}</button>
+                        <button type="button" class="glean-btn glean-btn--pri" aria-busy={tagAliasBusy} disabled={tagAliasBusy || !tagAliasDraftName.trim() || !tagAliasDraftTag} onclick={() => void saveTagAlias()}>{t(i18n, "library.tagAliasSave")}</button>
+                    </div>
+                </div>
+                <footer class="glean-tag-alias-dialog__foot"><button type="button" class="glean-btn glean-btn--ghost" onclick={closeTagAliasManager}>{t(i18n, "action.close")}</button></footer>
+            </dialog>
+        </div>
     {/if}
     </div>
 </div>

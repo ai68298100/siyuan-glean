@@ -1,11 +1,19 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-12 T-3345/T-3346 阅读专注与标签筛选）
+
+- 已新增 D-0212/T-3346：用户可为现有根块 IAL `tags` 设置一对一筛选别名，数据只存 `ui-prefs.json`，经偏好串行精确读改写；筛选、chip 和保存视图继续使用原标签值，绝不写文章标签。桌面/工作台 `LibraryFilters`、移动抽屉和工作台 rail 均显示别名；管理表单含重复校验、失效映射说明、保存忙碌、删除二次确认与跨画布同步。
+- 已新增 D-0213/T-3345：ReaderTab “专注阅读”是页签内布局状态；与“收起伴生栏”分开，保留退出、打开思源原生页签和批注兼容提示。不调用 Fullscreen API，不移动/重建 Protyle，尺寸继续由 ResizeObserver 处理。外部快速批注插件的内嵌兼容性只待 B-0002 真机验证。
+- canonical 原型与组件清单已同步；原型静态回归新增两项行为及增量动作迁移断言。定向验证：偏好/i18n/筛选/原型 45/45；完整验证 1271/1271；此前两条陈旧测试断言已更新（历史原型文案、当前任务账本编号），并修复标签首尾井号后的空白归一化。
+- 本轮最终门禁：`pnpm check`、`pnpm test`（1271/1271）、`pnpm build`、`pnpm check:release`、`pnpm perf:check`、`pnpm visual:check`、`pnpm task:ledger -- --check`、`git diff --check` 全部通过。版本保持 1.3.3，不升版、不发布、不 push；真实读屏、第三方批注兼容和三画布实机仍待 B-0002。
+
 ## 当前有效交接（2026-10-12 T-3344/D-0211 原型和交付文档收口）
 
 - 已新增 [`docs/DEVELOPMENT.md`](DEVELOPMENT.md)，覆盖新环境安装、项目结构、全部 pnpm scripts、可选环境变量、隔离 E2E/spike、构建部署和已知限制；README 增加指南入口。
 - 已新增 [`docs/UI-COMPONENTS.md`](UI-COMPONENTS.md)，核对 `src/ui` 的 32/32 个组件并说明用途、主要参数、状态、键盘/移动端行为；明确 QuotesView 未接入主导航、ReaderTab 为桌面实验功能。
 - `design/prototype-v2.html` 与 `design/prototype-v2-additions.html` 已收口为交互状态镜像：合成数据、运行时视图、关键异步/空错态、主题和画布断点均可切换；不存在的清理动作已移除，设置空态、重试锁和未保存修改确认已补齐。每个演示结果仍显著标注合成数据，不冒充实际内核或宿主验收。
 - 本轮检查：`pnpm check`、`pnpm test`（1264/1264）、`pnpm build`、`pnpm perf:baseline`、`pnpm perf:check`、`pnpm check:release`、`pnpm visual:check`、`pnpm task:ledger -- --check`、`git diff --check` 全部通过。Node v24.16 / Windows x64 三轮合成基线在 10k 输入下：扫描 7.57ms、索引重建 64.12ms、筛选 2.55ms、导入解析 32.85ms、今日拾遗 3.32ms。
+- 令牌收敛有可复测数字：同一审计口径下，`--glean-*`/`--b3-*` 使用从 1407/2637（53.4%）增至 1522/2642（57.6%），硬编码从 840 降至 729；统计包含组件尺寸等合法字面量，后续若继续收敛应按语义类别拆分阈值。
 - 当前版本 1.3.3；不升版、不打 tag、不发布、不 push。真实宿主/设备与读屏仍待 B-0002/B-0004，真实导出文件仍待 B-0005；未采集真实证据前不得标为通过。
 
 ## 当前有效交接（2026-10-11 T-3343/D-0210 连续完成记录提示）

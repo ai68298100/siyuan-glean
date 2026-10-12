@@ -1188,6 +1188,105 @@ body.b3-theme-dark {
     z-index: 2;
 }
 
+.glean-reader--immersive .glean-reader__toolbar {
+    flex-wrap: nowrap;
+    gap: var(--glean-space-2);
+    padding: var(--glean-space-2) var(--glean-space-4);
+    border-bottom-color: color-mix(in srgb, var(--b3-theme-primary) 28%, var(--glean-border-soft));
+    background: var(--b3-theme-surface);
+}
+
+.glean-reader--immersive .glean-reader__toolbar-heading {
+    flex: 1 1 180px;
+}
+
+.glean-reader--immersive .glean-reader__toolbar-meta,
+.glean-reader--immersive .glean-reader__toolbar-secondary,
+.glean-reader--immersive .glean-reader__toolbar-appearance,
+.glean-reader--immersive .glean-reader__toolbar-source {
+    display: none;
+}
+
+.glean-reader__toolbar-native,
+.glean-reader__toolbar-exit,
+.glean-reader__toolbar-immersive {
+    flex: 0 0 auto;
+}
+
+.glean-reader__immersive-note {
+    margin: 0;
+    padding: var(--glean-space-1) var(--glean-space-4);
+    color: var(--b3-theme-on-surface-light);
+    background: var(--b3-theme-surface);
+    font-size: var(--glean-text-xs);
+}
+
+.glean-reader--immersive .glean-reader__main {
+    min-height: 0;
+}
+
+.glean-reader--immersive .glean-reader__host .protyle-wysiwyg {
+    padding-top: clamp(32px, 7vh, 80px);
+    padding-bottom: clamp(48px, 10vh, 112px);
+}
+
+.glean-tag-alias-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: grid;
+    place-items: center;
+    padding: max(16px, var(--glean-safe-top, 0px)) max(16px, var(--glean-safe-right, 0px)) max(16px, var(--glean-safe-bottom, 0px)) max(16px, var(--glean-safe-left, 0px));
+    background: color-mix(in srgb, var(--b3-theme-on-background) 38%, transparent);
+}
+
+.glean-tag-alias-dialog {
+    position: relative;
+    inset: auto;
+    display: grid;
+    gap: var(--glean-space-3);
+    width: min(560px, 100%);
+    max-height: min(88dvh, 760px);
+    overflow: auto;
+    padding: var(--glean-space-5);
+    border: 1px solid var(--glean-border-soft);
+    border-radius: var(--glean-radius-md);
+    background: var(--b3-theme-surface);
+    color: var(--b3-theme-on-surface);
+    box-shadow: var(--b3-dialog-shadow, 0 16px 48px rgba(0, 0, 0, .22));
+}
+
+.glean-tag-alias-dialog__head,
+.glean-tag-alias-item,
+.glean-tag-alias-item__actions,
+.glean-tag-alias-form__actions,
+.glean-tag-alias-dialog__foot {
+    display: flex;
+    align-items: center;
+    gap: var(--glean-space-2);
+}
+
+.glean-tag-alias-dialog__head h2 {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    font-size: var(--glean-text-lg);
+}
+
+.glean-tag-alias-dialog__help,
+.glean-tag-alias-dialog__empty { margin: 0; color: var(--b3-theme-on-surface-light); }
+.glean-tag-alias-list { display: grid; gap: var(--glean-space-2); }
+.glean-tag-alias-item { justify-content: space-between; flex-wrap: wrap; padding: var(--glean-space-2) 0; border-bottom: 1px solid var(--glean-border-soft); }
+.glean-tag-alias-item > div:first-child { display: grid; min-width: 0; overflow-wrap: anywhere; }
+.glean-tag-alias-item small { color: var(--b3-theme-error); }
+.glean-tag-alias-item__actions { flex-wrap: wrap; }
+.glean-tag-alias-form { display: grid; gap: var(--glean-space-3); padding-top: var(--glean-space-2); }
+.glean-tag-alias-form label { display: grid; gap: var(--glean-space-1); min-width: 0; }
+.glean-tag-alias-form input,
+.glean-tag-alias-form select { width: 100%; min-width: 0; min-height: 44px; }
+.glean-tag-alias-form__actions,
+.glean-tag-alias-dialog__foot { justify-content: flex-end; flex-wrap: wrap; }
+
 .glean-reader__toolbar-title {
     flex: 0 1 auto;
     min-width: 80px;
@@ -2065,6 +2164,19 @@ body.b3-theme-dark {
 
     .glean-reader__toolbar {
         padding: 8px max(8px, var(--glean-safe-right, 0px)) 8px max(8px, var(--glean-safe-left, 0px));
+    }
+
+    .glean-reader--immersive .glean-reader__toolbar {
+        flex-wrap: wrap;
+    }
+
+    .glean-reader--immersive .glean-reader__toolbar-heading {
+        flex-basis: 100%;
+    }
+
+    .glean-reader--immersive .glean-reader__toolbar-native {
+        max-width: 180px;
+        white-space: normal;
     }
 
     .glean-reader__toolbar-title {

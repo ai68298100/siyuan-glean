@@ -15,6 +15,8 @@ export type ReaderAppearance = {
 
 export type SavedViewLayout = "list" | "kanban";
 export type SavedViewFilter = Pick<LibraryFilter, "status" | "site" | "author" | "tag" | "aiTag" | "src" | "timeSource" | "contentType" | "keyword" | "sortBy" | "direction">;
+export interface TagAlias { id: string; name: string; tag: string; }
+export const MAX_TAG_ALIASES = 20;
 export const GOVERNANCE_CUE_KEYS = ["quota", "stale", "candidates"] as const;
 export type GovernanceCueKey = (typeof GOVERNANCE_CUE_KEYS)[number];
 export type GovernanceMuted = Record<GovernanceCueKey, string>;
@@ -123,6 +125,41 @@ export function normalizeSavedViews(raw: unknown): SavedView[] {
         if (result.length >= 20) break;
     }
     return result;
+}
+
+/** UI-only labels for existing user tags; they never create or modify article tags. */
+export function normalizeTagAliases(raw: unknown): TagAlias[] {
+    if (!Array.isArray(raw)) return [];
+    const ids = new Set<string>();
+    const names = new Set<string>();
+    const tags = new Set<string>();
+    const result: TagAlias[] = [];
+    for (const candidate of raw) {
+        if (!candidate || typeof candidate !== "object") continue;
+        const value = candidate as Record<string, unknown>;
+        const id = cleanText(value.id, 120);
+        const name = cleanText(value.name, 40);
+        const tag = cleanText(value.tag, 256).replace(/^#+|#+$/g, "").trim();
+        const idKey = id.toLocaleLowerCase();
+        const nameKey = name.toLocaleLowerCase();
+        const tagKey = tag.toLocaleLowerCase();
+        if (!id || !name || !tag || ids.has(idKey) || names.has(nameKey) || tags.has(tagKey)) continue;
+        ids.add(idKey);
+        names.add(nameKey);
+        tags.add(tagKey);
+        result.push({ id, name, tag });
+        if (result.length >= MAX_TAG_ALIASES) break;
+    }
+    return result;
+}
+
+export function cloneTagAliases(aliases: readonly TagAlias[]): TagAlias[] {
+    return aliases.map((alias) => ({ ...alias }));
+}
+
+export function displayTagAlias(aliases: readonly TagAlias[], tag: string): string {
+    const alias = aliases.find((item) => item.tag.toLocaleLowerCase() === tag.toLocaleLowerCase());
+    return alias ? `${alias.name} (${tag})` : tag;
 }
 
 export function cloneSavedView(view: SavedView): SavedView {

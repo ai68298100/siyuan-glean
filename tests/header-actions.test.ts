@@ -337,7 +337,7 @@ test("additions prototype controls have local demo behavior and share semantic t
     assert.match(additions, /data-action="diagnostic-expand"/);
     assert.match(additions, /data-action="ai-expand"/);
     assert.match(additions, /addEventListener\('click'/);
-    assert.match(additions, /合成示例 · 仅本地交互 · 不调用 API/);
+    assert.match(additions, /合成示例 · 不调用 API/);
     assert.match(additions, /@media\(max-width:760px\)/);
 });
 

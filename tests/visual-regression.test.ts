@@ -47,3 +47,40 @@ test("视觉回归协议声明真实宿主边界和严格检查命令", () => {
     assert.match(guide, /不能冒充实际 Svelte 组件截图/);
 });
 
+test("canonical 原型覆盖同宿主专注阅读及批注回退边界", () => {
+    const prototype = readFileSync(resolve(root, "design/prototype-v2.html"), "utf8");
+    assert.match(prototype, /data-page="reader"/);
+    assert.match(prototype, /data-action="reader-focus"/);
+    assert.match(prototype, /data-action="reader-exit"/);
+    assert.match(prototype, /data-action="reader-native"/);
+    assert.match(prototype, /data-reader-selection/);
+    assert.match(prototype, /不启用浏览器全屏/);
+    assert.match(prototype, /需在真实思源中验证/);
+    assert.match(prototype, /reader-screen\[data-focus="true"\]/);
+});
+
+test("canonical 原型覆盖用户标签显示别名与原值筛选", () => {
+    const prototype = readFileSync(resolve(root, "design/prototype-v2.html"), "utf8");
+    assert.match(prototype, /data-alias-source|id="alias-source-tag"/);
+    assert.match(prototype, /data-action="alias-save"/);
+    assert.match(prototype, /data-action="alias-edit"/);
+    assert.match(prototype, /data-action="alias-remove"/);
+    assert.match(prototype, /data-action="alias-delete-confirm"/);
+    assert.match(prototype, /data-action="alias-delete-cancel"/);
+    assert.match(prototype, /id="library-tag-filter"/);
+    assert.match(prototype, /筛选 chip 与保存视图仍使用原标签值/);
+    assert.match(prototype, /不會创建或改写文章标签|不会创建或改写文章标签/);
+});
+
+test("历史增量稿中的交互动作均已迁入 canonical 原型", () => {
+    const prototype = readFileSync(resolve(root, "design/prototype-v2.html"), "utf8");
+    const additions = readFileSync(resolve(root, "design/prototype-v2-additions.html"), "utf8");
+    const historicalActions = [...additions.matchAll(/data-action="([a-z-]+)"/g)].map((match) => match[1]);
+    const uniqueActions = [...new Set(historicalActions)];
+    for (const action of uniqueActions) {
+        assert.match(prototype, new RegExp(`data-action="${action}"`), `missing migrated action: ${action}`);
+    }
+    assert.match(additions, /历史参考/);
+    assert.match(additions, /canonical 主原型/);
+});
+

@@ -2,7 +2,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { deleteSavedViewPref, loadUiPrefs, normalizeUiPrefs, saveLastViewPref, setDefaultSavedViewPref, upsertSavedViewPref, saveUiPrefs } from "../src/services/prefs.ts";
+import { deleteSavedViewPref, deleteTagAliasPref, loadUiPrefs, normalizeUiPrefs, saveLastViewPref, setDefaultSavedViewPref, upsertSavedViewPref, upsertTagAliasPref, saveUiPrefs, TagAliasConflictError } from "../src/services/prefs.ts";
 import type { ReaderAppearance } from "../src/domain/ui-prefs.ts";
 
 function createPlugin(initial: unknown = undefined) {
@@ -36,6 +36,7 @@ test("loadUiPrefs：旧存档补齐首启进度默认值", async () => {
         workbenchPreviewRatio: 0.45,
         libraryRailGroups: { queues: { collapsed: false, expanded: false }, sites: { collapsed: false, expanded: false }, authors: { collapsed: false, expanded: false }, tags: { collapsed: false, expanded: false }, aiTags: { collapsed: false, expanded: false } },
         savedViews: [],
+        tagAliases: [],
         defaultSavedViewId: "",
         governanceMuted: { quota: "", stale: "", candidates: "" },
     });
@@ -54,6 +55,7 @@ test("normalizeUiPrefs：非法步骤与已完成状态不会产生可恢复脏�
         workbenchPreviewRatio: 0.45,
         libraryRailGroups: { queues: { collapsed: false, expanded: false }, sites: { collapsed: false, expanded: false }, authors: { collapsed: false, expanded: false }, tags: { collapsed: false, expanded: false }, aiTags: { collapsed: false, expanded: false } },
         savedViews: [],
+        tagAliases: [],
         defaultSavedViewId: "",
         governanceMuted: { quota: "", stale: "", candidates: "" },
     });
@@ -69,6 +71,7 @@ test("normalizeUiPrefs：非法步骤与已完成状态不会产生可恢复脏�
         workbenchPreviewRatio: 0.45,
         libraryRailGroups: { queues: { collapsed: false, expanded: false }, sites: { collapsed: false, expanded: false }, authors: { collapsed: false, expanded: false }, tags: { collapsed: false, expanded: false }, aiTags: { collapsed: false, expanded: false } },
         savedViews: [],
+        tagAliases: [],
         defaultSavedViewId: "",
         governanceMuted: { quota: "", stale: "", candidates: "" },
     });
@@ -242,4 +245,18 @@ test("deleteSavedViewPref：默认视图指向被删视图时一并清空（T-33
     const prefs = await loadUiPrefs(harness.plugin);
     assert.equal(prefs.savedViews.length, 0);
     assert.equal(prefs.defaultSavedViewId, "");
+});
+
+test("标签别名精确写：并发新增不互相覆盖，重复映射拒绝且可单条删除", async () => {
+    const harness = createPlugin(undefined);
+    await Promise.all([
+        upsertTagAliasPref(harness.plugin, { id: "a", name: "重点", tag: "阅读" }),
+        upsertTagAliasPref(harness.plugin, { id: "b", name: "待看", tag: "稍后" }),
+    ]);
+    let prefs = await loadUiPrefs(harness.plugin);
+    assert.deepEqual(prefs.tagAliases.map((alias) => alias.id).sort(), ["a", "b"]);
+    await assert.rejects(upsertTagAliasPref(harness.plugin, { id: "c", name: "重点", tag: "稍后" }), TagAliasConflictError);
+    await deleteTagAliasPref(harness.plugin, "a");
+    prefs = await loadUiPrefs(harness.plugin);
+    assert.deepEqual(prefs.tagAliases, [{ id: "b", name: "待看", tag: "稍后" }]);
 });

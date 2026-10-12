@@ -73,6 +73,7 @@
     let protyleHost = $state<HTMLDivElement | null>(null);
     let readerRoot = $state<HTMLDivElement | null>(null);
     let sidebarCollapsed = $state(false);
+    let immersive = $state(false);
     let sidebarBusy = $state(false);
     let shortcutHelp = $state(false);
     let moreToolsOpen = $state(false);
@@ -408,6 +409,33 @@
         } finally {
             sidebarBusy = false;
         }
+    }
+
+    function openNativeTab(): void {
+        if (!docId) return;
+        void openTab({ app: facade.pluginInstance.app, doc: { id: docId }, keepCursor: false });
+    }
+
+    function enterImmersive(): void {
+        if (mode !== "read") setMode("read");
+        shortcutHelp = false;
+        moreToolsOpen = false;
+        appearanceOpen = false;
+        immersive = true;
+        readerRoot?.focus({ preventScroll: true });
+    }
+
+    function exitImmersive(): void {
+        immersive = false;
+    }
+
+    function toggleCompanion(): void {
+        if (immersive) {
+            immersive = false;
+            if (sidebarCollapsed) void toggleSidebar();
+            return;
+        }
+        void toggleSidebar();
     }
 
     function toggleAppearance(): void {
@@ -949,6 +977,7 @@
 
 <div
     class="glean-reader"
+    class:glean-reader--immersive={immersive}
     aria-busy={Boolean(aiBusy || sidebarBusy || statusBusy || appearanceBusy || measuring || snapping || contextLoading || outlineLoading)}
     bind:this={readerRoot}
     role="region"
@@ -958,6 +987,7 @@
     data-reader-line-height={readerAppearance.lineHeight}
     data-reader-width={readerAppearance.width}
     data-reader-theme={readerAppearance.theme}
+    data-reader-immersive={immersive}
 >
     {#if docId}
         <div class="glean-reader__toolbar" role="group" aria-label={t(i18n, "reader.title")}>
@@ -973,8 +1003,14 @@
                 <button class="glean-seg__btn" class:glean-seg__btn--on={mode === "read"} aria-pressed={mode === "read"} title={t(i18n, "reader.readHint")} onclick={() => setMode("read")}>{t(i18n, "reader.modeRead")}</button>
                 <button class="glean-seg__btn" class:glean-seg__btn--on={mode === "edit"} aria-pressed={mode === "edit"} title={t(i18n, "reader.editHint")} onclick={() => setMode("edit")}>{t(i18n, "reader.modeEdit")}</button>
             </div>
-            <button class="glean-btn glean-btn--ghost glean-reader__toolbar-sidebar" aria-busy={sidebarBusy} disabled={sidebarBusy} aria-expanded={!sidebarCollapsed} aria-controls={sidebarId} title={t(i18n, sidebarCollapsed ? "reader.sidebarShow" : "reader.sidebarHide")} onclick={() => void toggleSidebar()}>{t(i18n, sidebarCollapsed ? "reader.sidebarShow" : "reader.sidebarHide")}</button>
+            <button class="glean-btn glean-btn--ghost glean-reader__toolbar-sidebar" aria-busy={sidebarBusy} disabled={sidebarBusy} aria-expanded={!sidebarCollapsed && !immersive} aria-controls={sidebarId} title={t(i18n, sidebarCollapsed || immersive ? "reader.sidebarShow" : "reader.sidebarHide")} onclick={toggleCompanion}>{t(i18n, sidebarCollapsed || immersive ? "reader.sidebarShow" : "reader.sidebarHide")}</button>
             <button class="glean-btn glean-btn--ghost glean-reader__toolbar-appearance" aria-expanded={appearanceOpen} aria-controls={appearancePanelId} title={t(i18n, "reader.appearanceTitle")} onclick={toggleAppearance}>{t(i18n, "reader.appearanceTitle")}</button>
+            {#if immersive}
+                <button type="button" class="glean-btn glean-btn--ghost glean-reader__toolbar-native" title={t(i18n, "reader.openNative")} onclick={openNativeTab}>{t(i18n, "reader.openNative")}</button>
+                <button type="button" class="glean-btn glean-btn--pri glean-reader__toolbar-exit" onclick={exitImmersive}>{t(i18n, "reader.immersiveExit")}</button>
+            {:else}
+                <button type="button" class="glean-btn glean-btn--ghost glean-reader__toolbar-immersive" disabled={mode !== "read" || !docId} title={t(i18n, "reader.immersiveStart")} onclick={enterImmersive}>{t(i18n, "reader.immersiveStart")}</button>
+            {/if}
             {#if context && hasSourceAction(context.contentType, context.url)}
                 <button class="glean-btn glean-btn--ghost glean-reader__toolbar-source" title={t(i18n, "clip.openSource")} onclick={openSource}>{t(i18n, "clip.openSource")}</button>
             {/if}
@@ -1005,6 +1041,9 @@
                 </dl>
             </div>
         {/if}
+        {#if immersive}
+            <p class="glean-reader__immersive-note" role="note">{t(i18n, "reader.immersiveCompatibility")}</p>
+        {/if}
     {/if}
     <div class="glean-reader__body">
     <div class="glean-reader__main">
@@ -1019,7 +1058,7 @@
         {/if}
     </div>
     {#if docId}
-        <aside id={sidebarId} class="glean-reader__side" hidden={sidebarCollapsed} aria-labelledby={sidebarTitleId}>
+        <aside id={sidebarId} class="glean-reader__side" hidden={sidebarCollapsed || immersive} aria-labelledby={sidebarTitleId}>
             <div id={sidebarTitleId} class="glean-reader__title">{t(i18n, "reader.companionTitle")}</div>
             <div class="glean-reader__meta">
                 <span class={`glean-carrier-badge glean-carrier-badge--${resolveCarrier(context?.contentType)}`}>

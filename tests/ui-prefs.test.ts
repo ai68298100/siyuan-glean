@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { applySavedView, createSavedView, deleteSavedView, normalizeReaderAppearance, normalizeSavedViews, setDefaultSavedView } from "../src/domain/ui-prefs.ts";
+import { applySavedView, createSavedView, deleteSavedView, normalizeReaderAppearance, normalizeSavedViews, normalizeTagAliases, displayTagAlias, setDefaultSavedView } from "../src/domain/ui-prefs.ts";
 
 test("ui prefs normalizes reader appearance and drops invalid saved views", () => {
     assert.deepEqual(normalizeReaderAppearance({ fontSize: "huge", theme: "eye" }), {
@@ -29,4 +29,30 @@ test("saved view operations clone filters and reject duplicate names", () => {
     assert.equal(setDefaultSavedView([first], "missing"), "");
     assert.deepEqual(deleteSavedView([first], "view-1", "view-1"), { views: [], defaultSavedViewId: "" });
     assert.equal(deleteSavedView([first], "view-1", "other").defaultSavedViewId, "other");
+});
+
+test("tag aliases normalize to unique UI mappings and display the original tag", () => {
+    const aliases = normalizeTagAliases([
+        { id: "a", name: "  Focus  ", tag: "#Read#" },
+        { id: "b", name: "focus", tag: "Other" },
+        { id: "c", name: "Other name", tag: "read" },
+        { id: "d", name: "Research", tag: "  # Research #  " },
+        { id: "bad", name: "", tag: "lost" },
+    ]);
+    assert.deepEqual(aliases, [
+        { id: "a", name: "Focus", tag: "Read" },
+        { id: "d", name: "Research", tag: "Research" },
+    ]);
+    assert.equal(displayTagAlias(aliases, "READ"), "Focus (READ)");
+    assert.equal(displayTagAlias(aliases, "Other"), "Other");
+});
+
+test("tag aliases enforce the persisted size limit and clone values", () => {
+    const aliases = normalizeTagAliases(Array.from({ length: 22 }, (_, index) => ({
+        id: `id-${index}`, name: `Alias ${index}`, tag: `tag-${index}`,
+    })));
+    assert.equal(aliases.length, 20);
+    const clone = structuredClone(aliases);
+    clone[0].name = "changed";
+    assert.equal(aliases[0].name, "Alias 0");
 });

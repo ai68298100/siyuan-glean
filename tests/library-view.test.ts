@@ -92,6 +92,12 @@ test("统一筛选：状态、站点、用户标签、入口来源和时间来�
     assert.deepEqual(result.map((item) => item.id), ["a"]);
 });
 
+test("标签别名只映射显示名，筛选仍精确匹配根块原标签", () => {
+    const items = [clip({ id: "a", tags: ["稍后"] }), clip({ id: "b", tags: ["重点"] })];
+    assert.deepEqual(filterAndSortLibrary(items, { tag: "稍后" }).map((item) => item.id), ["a"]);
+    assert.deepEqual(filterAndSortLibrary(items, { tag: "我的待读" }).map((item) => item.id), []);
+});
+
 test("候选只有在 inbox 明确开启时显示，其他状态不混入", () => {
     const items = [clip({ id: "clip" }), { ...clip({ id: "candidate" }), kind: "candidate", status: undefined }];
     assert.deepEqual(filterAndSortLibrary(items, { status: "inbox", includeCandidates: true }).map((item) => item.id), ["clip", "candidate"]);
