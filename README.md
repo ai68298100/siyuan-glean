@@ -167,12 +167,16 @@
 
 ## 相关小驴项目
 
-目前已开发四款小驴系列思源插件：
+目前已开发八款小驴系列思源插件（其中四款为内测版）：
 
 - [小驴雷切](https://github.com/ai68298100/siyuan-speed-switch)：统一切换与工作上下文
 - [小驴打卡](https://github.com/ai68298100/siyuan-checkin)：阅读与习惯打卡
 - [小驴人脉](https://github.com/ai68298100/siyuan-contacts)：联系人和人脉管理
 - **小驴拾遗**：剪藏文章整理、阅读分拣和每日重浮
+- [小驴考试（内测版）](https://github.com/ai68298100/siyuan-exam)：本地题库、刷题、模考与错题复盘
+- [小驴管家（内测版）](https://github.com/ai68298100/siyuan-home)：家庭与生活台账、到期提醒及事务跟进
+- [小驴闪卡（内测版）](https://github.com/ai68298100/siyuan-lv-cards)：本地优先的全生命周期闪卡学习
+- [小驴常用（内测版）](https://github.com/ai68298100/xiaolv-common)：快速调用常用语、模板和代码片段
 
 ## 反馈与社区
 
