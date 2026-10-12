@@ -10,7 +10,7 @@ import type { GleanFacade } from "../types";
 import DistributionList from "./DistributionList.svelte";
 import { t } from "../libs/i18n";
 import type { GleanIndex } from "../services/index-store";
-import { buildReadingReview, previewReadingReview, saveReadingReviewReport, type ReadingReviewSession } from "../services/stats-service";
+import { buildReadingReview, previewReadingReview, resolveUnknownReadingReview, saveReadingReviewReport, type ReadingReviewSession } from "../services/stats-service";
 import { parseReviewDate, reviewDateInput, type ReadingReviewLabels, type ReviewPeriodKind } from "../domain/stats";
 
 interface Props {
@@ -92,6 +92,11 @@ async function preview(): Promise<void> {
         if (disposed) return;
         session = next;
         saveState = next.state;
+        message = next.state === "unknown"
+            ? t(i18n, "review.save.createUnknown", { id: "", path: next.path })
+            : next.state === "created"
+                ? t(i18n, "review.save.resumed", { id: next.createdDocId })
+                : "";
     } catch (error) {
         console.warn("[glean] 回顾预览失败:", error);
         if (!disposed) message = t(i18n, "review.previewFailed");
@@ -109,7 +114,13 @@ async function save(): Promise<void> {
         const outcome = await saveReadingReviewReport(facade.pluginInstance, saving, true);
         const resultMessage = outcome.ok
             ? t(i18n, "review.saved", { id: outcome.docId ?? "" })
-            : t(i18n, `review.save.${outcome.reason ?? "readFailed"}`, { id: outcome.docId ?? saving.createdDocId, path: saving.path });
+            : outcome.reason === "sessionPending"
+                ? t(i18n, "review.save.sessionPending")
+                : outcome.reason === "sessionStale"
+                    ? t(i18n, "review.save.sessionStale")
+                    : outcome.reason === "sessionReleased"
+                        ? t(i18n, "review.save.sessionReleased")
+                        : t(i18n, `review.save.${outcome.reason ?? "readFailed"}`, { id: outcome.docId ?? saving.createdDocId, path: saving.path });
         if (outcome.ok) {
             facade.notifyDataChanged();
             onCaptured?.();
@@ -119,6 +130,10 @@ async function save(): Promise<void> {
             return;
         }
         saveState = saving.state;
+        if (outcome.reason === "sessionPending" || outcome.reason === "sessionStale" || outcome.reason === "sessionReleased") {
+            session = null;
+            saveState = "ready";
+        }
         message = resultMessage;
     } catch (error) {
         console.warn("[glean] 阅读回顾保存失败:", error);
@@ -133,6 +148,21 @@ function discard(): void {
     session = null;
     saveState = "ready";
     message = "";
+}
+
+function resolveUnknown(): void {
+    if (!session || busy || saveState !== "unknown") return;
+    if (!resolveUnknownReadingReview(facade.pluginInstance, session)) {
+        if (session.state === "released" || session.state === "saved") {
+            session = null;
+            saveState = "ready";
+            message = t(i18n, "review.save.sessionReleased");
+        }
+        return;
+    }
+    session = null;
+    saveState = "ready";
+    message = t(i18n, "review.unknownReleased");
 }
 
 function downloadCsv(): void {
@@ -184,6 +214,9 @@ function downloadCsv(): void {
                 {#if saveState === "ready" || saveState === "saved"}
                     <button class="glean-btn glean-btn--ghost" disabled={busy} onclick={discard}>{t(i18n, "review.discard")}</button>
                 {/if}
+                {#if saveState === "unknown"}
+                    <button class="glean-btn glean-btn--ghost" disabled={busy} onclick={resolveUnknown}>{t(i18n, "review.resolveUnknown")}</button>
+                {/if}
             {/if}
         </div>
         <details class="glean-stats__scope">
@@ -224,7 +257,7 @@ function downloadCsv(): void {
                 <div class="glean-stats__heatmap">
                     {#each Array.from({ length: heatmapPadding }, (_, index) => index) as padding (padding)}<span></span>{/each}
                     {#each stats.heatmap as day (day.date)}
-                        <span class="glean-stats__day" role={day.count > 0 ? "img" : undefined} aria-label={day.count > 0 ? t(i18n, "review.heatmapDay", { date: day.date, n: day.count }) : undefined} title={`${day.date}: ${day.count}`} style={`background:${day.count ? "var(--b3-theme-primary)" : "var(--b3-theme-surface)"};opacity:${day.count ? 0.25 + 0.75 * day.count / maxHeat : 1}`}></span>
+                        <span class="glean-stats__day" role="img" aria-label={t(i18n, "review.heatmapDay", { date: day.date, n: day.count })} title={`${day.date}: ${day.count}`} style={`background:${day.count ? "var(--b3-theme-primary)" : "var(--b3-theme-surface)"};opacity:${day.count ? 0.25 + 0.75 * day.count / maxHeat : 1}`}></span>
                     {/each}
                 </div>
                 <div class="glean-stats__heatmap-legend" aria-hidden="true">

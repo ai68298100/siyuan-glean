@@ -17,6 +17,7 @@ import OnboardingDialog from "./ui/OnboardingDialog.svelte";
 import { loadUiPrefs } from "./services/prefs";
 import SettingsView from "./ui/SettingsView.svelte";
 import { svelteDialog } from "./libs/dialog";
+import { createDialogSingleton } from "./libs/dialog-singleton";
 import { t, type I18nBundle } from "./libs/i18n";
 import { captureDocument, batchSetStatus, readClip, readClipContext } from "./services/clip-store";
 import { autoEnrich, enrichClip } from "./services/enrich-service";
@@ -55,6 +56,18 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
     private recentReadings: RecentReadingEntry[] = [];
     private pendingLibraryDocId = "";
     private pendingReaderDocId = "";
+    private readonly openWorkbenchPopupSingleton = createDialogSingleton(
+        (initialPreviewId: string | undefined, onClose: () => void) => svelteDialog({
+            title: t(this.i18n, "workbench.popupTitle"),
+            closeLabel: t(this.i18n, "action.close"),
+            component: DockPanel,
+            props: { facade: this, initialPreviewId },
+            width: "1020px",
+            height: "680px",
+            containerClass: "glean-tab-root",
+            callback: onClose,
+        }),
+    );
 
     constructor(options: { app: unknown; name: string; displayName: string; i18n: I18nBundle }) {
         super(options as never);
@@ -842,15 +855,7 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
 
     /** 工作台弹出为独立浮窗（全宽画布第三形态） */
     openWorkbenchPopup(initialPreviewId?: string): void {
-        svelteDialog({
-            title: t(this.i18n, "workbench.popupTitle"),
-            closeLabel: t(this.i18n, "action.close"),
-            component: DockPanel,
-            props: { facade: this, initialPreviewId },
-            width: "1020px",
-            height: "680px",
-            containerClass: "glean-tab-root",
-        });
+        this.openWorkbenchPopupSingleton(initialPreviewId);
     }
 
     /* ---------- 弹窗 ---------- */

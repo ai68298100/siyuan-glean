@@ -21,6 +21,48 @@ test("mobile dock exposes four navigation destinations without changing desktop 
     assert.match(source, /facade\.openSettings\(\)/);
 });
 
+test("desktop Dock keeps a compact four-view navigator and wide workbench uses the measured host width", () => {
+    const source = read("src/ui/DockPanel.svelte");
+    const styles = read("src/index.scss");
+    assert.match(source, /class="glean-panel-host"/);
+    assert.match(source, /<div class="glean-views">/);
+    assert.match(styles, /\.glean-panel-host\s*\{[\s\S]*container-name:\s*glean-shell/);
+    assert.match(styles, /\.glean-panel-host > \.glean-panel\s*\{[\s\S]*width:\s*100%[\s\S]*min-width:\s*0/);
+    assert.match(styles, /@container glean-shell \(min-width: 760px\)[\s\S]*\.glean-panel--shell:not\(\.glean-panel--mobile\)\s*\{[\s\S]*display:\s*grid/);
+    assert.match(styles, /@container glean-shell \(max-width: 759px\)[\s\S]*\.glean-panel--shell:not\(\.glean-panel--mobile\) \.glean-views\s*\{[\s\S]*display:\s*grid[\s\S]*grid-template-columns:\s*repeat\(4, minmax\(0, 1fr\)\)/);
+});
+
+test("mobile more menu provides a reachable statistics view", () => {
+    const source = read("src/ui/DockPanel.svelte");
+    assert.match(source, /aria-current=\{view === "stats" \? "page" : undefined\}/);
+    assert.match(source, /closeMobileMore\(true\); selectMobileView\("stats"\)/);
+    assert.match(source, /t\(i18n, "view\.stats"\)/);
+});
+
+test("mobile stats navigation returns focus after removing the More menu", () => {
+    const source = read("src/ui/DockPanel.svelte");
+    assert.match(source, /function closeMobileMore\(returnFocus = false\)/);
+    assert.match(source, /if \(returnFocus\)[\s\S]*mobileMoreTrigger\?\.focus\(\)/);
+});
+
+test("no-cache initial sync failure has one inline alert and retry surface", () => {
+    const source = read("src/ui/DockPanel.svelte");
+    assert.match(source, /\{#if loadError && \(view !== "resurface" \|\| !!index\.updatedAt\)\}/);
+    assert.match(source, /\{#if !\(view === "resurface" && loadError && !index\.updatedAt\)\}[\s\S]*class=\{`glean-mobile-task/);
+});
+
+test("today's gleaning distinguishes first sync, failed sync, and a real empty library", () => {
+    const dock = read("src/ui/DockPanel.svelte");
+    const view = read("src/ui/ResurfaceView.svelte");
+    assert.match(dock, /\{loading\}[\s\S]*\{loadError\}[\s\S]*onRetry=\{\(\) => void reload\(\)\}/);
+    assert.match(view, /if loading && !index\.updatedAt/);
+    assert.match(view, /else if loadError && !index\.updatedAt/);
+    assert.match(view, /resurface\.loading/);
+    assert.match(view, /resurface\.loadFailed/);
+    assert.match(view, /action\.retry/);
+    assert.match(view, /else if picks\.length === 0 && clipCount === 0 && candidateCount === 0/);
+});
+
 test("mobile dock keeps touch-sized, theme-driven bottom navigation styles", () => {
     const source = read("src/index.scss");
     assert.match(source, /\.glean-panel--mobile\s*\{/);
@@ -155,6 +197,10 @@ test("mobile resurface swipe keeps explicit actions and guarded undo", () => {
     }
     assert.match(view, /undoSurfaceAction/);
     assert.match(view, /resurface\.swipeHint/);
+    assert.match(view, /onDestroy\(\(\) => \{[\s\S]*?clearSwipeTimers\(\)/);
+    assert.match(view, /const swipeTimers = new Set<number>\(\)/);
+    assert.match(view, /disposed \|\| generation !== swipeGeneration/);
+    assert.match(view, /if \(disposed \|\| actingId \|\| undoingId\) return/);
     assert.match(service, /文章状态已变化，无法撤销/);
     assert.match(styles, /touch-action:\s*pan-y/);
     assert.match(styles, /\.glean-surf-act[\s\S]*min-height:\s*44px/);

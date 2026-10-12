@@ -1,6 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { installEscapeHandler, installModalFocus } from "../src/libs/modal-focus.ts";
+import { createDialogSingleton } from "../src/libs/dialog-singleton.ts";
+
+const root = resolve(import.meta.dirname, "..");
+const read = (file: string) => readFileSync(resolve(root, file), "utf8");
 
 class FakeElement {
     isConnected = true;
@@ -100,4 +106,48 @@ test("原生Popover与宿主外部弹窗优先，不连带关闭预览或外层�
     assert.equal(closed, 0);
     disposePreview();
     disposeModal();
+});
+
+test("工作台弹窗只复用仍连接的实例，并且旧实例关闭回调不释放新实例", () => {
+    type Handle = { dialog: { element: HTMLElement }; id: number };
+    const elements: Array<{ isConnected: boolean; focusCount: number }> = [];
+    const closeCallbacks: Array<() => void> = [];
+    let creates = 0;
+    const open = createDialogSingleton<string, Handle>((_args, onClose) => {
+        const container = { focus() { elements.at(-1)!.focusCount += 1; } };
+        const element = {
+            isConnected: true,
+            focusCount: 0,
+            querySelector(selector: string) { return selector === ".b3-dialog__container" ? container : null; },
+        };
+        elements.push(element);
+        closeCallbacks.push(onClose);
+        return { dialog: { element: element as unknown as HTMLElement }, id: ++creates };
+    });
+
+    const first = open("first");
+    assert.equal(open("duplicate"), first);
+    assert.equal(creates, 1);
+    assert.equal(elements[0].focusCount, 1);
+
+    elements[0].isConnected = false;
+    const second = open("second");
+    assert.notEqual(second, first);
+    assert.equal(creates, 2);
+    closeCallbacks[0]();
+    assert.equal(open("still-second"), second);
+    assert.equal(creates, 2);
+
+    closeCallbacks[1]();
+    const third = open("after-close");
+    assert.notEqual(third, second);
+    assert.equal(creates, 3);
+});
+
+test("工作台各入口共用插件级单例且Dock不再用固定延迟解锁", () => {
+    const index = read("src/index.ts");
+    const dock = read("src/ui/DockPanel.svelte");
+    assert.match(index, /createDialogSingleton\([\s\S]*?callback: onClose/);
+    assert.match(index, /openWorkbenchPopup\(initialPreviewId\?: string\): void\s*\{\s*this\.openWorkbenchPopupSingleton\(initialPreviewId\)/);
+    assert.doesNotMatch(dock, /popupOpen|setTimeout\(\(\) => \(popupOpen = false\)/);
 });

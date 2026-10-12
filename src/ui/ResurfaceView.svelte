@@ -2,6 +2,7 @@
 /** 今日拾遗视图（T-1400/T-1402/T-1717）：确定性挑选，读了/改天/归档，平静原则文案。
  * 重浮是纯投影：输入是父级刚对账过的索引（T-1710），本组件不再另读缓存。 */
 import { showMessage } from "siyuan";
+import { onDestroy } from "svelte";
 import type { GleanFacade } from "../types";
 import { t } from "../libs/i18n";
 import { actOnSurface, computeDailyFromIndex, pickSurfaceReplacementFromIndex, setSurfacePinned, undoSurfaceAction, type SurfaceAction, type SurfaceUndoToken } from "../services/resurface-service";
@@ -15,6 +16,9 @@ interface Props {
     /** 面板对账后的派生索引；每次属性变化由父级传入新引用触发重算。 */
     index: GleanIndex;
     currentTime: Date;
+    loading?: boolean;
+    loadError?: boolean;
+    onRetry?: () => void;
     onMutated: () => void;
     embedded?: boolean;
     onQuickCapture?: () => void;
@@ -23,7 +27,7 @@ interface Props {
     quickCaptureBusy?: boolean;
 }
 
-let { facade, index, currentTime, onMutated, embedded = false, onQuickCapture, onQuickSearch, onQuickCandidates, quickCaptureBusy = false }: Props = $props();
+let { facade, index, currentTime, loading = false, loadError = false, onRetry, onMutated, embedded = false, onQuickCapture, onQuickSearch, onQuickCandidates, quickCaptureBusy = false }: Props = $props();
 const instanceId = $props.id();
 const panelTitleId = `glean-resurface-title-${instanceId}`;
 const quickActionsTitleId = `glean-resurface-quick-actions-title-${instanceId}`;
@@ -54,6 +58,32 @@ let swipeState = $state<{
 } | null>(null);
 /** UX 审计 #10：本会话"开始阅读"过的文章回执（纯视图状态，不写属性）。 */
 let startedToday = $state<Array<{ id: string; title: string }>>([]);
+let disposed = false;
+let swipeGeneration = 0;
+const swipeTimers = new Set<number>();
+
+function clearSwipeTimers(): void {
+    for (const timer of swipeTimers) window.clearTimeout(timer);
+    swipeTimers.clear();
+}
+
+function scheduleSwipeCallback(callback: () => void, delay: number, generation: number): void {
+    let timer = 0;
+    timer = window.setTimeout(() => {
+        swipeTimers.delete(timer);
+        if (disposed || generation !== swipeGeneration) return;
+        callback();
+    }, delay);
+    swipeTimers.add(timer);
+}
+
+onDestroy(() => {
+    disposed = true;
+    swipeGeneration += 1;
+    clearSwipeTimers();
+    swipeState = null;
+    suppressedClickId = "";
+});
 
 $effect(() => {
     if (observedIndex === null) {
@@ -62,6 +92,10 @@ $effect(() => {
     }
     if (observedIndex === index) return;
     observedIndex = index;
+    swipeGeneration += 1;
+    clearSwipeTimers();
+    swipeState = null;
+    suppressedClickId = "";
     sessionPicks = null;
     replacementExcluded = [];
     replacementNotice = null;
@@ -117,7 +151,7 @@ async function togglePin(pick: SurfacePick): Promise<void> {
 }
 
 async function act(pick: SurfacePick, action: SurfaceAction) {
-    if (actingId || undoingId) return;
+    if (disposed || actingId || undoingId) return;
     actingId = pick.item.id;
     try {
         const token = await actOnSurface(facade.pluginInstance, pick.item.id, action);
@@ -229,13 +263,14 @@ function finishSwipe(pick: SurfacePick, event: PointerEvent): void {
     event.preventDefault();
     suppressedClickId = pick.item.id;
     swipeState = { ...current, offsetX: action === "later" ? 132 : -132 };
-    window.setTimeout(() => {
+    const generation = swipeGeneration;
+    scheduleSwipeCallback(() => {
         if (swipeState?.id === pick.item.id) swipeState = null;
         void act(pick, action);
-    }, 120);
-    window.setTimeout(() => {
+    }, 120, generation);
+    scheduleSwipeCallback(() => {
         if (suppressedClickId === pick.item.id) suppressedClickId = "";
-    }, 360);
+    }, 360, generation);
 }
 
 function cancelSwipe(pick: SurfacePick, event: PointerEvent): void {
@@ -334,7 +369,19 @@ function reasonText(reason: SurfaceReason): string {
         </div>
     {/if}
 
-    {#if picks.length === 0 && facade.settings.anchorNotebooks.length === 0}
+    {#if loading && !index.updatedAt}
+        <div class="glean-panel__loading glean-resurface__sync-state" role="status" aria-live="polite" aria-busy="true">
+            <span class="glean-panel__refreshing-dot" aria-hidden="true"></span>
+            {t(i18n, "resurface.loading")}
+        </div>
+    {:else if loadError && !index.updatedAt}
+        <div class="glean-load-error glean-resurface__sync-state" role="alert" aria-live="assertive">
+            <span>{t(i18n, "resurface.loadFailed")}</span>
+            {#if onRetry}
+                <button class="glean-btn" aria-busy={loading} disabled={loading} onclick={onRetry}>{t(i18n, "action.retry")}</button>
+            {/if}
+        </div>
+    {:else if picks.length === 0 && facade.settings.anchorNotebooks.length === 0}
         <div class="glean-empty" role="status">
             <div class="glean-empty__art"><svg aria-hidden="true"><use href="#iconGleanWheat" /></svg></div>
             <div class="glean-empty__title">{t(i18n, "resurface.noAnchor")}</div>

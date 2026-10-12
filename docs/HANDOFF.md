@@ -1,5 +1,13 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-12 T-3344/D-0211 原型和交付文档收口）
+
+- 已新增 [`docs/DEVELOPMENT.md`](DEVELOPMENT.md)，覆盖新环境安装、项目结构、全部 pnpm scripts、可选环境变量、隔离 E2E/spike、构建部署和已知限制；README 增加指南入口。
+- 已新增 [`docs/UI-COMPONENTS.md`](UI-COMPONENTS.md)，核对 `src/ui` 的 32/32 个组件并说明用途、主要参数、状态、键盘/移动端行为；明确 QuotesView 未接入主导航、ReaderTab 为桌面实验功能。
+- `design/prototype-v2.html` 与 `design/prototype-v2-additions.html` 已收口为交互状态镜像：合成数据、运行时视图、关键异步/空错态、主题和画布断点均可切换；不存在的清理动作已移除，设置空态、重试锁和未保存修改确认已补齐。每个演示结果仍显著标注合成数据，不冒充实际内核或宿主验收。
+- 本轮检查：`pnpm check`、`pnpm test`（1264/1264）、`pnpm build`、`pnpm perf:baseline`、`pnpm perf:check`、`pnpm check:release`、`pnpm visual:check`、`pnpm task:ledger -- --check`、`git diff --check` 全部通过。Node v24.16 / Windows x64 三轮合成基线在 10k 输入下：扫描 7.57ms、索引重建 64.12ms、筛选 2.55ms、导入解析 32.85ms、今日拾遗 3.32ms。
+- 当前版本 1.3.3；不升版、不打 tag、不发布、不 push。真实宿主/设备与读屏仍待 B-0002/B-0004，真实导出文件仍待 B-0005；未采集真实证据前不得标为通过。
+
 ## 当前有效交接（2026-10-11 T-3343/D-0210 连续完成记录提示）
 
 - 新增 `domain/stats.ts` 的 `currentCompletionStreak`，只按文章当前最近一次可信 `doneTime` 聚合本地连续日期；今天或昨天可延续，缺两天归零，同日多篇只计一天，internal/候选/无效/未来时间排除。

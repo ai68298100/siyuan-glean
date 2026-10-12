@@ -16,6 +16,7 @@ function isMobileFrontend(): boolean {
 export const simpleDialog = (args: {
     title: string, ele: HTMLElement | DocumentFragment,
     closeLabel?: string,
+    canClose?: () => boolean,
     width?: string, height?: string,
     callback?: () => void;
 }) => {
@@ -44,7 +45,7 @@ export const simpleDialog = (args: {
     modalRoot.setAttribute("aria-modal", "true");
     if (!modalRoot.hasAttribute("aria-labelledby")) modalRoot.setAttribute("aria-label", args.title);
     const requestClose = () => {
-        if (closed || closing) return;
+        if (closed || closing || args.canClose?.() === false) return;
         closing = true;
         dialog.destroy();
     };
@@ -53,6 +54,11 @@ export const simpleDialog = (args: {
         closeIcon.setAttribute("role", "button");
         closeIcon.setAttribute("aria-label", args.closeLabel ?? args.title);
         closeIcon.setAttribute("tabindex", "0");
+        closeIcon.addEventListener("click", (event) => {
+            if (args.canClose?.() !== false) return;
+            event.preventDefault();
+            event.stopImmediatePropagation();
+        }, true);
         closeIcon.addEventListener("keydown", (event) => {
             if (!(event instanceof KeyboardEvent) || event.isComposing || !isActivationKey(event.key)) return;
             event.preventDefault();
@@ -85,13 +91,24 @@ export const svelteDialog = (args: {
     container.style.display = "contents";
 
     let closeDialog: (() => void) | undefined;
+    let closeGuard: (() => boolean) | undefined;
     let componentInstance = mount(args.component, {
         target: container,
-        props: { ...args.props, onClose: () => closeDialog?.() }
+        props: {
+            ...args.props,
+            onClose: () => closeDialog?.(),
+            registerCloseGuard: (guard: () => boolean) => {
+                closeGuard = guard;
+                return () => {
+                    if (closeGuard === guard) closeGuard = undefined;
+                };
+            },
+        }
     });
 
     const { dialog, close } = simpleDialog({
         ...args,
+        canClose: () => closeGuard?.() ?? true,
         ele: container,
         callback: () => {
             unmount(componentInstance);

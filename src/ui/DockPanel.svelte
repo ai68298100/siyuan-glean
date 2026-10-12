@@ -172,7 +172,6 @@ let enrichingId = $state("");
 let statusActionId = $state("");
 let pendingFocusId = $state("");
 let focusRequested = false;
-let popupOpen = $state(false);
 let mobileMoreOpen = $state(false);
 let mobileMoreTrigger = $state<HTMLButtonElement | null>(null);
 let mobileMoreMenu = $state<HTMLDivElement | null>(null);
@@ -189,11 +188,7 @@ let governanceMuted = $state<GovernanceMuted>({ quota: "", stale: "", candidates
 
 /** 工作台弹出为独立浮窗（全宽画布，独立于 dock/tab）。 */
 function openPopup() {
-    if (popupOpen) return;
-    popupOpen = true;
     facade.openWorkbenchPopup();
-    // 弹窗关闭时机未知，保守复位
-    window.setTimeout(() => (popupOpen = false), 1500);
 }
 
 async function quickCapture(): Promise<void> {
@@ -256,7 +251,7 @@ const mobileNavItems: { key: MobileNavKey; labelKey: string }[] = [
     { key: "highlights", labelKey: "mobile.navHighlights" },
     { key: "settings", labelKey: "mobile.navSettings" },
 ];
-const mobileActive = $derived<MobileNavKey>(view === "library" ? "library" : view === "highlights" ? "highlights" : "home");
+const mobileActive = $derived<MobileNavKey | null>(view === "library" ? "library" : view === "highlights" ? "highlights" : view === "resurface" ? "home" : null);
 const mobileTitleKey = $derived(views.find((item) => item.key === view)?.labelKey ?? "view.resurface");
 
 type MobileTaskState = "loading" | "error" | "offline" | "ready";
@@ -281,6 +276,11 @@ function selectMobileNav(key: MobileNavKey) {
         return;
     }
     view = key;
+}
+
+function selectMobileView(nextView: PanelView): void {
+    markPrefsInteraction();
+    view = nextView;
 }
 
 function markPrefsInteraction(): void {
@@ -1444,6 +1444,7 @@ function metaLine(entry: Row): string {
 }
 </script>
 
+<div class="glean-panel-host">
 <div class="glean-panel glean-panel--shell" class:glean-panel--mobile={facade.isMobile} bind:this={rootEl} onchange={markPrefsInteraction} aria-busy={loading}>
     {#if !facade.isMobile}
         <aside class="glean-workbench-rail" aria-label={t(i18n, "view.resurface")}>
@@ -1496,6 +1497,7 @@ function metaLine(entry: Row): string {
                     <h1 class="glean-mobile-topbar__title">{t(i18n, mobileTitleKey)}</h1>
                     <span class="glean-mobile-topbar__sub">{view === "resurface" ? `${t(i18n, "resurface.subtitle", { n: resurfaceCount })} · ${t(i18n, "resurface.completionStreak", { n: completionStreak })}` : t(i18n, "panel.libraryCount", { n: totalClips })}</span>
                 </div>
+                {#if !(view === "resurface" && loadError && !index.updatedAt)}
                 <span
                     class={`glean-mobile-task glean-mobile-task--${mobileTaskState}`}
                     role="status"
@@ -1515,6 +1517,7 @@ function metaLine(entry: Row): string {
                         {/if}
                     </span>
                 </span>
+                {/if}
                 <div class="glean-mobile-topbar__more">
                     <button
                         type="button"
@@ -1538,6 +1541,10 @@ function metaLine(entry: Row): string {
                             <button type="button" class="glean-mobile-more__item" role="menuitem" onclick={() => { closeMobileMore(); openPopup(); }}>
                                 <svg class="glean-mobile-more__icon" aria-hidden="true"><use href="#iconGleanPopup" /></svg>
                                 {t(i18n, "panel.popup")}
+                            </button>
+                            <button type="button" class="glean-mobile-more__item" role="menuitem" aria-current={view === "stats" ? "page" : undefined} onclick={() => { closeMobileMore(true); selectMobileView("stats"); }}>
+                                <svg class="glean-mobile-more__icon" aria-hidden="true"><use href="#iconGleanNews" /></svg>
+                                {t(i18n, "view.stats")}
                             </button>
                             <button type="button" class="glean-mobile-more__item" role="menuitem" onclick={() => { closeMobileMore(); facade.openOnboarding(); }}>
                                 <svg class="glean-mobile-more__icon" aria-hidden="true"><use href="#iconGleanWheat" /></svg>
@@ -1658,7 +1665,7 @@ function metaLine(entry: Row): string {
         {/if}
     </header>
 
-    {#if loadError}
+    {#if loadError && (view !== "resurface" || !!index.updatedAt)}
         <div class="glean-load-error" role="alert" aria-live="assertive">
             <span>{t(i18n, "panel.reloadFailed")}</span>
             <button class="glean-btn" aria-busy={loading} disabled={loading} onclick={() => void reload()}>{t(i18n, "action.retry")}</button>
@@ -2376,6 +2383,9 @@ function metaLine(entry: Row): string {
             {facade}
             {index}
             {currentTime}
+            {loading}
+            {loadError}
+            onRetry={() => void reload()}
             embedded
             onMutated={() => void reload()}
             onQuickCapture={quickCapture}
@@ -2424,6 +2434,7 @@ function metaLine(entry: Row): string {
         </nav>
     {/if}
     </div>
+</div>
 </div>
 
 <style>

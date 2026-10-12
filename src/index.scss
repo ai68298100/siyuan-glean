@@ -174,7 +174,7 @@ body.b3-theme-dark {
     min-height: 0;
     background: var(--b3-theme-background);
     color: var(--b3-theme-on-background);
-    font-size: 13px;
+    font-size: var(--glean-text-md);
     position: relative;
 }
 
@@ -321,7 +321,7 @@ body.b3-theme-dark {
 
     .glean-head-action__label {
         display: inline;
-        font-size: 12px;
+        font-size: var(--glean-text-sm);
         line-height: 1;
     }
 }
@@ -333,7 +333,7 @@ body.b3-theme-dark {
 .glean-panel--mobile .glean-mobile-topbar {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--glean-space-2);
     min-height: 52px;
     padding: 4px 4px 8px;
     border-bottom: 1px solid var(--glean-border-soft);
@@ -480,14 +480,14 @@ body.b3-theme-dark {
 .glean-offline-notice {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--glean-space-2);
     margin: 0 12px 8px;
     padding: 8px 10px;
     border: 1px solid var(--b3-border-color);
     border-radius: 10px;
     background: var(--b3-theme-background-light);
     color: var(--b3-theme-on-surface);
-    font-size: 11px;
+    font-size: var(--glean-text-xs);
 
     span {
         flex: 1;
@@ -541,7 +541,7 @@ body.b3-theme-dark {
     border-radius: 8px;
     background: transparent;
     color: var(--b3-theme-on-background);
-    font-size: 13px;
+    font-size: var(--glean-text-md);
     text-align: left;
     cursor: pointer;
     display: flex;
@@ -604,7 +604,7 @@ body.b3-theme-dark {
     border: none;
     background: transparent;
     color: var(--b3-theme-on-surface);
-    font-size: 12px;
+    font-size: var(--glean-text-sm);
     font-weight: 500;
     padding: 5px 12px;
     border-radius: 999px;
@@ -648,7 +648,7 @@ body.b3-theme-dark {
         bottom: var(--glean-keyboard-inset, 0px);
         z-index: 3;
         display: flex;
-        gap: 4px;
+        gap: var(--glean-space-1);
         padding: 6px calc(8px + var(--glean-safe-right, 0px)) calc(6px + var(--glean-safe-bottom, 0px)) calc(8px + var(--glean-safe-left, 0px));
         border-top: 1px solid var(--glean-border-soft);
         background: color-mix(in srgb, var(--b3-theme-surface) 92%, transparent);
@@ -691,7 +691,7 @@ body.b3-theme-dark {
     gap: 3px;
     background: transparent;
     color: var(--b3-theme-on-surface);
-    font-size: 11px;
+    font-size: var(--glean-text-xs);
     cursor: pointer;
     transition: background 0.2s, color 0.2s, transform 0.2s var(--glean-ease-spring);
 
@@ -744,7 +744,7 @@ body.b3-theme-dark {
 .glean-search {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--glean-space-2);
     padding: 8px 12px;
     border-radius: 12px;
     background: var(--glean-glass);
@@ -825,7 +825,7 @@ body.b3-theme-dark {
     border: 1px solid transparent;
     background: var(--b3-theme-background-light);
     color: var(--b3-theme-on-surface);
-    font-size: 12px;
+    font-size: var(--glean-text-sm);
     cursor: pointer;
     transition: all 220ms var(--glean-ease-out);
 
@@ -868,7 +868,7 @@ body.b3-theme-dark {
     border-radius: 14px;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--glean-space-2);
     border: 1px dashed color-mix(in srgb, var(--glean-st-inbox) 45%, transparent);
     background: color-mix(in srgb, var(--glean-st-inbox) 6%, transparent);
     font-size: 11.5px;
@@ -886,7 +886,7 @@ body.b3-theme-dark {
     border-radius: 14px;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--glean-space-2);
     border: 1px solid var(--b3-border-color);
     background: var(--b3-theme-surface);
     color: var(--b3-theme-on-surface);
@@ -902,7 +902,7 @@ body.b3-theme-dark {
 
 .glean-cap-btn {
     border: none;
-    font-size: 11px;
+    font-size: var(--glean-text-xs);
     font-weight: 600;
     color: var(--b3-theme-on-primary);
     padding: 5px 12px;
@@ -1106,7 +1106,7 @@ body.b3-theme-dark {
     background: var(--b3-theme-surface);
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: var(--glean-space-1);
 }
 
 .glean-stale-preview__hint {
@@ -1118,7 +1118,7 @@ body.b3-theme-dark {
     display: flex;
     align-items: center;
     gap: 6px;
-    font-size: 11px;
+    font-size: var(--glean-text-xs);
     min-width: 0;
     cursor: pointer;
 }
@@ -1326,7 +1326,7 @@ body.b3-theme-dark {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 8px;
+    gap: var(--glean-space-2);
     font-size: 10.5px;
 }
 
@@ -1343,7 +1343,7 @@ body.b3-theme-dark {
     background: transparent;
     color: var(--b3-theme-on-surface);
     cursor: pointer;
-    font-size: 11px;
+    font-size: var(--glean-text-xs);
     line-height: 1.35;
     overflow: hidden;
     min-height: 28px;
@@ -1399,7 +1399,7 @@ body.b3-theme-dark {
 
 .glean-reader__mode {
     display: flex;
-    gap: 4px;
+    gap: var(--glean-space-1);
     padding: 2px;
     border: 1px solid var(--glean-border-soft);
     border-radius: var(--glean-radius-sm);
@@ -1442,7 +1442,7 @@ body.b3-theme-dark {
 .glean-reader__toolbar-secondary {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: var(--glean-space-1);
     flex: 0 1 auto;
     min-width: 0;
     margin-left: auto;
@@ -1532,6 +1532,22 @@ body.b3-theme-dark {
     overflow: hidden;
 }
 
+.glean-panel-host {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    min-width: 0;
+    min-height: 0;
+    container-name: glean-shell;
+    container-type: inline-size;
+}
+
+.glean-panel-host > .glean-panel {
+    flex: 1 1 auto;
+    width: 100%;
+    min-width: 0;
+}
+
 .glean-workbench-rail {
     display: none;
 }
@@ -1548,7 +1564,7 @@ body.b3-theme-dark {
 }
 
 .glean-panel--shell:not(.glean-panel--mobile) .glean-brand__sub {
-    font-size: 12px;
+    font-size: var(--glean-text-sm);
     line-height: 1.65;
     text-transform: none;
 }
@@ -1580,7 +1596,7 @@ body.b3-theme-dark {
     box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--b3-theme-primary) 22%, transparent);
 }
 
-@container glean-workbench (min-width: 760px) {
+@container glean-shell (min-width: 760px) {
     .glean-panel--shell:not(.glean-panel--mobile) {
         display: grid;
         grid-template-columns: 184px minmax(0, 1fr);
@@ -1635,7 +1651,7 @@ body.b3-theme-dark {
         border-radius: 10px;
         background: transparent;
         color: var(--b3-theme-on-surface);
-        font-size: 13px;
+        font-size: var(--glean-text-md);
         text-align: start;
         cursor: pointer;
     }
@@ -1645,6 +1661,26 @@ body.b3-theme-dark {
     .glean-workbench-rail__item:focus-visible { outline: 2px solid var(--b3-theme-primary); outline-offset: 2px; }
     .glean-workbench-rail__spacer { flex: 1 1 auto; min-height: 12px; }
     .glean-workbench-rail__hint { padding: 10px; border-top: 1px solid var(--glean-border-soft); color: var(--b3-theme-on-surface); font-size: 11px; line-height: 1.6; }
+}
+
+@container glean-shell (max-width: 759px) {
+    .glean-panel--shell:not(.glean-panel--mobile) .glean-views {
+        display: grid;
+        width: 100%;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 2px;
+        border-radius: 8px;
+    }
+
+    .glean-panel--shell:not(.glean-panel--mobile) .glean-views__btn {
+        min-width: 0;
+        min-height: 38px;
+        padding: 6px 3px;
+        font-size: var(--glean-text-xs);
+        line-height: 1.3;
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
 }
 
 @container glean-workbench (max-width: 759px) {
@@ -1980,7 +2016,7 @@ body.b3-theme-dark {
     border: none;
     background: transparent;
     text-align: left;
-    font-size: 11px;
+    font-size: var(--glean-text-xs);
     color: var(--b3-theme-primary);
     cursor: pointer;
     padding: 3px 2px;
@@ -2259,7 +2295,7 @@ body.b3-theme-dark {
 
 @media (max-width: 420px) {
     .glean-reader__toolbar {
-        gap: 4px;
+        gap: var(--glean-space-1);
         padding-block: 6px;
     }
 
@@ -2296,7 +2332,7 @@ body.b3-theme-dark {
 
 @container glean-workbench (max-width: 420px) {
     .glean-reader__toolbar {
-        gap: 4px;
+        gap: var(--glean-space-1);
         padding-block: 6px;
     }
 
@@ -2331,7 +2367,7 @@ body.b3-theme-dark {
 .glean-linkish {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: var(--glean-space-1);
     border: none;
     background: transparent;
     color: var(--b3-theme-primary);
@@ -2348,7 +2384,7 @@ body.b3-theme-dark {
     justify-content: space-between;
     gap: 10px;
     padding: 9px 14px;
-    font-size: 11px;
+    font-size: var(--glean-text-xs);
     color: var(--b3-theme-on-surface);
 }
 
@@ -2363,7 +2399,7 @@ body.b3-theme-dark {
     flex-shrink: 0;
     min-height: 28px;
     padding: 4px 9px;
-    font-size: 11px;
+    font-size: var(--glean-text-xs);
 }
 
 .glean-settings__guide-link {
@@ -2386,7 +2422,7 @@ body.b3-theme-dark {
     margin: 0 12px 6px;
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: var(--glean-space-1);
 }
 
 .glean-surf-started__item {
@@ -2434,7 +2470,7 @@ body.b3-theme-dark {
     right: 10px;
     bottom: 9px;
     display: flex;
-    gap: 4px;
+    gap: var(--glean-space-1);
     opacity: 0;
     transform: translateY(3px);
     transition: all 0.22s var(--glean-ease-out);
@@ -2481,7 +2517,7 @@ body.b3-theme-dark {
     border: 1px solid var(--b3-border-color);
     background: var(--b3-theme-surface);
     color: var(--b3-theme-on-surface);
-    font-size: 11px;
+    font-size: var(--glean-text-xs);
     display: grid;
     place-items: center;
     cursor: pointer;
@@ -2554,7 +2590,7 @@ body.b3-theme-dark {
 .glean-rank-controls {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: var(--glean-space-1);
     min-width: 0;
     color: var(--b3-theme-on-surface);
     font-size: 10px;
@@ -2677,7 +2713,7 @@ body.b3-theme-dark {
 .glean-mrow__ops {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: var(--glean-space-1);
 }
 
 /* ============ 空态 / 加载 ============ */
@@ -2725,7 +2761,7 @@ body.b3-theme-dark {
     justify-content: center;
     align-items: center;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: var(--glean-space-2);
     margin-top: var(--glean-space-3);
 }
 
@@ -2753,7 +2789,7 @@ body.b3-theme-dark {
     padding: 28px 16px;
     color: var(--b3-theme-on-surface);
     opacity: 0.78;
-    font-size: 12px;
+    font-size: var(--glean-text-sm);
 }
 
 .glean-panel__loading-dot {
@@ -2769,14 +2805,14 @@ body.b3-theme-dark {
 .glean-load-error {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--glean-space-2);
     margin: 8px 12px;
     padding: 9px 10px;
     border: 1px solid color-mix(in srgb, var(--b3-theme-error) 28%, var(--glean-border-soft));
     border-radius: var(--glean-radius-sm);
     background: var(--glean-error-surface);
     color: var(--b3-theme-error);
-    font-size: 12px;
+    font-size: var(--glean-text-sm);
 }
 
 .glean-load-error::before {
@@ -2788,7 +2824,7 @@ body.b3-theme-dark {
     flex: 0 0 17px;
     border: 1px solid color-mix(in srgb, currentColor 48%, transparent);
     border-radius: 50%;
-    font-size: 11px;
+    font-size: var(--glean-text-xs);
     font-weight: 750;
     line-height: 1;
 }
@@ -2819,7 +2855,7 @@ body.b3-theme-dark {
     border-radius: 18px;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--glean-space-2);
     background: var(--glean-glass);
     border: 1px solid var(--glean-glass-border);
     backdrop-filter: blur(20px) saturate(1.5);
@@ -2835,10 +2871,10 @@ body.b3-theme-dark {
     align-items: center;
     justify-content: center;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: var(--glean-space-2);
     padding: 10px 12px 14px;
     color: var(--b3-theme-on-surface);
-    font-size: 11px;
+    font-size: var(--glean-text-xs);
 }
 
 .glean-list-more .glean-btn {
@@ -2848,12 +2884,12 @@ body.b3-theme-dark {
 .glean-batchbar__ops {
     margin-left: auto;
     display: flex;
-    gap: 4px;
+    gap: var(--glean-space-1);
 }
 
 .glean-bb {
     border: none;
-    font-size: 11px;
+    font-size: var(--glean-text-xs);
     padding: 5px 10px;
     border-radius: 9px;
     cursor: pointer;
@@ -2882,7 +2918,7 @@ body.b3-theme-dark {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 4px;
+    gap: var(--glean-space-1);
 }
 
 @keyframes glean-rise {
@@ -2911,7 +2947,7 @@ body.b3-theme-dark {
 .glean-bento {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 8px;
+    gap: var(--glean-space-2);
 }
 
 .glean-tile {
@@ -3000,7 +3036,7 @@ body.b3-theme-dark {
 .glean-bar-row {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--glean-space-2);
     font-size: 11.5px;
     padding: 4px 0;
 
@@ -3044,7 +3080,7 @@ body.b3-theme-dark {
 }
 
 .glean-tag {
-    font-size: 11px;
+    font-size: var(--glean-text-xs);
     padding: 4px 10px;
     border-radius: 999px;
     background: var(--b3-theme-background-light);
@@ -3095,7 +3131,7 @@ body.b3-theme-dark {
     }
 
     .glean-hl__q {
-        font-size: 12px;
+        font-size: var(--glean-text-sm);
         line-height: 1.65;
     }
 
@@ -3104,7 +3140,7 @@ body.b3-theme-dark {
         font-size: 10px;
         color: var(--b3-theme-on-surface);
         display: flex;
-        gap: 8px;
+        gap: var(--glean-space-2);
     }
 }
 
@@ -3116,7 +3152,7 @@ body.b3-theme-dark {
     gap: 12px;
     height: 100%;
     padding: 14px 18px;
-    font-size: 13px;
+    font-size: var(--glean-text-md);
     overflow: hidden;
 }
 
@@ -3173,7 +3209,7 @@ body.b3-theme-dark {
         }
 
         .glean-step__lb {
-            font-size: 11px;
+            font-size: var(--glean-text-xs);
             color: var(--b3-theme-on-surface);
         }
 
@@ -3214,7 +3250,7 @@ body.b3-theme-dark {
 .glean-mstats {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: var(--glean-space-2);
 
     .glean-mstat {
         flex: 1 1 120px;
@@ -3252,13 +3288,13 @@ body.b3-theme-dark {
 
 .glean-onb-preview__total {
     color: var(--b3-theme-on-surface);
-    font-size: 11px;
+    font-size: var(--glean-text-xs);
 }
 
 .glean-onb-preview__examples {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 8px;
+    gap: var(--glean-space-2);
     min-height: 0;
     max-height: 142px;
     overflow: auto;
@@ -3275,7 +3311,7 @@ body.b3-theme-dark {
 .glean-onb-preview__label {
     margin-bottom: 5px;
     color: var(--b3-theme-on-background);
-    font-size: 11px;
+    font-size: var(--glean-text-xs);
     font-weight: 700;
 }
 
@@ -3376,7 +3412,7 @@ body.b3-theme-dark {
     gap: 7px;
     margin-top: 9px;
     color: var(--b3-theme-on-background);
-    font-size: 11px;
+    font-size: var(--glean-text-xs);
     cursor: pointer;
 }
 
@@ -3711,7 +3747,7 @@ body.b3-theme-dark {
 
         .glean-mrow__why {
             display: inline-flex;
-            gap: 4px;
+            gap: var(--glean-space-1);
             max-width: 240px;
             overflow: hidden;
             color: var(--b3-theme-on-surface);
@@ -3766,7 +3802,7 @@ body.b3-theme-dark {
 .glean-migrate__ops {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--glean-space-2);
     justify-content: flex-end;
     flex-wrap: wrap;
 
@@ -3795,7 +3831,7 @@ body.b3-theme-dark {
 
 .glean-btn {
     border: none;
-    font-size: 12px;
+    font-size: var(--glean-text-sm);
     font-weight: 600;
     padding: 7px 16px;
     min-height: 34px;
@@ -3848,7 +3884,7 @@ body.b3-theme-dark {
     gap: 14px;
     height: 100%;
     padding: 14px 16px 16px;
-    font-size: 13px;
+    font-size: var(--glean-text-md);
 }
 
 .glean-settings__head-mark {
@@ -3987,7 +4023,7 @@ body.b3-theme-dark {
 
 /* 笔记本 chip */
 .glean-nb {
-    font-size: 11px;
+    font-size: var(--glean-text-xs);
     padding: 4px 11px;
     border-radius: 999px;
     background: var(--b3-theme-background-light);
@@ -4092,7 +4128,7 @@ body.b3-theme-dark {
 .glean-settings__footer {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--glean-space-2);
     justify-content: flex-end;
     position: sticky;
     bottom: calc(-16px + var(--glean-keyboard-inset, 0px));
@@ -4108,7 +4144,7 @@ body.b3-theme-dark {
     flex: 1;
     min-width: 0;
     color: var(--b3-theme-on-surface);
-    font-size: 11px;
+    font-size: var(--glean-text-xs);
 }
 
 .glean-settings__status--dirty {
@@ -4165,7 +4201,7 @@ body.b3-theme-dark {
 .glean-panel--mobile .glean-mobile-filter-summary {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--glean-space-2);
     padding: 0 calc(12px + var(--glean-safe-right, 0px)) 8px calc(12px + var(--glean-safe-left, 0px));
 }
 
@@ -4179,7 +4215,7 @@ body.b3-theme-dark {
     border-radius: 12px;
     background: var(--b3-theme-surface);
     color: var(--b3-theme-on-background);
-    font-size: 12px;
+    font-size: var(--glean-text-sm);
     cursor: pointer;
 
     &:focus-visible {
@@ -4215,7 +4251,7 @@ body.b3-theme-dark {
 .glean-mobile-filter-results {
     margin-left: auto;
     color: var(--b3-theme-on-surface);
-    font-size: 11px;
+    font-size: var(--glean-text-xs);
     white-space: nowrap;
 }
 
@@ -4315,7 +4351,7 @@ body.b3-theme-dark {
     flex-direction: column;
     gap: 5px;
     color: var(--b3-theme-on-surface);
-    font-size: 11px;
+    font-size: var(--glean-text-xs);
 
     .b3-select {
         width: 100%;
@@ -4327,7 +4363,7 @@ body.b3-theme-dark {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 44px;
     align-items: end;
-    gap: 8px;
+    gap: var(--glean-space-2);
 }
 
 .glean-mobile-filter-direction {
@@ -4358,7 +4394,7 @@ body.b3-theme-dark {
 .glean-filter {
     max-width: 132px;
     min-width: 82px;
-    font-size: 11px;
+    font-size: var(--glean-text-xs);
 }
 
 .glean-filter-dir,
@@ -4374,7 +4410,7 @@ body.b3-theme-dark {
     min-height: 28px;
     padding: 3px 8px;
     cursor: pointer;
-    font-size: 11px;
+    font-size: var(--glean-text-xs);
     text-align: center;
 }
 
@@ -4449,7 +4485,7 @@ body.b3-theme-dark {
     border: 1px solid var(--glean-border-soft);
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: var(--glean-space-2);
     min-height: 0;
     overflow-y: auto;
     scrollbar-gutter: stable;
@@ -4526,7 +4562,7 @@ body.b3-theme-dark {
     background: var(--b3-theme-surface);
     border-radius: 12px;
     padding: 10px 12px;
-    font-size: 12px;
+    font-size: var(--glean-text-sm);
     border: 1px solid var(--glean-border-soft);
     cursor: grab;
     transition: transform 0.18s var(--glean-ease-out), box-shadow 0.18s, border-color 0.18s, background-color 0.18s;
@@ -4790,7 +4826,7 @@ body.b3-theme-dark {
     border: 1px dashed var(--glean-border-soft);
     border-radius: var(--glean-radius-sm);
     color: var(--b3-theme-on-surface);
-    font-size: 11px;
+    font-size: var(--glean-text-xs);
 }
 .glean-rail__empty::before { content: "⌕"; color: var(--b3-theme-primary); font-size: 13px; line-height: 1; }
 .glean-rail__more { border: 0; border-radius: var(--glean-radius-sm); background: transparent; color: var(--b3-theme-primary); font-size: 11px; text-align: left; padding: 6px 10px; cursor: pointer; transition: background 180ms ease; }
@@ -4801,7 +4837,7 @@ body.b3-theme-dark {
 .glean-rail__item {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--glean-space-2);
     padding: 6px 10px;
     border-radius: 10px;
     border: none;
@@ -4895,7 +4931,7 @@ body.b3-theme-dark {
         font: inherit;
         text-align: left;
         cursor: pointer;
-        font-size: 13px;
+        font-size: var(--glean-text-md);
         font-weight: 600;
         line-height: 1.4;
         overflow: hidden;
@@ -4906,7 +4942,7 @@ body.b3-theme-dark {
     .glean-drow__site {
         width: 150px;
         flex-shrink: 0;
-        font-size: 11px;
+        font-size: var(--glean-text-xs);
         color: var(--b3-theme-on-surface);
         overflow: hidden;
         text-overflow: ellipsis;
@@ -4916,7 +4952,7 @@ body.b3-theme-dark {
     .glean-drow__len {
         width: 116px;
         flex-shrink: 0;
-        font-size: 11px;
+        font-size: var(--glean-text-xs);
         color: var(--b3-theme-on-surface);
         font-variant-numeric: tabular-nums;
         white-space: nowrap;
@@ -4971,14 +5007,14 @@ body.b3-theme-dark {
 .glean-rel {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--glean-space-2);
     width: 100%;
     padding: 9px 12px;
     border-radius: 12px;
     border: 1px solid var(--b3-border-color);
     background: var(--b3-theme-surface);
     color: var(--b3-theme-on-background);
-    font-size: 12px;
+    font-size: var(--glean-text-sm);
     cursor: pointer;
     text-align: left;
     transition: border-color 0.2s, transform 0.2s var(--glean-ease-out);
@@ -5039,7 +5075,7 @@ body.b3-theme-dark {
 .glean-resurface__quick-actions {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 8px;
+    gap: var(--glean-space-2);
     margin: 10px 12px 0;
 }
 
@@ -5095,7 +5131,7 @@ body.b3-theme-dark {
     z-index: 2;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--glean-space-2);
     margin: 0 12px;
     padding: 7px 8px 7px 10px;
     border: 1px solid var(--b3-theme-primary);
@@ -5128,7 +5164,7 @@ body.b3-theme-dark {
     padding: 0 10px;
     background: var(--b3-theme-primary);
     color: var(--b3-theme-on-primary);
-    font-size: 11px;
+    font-size: var(--glean-text-xs);
     font-weight: 700;
 }
 
@@ -5158,7 +5194,7 @@ body.b3-theme-dark {
     padding: 0 18px;
     pointer-events: none;
     background: var(--b3-theme-background-light);
-    font-size: 11px;
+    font-size: var(--glean-text-xs);
     font-weight: 700;
 }
 
@@ -5438,7 +5474,7 @@ body.b3-theme-dark {
     border-radius: 14px;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--glean-space-2);
     font-size: 11.5px;
     color: var(--b3-theme-on-surface);
     border: 1px dashed var(--glean-accent-b);
@@ -5456,7 +5492,7 @@ body.b3-theme-dark {
 }
 
 .glean-chip {
-    font-size: 11px;
+    font-size: var(--glean-text-xs);
     font-weight: 600;
     padding: 3px 10px;
     border-radius: 999px;
@@ -5468,8 +5504,8 @@ body.b3-theme-dark {
 .glean-logrow {
     display: flex;
     align-items: baseline;
-    gap: 8px;
-    font-size: 11px;
+    gap: var(--glean-space-2);
+    font-size: var(--glean-text-xs);
     padding: 4px 0;
     border-bottom: 1px dashed var(--b3-border-color);
     min-width: 0;
@@ -5517,14 +5553,14 @@ body.b3-theme-dark {
 .glean-inbox__toggle {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--glean-space-2);
     width: 100%;
     min-height: 44px;
     padding: 8px 12px;
     border: none;
     background: transparent;
     color: var(--b3-theme-on-background);
-    font-size: 12px;
+    font-size: var(--glean-text-sm);
     font-weight: 600;
     cursor: pointer;
 
@@ -5550,9 +5586,9 @@ body.b3-theme-dark {
 .glean-inbox__empty {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: var(--glean-space-2);
     padding: 14px 12px 16px;
-    font-size: 11px;
+    font-size: var(--glean-text-xs);
     color: var(--b3-theme-on-surface);
     opacity: 0.7;
 
@@ -5566,7 +5602,7 @@ body.b3-theme-dark {
         border-radius: 7px;
         background: color-mix(in srgb, var(--glean-st-done) 14%, var(--b3-theme-surface));
         color: var(--glean-st-done-text);
-        font-size: 12px;
+        font-size: var(--glean-text-sm);
         font-weight: 700;
     }
 }
@@ -5581,7 +5617,7 @@ body.b3-theme-dark {
 
 .glean-inbox__body { flex: 1; min-width: 0; }
 .glean-inbox__title {
-    font-size: 12px;
+    font-size: var(--glean-text-sm);
     font-weight: 600;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -5710,7 +5746,7 @@ body.b3-theme-dark {
     background: color-mix(in srgb, var(--b3-theme-background) 92%, var(--glean-accent-a));
     color: var(--b3-theme-on-background);
     min-width: 0;
-    font-size: 11px;
+    font-size: var(--glean-text-xs);
 }
 
 .glean-reading-context__main {
@@ -5839,7 +5875,7 @@ body.b3-theme-dark {
 .glean-reading-context__error-main {
     display: flex;
     align-items: baseline;
-    gap: 8px;
+    gap: var(--glean-space-2);
     min-width: 0;
 }
 
@@ -5960,7 +5996,7 @@ body.b3-theme-dark {
     .glean-inbox__item {
         align-items: flex-start;
         flex-wrap: wrap;
-        gap: 8px;
+        gap: var(--glean-space-2);
         padding: 10px;
     }
 
@@ -6044,7 +6080,7 @@ body.b3-theme-dark {
 
 @media (max-width: 420px) {
     .glean-panel--mobile .glean-mobile-topbar {
-        gap: 4px;
+        gap: var(--glean-space-1);
     }
 
     .glean-panel--mobile .glean-mobile-task {
@@ -6063,7 +6099,7 @@ body.b3-theme-dark {
     }
 
     .glean-panel--mobile .glean-mobile-filter-summary {
-        gap: 4px;
+        gap: var(--glean-space-1);
     }
 
     .glean-panel--mobile .glean-mobile-filter-results {
@@ -6078,7 +6114,7 @@ body.b3-theme-dark {
     /* 窄屏底部操作仍保持同一行，避免清空/应用被推成一列而挤占筛选内容。 */
     .glean-panel--mobile .glean-mobile-filter-sheet__foot {
         flex-wrap: nowrap;
-        gap: 8px;
+        gap: var(--glean-space-2);
     }
 
     .glean-panel--mobile .glean-mobile-filter-sheet__foot .glean-btn {
@@ -6110,7 +6146,7 @@ body.b3-theme-dark {
     }
 
     .glean-panel--mobile .glean-mobile-filter-sheet__body {
-        gap: 8px;
+        gap: var(--glean-space-2);
         padding-top: 8px;
         padding-bottom: 8px;
     }
@@ -6120,7 +6156,7 @@ body.b3-theme-dark {
     }
 
     .glean-panel--mobile .glean-surf {
-        gap: 8px;
+        gap: var(--glean-space-2);
     }
 }
 
@@ -7177,7 +7213,7 @@ body.b3-theme-dark {
 }
 
 .glean-st-badge {
-    font-size: 11px;
+    font-size: var(--glean-text-xs);
     padding: 4px 9px;
     border: 1px solid color-mix(in srgb, currentColor 9%, transparent);
 }
@@ -7802,7 +7838,7 @@ body.b3-theme-dark {
 .glean-meta-icon {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: var(--glean-space-1);
     min-width: 0;
 }
 
@@ -8213,14 +8249,14 @@ body.b3-theme-dark {
 .glean-stats__activity .glean-stats__heatmap {
     grid-template-rows: repeat(7, 14px);
     grid-auto-columns: 14px;
-    gap: 4px;
+    gap: var(--glean-space-1);
 }
 
 .glean-stats__heatmap-legend {
     display: flex;
     align-items: center;
     justify-content: flex-end;
-    gap: 4px;
+    gap: var(--glean-space-1);
     margin-top: var(--glean-space-2);
     color: var(--b3-theme-on-surface);
     font-size: var(--glean-text-xs);
@@ -8377,7 +8413,7 @@ body.b3-theme-dark {
 .glean-drow__ops {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: var(--glean-space-1);
 }
 
 .glean-mrow__ops .glean-op-btn,
@@ -8803,7 +8839,7 @@ body.b3-theme-dark {
     display: flex;
     align-items: center;
     flex-wrap: wrap;
-    gap: 4px;
+    gap: var(--glean-space-1);
     margin-top: 8px;
     min-width: 0;
 }
@@ -8921,7 +8957,7 @@ body.b3-theme-dark {
     .glean-surf-started__item {
         align-items: flex-start;
         flex-wrap: wrap;
-        row-gap: 4px;
+        row-gap: var(--glean-space-1);
     }
 
     .glean-surf-started__title {
@@ -8950,7 +8986,7 @@ body.b3-theme-dark {
 }
 
 .glean-reader__ops {
-    row-gap: 8px;
+    row-gap: var(--glean-space-2);
 }
 
 .glean-reader__section-title {
@@ -9566,7 +9602,7 @@ body.b3-theme-dark .glean-panel--mobile,
     margin-top: 1px;
     border: 1px solid color-mix(in srgb, var(--b3-theme-error) 42%, transparent);
     border-radius: 50%;
-    font-size: 11px;
+    font-size: var(--glean-text-xs);
     font-weight: 750;
     line-height: 1;
 }
@@ -9951,7 +9987,7 @@ body.b3-theme-dark .glean-panel--mobile,
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 13px;
+    font-size: var(--glean-text-md);
     font-weight: 720;
     line-height: 1.35;
     letter-spacing: -.005em;
@@ -10804,7 +10840,7 @@ body.b3-theme-dark .glean-panel--mobile,
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
         align-items: stretch;
-        gap: 8px;
+        gap: var(--glean-space-2);
     }
     .glean-panel--shell .glean-surf-card .glean-surf-act {
         width: 100%;
@@ -10824,7 +10860,7 @@ body.b3-theme-dark .glean-panel--mobile,
     .glean-panel--shell:not(.glean-panel--mobile) .glean-surf-card .glean-surf__acts {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 8px;
+        gap: var(--glean-space-2);
     }
     .glean-panel--shell:not(.glean-panel--mobile) .glean-surf-card .glean-surf-act {
         min-width: 0;
@@ -10841,7 +10877,7 @@ body.b3-theme-dark .glean-panel--mobile,
     .glean-panel--shell.glean-panel--mobile .glean-surf-card .glean-surf__acts {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 8px;
+        gap: var(--glean-space-2);
     }
     .glean-panel--shell.glean-panel--mobile .glean-surf-card .glean-surf-act {
         min-width: 0;

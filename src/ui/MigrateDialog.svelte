@@ -1,6 +1,6 @@
 <script lang="ts">
 /** 存量迁移器弹窗（T-1102）：步进器（扫描报告→分批回填→完成）+ 统计卡 + 可暂停续跑。 */
-import { onMount } from "svelte";
+import { onMount, tick } from "svelte";
 import { openTab, showMessage } from "siyuan";
 import type { GleanFacade } from "../types";
 import { t } from "../libs/i18n";
@@ -54,6 +54,14 @@ let cursor = $state(0);
 let filter = $state<"all" | "pending" | "ok" | "skipped" | "manual" | "error">("all");
 let aborted = $state(false);
 let resumeAvailable = $state(false);
+let progressLoadState = $state<"loading" | "ready" | "error">("loading");
+let progressReadStarted = false;
+let confirmingDiscard = $state(false);
+let discardBusy = $state(false);
+let progressActionError = $state("");
+let discardTrigger = $state<HTMLButtonElement>();
+let discardCancel = $state<HTMLButtonElement>();
+let scanTrigger = $state<HTMLButtonElement>();
 let editingRowId = $state("");
 let manualUrl = $state("");
 /** 逐条决策写回期间锁住该行，避免快速点击触发重复端点请求。 */
@@ -61,7 +69,15 @@ let rowBusyId = $state("");
 
 const step = $derived<Step>(phase === "intro" || phase === "scanning" ? 1 : phase === "done" ? 3 : 2);
 
-onMount(async () => {
+onMount(() => {
+    void reloadResumeProgress();
+});
+
+async function reloadResumeProgress(): Promise<void> {
+    if (progressReadStarted && progressLoadState === "loading") return;
+    progressReadStarted = true;
+    progressLoadState = "loading";
+    progressActionError = "";
     try {
         const progress = await loadMigrateProgress(facade.pluginInstance);
         if (phase === "intro" && progress && progress.rows.length > 0) {
@@ -69,11 +85,12 @@ onMount(async () => {
             cursor = progress.cursor;
             resumeAvailable = hasOutstanding(progress.rows, progress.finished);
         }
+        progressLoadState = "ready";
     } catch (error) {
         console.warn("[glean] 迁移进度读取失败:", error);
-        showMessage(t(i18n, "msg.actionFailed"), 4000);
+        progressLoadState = "error";
     }
-});
+}
 
 const counts = $derived.by(() => {
     let ok = 0;
@@ -116,7 +133,7 @@ async function refreshProgress() {
 }
 
 async function startScan() {
-    if (phase === "scanning") return;
+    if (phase === "scanning" || progressLoadState !== "ready") return;
     phase = "scanning";
     rows = [];
     try {
@@ -133,11 +150,14 @@ async function startScan() {
 }
 
 async function resume() {
-    if (phase !== "intro") return;
+    if (phase !== "intro" || progressLoadState !== "ready") return;
     phase = "scanning";
     try {
         const progress = await loadMigrateProgress(facade.pluginInstance);
         if (!progress) {
+            resumeAvailable = false;
+            rows = [];
+            cursor = 0;
             phase = "intro";
             return;
         }
@@ -146,19 +166,43 @@ async function resume() {
         await startRun(false);
     } catch (error) {
         console.warn("[glean] 迁移恢复失败:", error);
-        showMessage(t(i18n, "msg.actionFailed"), 4000);
+        progressActionError = t(i18n, "migrate.resumeFailed");
         phase = "intro";
     }
 }
 
+async function beginDiscardConfirmation(): Promise<void> {
+    if (progressLoadState !== "ready" || !resumeAvailable) return;
+    confirmingDiscard = true;
+    progressActionError = "";
+    await tick();
+    discardCancel?.focus();
+}
+
+async function cancelDiscardConfirmation(): Promise<void> {
+    confirmingDiscard = false;
+    await tick();
+    discardTrigger?.focus();
+}
+
 async function discardProgress() {
-    if (!window.confirm(t(i18n, "migrate.confirmDiscard"))) return;
+    if (discardBusy || progressLoadState !== "ready" || !resumeAvailable) return;
+    discardBusy = true;
     try {
         await clearMigrateProgress(facade.pluginInstance);
         resumeAvailable = false;
+        confirmingDiscard = false;
+        rows = [];
+        cursor = 0;
     } catch (error) {
         console.warn("[glean] 迁移进度清理失败:", error);
-        showMessage(t(i18n, "msg.actionFailed"), 4000);
+        progressActionError = t(i18n, "migrate.discardFailed");
+    } finally {
+        discardBusy = false;
+        if (!confirmingDiscard) {
+            await tick();
+            scanTrigger?.focus();
+        }
     }
 }
 
@@ -259,7 +303,7 @@ function rowStateLabel(row: MigrateRow): string {
 }
 </script>
 
-<div class="glean-migrate" data-phase={phase} aria-labelledby={titleId} aria-describedby={descId} aria-busy={phase === "scanning" || phase === "running"}>
+<div class="glean-migrate" data-phase={phase} aria-labelledby={titleId} aria-describedby={descId} aria-busy={progressLoadState === "loading" || phase === "scanning" || phase === "running"}>
     <div class="glean-dlg-head">
         <div class="glean-brand__mark glean-dlg-head__mark">
             <svg aria-hidden="true"><use href="#iconGleanWheat" /></svg>
@@ -290,21 +334,43 @@ function rowStateLabel(row: MigrateRow): string {
     {/if}
 
     {#if phase === "intro"}
-        {#if resumeAvailable}
-            <div class="glean-migrate__resume">
-                <button class="glean-btn glean-btn--pri" onclick={() => void resume()}>
-                    {t(i18n, "migrate.continue")}（{cursor}/{rows.length}）
-                </button>
-                <button class="glean-btn glean-btn--ghost" onclick={() => void discardProgress()}>
-                    {t(i18n, "migrate.discardProgress")}
+        {#if progressLoadState === "loading"}
+            <div class="glean-panel__loading" role="status" aria-live="polite">{t(i18n, "migrate.progressLoading")}</div>
+        {:else if progressLoadState === "error"}
+            <div class="glean-load-error" role="alert">
+                <span>{t(i18n, "migrate.progressLoadFailed")}</span>
+                <button class="glean-btn glean-btn--ghost" onclick={() => void reloadResumeProgress()}>{t(i18n, "action.retry")}</button>
+            </div>
+        {/if}
+        {#if progressActionError}
+            <div class="glean-load-error" role="alert">{progressActionError}</div>
+        {/if}
+        {#if confirmingDiscard}
+            <div class="glean-migrate__confirm glean-confirm" role="group" aria-busy={discardBusy} aria-labelledby={`${idPrefix}-discard-title`} aria-describedby={`${idPrefix}-discard-description`}>
+                <h3 id={`${idPrefix}-discard-title`}>{t(i18n, "migrate.discardConfirmTitle")}</h3>
+                <p id={`${idPrefix}-discard-description`}>{t(i18n, "migrate.confirmDiscard")}</p>
+                <div class="glean-confirm__actions">
+                    <button class="glean-btn glean-btn--ghost" bind:this={discardCancel} disabled={discardBusy} onclick={() => void cancelDiscardConfirmation()}>{t(i18n, "action.cancel")}</button>
+                    <button class="glean-btn glean-btn--danger" disabled={discardBusy} aria-busy={discardBusy} onclick={() => void discardProgress()}>{t(i18n, discardBusy ? "panel.loading" : "migrate.discardConfirmAction")}</button>
+                </div>
+            </div>
+        {:else}
+            {#if resumeAvailable}
+                <div class="glean-migrate__resume">
+                    <button class="glean-btn glean-btn--pri" disabled={progressLoadState !== "ready"} onclick={() => void resume()}>
+                        {t(i18n, "migrate.continue")}（{cursor}/{rows.length}）
+                    </button>
+                    <button class="glean-btn glean-btn--ghost" bind:this={discardTrigger} disabled={progressLoadState !== "ready"} onclick={() => void beginDiscardConfirmation()}>
+                        {t(i18n, "migrate.discardProgress")}
+                    </button>
+                </div>
+            {/if}
+            <div class="glean-migrate__ops">
+                <button class="glean-btn glean-btn--pri" bind:this={scanTrigger} disabled={progressLoadState !== "ready"} onclick={() => void startScan()}>
+                    {t(i18n, "migrate.dryRun")}
                 </button>
             </div>
         {/if}
-        <div class="glean-migrate__ops">
-            <button class="glean-btn glean-btn--pri" onclick={() => void startScan()}>
-                {t(i18n, "migrate.dryRun")}
-            </button>
-        </div>
     {:else if phase === "scanning"}
         <div class="glean-panel__loading" role="status" aria-live="polite">{t(i18n, "migrate.scanning")}</div>
     {:else if phase === "report"}
@@ -316,6 +382,11 @@ function rowStateLabel(row: MigrateRow): string {
             <div class="glean-mstat glean-mstat--err"><div class="glean-mstat__n">{counts.errors}</div><div class="glean-mstat__l">{t(i18n, "import.failed")}</div></div>
         </div>
         <div class="glean-mtable">
+            {#if visibleRows.length === 0}
+                <div class="glean-mtable__empty" role="status">
+                    {rows.length > 0 && filter !== "all" ? t(i18n, "migrate.filterNoResults") : t(i18n, "migrate.noRows")}
+                </div>
+            {:else}
             {#each visibleRows as row (row.id)}
                 <div class="glean-mrow" aria-busy={rowBusyId === row.id}>
                     <span class="glean-mrow__ti">{row.title || row.hpath}</span>
@@ -351,9 +422,8 @@ function rowStateLabel(row: MigrateRow): string {
                             <button class="glean-btn glean-btn--ghost" disabled={Boolean(rowBusyId)} onclick={() => (editingRowId = "")}>{t(i18n, "action.cancel")}</button>
                         </div>
                     {/if}
-            {:else}
-                <div class="glean-mtable__empty" role="status">{t(i18n, "panel.empty")}</div>
             {/each}
+            {/if}
         </div>
         <div class="glean-migrate__ops glean-migrate__ops--footer">
             <select class="b3-select glean-migrate__filter" aria-label={t(i18n, "migrate.filterAll")} bind:value={filter}>
@@ -480,5 +550,42 @@ function rowStateLabel(row: MigrateRow): string {
 </div>
 
 <style>
-    /* 样式集中在 src/index.scss（设计系统） */
+    .glean-confirm {
+        display: grid;
+        gap: 10px;
+        padding: 16px;
+        border: 1px solid var(--glean-border-soft);
+        border-radius: 6px;
+        background: var(--b3-theme-surface);
+        color: var(--b3-theme-on-surface);
+    }
+
+    .glean-confirm h3,
+    .glean-confirm p {
+        margin: 0;
+    }
+
+    .glean-confirm__actions {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 8px;
+    }
+
+    .glean-btn--danger {
+        border: 1px solid color-mix(in srgb, var(--b3-theme-error) 62%, var(--glean-border-soft));
+        background: var(--b3-theme-error);
+        color: var(--b3-theme-on-error, #fff);
+    }
+
+    .glean-btn--danger:hover:not(:disabled) {
+        filter: brightness(0.94);
+    }
+
+    @media (max-width: 560px) {
+        .glean-confirm__actions > .glean-btn {
+            flex: 1 1 130px;
+            min-height: 44px;
+        }
+    }
 </style>

@@ -1,5 +1,13 @@
 # 进度（PROGRESS）
 
+## T-3344/D-0211 原型、组件清单与交付文档收口（2026-10-12）
+
+- [x] 新增开发与交付指南，覆盖 Node/pnpm、项目结构、全部脚本、可选环境变量、隔离 E2E/spike、构建/部署、已知限制；README 增加入口。
+- [x] 新增 `docs/UI-COMPONENTS.md`，覆盖 `src/ui` 的 32/32 个 Svelte 组件，列出用途、主要参数、实际状态和键盘/移动端行为；标明 QuotesView 未接线与 ReaderTab 实验开关。
+- [x] 交互原型已按真实入口与状态收口：示例数据明确标示、画布/主题/状态可切换、去掉未实现动作并区分互斥状态；同步更新原型静态断言。
+- [x] `pnpm check`（0 错误/0 警告）、`pnpm test`（1264/1264）、`pnpm build`、`pnpm perf:baseline`、`pnpm perf:check`、`pnpm check:release`、`pnpm visual:check`、`pnpm task:ledger -- --check` 和 `git diff --check` 全部通过。
+- [ ] 真实思源桌面/移动端、读屏和真实文章数据仍待 B-0002/B-0004；真实下载/归档文件仍待 B-0005。原型数据和浏览器预览都是合成的，不能用作上述验收证据。
+
 ## T-3343/D-0210 连续完成记录提示（2026-10-11）
 
 - [x] 领域层按每篇当前保留的可信 `doneTime` 聚合本地连续完成日期；今天有记录从今天计，否则昨天仍可延续，重复文章同日只计一次，internal/候选/无效/未来时间排除。

@@ -60,13 +60,52 @@ test("settings category navigation exposes tab semantics and the notebook filter
     }
 });
 
+test("settings tabs use one keyboard stop and close requires resolving unsaved drafts", () => {
+    const settings = read("src/ui/SettingsView.svelte");
+    const dialog = read("src/libs/dialog.ts");
+    assert.match(settings, /tabindex=\{activeSection === section\.id \? 0 : -1\}/);
+    assert.match(settings, /registerCloseGuard\?\.\(canCloseSettings\)/);
+    assert.match(settings, /function canCloseSettings\(\): boolean[\s\S]*?if \(saveBusy\) return false;[\s\S]*?if \(draftDirty\)[\s\S]*?confirmDiscardOpen = true/);
+    assert.match(settings, /if \(confirmDiscardOpen\) return false;[\s\S]*if \(draftDirty\)/);
+    assert.match(settings, /settings\.discardConfirmTitle/);
+    assert.match(settings, /settings\.discardAndClose/);
+    assert.match(settings, /function discardAndClose\(\): void[\s\S]*?loadDraft\(originalSettings\)[\s\S]*?onClose\?\.\(\)/);
+    assert.match(settings, /function cancel\(\)\s*\{\s*if \(!canCloseSettings\(\)\) return;[\s\S]*?loadDraft\(originalSettings\)[\s\S]*?onClose\?\.\(\)/);
+    assert.match(settings, /saveBusy = false;\s*onClose\?\.\(\);/);
+    assert.match(dialog, /args\.canClose\?\.\(\) === false/);
+    assert.match(dialog, /closeGuard\?\.\(\) \?\? true/);
+    assert.match(dialog, /stopImmediatePropagation\(\);/);
+});
+
+test("migration checkpoints expose loading, retry, and distinct empty-filter feedback", () => {
+    const migrate = read("src/ui/MigrateDialog.svelte");
+    assert.match(migrate, /progressLoadState = \$state<"loading" \| "ready" \| "error">\("loading"\)/);
+    assert.match(migrate, /migrate\.progressLoadFailed/);
+    assert.match(migrate, /onclick=\{\(\) => void reloadResumeProgress\(\)\}/);
+    assert.match(migrate, /disabled=\{progressLoadState !== "ready"\} onclick=\{\(\) => void startScan\(\)\}/);
+    assert.match(migrate, /migrate\.filterNoResults/);
+    assert.doesNotMatch(migrate, /window\.confirm/);
+    assert.match(migrate, /role="group" aria-busy=\{discardBusy\} aria-labelledby=/);
+});
+
+test("archive permanent deletion confirms themed document details before the irreversible action", () => {
+    const archive = read("src/ui/ArchiveDialog.svelte");
+    assert.doesNotMatch(archive, /window\.confirm/);
+    assert.match(archive, /role="group" aria-busy=\{pending\} aria-labelledby=/);
+    assert.match(archive, /archive\.purgeDocTitle/);
+    assert.match(archive, /archive\.purgeDocPath/);
+    assert.match(archive, /archive\.purgeDocSource/);
+    assert.match(archive, /onclick=\{\(\) => void confirmPurge\(\)\}/);
+    assert.match(archive, /glean-btn--danger/);
+});
+
 test("stats uses per-instance section names and readable daily heatmap labels", () => {
     const source = read("src/ui/StatsView.svelte");
     assert.match(source, /const instanceId = \$props\.id\(\);/);
     assert.match(source, /const idFor = \(part: string\) => `\$\{idPrefix\}-\$\{part\}`;/);
     assert.match(source, /aria-labelledby=\{idFor\("activity-title"\)\}/);
     assert.match(source, /role="group" aria-label=\{t\(i18n, "review\.heatmap"/);
-    assert.match(source, /role=\{day\.count > 0 \? "img"/);
+    assert.match(source, /class="glean-stats__day" role="img" aria-label=\{t\(i18n, "review\.heatmapDay", \{ date: day\.date, n: day\.count \}\)\}/);
     assert.match(source, /i18n, "review\.heatmapDay"/);
     assert.doesNotMatch(source, /id="glean-stats-(?:overview|activity|breakdown|completed)-title"/);
 });

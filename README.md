@@ -180,7 +180,7 @@
 
 ## 开发
 
-需要 Node.js `>=24` 和 pnpm `12.5.1`。贡献前请阅读 [CONTRIBUTING.md](CONTRIBUTING.md) 与 [AGENTS.md](AGENTS.md)。常用命令：`pnpm install`、`pnpm dev`、`pnpm check`、`pnpm test`、`pnpm build`。
+需要 Node.js `>=24` 和 pnpm `12.5.1`。贡献前请阅读 [CONTRIBUTING.md](CONTRIBUTING.md) 与 [AGENTS.md](AGENTS.md)。从安装依赖、本地调试到 E2E、构建和发布的完整步骤见[开发与交付指南](docs/DEVELOPMENT.md)；常用命令：`pnpm install --frozen-lockfile`、`pnpm dev`、`pnpm check`、`pnpm test`、`pnpm build`。
 
 ## License
 

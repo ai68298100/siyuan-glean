@@ -1,6 +1,6 @@
 <script lang="ts">
 /** 设置视图：分类导航与连续配置分组，保留草稿、保存回执及维护任务入口。 */
-import { onMount } from "svelte";
+import { onMount, tick } from "svelte";
 import { getFrontend, showMessage } from "siyuan";
 import { listNotebooks, type NotebookMeta } from "../api/client";
 import { rebuildIndex } from "../services/clip-store";
@@ -21,9 +21,10 @@ import SnapshotGovernance from "./SnapshotGovernance.svelte";
 interface Props {
     facade: GleanFacade;
     onClose?: () => void;
+    registerCloseGuard?: (guard: () => boolean) => () => void;
 }
 
-let { facade, onClose }: Props = $props();
+let { facade, onClose, registerCloseGuard }: Props = $props();
 
 const i18n = $derived(facade.i18n);
 const instanceId = $props.id();
@@ -84,6 +85,9 @@ let readerOpenInTab = $state(DEFAULT_SETTINGS.reader.openInTab);
 let readerMode = $state<"read" | "edit">(DEFAULT_SETTINGS.reader.defaultMode);
 let originalSettings = $state<GleanSettings>(cloneSettings(DEFAULT_SETTINGS));
 let saveBusy = $state(false);
+let confirmDiscardOpen = $state(false);
+let keepEditingButton = $state<HTMLButtonElement>();
+let saveButton = $state<HTMLButtonElement>();
 let showNewbieHint = $state(false);
 let dismissHintBusy = $state(false);
 let exportBusy = $state<"csv" | "diagnostic" | "markdownArchive" | "">("");
@@ -131,10 +135,34 @@ function clearAnchorNotebooks(): void {
     anchorNotebooks = [];
 }
 
+function canCloseSettings(): boolean {
+    if (saveBusy) return false;
+    if (confirmDiscardOpen) return false;
+    if (draftDirty) {
+        confirmDiscardOpen = true;
+        void tick().then(() => keepEditingButton?.focus());
+        return false;
+    }
+    return true;
+}
+
+function keepEditing(): void {
+    confirmDiscardOpen = false;
+    void tick().then(() => saveButton?.focus());
+}
+
+function discardAndClose(): void {
+    if (saveBusy) return;
+    loadDraft(originalSettings);
+    confirmDiscardOpen = false;
+    onClose?.();
+}
+
 let mounted = false;
 
 onMount(() => {
     let active = true;
+    const unregisterCloseGuard = registerCloseGuard?.(canCloseSettings);
     mounted = true;
     originalSettings = cloneSettings(facade.settings);
     loadDraft(originalSettings);
@@ -160,6 +188,7 @@ onMount(() => {
     return () => {
         active = false;
         mounted = false;
+        unregisterCloseGuard?.();
         document.removeEventListener("glean:data-changed", refreshUsage);
     };
 });
@@ -264,6 +293,7 @@ async function save() {
         originalSettings = cloneSettings(facade.settings);
         loadDraft(originalSettings);
         showMessage(t(i18n, "settings.saved"), 2500);
+        saveBusy = false;
         onClose?.();
     } catch (error) {
         if (error instanceof SettingsConflictError) {
@@ -299,6 +329,7 @@ async function dismissNewbieHint() {
 }
 
 function cancel() {
+    if (!canCloseSettings()) return;
     loadDraft(originalSettings);
     onClose?.();
 }
@@ -455,6 +486,7 @@ async function doMountBoard() {
                         class="glean-settings__tab"
                         class:glean-settings__tab--on={activeSection === section.id}
                         role="tab"
+                        tabindex={activeSection === section.id ? 0 : -1}
                         aria-selected={activeSection === section.id}
                         aria-controls={panelId}
                         disabled={saveBusy}
@@ -942,18 +974,29 @@ async function doMountBoard() {
     </div>
 
     <div class="glean-settings__footer">
-        <div class="glean-settings__status" class:glean-settings__status--dirty={draftDirty} aria-live="polite">
-            {#if draftDirty}{t(i18n, "settings.unsavedChanges")}{:else}{t(i18n, "settings.saved")}{/if}
-        </div>
-        <button class="glean-btn" disabled={saveBusy} onclick={resetDefaults}>
-            {t(i18n, "settings.resetDefaults")}
-        </button>
-        <button class="glean-btn" disabled={saveBusy} onclick={cancel}>
-            {t(i18n, "action.cancel")}
-        </button>
-        <button class="glean-btn glean-btn--pri" aria-busy={saveBusy} disabled={saveBusy || !draftDirty} onclick={() => void save()}>
-            {saveBusy ? t(i18n, "panel.loading") : t(i18n, "action.save")}
-        </button>
+        {#if confirmDiscardOpen}
+            <div class="glean-settings__close-confirm" role="group" aria-live="assertive" aria-labelledby={`${idPrefix}-discard-title`} aria-describedby={`${idPrefix}-discard-description`}>
+                <strong id={`${idPrefix}-discard-title`}>{t(i18n, "settings.discardConfirmTitle")}</strong>
+                <span id={`${idPrefix}-discard-description`}>{t(i18n, "settings.discardConfirmDescription")}</span>
+                <div class="glean-settings__close-confirm-actions">
+                    <button class="glean-btn glean-btn--ghost" bind:this={keepEditingButton} onclick={keepEditing}>{t(i18n, "settings.keepEditing")}</button>
+                    <button class="glean-btn glean-btn--danger" onclick={discardAndClose}>{t(i18n, "settings.discardAndClose")}</button>
+                </div>
+            </div>
+        {:else}
+            <div class="glean-settings__status" class:glean-settings__status--dirty={draftDirty} aria-live="polite">
+                {#if draftDirty}{t(i18n, "settings.unsavedChanges")}{:else}{t(i18n, "settings.saved")}{/if}
+            </div>
+            <button class="glean-btn" disabled={saveBusy} onclick={resetDefaults}>
+                {t(i18n, "settings.resetDefaults")}
+            </button>
+            <button class="glean-btn" disabled={saveBusy} onclick={cancel}>
+                {t(i18n, "action.cancel")}
+            </button>
+            <button class="glean-btn glean-btn--pri" bind:this={saveButton} aria-busy={saveBusy} disabled={saveBusy || !draftDirty} onclick={() => void save()}>
+                {saveBusy ? t(i18n, "panel.loading") : t(i18n, "action.save")}
+            </button>
+        {/if}
     </div>
 </section>
 
@@ -1309,6 +1352,22 @@ async function doMountBoard() {
         overflow: hidden;
         font-size: 14px;
         line-height: 1.65;
+    }
+
+    .glean-settings__close-confirm {
+        display: grid;
+        flex: 1 1 100%;
+        gap: var(--glean-space-2);
+        min-width: 0;
+        padding: var(--glean-space-2) 0;
+        color: var(--b3-theme-on-surface);
+    }
+
+    .glean-settings__close-confirm-actions {
+        display: flex;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+        gap: var(--glean-space-2);
     }
 
     @container glean-settings (max-width: 600px) {

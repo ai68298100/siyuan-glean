@@ -14,7 +14,7 @@ registerHooks({
     },
 });
 
-const { buildStats, buildReadingReview, previewReadingReview, saveReadingReviewReport } = await import("../src/services/stats-service.ts");
+const { buildStats, buildReadingReview, previewReadingReview, resolveUnknownReadingReview, saveReadingReviewReport } = await import("../src/services/stats-service.ts");
 const { DEFAULT_SETTINGS } = await import("../src/services/settings.ts");
 const articleId = "20261004120000-aaaaaaa";
 const archivedId = "20261004120000-bbbbbbb";
@@ -189,6 +189,7 @@ for (const stage of ["mark", "index", "read"]) {
         assert.equal(first.reason, stage === "read" ? "readFailed" : "markFailed");
         assert.equal(session.createdDocId, reportId);
         assert.equal(session.state, "created");
+        assert.equal(await previewReadingReview(fixture.plugin, fixture.settings, options), session, "离开并返回统计页应恢复已创建报告会话");
         const second = await saveReadingReviewReport(fixture.plugin, session, true);
         assert.deepEqual(second, first);
         assert.equal(fixture.countCreates(), 1);
@@ -217,6 +218,9 @@ for (const stage of ["create", "invalidId"]) {
         assert.equal(fixture.countCreates(), 1);
         assert.equal(session.state, "unknown");
         assert.equal(session.createdDocId, "");
+        assert.equal(await previewReadingReview(fixture.plugin, fixture.settings, options), session, "离开并返回统计页应恢复未知创建会话");
+        assert.equal(resolveUnknownReadingReview(fixture.plugin, session), true);
+        assert.notEqual(await previewReadingReview(fixture.plugin, fixture.settings, options), session, "用户检查路径并解除阻止后可生成新预览");
     });
 }
 

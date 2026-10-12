@@ -50,18 +50,88 @@ test("svelte dialogs let workbench roots fill the popup content width", () => {
 
 test("prototype workbench frame shows the three readable header actions", () => {
     const prototype = read("design/prototype-v2.html");
-    const home = prototype.slice(prototype.indexOf('<article class="screen" id="home">'), prototype.indexOf("</article>", prototype.indexOf('<article class="screen" id="home">')));
-    assert.match(home, /⧉ 浮窗/);
-    assert.match(home, /🧹 整理/);
-    assert.match(home, /⚙ 设置/);
+    assert.match(prototype, /⧉ 浮窗/);
+    assert.match(prototype, /🧹 整理/);
+    assert.match(prototype, /⚙ 设置/);
+    assert.match(prototype, /data-action="popup"/);
+    assert.match(prototype, /data-action="organize"/);
+    assert.match(prototype, /data-action="settings"/);
 });
 
 test("prototype workbench frame keeps quick capture as the primary action", () => {
     const prototype = read("design/prototype-v2.html");
-    const home = prototype.slice(prototype.indexOf('<article class="screen" id="home">'), prototype.indexOf("</article>", prototype.indexOf('<article class="screen" id="home">')));
-    const library = prototype.slice(prototype.indexOf('<article class="screen" id="library">'), prototype.indexOf("</article>", prototype.indexOf('<article class="screen" id="library">')));
-    assert.match(home, /＋ 快速收录/);
-    assert.match(library, /＋ 收录/);
+    assert.match(prototype, /＋ 快速收录/);
+    assert.match(prototype, /＋ 收录/);
+    assert.match(prototype, /data-action="quick-capture"/);
+    assert.match(prototype, /data-page="library"[\s\S]*?data-action="quick-capture"/);
+});
+
+test("interactive prototype explicitly marks synthetic data and provides view, canvas, theme and async state controls", () => {
+    const prototype = read("design/prototype-v2.html");
+    assert.match(prototype, /合成示例数据/);
+    assert.match(prototype, /不连接思源 \/ API \/ AI/);
+    for (const view of ["home", "library", "stats", "highlights", "settings"]) assert.match(prototype, new RegExp(`data-view="${view}"`));
+    for (const canvas of ["wide", "dock", "mobile"]) assert.match(prototype, new RegExp(`data-canvas="${canvas}"`));
+    for (const state of ["idle", "loading", "success", "failure", "empty"]) assert.match(prototype, new RegExp(`data-state="${state}"`));
+    assert.match(prototype, /data-action="theme"/);
+    assert.match(prototype, /addEventListener\('popstate'/);
+    assert.doesNotMatch(prototype, /讀庫 128 篇|已篩選 2 項/);
+});
+
+test("prototype empty result replaces sample content and mobile more opens real navigation actions", () => {
+    const prototype = read("design/prototype-v2.html");
+    assert.match(prototype, /html\[data-demo-state="empty"\] \[data-page\]\.is-active \.home-content/);
+    assert.match(prototype, /html\[data-demo-state="empty"\] \[data-page\]\.is-active \.settings-content/);
+    assert.match(prototype, /aria-controls="mobile-more-panel" aria-expanded="false"/);
+    assert.match(prototype, /id="mobile-more-panel"[\s\S]*data-view="stats"[\s\S]*data-view="settings"/);
+    assert.match(prototype, /data-action="mobile-maintenance"/);
+    assert.match(prototype, /function closeMobileMore\(returnFocus=false\)/);
+    assert.match(prototype, /event\.key!=='Escape'\)return;if\(!document\.querySelector\('#mobile-more-panel'\)\.classList\.contains\('hidden'\)\)\{closeMobileMore\(true\);return\}/);
+    assert.match(prototype, /data-onboarding-dialog[\s\S]*data-onboarding-copy[\s\S]*onboarding-next/);
+    assert.match(prototype, /case 'onboarding':onboardingStep=0;updateOnboarding\(\);document\.querySelector\('\[data-onboarding-dialog\]'\)\.classList\.remove\('hidden'\)/);
+    assert.match(prototype, /mobile-maintenance':navigate\('settings'\)/);
+});
+
+test("mobile prototype canvas keeps a single-column shell in a wide preview viewport", () => {
+    const prototype = read("design/prototype-v2.html");
+    assert.match(prototype, /html\[data-canvas="mobile"\] \.grid,html\[data-canvas="mobile"\] \.grid2,html\[data-canvas="mobile"\] \.settings-layout\{grid-template-columns:minmax\(0,1fr\)\}/);
+    assert.match(prototype, /html\[data-canvas="mobile"\] nav\.tabs\[aria-label="主要视图"\]\{display:none\}/);
+    assert.match(prototype, /html\[data-canvas="mobile"\] \.row\{grid-template-columns:10px minmax\(0,1fr\)/);
+    assert.match(prototype, /html\[data-canvas="mobile"\] \.grid,html\[data-canvas="mobile"\] \.grid2,html\[data-canvas="mobile"\] \.settings-layout\{grid-template-columns:minmax\(0,1fr\)\}/);
+    assert.match(prototype, /html\[data-canvas="mobile"\] nav\.tabs\[aria-label="主要视图"\]\{display:none\}/);
+    assert.match(prototype, /html\[data-canvas="mobile"\] \.row\{grid-template-columns:10px minmax\(0,1fr\)/);
+    assert.match(prototype, /data-library-result="empty" aria-pressed="false">无文章（模拟）/);
+    assert.doesNotMatch(prototype, />真实空库</);
+});
+
+test("prototype settings mirror eight real categories and dirty, save, failure and reset confirmation states", () => {
+    const prototype = read("design/prototype-v2.html");
+    for (const category of ["workspace", "resurface", "reading", "ai", "aiChannel", "integration", "data", "maintenance"]) {
+        assert.match(prototype, new RegExp(`data-settings-tab="${category}"`));
+        assert.match(prototype, new RegExp(`data-settings-panel="${category}"`));
+    }
+    assert.match(prototype, /data-settings-dirty/);
+    assert.match(prototype, /data-settings-success/);
+    assert.match(prototype, /data-settings-error/);
+    assert.match(prototype, /role="alertdialog"/);
+    assert.match(prototype, /data-discard-dialog[\s\S]*settings-discard-cancel[\s\S]*settings-discard-confirm/);
+    assert.match(prototype, /data-action="settings-workspace"/);
+    assert.match(prototype, /case 'settings-workspace':(?:setDemoState\('idle'\)|root\.dataset\.demoState='idle');[\s\S]*?document\.querySelector\('\[data-settings-tab="workspace"\]'\)\.click\(\)/);
+    assert.match(prototype, /case 'retry-home':if\(button\.disabled\)return;button\.disabled=true;button\.setAttribute\('aria-busy','true'\)/);
+    assert.match(prototype, /case 'report-retry':if\(button\.disabled\)return;button\.disabled=true;button\.setAttribute\('aria-busy','true'\)/);
+    assert.match(prototype, /case 'highlight-retry':if\(button\.disabled\)return;button\.disabled=true;button\.setAttribute\('aria-busy','true'\)/);
+    assert.doesNotMatch(prototype, /清理派生缓存/);
+});
+
+test("prototype separates library and highlights data, filtered-empty and empty-library states", () => {
+    const prototype = read("design/prototype-v2.html");
+    for (const selector of ["data-library-data", "data-library-filter-empty", "data-library-empty", "data-highlight-data", "data-highlight-filter-empty", "data-highlight-empty"]) {
+        assert.ok(prototype.includes(selector), `missing ${selector}`);
+    }
+    assert.match(prototype, /data-action="batch-done"/);
+    assert.match(prototype, /data-action="preview-toggle"/);
+    assert.match(prototype, /data-action="highlight-copy"/);
+    assert.match(prototype, /data-action="highlight-preview"/);
 });
 
 test("wide canvas resurface cards use an adaptive grid while dock stays single column", () => {
@@ -140,7 +210,7 @@ test("stats prioritize three primary metrics and keep the supplemental snapshot 
     assert.match(source, /review\.detailedAnalysis/);
     assert.match(source, /class="glean-stats__completed-detail"/);
     assert.match(source, /glean-stats__trend-bar--empty/);
-    assert.match(source, /role=\{day\.count > 0 \? "img"/);
+    assert.match(source, /role="img"/);
     assert.match(source, /i18n, "review\.heatmapDay"/);
     assert.match(source, /\.glean-stats__intro \{\s*align-items: flex-start;/);
     assert.match(source, /grid-template-columns: repeat\(2, minmax\(136px, 1fr\)\)/);
@@ -214,8 +284,9 @@ test("desktop header subtitle reflects the current view and active library filte
     assert.match(en, /"panel\.headerFiltered": "\$\{view\} · \$\{n\} in library · \$\{filters\} filters"/);
     assert.doesNotMatch(source, /glean-brand__badge/);
     const prototype = read("design/prototype-v2.html");
-    const home = prototype.slice(prototype.indexOf('<article class="screen" id="home">'), prototype.indexOf("</article>", prototype.indexOf('<article class="screen" id="home">')));
-    assert.match(home, /今日拾遗 · 读库 128 篇 · 已筛选 2 项/);
+    assert.match(prototype, /合成示例数据 · 不连接思源 \/ API \/ AI/);
+    assert.match(prototype, /今日回看 · 合成数据预览/);
+    assert.doesNotMatch(prototype, /读库 128 篇|已筛选 2 项/);
 });
 
 test("local day rollover refreshes today's gleaning and statistics without polling", () => {
@@ -253,7 +324,21 @@ test("workbench list and kanban expose the shared batch selection surface", () =
     assert.match(source, /class="glean-drow__select"/);
     assert.match(source, /class:glean-kanban--batch={selection\.size > 0}/);
     assert.match(source, /class:glean-lib__main--batch={selection\.size > 0}/);
-    assert.match(additions, /列表 \/ 看板、预览侧栏和批量操作仍在同一上下文内/);
+    assert.match(additions, /列表 \/ 看板、预览侧栏和批量操作保持同一上下文/);
+    assert.match(additions, /data-action="batch-start"/);
+    assert.match(additions, /data-action="batch-failed"/);
+});
+
+test("additions prototype controls have local demo behavior and share semantic theme mapping", () => {
+    const additions = read("design/prototype-v2-additions.html");
+    assert.match(additions, /data-theme-toggle/);
+    assert.match(additions, /data-theme=dark/);
+    assert.match(additions, /data-action="reading-expand"/);
+    assert.match(additions, /data-action="diagnostic-expand"/);
+    assert.match(additions, /data-action="ai-expand"/);
+    assert.match(additions, /addEventListener\('click'/);
+    assert.match(additions, /合成示例 · 仅本地交互 · 不调用 API/);
+    assert.match(additions, /@media\(max-width:760px\)/);
 });
 
 test("large library keeps full filtering but bounds list, table and kanban DOM windows", () => {

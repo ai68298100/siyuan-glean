@@ -11,6 +11,8 @@
 
 > 评审结论与验收顺序见 [`docs/STATUS-REVIEW-2026-10-06.md`](docs/STATUS-REVIEW-2026-10-06.md)。这些任务优先收口真实可用性、恢复能力和对外承诺，再扩展新功能。
 
+- [◐] **T-3344**（P1，2026-10-12）交互原型、全组件清单与交付文档收口：让 R54 原型明确标注合成数据并覆盖运行时视图、关键交互状态、主题与画布断点；移除不存在的动作并校正状态互斥；新增 32 个 Svelte 组件清单和从零开发/测试/部署指南；对照原型、实现、验收边界和异步/空错态回归。代码状态：原型、组件清单与交付文档已收口；隔离验证：`pnpm check`、`pnpm test` 1264/1264、`pnpm build`、`pnpm check:release`、`pnpm perf:check`、`pnpm visual:check`、`pnpm task:ledger -- --check`、`git diff --check` 全部通过；真实验收：待 B-0002/B-0004/B-0005（宿主与设备、读屏、真实文件）；延后原因：当前隔离预览不能代替作者思源环境及真实数据验收。
+
 - [x] **T-3341**（P1，2026-10-11）AV 异步空行防重复绑定与 v1.3.3 候选：挂库刷新在已有文章行暂时不可见时等待并重试，避免把事务延迟误判为缺失而重复创建绑定；补充回归测试、双语变更记录和候选发布文档。代码状态：完成；隔离验证：`pnpm check`、`pnpm test` 1245/1245、`pnpm build`、`pnpm check:release`、`pnpm perf:check`、`pnpm visual:check`、独立内核 S1 58/58、AV spike 6/6、GitHub Quality gates 38068573521 和 CodeQL 38068573513 通过；真实验收：待 B-0002（真实思源 AV 看板刷新、重复行和失败重试）；延后原因：无。
 
 - [◐] **T-3342**（P1，2026-10-11）对齐系列 R54 工作台：参考本机闪卡 R54 与打卡页面壳，重构稳定导航、今日主行动、读库页头及统计/高亮/设置视觉尺度；沿用拾遗主题和服务语义。代码状态：完成；隔离验证：`pnpm test` 1245/1245、`pnpm check`、`pnpm build`、`pnpm check:release`、`pnpm perf:check`、`pnpm visual:check`、`pnpm task:ledger -- --check`、`git diff --check` 通过，隔离组件浏览器预览已通过；真实验收：待 B-0002/B-0004（宿主、移动设备与模型）；延后原因：浏览器合成数据不能替代真实宿主。
