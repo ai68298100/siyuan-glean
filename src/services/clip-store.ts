@@ -662,6 +662,22 @@ export async function listAnchorDocs(notebookIds: string[], limit = 500, offset 
     );
 }
 
+/** 按检查点中的确切文档 ID 读取当前元数据；不会受锚点范围或文档移动影响。 */
+export async function listDocsByIds(ids: string[]): Promise<DocRow[]> {
+    if (ids.length === 0) return [];
+    if (ids.some((id) => !/^\d{14}-[0-9a-z]{7}$/.test(id))) throw new Error("Invalid document ID");
+    const uniqueIds = [...new Set(ids)];
+    const rows: DocRow[] = [];
+    for (let offset = 0; offset < uniqueIds.length; offset += 200) {
+        const chunk = uniqueIds.slice(offset, offset + 200);
+        const idsSql = chunk.map((id) => `'${id}'`).join(",");
+        rows.push(...await querySql<DocRow>(
+            `SELECT id, content, hpath, box, updated, tag FROM blocks WHERE type = 'd' AND id IN (${idsSql})`
+        ));
+    }
+    return rows;
+}
+
 const SCAN_PAGE_SIZE = 500;
 
 /**

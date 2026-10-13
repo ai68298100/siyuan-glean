@@ -3929,6 +3929,13 @@ body.b3-theme-dark {
     gap: var(--glean-space-2);
 }
 
+.glean-migrate__resume-hint {
+    margin: var(--glean-space-2) 0 0;
+    color: var(--b3-theme-on-surface-light);
+    font-size: var(--glean-text-xs);
+    line-height: 1.5;
+}
+
 .glean-migrate__batch-size {
     display: inline-flex;
     align-items: center;

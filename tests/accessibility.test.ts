@@ -79,10 +79,13 @@ test("settings tabs use one keyboard stop and close requires resolving unsaved d
 
 test("migration checkpoints expose loading, retry, and distinct empty-filter feedback", () => {
     const migrate = read("src/ui/MigrateDialog.svelte");
-    assert.match(migrate, /progressLoadState = \$state<"loading" \| "ready" \| "error">\("loading"\)/);
+    assert.match(migrate, /progressLoadState = \$state<"loading" \| "ready" \| "error" \| "invalid">\("loading"\)/);
     assert.match(migrate, /migrate\.progressLoadFailed/);
+    assert.match(migrate, /migrate\.progressInvalid/);
+    assert.match(migrate, /migrate\.clearCorruptProgress/);
+    assert.match(migrate, /discardingCorruptProgress/);
     assert.match(migrate, /onclick=\{\(\) => void reloadResumeProgress\(\)\}/);
-    assert.match(migrate, /disabled=\{progressLoadState !== "ready"\} onclick=\{\(\) => void startScan\(\)\}/);
+    assert.match(migrate, /disabled=\{progressLoadState !== "ready" \|\| Boolean\(progressActionError\)\} onclick=\{\(\) => void startScan\(\)\}/);
     assert.match(migrate, /migrate\.filterNoResults/);
     assert.doesNotMatch(migrate, /window\.confirm/);
     assert.match(migrate, /role="group" aria-busy=\{discardBusy\} aria-labelledby=/);
@@ -263,6 +266,7 @@ test("successful library mutations broadcast cross-view refreshes", () => {
     const dock = read("src/ui/DockPanel.svelte");
     const resurface = read("src/ui/ResurfaceView.svelte");
     const inbox = read("src/ui/InboxSection.svelte");
+    const migrate = read("src/ui/MigrateDialog.svelte");
     assert.match(dock, /if \(ok === 1\) facade\.notifyDataChanged\(\);/);
     assert.match(dock, /if \(result\.ok > 0\) facade\.notifyDataChanged\(\);/);
     assert.match(dock, /await setSurfacePinned\([\s\S]*?facade\.notifyDataChanged\(\);/);
@@ -270,6 +274,29 @@ test("successful library mutations broadcast cross-view refreshes", () => {
     assert.match(resurface, /await actOnSurface\([\s\S]*?facade\.notifyDataChanged\(\);/);
     assert.match(resurface, /await undoSurfaceAction\([\s\S]*?facade\.notifyDataChanged\(\);/);
     assert.match(inbox, /if \(result\.cloudRemoved\) \{[\s\S]*?facade\.notifyDataChanged\(\);/);
+    assert.match(migrate, /if \(last\.updatedRows\.length > 0\) notifyAfterRun = true/);
+    assert.match(migrate, /expectedTaskId \? \{ expectedTaskId \} : \{\}/);
+    assert.match(migrate, /onclick=\{\(\) => void reloadResumeProgress\(\)\}.*action\.retry/s);
+});
+
+test("migration batches update local rows without rehydrating the full checkpoint each batch", () => {
+    const migrate = read("src/ui/MigrateDialog.svelte");
+    const batchLoop = /while \(true\) \{([\s\S]*?)\n        \}/.exec(migrate)?.[1];
+    assert.ok(batchLoop);
+    assert.match(batchLoop, /runBackfillBatch/);
+    assert.match(batchLoop, /updatedRows/);
+    assert.doesNotMatch(batchLoop, /refreshProgress/);
+    assert.match(migrate, /await refreshProgress\(\);\s*phase = last\?\.finished/);
+});
+
+test("stale migration windows must explicitly reload before binding a replacement task", () => {
+    const migrate = read("src/ui/MigrateDialog.svelte");
+    const resume = /async function resume\(\) \{([\s\S]*?)\n\}/.exec(migrate)?.[1];
+    assert.ok(resume);
+    assert.match(resume, /const expectedTaskId = activeTaskId/);
+    assert.match(resume, /refresh: true, \s*\.\.\.\(expectedTaskId \? \{ expectedTaskId \} : \{\}\)/);
+    assert.match(migrate, /if \(phase !== "intro" \|\| progressLoadState !== "ready" \|\| progressActionError\) return/);
+    assert.match(migrate, /\{#if progressActionError\}[\s\S]*reloadResumeProgress/);
 });
 
 test("migration row decisions lock while a write is in flight", () => {

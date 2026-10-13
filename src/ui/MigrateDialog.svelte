@@ -7,7 +7,11 @@ import { t } from "../libs/i18n";
 import {
     buildDryRunReport,
     clearMigrateProgress,
+    clearInvalidMigrateProgress,
+    dropInterruptedMigrateDecisions,
+    hydrateMigrateProgress,
     loadMigrateProgress,
+    MigrateProgressError,
     retryMigrateErrors,
     resolveMigrateRow,
     planMigrateRow,
@@ -54,9 +58,10 @@ let cursor = $state(0);
 let filter = $state<"all" | "pending" | "ok" | "skipped" | "manual" | "error">("all");
 let aborted = $state(false);
 let resumeAvailable = $state(false);
-let progressLoadState = $state<"loading" | "ready" | "error">("loading");
+let progressLoadState = $state<"loading" | "ready" | "error" | "invalid">("loading");
 let progressReadStarted = false;
 let confirmingDiscard = $state(false);
+let discardingCorruptProgress = $state(false);
 let discardBusy = $state(false);
 let progressActionError = $state("");
 let discardTrigger = $state<HTMLButtonElement>();
@@ -66,6 +71,8 @@ let editingRowId = $state("");
 let manualUrl = $state("");
 /** 逐条决策写回期间锁住该行，避免快速点击触发重复端点请求。 */
 let rowBusyId = $state("");
+/** 绑定当前弹窗看到的检查点，防止旧窗口误操作后来创建的任务。 */
+let activeTaskId = $state("");
 
 const step = $derived<Step>(phase === "intro" || phase === "scanning" ? 1 : phase === "done" ? 3 : 2);
 
@@ -79,16 +86,21 @@ async function reloadResumeProgress(): Promise<void> {
     progressLoadState = "loading";
     progressActionError = "";
     try {
-        const progress = await loadMigrateProgress(facade.pluginInstance);
-        if (phase === "intro" && progress && progress.rows.length > 0) {
-            rows = progress.rows;
-            cursor = progress.cursor;
-            resumeAvailable = hasOutstanding(progress.rows, progress.finished);
+        const hydrated = await hydrateMigrateProgress(facade.pluginInstance, { refresh: true });
+        if (hydrated?.reconciled) facade.notifyDataChanged();
+        activeTaskId = hydrated?.progress.taskId ?? "";
+        if (phase === "intro") {
+            rows = hydrated?.rows ?? [];
+            cursor = hydrated?.progress.cursor ?? 0;
+            resumeAvailable = hydrated ? hasOutstanding(hydrated.progress.rows, hydrated.progress.finished) : false;
         }
         progressLoadState = "ready";
     } catch (error) {
         console.warn("[glean] 迁移进度读取失败:", error);
-        progressLoadState = "error";
+        // Hydration can repair the derived index before checkpoint persistence
+        // fails; refresh other views even when recovery itself needs retry.
+        facade.notifyDataChanged();
+        progressLoadState = error instanceof MigrateProgressError && error.reason === "invalid" ? "invalid" : "error";
     }
 }
 
@@ -113,27 +125,29 @@ const visibleRows = $derived(
 );
 
 const progressPct = $derived(rows.length === 0 ? 0 : Math.round((cursor / rows.length) * 100));
-const retryableErrors = $derived(rows.some((row) => row.state === "error" && (!!row.url || !!row.resolution)));
+const retryableErrors = $derived(rows.some((row) => row.state === "error"));
 
-function hasOutstanding(items: MigrateRow[], finished: boolean): boolean {
+function hasOutstanding(items: { state: string }[], finished: boolean): boolean {
     return !finished || items.some((row) => row.state === "manual" || row.state === "error" || row.state === "pending");
 }
 
 async function refreshProgress() {
     try {
-        const progress = await loadMigrateProgress(facade.pluginInstance);
-        if (!progress) return;
-        rows = progress.rows;
-        cursor = progress.cursor;
-        resumeAvailable = hasOutstanding(progress.rows, progress.finished);
+        const hydrated = await hydrateMigrateProgress(facade.pluginInstance, activeTaskId ? { expectedTaskId: activeTaskId } : undefined);
+        if (!hydrated) return;
+        if (hydrated.reconciled) facade.notifyDataChanged();
+        rows = hydrated.rows;
+        cursor = hydrated.progress.cursor;
+        resumeAvailable = hasOutstanding(hydrated.progress.rows, hydrated.progress.finished);
     } catch (error) {
         console.warn("[glean] 迁移进度刷新失败:", error);
+        facade.notifyDataChanged();
         showMessage(t(i18n, "msg.actionFailed"), 4000);
     }
 }
 
 async function startScan() {
-    if (phase === "scanning" || progressLoadState !== "ready") return;
+    if (phase === "scanning" || progressLoadState !== "ready" || progressActionError) return;
     phase = "scanning";
     rows = [];
     try {
@@ -150,30 +164,37 @@ async function startScan() {
 }
 
 async function resume() {
-    if (phase !== "intro" || progressLoadState !== "ready") return;
+    if (phase !== "intro" || progressLoadState !== "ready" || progressActionError) return;
     phase = "scanning";
     try {
-        const progress = await loadMigrateProgress(facade.pluginInstance);
-        if (!progress) {
+        const expectedTaskId = activeTaskId;
+        const hydrated = await hydrateMigrateProgress(facade.pluginInstance, { refresh: true, ...(expectedTaskId ? { expectedTaskId } : {}) });
+        if (!hydrated) {
             resumeAvailable = false;
             rows = [];
             cursor = 0;
             phase = "intro";
             return;
         }
-        rows = progress.rows;
-        cursor = progress.cursor;
+        rows = hydrated.rows;
+        cursor = hydrated.progress.cursor;
+        activeTaskId = hydrated.progress.taskId;
+        if (hydrated.reconciled) facade.notifyDataChanged();
         await startRun(false);
     } catch (error) {
         console.warn("[glean] 迁移恢复失败:", error);
-        progressActionError = t(i18n, "migrate.resumeFailed");
+        facade.notifyDataChanged();
+        progressActionError = error instanceof MigrateProgressError && error.reason === "changed"
+            ? t(i18n, "migrate.taskChanged")
+            : t(i18n, "migrate.resumeFailed");
         phase = "intro";
     }
 }
 
 async function beginDiscardConfirmation(): Promise<void> {
-    if (progressLoadState !== "ready" || !resumeAvailable) return;
+    if (progressActionError || (progressLoadState !== "ready" && progressLoadState !== "invalid") || (!resumeAvailable && progressLoadState !== "invalid")) return;
     confirmingDiscard = true;
+    discardingCorruptProgress = progressLoadState === "invalid";
     progressActionError = "";
     await tick();
     discardCancel?.focus();
@@ -181,22 +202,33 @@ async function beginDiscardConfirmation(): Promise<void> {
 
 async function cancelDiscardConfirmation(): Promise<void> {
     confirmingDiscard = false;
+    discardingCorruptProgress = false;
     await tick();
     discardTrigger?.focus();
 }
 
 async function discardProgress() {
-    if (discardBusy || progressLoadState !== "ready" || !resumeAvailable) return;
+    if (discardBusy || (progressLoadState !== "ready" && progressLoadState !== "invalid") || (!resumeAvailable && progressLoadState !== "invalid")) return;
     discardBusy = true;
     try {
-        await clearMigrateProgress(facade.pluginInstance);
+        if (discardingCorruptProgress) await clearInvalidMigrateProgress(facade.pluginInstance);
+        else await clearMigrateProgress(facade.pluginInstance, activeTaskId);
         resumeAvailable = false;
+        activeTaskId = "";
+        progressLoadState = "ready";
         confirmingDiscard = false;
+        discardingCorruptProgress = false;
         rows = [];
         cursor = 0;
     } catch (error) {
         console.warn("[glean] 迁移进度清理失败:", error);
-        progressActionError = t(i18n, "migrate.discardFailed");
+        if (error instanceof MigrateProgressError && error.reason === "changed") {
+            confirmingDiscard = false;
+            discardingCorruptProgress = false;
+            progressActionError = t(i18n, "migrate.taskChanged");
+        } else {
+            progressActionError = t(i18n, "migrate.discardFailed");
+        }
     } finally {
         discardBusy = false;
         if (!confirmingDiscard) {
@@ -213,29 +245,67 @@ async function startRun(startNew: boolean) {
     const signal = { get aborted() { return aborted; } };
     let last: Awaited<ReturnType<typeof runBackfillBatch>> | null = null;
     let taskReady = !startNew;
+    let taskId = activeTaskId;
+    let notifyAfterRun = false;
     try {
         if (startNew) {
-            await startMigrateProgress(facade.pluginInstance, rows);
+            const created = await startMigrateProgress(facade.pluginInstance, rows);
+            activeTaskId = created.taskId;
+            taskId = created.taskId;
             taskReady = true;
         }
-        else if (cursor >= rows.length && retryableErrors) await retryMigrateErrors(facade.pluginInstance);
-        await refreshProgress();
+        else if (cursor >= rows.length && retryableErrors) {
+            const retried = await retryMigrateErrors(facade.pluginInstance, taskId);
+            cursor = retried.cursor;
+            rows = rows.map((row) => row.state === "error" ? { ...row, state: "pending", detail: undefined } : row);
+        }
         while (true) {
-            last = await runBackfillBatch(facade.pluginInstance, facade.settings, { signal });
-            await refreshProgress();
+            last = await runBackfillBatch(facade.pluginInstance, facade.settings, { signal, expectedTaskId: taskId });
+            cursor = last.cursor;
+            if (last.updatedRows.length > 0) {
+                const updatedById = new Map(last.updatedRows.map((row) => [row.id, row]));
+                rows = rows.map((row) => updatedById.get(row.id) ?? row);
+                // An error can follow a successful attribute write whose index
+                // sync failed. Notify other views for every processed row.
+                if (last.updatedRows.length > 0) notifyAfterRun = true;
+            }
+            resumeAvailable = hasOutstanding(rows, last.finished);
             if (last.finished || aborted) break;
         }
+        if (aborted) {
+            try { await dropInterruptedMigrateDecisions(facade.pluginInstance, taskId); } catch (cleanupError) { console.warn("[glean] 迁移暂停清理失败:", cleanupError); }
+        }
+        await refreshProgress();
         phase = last?.finished ? "done" : "paused";
         if (last?.finished && last.errors === 0 && counts.manual === 0) {
-            await clearMigrateProgress(facade.pluginInstance);
+            await clearMigrateProgress(facade.pluginInstance, taskId);
             resumeAvailable = false;
+            activeTaskId = "";
         }
-        if (last && last.ok > 0) facade.notifyDataChanged();
     } catch (error) {
         console.warn("[glean] 迁移回填失败:", error);
+        if (taskReady && taskId) {
+            try { await dropInterruptedMigrateDecisions(facade.pluginInstance, taskId); } catch (cleanupError) { console.warn("[glean] 迁移失败后的计划清理失败:", cleanupError); }
+        }
+        if (!taskReady && error instanceof MigrateProgressError && error.reason === "exists") {
+            phase = "intro";
+            await reloadResumeProgress();
+            progressActionError = t(i18n, "migrate.concurrentTask");
+            return;
+        }
+        if (error instanceof MigrateProgressError && error.reason === "changed") {
+            phase = "intro";
+            progressActionError = t(i18n, "migrate.taskChanged");
+            return;
+        }
         showMessage(t(i18n, "msg.actionFailed"), 5000);
-        if (taskReady) await refreshProgress();
+        if (taskReady) {
+            await refreshProgress();
+            notifyAfterRun = true;
+        }
         phase = taskReady ? "paused" : "report";
+    } finally {
+        if (notifyAfterRun) facade.notifyDataChanged();
     }
 }
 
@@ -261,20 +331,28 @@ async function resolveManual(row: MigrateRow, decision: "url" | "local" | "exclu
             editingRowId = "";
             return;
         }
+        if (!activeTaskId) throw new MigrateProgressError("changed", "迁移任务已变化，请刷新后重试");
         const updated = await resolveMigrateRow(
             facade.pluginInstance,
             row,
             decision === "url" ? { kind: "url", url: decisionUrl, allowDuplicate } : { kind: decision },
+            activeTaskId,
         );
         rows = rows.map((item) => item.id === updated.id ? updated : item);
         editingRowId = "";
-        const saved = await loadMigrateProgress(facade.pluginInstance);
+        const saved = await loadMigrateProgress(facade.pluginInstance, activeTaskId);
         resumeAvailable = saved ? hasOutstanding(saved.rows, saved.finished) : false;
-        if (saved && saved.finished && !hasOutstanding(saved.rows, saved.finished)) await clearMigrateProgress(facade.pluginInstance);
+        if (saved && saved.finished && !hasOutstanding(saved.rows, saved.finished)) await clearMigrateProgress(facade.pluginInstance, activeTaskId);
         facade.notifyDataChanged();
     } catch (error) {
         console.warn("[glean] 迁移行处理失败:", error);
-        showMessage(t(i18n, "msg.actionFailed"), 4000);
+        if (error instanceof MigrateProgressError && error.reason === "changed") {
+            phase = "intro";
+            progressActionError = t(i18n, "migrate.taskChanged");
+        } else {
+            await refreshProgress();
+            showMessage(t(i18n, "msg.actionFailed"), 4000);
+        }
     } finally {
         rowBusyId = "";
     }
@@ -299,6 +377,20 @@ function rowStateLabel(row: MigrateRow): string {
         case "manual": return t(i18n, "migrate.needUrl");
         case "error": return t(i18n, "import.failed");
         default: return t(i18n, "migrate.foundUrl");
+    }
+}
+
+function rowDetail(row: MigrateRow): string {
+    switch (row.detail) {
+        case "document-missing": return t(i18n, "migrate.rowDocumentMissing");
+        case "attributes-unavailable": return t(i18n, "migrate.rowAttributesUnavailable");
+        case "reconfirm-decision": return t(i18n, "migrate.rowReconfirmDecision");
+        case "planned-action-failed": return t(i18n, "migrate.rowPlannedActionFailed");
+        case "no-longer-eligible": return t(i18n, "migrate.rowNoLongerEligible");
+        case "duplicate-url": return t(i18n, "migrate.conflict");
+        case "already-clipped": return t(i18n, "migrate.skipHasAttrs");
+        case "user-excluded": return t(i18n, "migrate.plannedExclude");
+        default: return row.state === "error" ? t(i18n, "migrate.rowErrorRetry") : "";
     }
 }
 </script>
@@ -341,32 +433,42 @@ function rowStateLabel(row: MigrateRow): string {
                 <span>{t(i18n, "migrate.progressLoadFailed")}</span>
                 <button class="glean-btn glean-btn--ghost" onclick={() => void reloadResumeProgress()}>{t(i18n, "action.retry")}</button>
             </div>
+        {:else if progressLoadState === "invalid"}
+            <div class="glean-load-error" role="alert">
+                <span>{t(i18n, "migrate.progressInvalid")}</span>
+                <button class="glean-btn glean-btn--ghost" disabled={confirmingDiscard} onclick={() => void reloadResumeProgress()}>{t(i18n, "action.retry")}</button>
+                <button class="glean-btn glean-btn--danger" bind:this={discardTrigger} disabled={confirmingDiscard} onclick={() => void beginDiscardConfirmation()}>{t(i18n, "migrate.clearCorruptProgress")}</button>
+            </div>
         {/if}
         {#if progressActionError}
-            <div class="glean-load-error" role="alert">{progressActionError}</div>
+            <div class="glean-load-error" role="alert">
+                <span>{progressActionError}</span>
+                <button class="glean-btn glean-btn--ghost" disabled={progressLoadState === "loading"} onclick={() => void reloadResumeProgress()}>{t(i18n, "action.retry")}</button>
+            </div>
         {/if}
         {#if confirmingDiscard}
             <div class="glean-migrate__confirm glean-confirm" role="group" aria-busy={discardBusy} aria-labelledby={`${idPrefix}-discard-title`} aria-describedby={`${idPrefix}-discard-description`}>
-                <h3 id={`${idPrefix}-discard-title`}>{t(i18n, "migrate.discardConfirmTitle")}</h3>
-                <p id={`${idPrefix}-discard-description`}>{t(i18n, "migrate.confirmDiscard")}</p>
+                <h3 id={`${idPrefix}-discard-title`}>{t(i18n, discardingCorruptProgress ? "migrate.corruptDiscardConfirmTitle" : "migrate.discardConfirmTitle")}</h3>
+                <p id={`${idPrefix}-discard-description`}>{t(i18n, discardingCorruptProgress ? "migrate.corruptConfirmDiscard" : "migrate.confirmDiscard")}</p>
                 <div class="glean-confirm__actions">
                     <button class="glean-btn glean-btn--ghost" bind:this={discardCancel} disabled={discardBusy} onclick={() => void cancelDiscardConfirmation()}>{t(i18n, "action.cancel")}</button>
-                    <button class="glean-btn glean-btn--danger" disabled={discardBusy} aria-busy={discardBusy} onclick={() => void discardProgress()}>{t(i18n, discardBusy ? "panel.loading" : "migrate.discardConfirmAction")}</button>
+                    <button class="glean-btn glean-btn--danger" disabled={discardBusy} aria-busy={discardBusy} onclick={() => void discardProgress()}>{t(i18n, discardBusy ? "panel.loading" : discardingCorruptProgress ? "migrate.corruptDiscardConfirmAction" : "migrate.discardConfirmAction")}</button>
                 </div>
             </div>
         {:else}
             {#if resumeAvailable}
                 <div class="glean-migrate__resume">
-                    <button class="glean-btn glean-btn--pri" disabled={progressLoadState !== "ready"} onclick={() => void resume()}>
+                    <button class="glean-btn glean-btn--pri" disabled={progressLoadState !== "ready" || Boolean(progressActionError)} onclick={() => void resume()}>
                         {t(i18n, "migrate.continue")}（{cursor}/{rows.length}）
                     </button>
-                    <button class="glean-btn glean-btn--ghost" bind:this={discardTrigger} disabled={progressLoadState !== "ready"} onclick={() => void beginDiscardConfirmation()}>
+                    <button class="glean-btn glean-btn--ghost" bind:this={discardTrigger} disabled={progressLoadState !== "ready" || Boolean(progressActionError)} onclick={() => void beginDiscardConfirmation()}>
                         {t(i18n, "migrate.discardProgress")}
                     </button>
                 </div>
+                <p class="glean-migrate__resume-hint" role="note">{t(i18n, "migrate.resumeFactsHint")}</p>
             {/if}
             <div class="glean-migrate__ops">
-                <button class="glean-btn glean-btn--pri" bind:this={scanTrigger} disabled={progressLoadState !== "ready"} onclick={() => void startScan()}>
+                <button class="glean-btn glean-btn--pri" bind:this={scanTrigger} disabled={progressLoadState !== "ready" || Boolean(progressActionError)} onclick={() => void startScan()}>
                     {t(i18n, "migrate.dryRun")}
                 </button>
             </div>
@@ -479,8 +581,9 @@ function rowStateLabel(row: MigrateRow): string {
                                 {/if}
                             </span>
                         {/if}
-                        {#if row.evidence?.length || row.missing?.length || row.conflictDocId}
+                        {#if row.evidence?.length || row.missing?.length || row.conflictDocId || row.state === "error" || row.detail === "reconfirm-decision" || row.detail === "planned-action-failed" || row.detail === "no-longer-eligible"}
                             <span class="glean-mrow__why">
+                                {#if rowDetail(row)}<span>{rowDetail(row)}</span>{/if}
                                 {#each row.evidence ?? [] as evidence}<span>{t(i18n, `candidate.evidence.${evidence}`)}</span>{/each}
                                 {#each row.missing ?? [] as missing}<span>{t(i18n, `candidate.missing.${missing}`)}</span>{/each}
                                 {#if row.conflictDocId}<span>{t(i18n, "migrate.conflict")}</span>{/if}
@@ -518,6 +621,9 @@ function rowStateLabel(row: MigrateRow): string {
                     <div class="glean-mrow" aria-busy={rowBusyId === row.id}>
                         <span class="glean-mrow__ti" title={row.hpath}>{row.title || row.hpath}</span>
                         <span class={rowStateClass(row)} title={row.detail || ""}>{rowStateLabel(row)}</span>
+                        {#if row.state === "error" || row.detail === "reconfirm-decision" || row.detail === "planned-action-failed"}
+                            <span class="glean-mrow__why">{rowDetail(row)}</span>
+                        {/if}
                         {#if row.state === "manual"}
                             <span class="glean-mrow__ops">
                                 <button class="glean-op-btn" disabled={Boolean(rowBusyId)} title={t(i18n, "migrate.fixUrl")} aria-label={t(i18n, "migrate.fixUrl")} onclick={() => editManual(row)}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanEdit" /></svg></button>

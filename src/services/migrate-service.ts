@@ -4,12 +4,12 @@
  * 用户手填字段永不覆盖（schema 层 USER_GUARDED + 这里跳过已收录文档双保险）。
  */
 import type { Plugin } from "siyuan";
-import { exportMdContent, type DocRow } from "../api/client";
+import { exportMdContent, newNodeId, type DocRow } from "../api/client";
 import { inspectCandidate, hasValidClipStatus, type CandidateEvidence, type CandidateMissing } from "../domain/candidate-policy";
 import { inspectClipMarkdown } from "../domain/content";
 import { ATTR, documentTimeFromId, siteFromUrl, siyuanTimestamp, type ClipContentType, type ClipTimeSource } from "../domain/schema";
 import { normalizeUrl } from "../domain/url";
-import { batchReadClipAttrs, captureClip, findClipUrlConflict, listAnchorDocs, scanDocScopes, writeClip } from "./clip-store";
+import { batchReadClipAttrs, captureClip, findClipUrlConflict, listAnchorDocs, listDocsByIds, scanDocScopes, writeClip } from "./clip-store";
 import type { GleanSettings } from "./settings";
 
 export type MigrateRowState = "pending" | "ok" | "skipped" | "manual" | "error";
@@ -42,70 +42,418 @@ export interface MigrateRow {
 }
 
 export interface MigrateProgress {
-    version: 1;
-    rows: MigrateRow[];
+    version: 2;
+    taskId: string;
+    rows: MigrateProgressRow[];
     cursor: number;
     finished: boolean;
-    startedAt: string;
-    updatedAt: string;
+}
+
+/** Persisted rows contain only stage and exact IDs; article facts are hydrated from SiYuan. */
+export interface MigrateProgressRow {
+    id: string;
+    state: MigrateRowState;
+    conflictDocId?: string;
 }
 
 const PROGRESS_FILE = "migrate-progress.json";
+const progressLocks = new WeakMap<Plugin, Promise<void>>();
+const runtimePlans = new WeakMap<Plugin, Map<string, Map<string, MigrateRow>>>();
+const hydratedPlanDocs = new WeakMap<Plugin, Map<string, Set<string>>>();
 
-export async function loadMigrateProgress(plugin: Plugin): Promise<MigrateProgress | null> {
+/** 同一插件实例可能同时打开多个迁移弹窗；串行化检查点读改写，避免旧快照互相覆盖。 */
+async function withProgressLock<T>(plugin: Plugin, operation: () => Promise<T>): Promise<T> {
+    const previous = progressLocks.get(plugin) ?? Promise.resolve();
+    let release!: () => void;
+    const current = new Promise<void>((resolve) => { release = resolve; });
+    progressLocks.set(plugin, current);
+    await previous;
     try {
-        const raw = await plugin.loadData(PROGRESS_FILE);
-        if (!raw || !Array.isArray((raw as MigrateProgress).rows)) return null;
-        return raw as MigrateProgress;
-    } catch {
-        return null;
+        return await operation();
+    } finally {
+        release();
+        if (progressLocks.get(plugin) === current) progressLocks.delete(plugin);
     }
 }
 
-async function saveProgress(plugin: Plugin, progress: MigrateProgress): Promise<void> {
-    progress.updatedAt = new Date().toISOString();
-    await plugin.saveData(PROGRESS_FILE, progress);
+export type MigrateProgressErrorReason = "readFailed" | "invalid" | "exists" | "changed" | "busy";
+
+export class MigrateProgressError extends Error {
+    readonly reason: MigrateProgressErrorReason;
+
+    constructor(reason: MigrateProgressErrorReason, message: string = reason) {
+        super(message);
+        this.name = "MigrateProgressError";
+        this.reason = reason;
+    }
 }
 
-export async function clearMigrateProgress(plugin: Plugin): Promise<void> {
-    await plugin.removeData(PROGRESS_FILE);
+const MIGRATE_ROW_STATES: readonly MigrateRowState[] = ["pending", "ok", "skipped", "manual", "error"];
+const MIGRATE_CONTENT_TYPES: readonly ClipContentType[] = ["fulltext", "link", "local"];
+const MIGRATE_TIME_SOURCES: readonly ClipTimeSource[] = ["source", "document", "capture", "legacy"];
+const MIGRATE_EVIDENCE = ["url-attribute", "clip-tag", "clipper-template", "source-line"] as const;
+const MIGRATE_MISSING = ["url", "status"] as const;
+const SIYUAN_ID = /^\d{14}-[0-9a-z]{7}$/;
+const SIYUAN_TIME = /^\d{14}$/;
+
+function invalidProgress(): never {
+    throw new MigrateProgressError("invalid", "迁移进度记录格式无效");
+}
+
+function record(value: unknown): value is Record<string, unknown> {
+    return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+
+function stringField(value: unknown, max: number): value is string {
+    return typeof value === "string" && value.length <= max;
+}
+
+async function mapConcurrent<T, R>(items: T[], limit: number, project: (item: T, index: number) => Promise<R>): Promise<R[]> {
+    const results = new Array<R>(items.length);
+    let next = 0;
+    const worker = async () => {
+        while (true) {
+            const index = next++;
+            if (index >= items.length) return;
+            results[index] = await project(items[index], index);
+        }
+    };
+    await Promise.all(Array.from({ length: Math.min(Math.max(1, limit), items.length) }, worker));
+    return results;
+}
+
+function validSiyuanTime(value: unknown): value is string {
+    const stamp = String(value ?? "");
+    if (!SIYUAN_TIME.test(stamp)) return false;
+    const date = new Date(Number(stamp.slice(0, 4)), Number(stamp.slice(4, 6)) - 1, Number(stamp.slice(6, 8)), Number(stamp.slice(8, 10)), Number(stamp.slice(10, 12)), Number(stamp.slice(12, 14)));
+    return date.getFullYear() === Number(stamp.slice(0, 4)) && date.getMonth() === Number(stamp.slice(4, 6)) - 1
+        && date.getDate() === Number(stamp.slice(6, 8)) && date.getHours() === Number(stamp.slice(8, 10))
+        && date.getMinutes() === Number(stamp.slice(10, 12)) && date.getSeconds() === Number(stamp.slice(12, 14));
+}
+
+function validIso(value: unknown): value is string {
+    return typeof value === "string" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value)
+        && Number.isFinite(Date.parse(value)) && new Date(value).toISOString() === value;
+}
+
+function parseLegacyMigrateRow(value: unknown): MigrateRow {
+    if (!record(value)) return invalidProgress();
+    const optionalKeys = new Set(["contentType", "time", "timeSource", "evidence", "missing", "resolution", "allowDuplicate", "conflictDocId", "detail"]);
+    const required = ["id", "title", "hpath", "box", "url", "site", "words", "minutes", "state"];
+    if (required.some((key) => !Object.hasOwn(value, key)) || Object.keys(value).some((key) => !required.includes(key) && !optionalKeys.has(key))) return invalidProgress();
+    const words = value.words;
+    const minutes = value.minutes;
+    if (typeof value.id !== "string" || !SIYUAN_ID.test(value.id) || !stringField(value.title, 200_000)
+        || !stringField(value.hpath, 4_096) || !stringField(value.box, 128) || !stringField(value.url, 8_192)
+        || (value.url !== "" && !normalizeUrl(value.url))
+        || !stringField(value.site, 512) || typeof words !== "number" || !Number.isSafeInteger(words) || words < 0 || words > 10_000_000
+        || typeof minutes !== "number" || !Number.isSafeInteger(minutes) || minutes < 0 || minutes > 1_000_000
+        || typeof value.state !== "string" || !MIGRATE_ROW_STATES.includes(value.state as MigrateRowState)) return invalidProgress();
+    if (value.contentType !== undefined && (typeof value.contentType !== "string" || !MIGRATE_CONTENT_TYPES.includes(value.contentType as ClipContentType))) return invalidProgress();
+    if (value.time !== undefined && !validSiyuanTime(value.time)) return invalidProgress();
+    if (value.timeSource !== undefined && (typeof value.timeSource !== "string" || !MIGRATE_TIME_SOURCES.includes(value.timeSource as ClipTimeSource))) return invalidProgress();
+    if (value.evidence !== undefined && (!Array.isArray(value.evidence) || value.evidence.some((item) => !MIGRATE_EVIDENCE.includes(item)))) return invalidProgress();
+    if (value.missing !== undefined && (!Array.isArray(value.missing) || value.missing.some((item) => !MIGRATE_MISSING.includes(item)))) return invalidProgress();
+    if (value.resolution !== undefined && value.resolution !== "url" && value.resolution !== "local" && value.resolution !== "exclude") return invalidProgress();
+    if (value.allowDuplicate !== undefined && typeof value.allowDuplicate !== "boolean") return invalidProgress();
+    if (value.conflictDocId !== undefined && (typeof value.conflictDocId !== "string" || !SIYUAN_ID.test(value.conflictDocId))) return invalidProgress();
+    if (value.detail !== undefined && !stringField(value.detail, 2_000)) return invalidProgress();
+    return value as unknown as MigrateRow;
+}
+
+function validateUniqueRows(rows: MigrateProgressRow[]): void {
+    const ids = new Set<string>();
+    for (const row of rows) {
+        if (ids.has(row.id)) invalidProgress();
+        ids.add(row.id);
+    }
+}
+
+function parseVersionOneProgress(value: Record<string, unknown>): MigrateProgress {
+    if (Object.keys(value).some((key) => !["version", "rows", "cursor", "finished", "startedAt", "updatedAt"].includes(key))
+        || !Array.isArray(value.rows) || value.rows.length > 50_000
+        || typeof value.cursor !== "number" || !Number.isSafeInteger(value.cursor) || value.cursor < 0 || value.cursor > value.rows.length
+        || typeof value.finished !== "boolean" || !validIso(value.startedAt) || !validIso(value.updatedAt)
+        || value.updatedAt < value.startedAt) return invalidProgress();
+    if (value.rows.length > 0 && (value.finished !== (value.cursor === value.rows.length))) return invalidProgress();
+    const legacyRows = value.rows.map(parseLegacyMigrateRow);
+    const rows: MigrateProgressRow[] = legacyRows.map((row) => ({
+        id: row.id,
+        // V1 decisions were facts in the old checkpoint. Do not silently replay them after upgrade.
+        state: row.resolution ? "manual" : row.state,
+        ...(row.conflictDocId ? { conflictDocId: row.conflictDocId } : {}),
+    }));
+    validateUniqueRows(rows);
+    return {
+        version: 2,
+        taskId: `migrate-${newNodeId()}`,
+        rows,
+        cursor: value.cursor,
+        finished: value.finished,
+    };
+}
+
+export function parseMigrateProgress(value: unknown): MigrateProgress {
+    if (!record(value)) return invalidProgress();
+    if (value.version === 1) return parseVersionOneProgress(value);
+    const cursor = record(value) ? value.cursor : undefined;
+    if (Object.keys(value).some((key) => !["version", "taskId", "rows", "cursor", "finished"].includes(key))
+        || value.version !== 2 || typeof value.taskId !== "string" || !/^migrate-\d{14}-[0-9a-z]{7}$/.test(value.taskId)
+        || !Array.isArray(value.rows) || value.rows.length > 50_000
+        || typeof cursor !== "number" || !Number.isSafeInteger(cursor) || cursor < 0 || cursor > value.rows.length
+        || typeof value.finished !== "boolean") return invalidProgress();
+    if (value.rows.length > 0 && (value.finished !== (cursor === value.rows.length))) return invalidProgress();
+    const rows: MigrateProgressRow[] = value.rows.map((input) => {
+        if (!record(input) || Object.keys(input).some((key) => !["id", "state", "conflictDocId"].includes(key))
+            || typeof input.id !== "string" || !SIYUAN_ID.test(input.id)
+            || typeof input.state !== "string" || !MIGRATE_ROW_STATES.includes(input.state as MigrateRowState)
+            || (input.conflictDocId !== undefined && (typeof input.conflictDocId !== "string" || !SIYUAN_ID.test(input.conflictDocId)))) return invalidProgress();
+        return { id: input.id, state: input.state as MigrateRowState, ...(input.conflictDocId ? { conflictDocId: input.conflictDocId } : {}) };
+    });
+    validateUniqueRows(rows);
+    if (rows.length === 0 && !value.finished) return invalidProgress();
+    return { version: 2, taskId: value.taskId, rows, cursor: cursor as number, finished: value.finished };
+}
+
+async function loadMigrateProgressUnlocked(plugin: Plugin): Promise<MigrateProgress | null> {
+    try {
+        const raw = await plugin.loadData(PROGRESS_FILE);
+        if (raw === undefined || raw === null) return null;
+        const progress = parseMigrateProgress(raw);
+        if (record(raw) && raw.version === 1) await saveProgress(plugin, progress);
+        return progress;
+    } catch (error) {
+        if (error instanceof MigrateProgressError) throw error;
+        throw new MigrateProgressError("readFailed", "迁移进度读取失败");
+    }
+}
+
+export async function loadMigrateProgress(plugin: Plugin, expectedTaskId?: string): Promise<MigrateProgress | null> {
+    return withProgressLock(plugin, async () => {
+        const progress = await loadMigrateProgressUnlocked(plugin);
+        assertExpectedTaskIfProvided(progress, expectedTaskId);
+        return progress;
+    });
+}
+
+/** 用检查点的确切 ID 重新读取当前标题、属性与来源；UI 永远不展示旧快照事实。 */
+export async function hydrateMigrateProgress(plugin: Plugin, options: { refresh?: boolean; expectedTaskId?: string } = {}): Promise<{ progress: MigrateProgress; rows: MigrateRow[]; reconciled: boolean } | null> {
+    return withProgressLock(plugin, async () => {
+        const progress = await loadMigrateProgressUnlocked(plugin);
+        assertExpectedTaskIfProvided(progress, options.expectedTaskId);
+        if (!progress) return null;
+        let hydratedTasks = hydratedPlanDocs.get(plugin);
+        if (!hydratedTasks) { hydratedTasks = new Map(); hydratedPlanDocs.set(plugin, hydratedTasks); }
+        let hydratedIds = hydratedTasks.get(progress.taskId);
+        if (!hydratedIds || options.refresh) { hydratedIds = new Set(); hydratedTasks.set(progress.taskId, hydratedIds); }
+        const docs = await listDocsByIds(progress.rows.map((row) => row.id));
+        const docsById = new Map(docs.map((doc) => [doc.id, doc]));
+        const attrPairs = await batchReadClipAttrs(progress.rows.map((row) => row.id));
+        const attrsById = new Map(attrPairs.map((pair) => [pair.id, pair.attrs]));
+        let plans = runtimePlans.get(plugin);
+        if (!plans) { plans = new Map(); runtimePlans.set(plugin, plans); }
+        let taskPlans = plans.get(progress.taskId);
+        if (!taskPlans) { taskPlans = new Map(); plans.set(progress.taskId, taskPlans); }
+        const rows: MigrateRow[] = [];
+        const probeTargets = progress.rows.flatMap((saved) => {
+            const doc = docsById.get(saved.id);
+            const ial = attrsById.get(saved.id);
+            const plan = taskPlans.get(saved.id);
+            if (!doc || !ial || ial[ATTR.url] || plan?.resolution || hydratedIds.has(saved.id) || saved.state === "ok" || saved.state === "skipped") return [];
+            return [{ saved, doc, ial }];
+        });
+        const probedRows = await mapConcurrent(probeTargets, 8, ({ doc, ial }) => probeRow(doc, ial));
+        const probeById = new Map(probeTargets.map(({ saved }, index) => [saved.id, probedRows[index]]));
+        let checkpointChanged = false;
+        let reconciled = false;
+        for (const saved of progress.rows) {
+            const doc = docsById.get(saved.id);
+            const ial = attrsById.get(saved.id);
+            if (!doc || !ial) {
+                rows.push({ id: saved.id, title: doc?.content ?? "", hpath: doc?.hpath ?? "", box: doc?.box ?? "", url: "", site: "", words: 0, minutes: 0, state: "error", detail: !doc ? "document-missing" : "attributes-unavailable", conflictDocId: saved.conflictDocId });
+                continue;
+            }
+            const plan = taskPlans.get(saved.id);
+            // A user may resolve a row through another entry while migration is
+            // paused. Repair the derived index first, then persist that fact so
+            // a stale manual row cannot remain unresolved forever.
+            const resolvedElsewhere = saved.state !== "ok" && saved.state !== "skipped" && (
+                Boolean(ial[ATTR.url]) || ial[ATTR.excluded] === "true" ||
+                (ial[ATTR.contentType] === "local" && hasValidClipStatus(ial))
+            );
+            if (resolvedElsewhere) {
+                await writeClip(plugin, saved.id, {});
+                saved.state = "skipped";
+                delete saved.conflictDocId;
+                taskPlans.delete(saved.id);
+                checkpointChanged = true;
+                reconciled = true;
+            }
+            // Reconcile a write whose response/checkpoint save was interrupted
+            // against current document facts before presenting it as unresolved.
+            if (ial[ATTR.url]) {
+                rows.push({ id: saved.id, title: doc.content || "", hpath: doc.hpath || "", box: doc.box || "", url: ial[ATTR.url], site: ial[ATTR.site] || siteFromUrl(ial[ATTR.url]), words: Number(ial[ATTR.words]) || 0, minutes: Number(ial[ATTR.minutes]) || 0, state: "skipped", detail: "already-clipped" });
+                continue;
+            }
+            if (ial[ATTR.excluded] === "true") {
+                rows.push({ id: saved.id, title: doc.content || "", hpath: doc.hpath || "", box: doc.box || "", url: "", site: "", words: 0, minutes: 0, state: "skipped", detail: "user-excluded" });
+                continue;
+            }
+            if (ial[ATTR.contentType] === "local" && hasValidClipStatus(ial)) {
+                rows.push({ id: saved.id, title: doc.content || "", hpath: doc.hpath || "", box: doc.box || "", url: "", site: "", words: Number(ial[ATTR.words]) || 0, minutes: Number(ial[ATTR.minutes]) || 0, contentType: "local", state: "skipped", detail: "already-clipped" });
+                continue;
+            }
+            if (saved.state === "ok" || saved.state === "skipped") {
+                rows.push({ id: saved.id, title: doc.content || "", hpath: doc.hpath || "", box: doc.box || "", url: ial[ATTR.url] || "", site: ial[ATTR.site] || "", words: Number(ial[ATTR.words]) || 0, minutes: Number(ial[ATTR.minutes]) || 0, state: saved.state, detail: saved.state === "skipped" ? "already-clipped" : undefined, conflictDocId: saved.conflictDocId });
+                continue;
+            }
+            // A plan exists only for this live plugin session. Never infer a lost manual choice from current content.
+            if (plan?.resolution && saved.state === "manual") {
+                if (ial[ATTR.url]) {
+                    rows.push({ ...plan, title: doc.content || "", hpath: doc.hpath || "", box: doc.box || "", url: ial[ATTR.url], site: ial[ATTR.site] || siteFromUrl(ial[ATTR.url]), state: "skipped", detail: "already-clipped", conflictDocId: undefined });
+                } else {
+                    rows.push({ ...plan, title: doc.content || "", hpath: doc.hpath || "", box: doc.box || "", state: "manual", detail: saved.conflictDocId ? plan.detail : "planned-action-failed" });
+                }
+                continue;
+            }
+            if (plan && saved.state === "manual" && hydratedIds.has(saved.id)) {
+                rows.push({ ...plan, title: doc.content || "", hpath: doc.hpath || "", box: doc.box || "", state: "manual", detail: "reconfirm-decision" });
+                continue;
+            }
+            if (plan && saved.state !== "manual" && hydratedIds.has(saved.id)) {
+                rows.push({ ...plan, title: doc.content || "", hpath: doc.hpath || "", box: doc.box || "", state: saved.state });
+                continue;
+            }
+            const probed = probeById.get(saved.id) ?? null;
+            if (!probed) {
+                const row: MigrateRow = saved.state === "manual"
+                    ? { id: saved.id, title: doc.content || "", hpath: doc.hpath || "", box: doc.box || "", url: "", site: "", words: 0, minutes: 0, state: "manual", detail: "reconfirm-decision", missing: ["url"] }
+                    : { id: saved.id, title: doc.content || "", hpath: doc.hpath || "", box: doc.box || "", url: "", site: "", words: 0, minutes: 0, state: "skipped", detail: "no-longer-eligible", conflictDocId: saved.conflictDocId };
+                rows.push(row);
+                if (saved.state === "manual") {
+                    taskPlans.set(saved.id, row);
+                    hydratedIds.add(saved.id);
+                }
+                continue;
+            }
+            if (saved.state === "manual") {
+                const row = { ...probed, state: "manual" as const, detail: "reconfirm-decision", conflictDocId: saved.conflictDocId };
+                rows.push(row);
+                taskPlans.set(saved.id, row);
+                hydratedIds.add(saved.id);
+            } else {
+                rows.push({ ...probed, state: saved.state, conflictDocId: saved.conflictDocId });
+                taskPlans.set(saved.id, { ...probed, state: saved.state });
+                hydratedIds.add(saved.id);
+            }
+        }
+        if (checkpointChanged) {
+            try {
+                await saveProgress(plugin, progress);
+            } catch (error) {
+                // The document facts and derived index have already been
+                // reconciled. Keep the hydrated result visible and let the
+                // next explicit refresh retry checkpoint persistence.
+                console.warn("[glean] 迁移检查点修复保存失败，保留当前属性结果:", error);
+            }
+        }
+        return { progress, rows, reconciled };
+    });
+}
+
+async function saveProgress(plugin: Plugin, progress: MigrateProgress): Promise<void> {
+    const compact = parseMigrateProgress(progress);
+    await plugin.saveData(PROGRESS_FILE, compact);
+}
+
+function assertExpectedTask(progress: MigrateProgress | null, expectedTaskId: string): void {
+    if (!expectedTaskId || !progress || progress.taskId !== expectedTaskId) {
+        throw new MigrateProgressError("changed", "迁移任务已在其他窗口更改，请刷新后重试");
+    }
+}
+
+function assertExpectedTaskIfProvided(progress: MigrateProgress | null, expectedTaskId?: string): void {
+    if (expectedTaskId !== undefined) assertExpectedTask(progress, expectedTaskId);
+}
+
+export async function clearMigrateProgress(plugin: Plugin, expectedTaskId: string): Promise<void> {
+    await withProgressLock(plugin, async () => {
+        const progress = await loadMigrateProgressUnlocked(plugin);
+        assertExpectedTask(progress, expectedTaskId);
+        await plugin.removeData(PROGRESS_FILE);
+    });
+}
+
+/** 只允许在二次确认后清理仍然损坏的检查点；读取异常或已恢复的记录都保留。 */
+export async function clearInvalidMigrateProgress(plugin: Plugin): Promise<void> {
+    await withProgressLock(plugin, async () => {
+        try {
+            const progress = await loadMigrateProgressUnlocked(plugin);
+            if (progress === null) throw new MigrateProgressError("changed", "迁移进度已不存在");
+            throw new MigrateProgressError("changed", "迁移进度现在可以正常读取，请先恢复或丢弃任务");
+        } catch (error) {
+            if (!(error instanceof MigrateProgressError) || error.reason !== "invalid") throw error;
+        }
+        await plugin.removeData(PROGRESS_FILE);
+    });
 }
 
 /** 用户确认 dry-run 报告后才建立任务；扫描本身不写文档属性。 */
 export async function startMigrateProgress(plugin: Plugin, rows: MigrateRow[]): Promise<MigrateProgress> {
-    const now = new Date().toISOString();
-    const progress: MigrateProgress = {
-        version: 1,
-        rows: rows.map((row) => ({ ...row })),
-        cursor: 0,
-        finished: false,
-        startedAt: now,
-        updatedAt: now,
-    };
-    await saveProgress(plugin, progress);
-    return progress;
-}
-
-function retryable(row: MigrateRow): boolean {
-    return row.state === "error" && (!!row.url || !!row.resolution);
+    return withProgressLock(plugin, async () => {
+        const existing = await loadMigrateProgressUnlocked(plugin);
+        if (existing) throw new MigrateProgressError("exists", "已有迁移进度，需继续或明确丢弃后再开始");
+        if (rows.length === 0) throw new Error("没有可迁移的条目");
+        const progress: MigrateProgress = {
+            version: 2,
+            taskId: `migrate-${newNodeId()}`,
+            rows: rows.map((row) => ({ id: row.id, state: row.resolution ? "manual" : row.state, ...(row.conflictDocId ? { conflictDocId: row.conflictDocId } : {}) })),
+            cursor: 0,
+            finished: false,
+        };
+        parseMigrateProgress(progress);
+        await saveProgress(plugin, progress);
+        runtimePlans.set(plugin, new Map([[progress.taskId, new Map(rows.map((row) => [row.id, { ...row }]))]]));
+        hydratedPlanDocs.set(plugin, new Map([[progress.taskId, new Set(rows.map((row) => row.id))]]));
+        return progress;
+    });
 }
 
 /** 完成一次尝试后仅重排写入失败的行；扫描失败仍需重新扫描。 */
-export async function retryMigrateErrors(plugin: Plugin): Promise<MigrateProgress> {
-    const progress = await loadMigrateProgress(plugin);
-    if (!progress) throw new Error("没有可续跑的迁移任务，请先执行 dry-run");
-    const first = progress.rows.findIndex(retryable);
-    if (first < 0) return progress;
-    for (const row of progress.rows) {
-        if (retryable(row)) {
-            row.state = "pending";
-            delete row.detail;
+export async function retryMigrateErrors(plugin: Plugin, expectedTaskId: string): Promise<MigrateProgress> {
+    return withProgressLock(plugin, async () => {
+        const progress = await loadMigrateProgressUnlocked(plugin);
+        assertExpectedTask(progress, expectedTaskId);
+        if (!progress) throw new Error("没有可续跑的迁移任务，请先执行 dry-run");
+        const first = progress.rows.findIndex((row) => row.state === "error");
+        if (first < 0) return progress;
+        for (const row of progress.rows) {
+            if (row.state === "error") {
+                row.state = "pending";
+            }
         }
-    }
-    progress.cursor = first;
-    progress.finished = false;
-    await saveProgress(plugin, progress);
-    return progress;
+        progress.cursor = first;
+        progress.finished = false;
+        await saveProgress(plugin, progress);
+        return progress;
+    });
+}
+
+/** 用户暂停后丢弃尚未执行的手工决定；重开后只保留重新确认所需的检查点阶段。 */
+export async function dropInterruptedMigrateDecisions(plugin: Plugin, expectedTaskId: string): Promise<void> {
+    await withProgressLock(plugin, async () => {
+        assertExpectedTask(await loadMigrateProgressUnlocked(plugin), expectedTaskId);
+        // This operation is intentionally memory-only: if saveData is failing,
+        // the pause still must discard uncommitted choices before any retry.
+        // Task-keyed maps ensure an old window can never clear a newer plan.
+        const plansByTask = runtimePlans.get(plugin);
+        if (!plansByTask) return;
+        const plans = plansByTask.get(expectedTaskId);
+        if (!plans) return;
+        for (const [id, row] of plans) {
+            if (row.resolution) plans.delete(id);
+        }
+    });
 }
 
 export type MigrateDecision =
@@ -135,17 +483,32 @@ export async function resolveMigrateRow(
     plugin: Plugin,
     row: MigrateRow,
     decision: MigrateDecision,
+    expectedTaskId: string,
 ): Promise<MigrateRow> {
-    const progress = await loadMigrateProgress(plugin);
+    return withProgressLock(plugin, () => resolveMigrateRowUnlocked(plugin, row, decision, expectedTaskId));
+}
+
+async function resolveMigrateRowUnlocked(
+    plugin: Plugin,
+    row: MigrateRow,
+    decision: MigrateDecision,
+    expectedTaskId: string,
+): Promise<MigrateRow> {
+    const progress = await loadMigrateProgressUnlocked(plugin);
+    assertExpectedTask(progress, expectedTaskId);
     if (!progress) throw new Error("请先确认迁移报告，再处理文档");
     const saved = progress.rows.find((item) => item.id === row.id);
     if (!saved) throw new Error("这篇文章不在当前迁移任务中，请重新扫描");
-    if (saved.state !== "manual" && saved.state !== "error" && !(saved.state === "pending" && saved.resolution)) {
+    const plan = runtimePlans.get(plugin)?.get(progress.taskId)?.get(saved.id);
+    if (saved.state !== "manual" && saved.state !== "error" && !(saved.state === "pending" && plan?.resolution)) {
         throw new Error("这篇文章已被迁移任务处理，请刷新");
     }
-    row = saved;
-    const current = await batchReadClipAttrs([row.id]);
-    const ial = current[0]?.attrs ?? {};
+    const [doc] = await listDocsByIds([saved.id]);
+    if (!doc) throw new Error("文档已不存在，迁移任务保留；请重新核对或清理任务");
+    const current = await batchReadClipAttrs([saved.id]);
+    const ial = current[0]?.attrs;
+    if (!ial) throw new Error("无法读取文档属性，请重试");
+    row = { ...(plan ?? row), id: saved.id, title: doc.content || "", hpath: doc.hpath || "", box: doc.box || "", state: saved.state };
     if (decision.kind === "url") {
         const url = decision.url.trim();
         if (!normalizeUrl(url)) throw new Error("请输入有效的 http(s) 来源链接");
@@ -220,30 +583,16 @@ async function persistResolvedRow(plugin: Plugin, progress: MigrateProgress | nu
     if (progress) {
         const index = progress.rows.findIndex((item) => item.id === row.id);
         if (index >= 0) {
-            progress.rows[index] = row;
+            progress.rows[index] = { id: row.id, state: row.state, ...(row.conflictDocId ? { conflictDocId: row.conflictDocId } : {}) };
             await saveProgress(plugin, progress);
+            let plans = runtimePlans.get(plugin);
+            if (!plans) { plans = new Map(); runtimePlans.set(plugin, plans); }
+            let taskPlans = plans.get(progress.taskId);
+            if (!taskPlans) { taskPlans = new Map(); plans.set(progress.taskId, taskPlans); }
+            if (row.state === "ok" || row.state === "skipped") taskPlans.delete(row.id);
+            else taskPlans.set(row.id, { ...row });
         }
     }
-}
-
-async function resolvePlannedRow(plugin: Plugin, row: MigrateRow): Promise<MigrateRow> {
-    if (row.resolution === "exclude") {
-        await writeClip(plugin, row.id, { excluded: true });
-        return { ...row, state: "skipped", resolution: undefined, detail: "user-excluded", missing: [] };
-    }
-    const ial = (await batchReadClipAttrs([row.id]))[0]?.attrs;
-    if (!ial) throw new Error("无法读取文档属性");
-    if (ial[ATTR.url]) {
-        await writeClip(plugin, row.id, {});
-        return { ...row, state: "skipped", resolution: undefined, detail: "already-clipped" };
-    }
-    const markdown = (await exportMdContent(row.id))?.content ?? "";
-    if (!hasValidClipStatus(ial)) {
-        await captureClip(plugin, row.id, { markdown, src: "migration", contentType: "local" });
-    } else {
-        await writeClip(plugin, row.id, { contentType: "local" });
-    }
-    return { ...row, state: "ok", resolution: undefined, contentType: "local", detail: undefined, missing: [] };
 }
 
 /**
@@ -257,14 +606,13 @@ export async function buildDryRunReport(settings: GleanSettings): Promise<Migrat
     const attrPairs = await batchReadClipAttrs(rowsToProbe.map((row) => row.id));
     const attrsById = new Map(attrPairs.map((pair) => [pair.id, pair.attrs]));
 
-    const rows: MigrateRow[] = [];
-    for (const row of rowsToProbe) {
+    const projected = await mapConcurrent(rowsToProbe, 8, async (row): Promise<MigrateRow | null> => {
         const ial = attrsById.get(row.id) ?? {};
         // 迁移器只回填缺来源的历史文档；URL-only 半成品留在候选区，
         // 必须经过用户显式“加入读库”才补状态，避免预览执行时悄悄入队。
         // status-only 文档仍需导出正文寻找来源。
         if (ial[ATTR.url] || (ial[ATTR.contentType] === "local" && hasValidClipStatus(ial))) {
-            rows.push({
+            return {
                 id: row.id,
                 title: row.content || "",
                 hpath: row.hpath || "",
@@ -278,13 +626,11 @@ export async function buildDryRunReport(settings: GleanSettings): Promise<Migrat
                 detail: "already-clipped",
                 evidence: ["url-attribute"],
                 missing: [],
-            });
-            continue;
+            };
         }
-        const probed = await probeRow(row, ial);
-        if (probed) rows.push(probed);
-    }
-    return rows;
+        return probeRow(row, ial);
+    });
+    return projected.filter((row): row is MigrateRow => row !== null);
 }
 
 async function probeRow(
@@ -342,6 +688,8 @@ async function probeRow(
 
 export interface BackfillTick {
     processed: number;
+    cursor: number;
+    updatedRows: MigrateRow[];
     ok: number;
     skipped: number;
     manual: number;
@@ -358,9 +706,18 @@ export interface BackfillTick {
 export async function runBackfillBatch(
     plugin: Plugin,
     settings: GleanSettings,
-    opts: { signal?: { aborted: boolean } } = {}
+    opts: { signal?: { aborted: boolean }; expectedTaskId: string }
 ): Promise<BackfillTick> {
-    const progress = await loadMigrateProgress(plugin);
+    return withProgressLock(plugin, () => runBackfillBatchUnlocked(plugin, settings, opts));
+}
+
+async function runBackfillBatchUnlocked(
+    plugin: Plugin,
+    settings: GleanSettings,
+    opts: { signal?: { aborted: boolean }; expectedTaskId: string }
+): Promise<BackfillTick> {
+    const progress = await loadMigrateProgressUnlocked(plugin);
+    assertExpectedTask(progress, opts?.expectedTaskId ?? "");
     if (!progress) throw new Error("没有可续跑的迁移任务，请先执行 dry-run");
     if (progress.finished) {
         return tickOf(progress, progress.rows.length, true);
@@ -368,78 +725,96 @@ export async function runBackfillBatch(
 
     const batchSize = Math.min(Math.max(1, settings.migrateBatchSize), 50);
     const end = Math.min(progress.cursor + batchSize, progress.rows.length);
-    const pendingIds = progress.rows.slice(progress.cursor, end)
-        .filter((row) => row.state === "pending" && !!row.url && row.resolution !== "local" && row.resolution !== "exclude")
-        .map((row) => row.id);
-    const attrsById = new Map(
-        (await batchReadClipAttrs(pendingIds)).map((pair) => [pair.id, pair.attrs])
-    );
+    const taskPlans = runtimePlans.get(plugin)?.get(progress.taskId);
+    const batch = progress.rows.slice(progress.cursor, end);
+    const workIds = batch.filter((row) => row.state === "pending" || (row.state === "manual" && taskPlans?.get(row.id)?.resolution)).map((row) => row.id);
+    const [docs, attrs] = await Promise.all([listDocsByIds(workIds), batchReadClipAttrs(workIds)]);
+    const docsById = new Map(docs.map((doc) => [doc.id, doc]));
+    const attrsById = new Map(attrs.map((pair) => [pair.id, pair.attrs]));
     const stamped = siyuanTimestamp();
+    const updatedRows: MigrateRow[] = [];
 
     for (let i = progress.cursor; i < end; i += 1) {
         if (opts.signal?.aborted) break;
-        const row = progress.rows[i];
-        if (row.state === "pending") {
-            if (row.resolution === "exclude" || row.resolution === "local") {
-                try {
-                    const resolved = await resolvePlannedRow(plugin, row);
-                    progress.rows[i] = resolved;
-                } catch (error) {
-                    row.state = "error";
-                    row.detail = String(error).slice(0, 120);
-                }
-            } else if (!row.url) {
-                row.state = "manual";
-            } else {
-                const ial = attrsById.get(row.id);
-                if (!ial) {
-                    row.state = "error";
-                    row.detail = "无法读取文档属性";
-                } else if (ial[ATTR.url]) {
-                    try {
-                        // 上次属性写成但索引同步失败时，空补丁可恢复派生索引；不改已有属性。
-                        await writeClip(plugin, row.id, {});
-                        row.state = "skipped";
-                        row.detail = "already-clipped";
-                    } catch (error) {
-                        row.state = "error";
-                        row.detail = String(error).slice(0, 120);
+        const saved = progress.rows[i];
+        const plan = taskPlans?.get(saved.id);
+        let result: MigrateRow = { id: saved.id, title: "", hpath: "", box: "", url: "", site: "", words: 0, minutes: 0, state: saved.state, conflictDocId: saved.conflictDocId };
+        const shouldProcess = saved.state === "pending" || (saved.state === "manual" && plan?.resolution);
+        if (shouldProcess) {
+            const doc = docsById.get(saved.id);
+            const ial = attrsById.get(saved.id);
+            try {
+                if (!doc) throw new Error("document-missing");
+                if (!ial) throw new Error("attributes-unavailable");
+                result = { ...result, title: doc.content || "", hpath: doc.hpath || "", box: doc.box || "" };
+                if (ial[ATTR.url]) {
+                    // Attribute write may have succeeded before an earlier checkpoint/index failure.
+                    await writeClip(plugin, saved.id, {});
+                    result = { ...result, url: ial[ATTR.url], state: "skipped", detail: "already-clipped", conflictDocId: undefined };
+                } else if (plan?.resolution) {
+                    if (plan.resolution === "exclude") {
+                        await writeClip(plugin, saved.id, { excluded: true });
+                        result = { ...result, state: "skipped", detail: "user-excluded", conflictDocId: undefined };
+                    } else if (plan.resolution === "local") {
+                        const markdown = (await exportMdContent(saved.id))?.content ?? "";
+                        if (!hasValidClipStatus(ial)) await captureClip(plugin, saved.id, { markdown, src: "migration", contentType: "local" });
+                        else await writeClip(plugin, saved.id, { contentType: "local" });
+                        result = { ...result, contentType: "local", state: "ok", conflictDocId: undefined };
+                    } else {
+                        const url = plan.url.trim();
+                        if (!normalizeUrl(url)) throw new Error("invalid-url");
+                        const conflict = await findClipUrlConflict(url, saved.id, plugin);
+                        if (conflict && !plan.allowDuplicate) {
+                            result = { ...plan, ...result, url, site: siteFromUrl(url), state: "manual", detail: "duplicate-url", conflictDocId: conflict.id };
+                        } else {
+                            const markdown = (await exportMdContent(saved.id))?.content ?? "";
+                            const metadata = inspectClipMarkdown(markdown, { url });
+                            if (!hasValidClipStatus(ial)) await captureClip(plugin, saved.id, { url, markdown, src: "migration", contentType: metadata.contentType, allowDuplicate: plan.allowDuplicate });
+                            else await writeClip(plugin, saved.id, { url, site: !ial[ATTR.site] ? metadata.site || undefined : undefined, contentType: !ial[ATTR.contentType] ? metadata.contentType : undefined, words: !ial[ATTR.words] && metadata.words > 0 ? metadata.words : undefined, minutes: !ial[ATTR.minutes] && metadata.minutes > 0 ? metadata.minutes : undefined });
+                            result = { ...result, url, site: metadata.site, words: metadata.words, minutes: metadata.minutes, contentType: metadata.contentType, state: "ok", conflictDocId: undefined };
+                        }
                     }
                 } else {
-                    try {
-                        const conflict = await findClipUrlConflict(row.url, row.id, plugin);
-                        if (conflict && !row.allowDuplicate) {
-                            row.state = "manual";
-                            row.conflictDocId = conflict.id;
-                            row.detail = "duplicate-url";
+                    const candidate = await probeRow(doc, ial);
+                    if (!candidate) {
+                        result = { ...result, state: "skipped", detail: "no-longer-eligible" };
+                    } else if (candidate.state === "error") {
+                        result = { ...candidate, state: "error" };
+                    } else if (!candidate.url) {
+                        result = { ...candidate, state: "manual" };
+                    } else {
+                        result = candidate;
+                        const conflict = await findClipUrlConflict(candidate.url, saved.id, plugin);
+                        if (conflict) {
+                            result = { ...candidate, state: "manual", conflictDocId: conflict.id, detail: "duplicate-url" };
                         } else {
-                            const patch: Parameters<typeof writeClip>[2] = { url: row.url, src: "migration" };
-                            if (!ial[ATTR.site] && row.site) patch.site = row.site;
+                            const patch: Parameters<typeof writeClip>[2] = { url: candidate.url, src: "migration" };
+                            if (!ial[ATTR.site] && candidate.site) patch.site = candidate.site;
                             if (!ial[ATTR.time]) {
-                                patch.time = row.time ?? documentTimeFromId(row.id) ?? stamped;
-                                patch.timeSource = row.timeSource ?? (documentTimeFromId(row.id) ? "document" : "capture");
+                                patch.time = candidate.time ?? documentTimeFromId(saved.id) ?? stamped;
+                                patch.timeSource = candidate.timeSource ?? (documentTimeFromId(saved.id) ? "document" : "capture");
                             }
-                            if (!ial[ATTR.words] && row.words > 0) patch.words = row.words;
-                            if (!ial[ATTR.minutes] && row.minutes > 0) patch.minutes = row.minutes;
-                            if (!ial[ATTR.contentType] && row.contentType) patch.contentType = row.contentType;
-                            // 旧文已有状态时只补缺失字段，绝不把它改回 inbox。
+                            if (!ial[ATTR.words] && candidate.words > 0) patch.words = candidate.words;
+                            if (!ial[ATTR.minutes] && candidate.minutes > 0) patch.minutes = candidate.minutes;
+                            if (!ial[ATTR.contentType] && candidate.contentType) patch.contentType = candidate.contentType;
                             if (!ial[ATTR.status]) patch.status = "inbox";
-                            const result = await writeClip(plugin, row.id, patch);
-                            if (result.skippedKeys.includes(ATTR.url)) {
-                                row.state = "skipped";
-                                row.detail = "already-clipped";
-                            } else {
-                                row.state = "ok";
-                                delete row.detail;
-                            }
+                            const write = await writeClip(plugin, saved.id, patch);
+                            result = { ...candidate, state: write.skippedKeys.includes(ATTR.url) ? "skipped" : "ok", detail: write.skippedKeys.includes(ATTR.url) ? "already-clipped" : undefined };
                         }
-                    } catch (error) {
-                        row.state = "error";
-                        row.detail = String(error).slice(0, 120);
                     }
                 }
+            } catch (error) {
+                // A lost manual choice must be confirmed again after reload; never persist its URL.
+                // A failed manual plan remains actionable in this session; its
+                // URL/local decision is never written into the checkpoint.
+                result = { ...result, state: plan?.resolution ? "manual" : "error", detail: plan?.resolution ? "planned-action-failed" : String(error).slice(0, 120) };
+                if (plan?.resolution) taskPlans?.set(saved.id, { ...plan, ...result, resolution: plan.resolution });
             }
         }
+        progress.rows[i] = { id: saved.id, state: result.state, ...(result.conflictDocId ? { conflictDocId: result.conflictDocId } : {}) };
+        if (shouldProcess) updatedRows.push(result);
+        if (result.state === "ok" || result.state === "skipped") taskPlans?.delete(saved.id);
+        else if (plan && result.state === "manual") taskPlans?.set(saved.id, { ...plan, ...result });
         progress.cursor = i + 1;
         progress.finished = progress.cursor >= progress.rows.length;
         await saveProgress(plugin, progress);
@@ -449,10 +824,10 @@ export async function runBackfillBatch(
         progress.finished = true;
         await saveProgress(plugin, progress);
     }
-    return tickOf(progress, progress.cursor, progress.finished);
+    return tickOf(progress, progress.cursor, progress.finished, updatedRows);
 }
 
-function tickOf(progress: MigrateProgress, processed: number, finished: boolean): BackfillTick {
+function tickOf(progress: MigrateProgress, processed: number, finished: boolean, updatedRows: MigrateRow[] = []): BackfillTick {
     let ok = 0;
     let skipped = 0;
     let manual = 0;
@@ -463,5 +838,5 @@ function tickOf(progress: MigrateProgress, processed: number, finished: boolean)
         else if (row.state === "manual") manual += 1;
         else if (row.state === "error") errors += 1;
     }
-    return { processed, ok, skipped, manual, errors, finished };
+    return { processed, cursor: progress.cursor, updatedRows, ok, skipped, manual, errors, finished };
 }

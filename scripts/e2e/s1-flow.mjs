@@ -188,18 +188,18 @@ async function runFlow(client, workspace) {
     assert.equal(byId.get(noUrl)?.state, "manual");
     assert.equal(byId.get(urlOnly)?.state, "skipped");
     assert.equal((await client.apiChecked("/api/attr/getBlockAttrs", { id: oldA }))["custom-clip-status"], undefined);
-    await migrate.startMigrateProgress(plugin, [byId.get(oldA), byId.get(oldB), byId.get(noUrl)]);
-    assert.equal((await migrate.loadMigrateProgress(newPlugin())).rows.length, 3);
-    const firstTick = await migrate.runBackfillBatch(newPlugin(), settings);
+    const migrateTask = await migrate.startMigrateProgress(plugin, [byId.get(oldA), byId.get(oldB), byId.get(noUrl)]);
+    assert.equal((await migrate.loadMigrateProgress(newPlugin(), migrateTask.taskId)).rows.length, 3);
+    const firstTick = await migrate.runBackfillBatch(newPlugin(), settings, { expectedTaskId: migrateTask.taskId });
     assert.equal(firstTick.processed, 1);
     assert.equal(firstTick.finished, false);
-    const stopped = await migrate.runBackfillBatch(newPlugin(), settings, { signal: { aborted: true } });
+    const stopped = await migrate.runBackfillBatch(newPlugin(), settings, { signal: { aborted: true }, expectedTaskId: migrateTask.taskId });
     assert.equal(stopped.finished, false);
-    assert.equal((await migrate.loadMigrateProgress(newPlugin())).cursor, 1);
-    let progress = await migrate.loadMigrateProgress(newPlugin());
+    assert.equal((await migrate.loadMigrateProgress(newPlugin(), migrateTask.taskId)).cursor, 1);
+    let progress = await migrate.loadMigrateProgress(newPlugin(), migrateTask.taskId);
     while (!progress.finished) {
-        await migrate.runBackfillBatch(newPlugin(), settings);
-        progress = await migrate.loadMigrateProgress(newPlugin());
+        await migrate.runBackfillBatch(newPlugin(), settings, { expectedTaskId: migrateTask.taskId });
+        progress = await migrate.loadMigrateProgress(newPlugin(), migrateTask.taskId);
     }
     assert.deepEqual(progress.rows.map((row) => row.state), ["ok", "ok", "manual"]);
     for (const id of [oldA, oldB]) {

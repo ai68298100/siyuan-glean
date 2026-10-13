@@ -74,6 +74,7 @@ function harness() {
         beforeCell: null,
         afterCell: null,
         onRender: null,
+        avDiscoveryMisses: 0,
     };
     const plugin = {
         async loadData(name) { return structuredClone(files.get(name)); },
@@ -125,6 +126,10 @@ function harness() {
                 }
                 if (body.stmt.includes("type = 'av'")) {
                     assert.ok(body.stmt.includes(`parent_id = '${hostId}'`));
+                    if (controls.avDiscoveryMisses > 0) {
+                        controls.avDiscoveryMisses -= 1;
+                        return { code: 0, data: [] };
+                    }
                     return { code: 0, data: [{ id: dbBlockId, parent_id: hostId, markdown: `<div data-type="NodeAttributeView" data-av-id="${avId}" data-av-type="table"></div>` }] };
                 }
                 if (body.stmt.includes(`content = '${LIBRARY_DOC_TITLE}'`)) {
@@ -197,6 +202,7 @@ function harness() {
         plugin, settings, documents, attributes, markdowns, itemIds, rows, columns, calls, saves, files, controls, add, addRow, statusCell,
         bindingCalls() { return calls.filter((call) => call.route === "/api/av/addAttributeViewBlocks"); },
         cellWrites() { return calls.filter((call) => call.route === "/api/av/setAttributeViewBlockAttr"); },
+        avInserts() { return calls.filter((call) => call.route === "/api/block/insertBlock" && String(call.body.data).includes("NodeAttributeView")); },
         avMutations() { return calls.filter((call) => /\/api\/av\/(addAttributeView|setAttributeView)/.test(call.route)); },
     };
 }
@@ -240,6 +246,19 @@ test("根属性决定状态，陈旧索引和 AV 单元格不能成为文章状�
     assert.equal(fixture.bindingCalls().length, 0);
     assert.ok(fixture.calls.some((call) => call.route === "/api/attr/batchGetBlockAttrs"));
     assertSourcesUnchanged(fixture, before);
+});
+
+test("已有数据库块的 SQL 索引短暂未命中时等待找回，不重复插入数据库", async () => {
+    const fixture = harness();
+    fixture.addRow(firstId);
+    fixture.controls.avDiscoveryMisses = 2;
+    const result = await bindAllClipsToLibrary(fixture.plugin, fixture.settings);
+    assert.equal(result.bound, 0);
+    assert.equal(result.synced, 1);
+    assert.deepEqual(result.failures, []);
+    assert.equal(fixture.avInserts().length, 0);
+    assert.equal(fixture.bindingCalls().length, 0);
+    assert.equal(fixture.calls.filter((call) => call.route === "/api/query/sql" && call.body.stmt.includes("type = 'av'")).length, 3);
 });
 
 test("internal 和无有效状态的候选不绑定、不投影；已有 internal 行也不更新", async () => {

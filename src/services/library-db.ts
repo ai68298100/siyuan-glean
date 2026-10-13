@@ -20,6 +20,8 @@ import { parseClipAttrs } from "../domain/schema";
 import type { GleanSettings } from "./settings";
 
 export const LIBRARY_DOC_TITLE = "读库数据库";
+const AV_DISCOVERY_ATTEMPTS = 6;
+const AV_DISCOVERY_DELAY_MS = 300;
 
 const LIBRARY_FIELDS: Array<{ key: string; name: string; type: "select" | "number" | "url" }> = [
     { key: "status", name: "状态", type: "select" },
@@ -36,6 +38,18 @@ export interface LibraryAnchor {
     fieldMap: Record<string, string>;
 }
 
+/** SQL 索引可能晚于 AV 插入事务；重试找回，避免刷新时再插入第二个数据库块。 */
+async function findAvWithRetry(hostDocId: string): Promise<AvRef | null> {
+    for (let attempt = 0; attempt < AV_DISCOVERY_ATTEMPTS; attempt += 1) {
+        const av = await findAvInDoc(hostDocId);
+        if (av) return av;
+        if (attempt + 1 < AV_DISCOVERY_ATTEMPTS) {
+            await new Promise((resolve) => setTimeout(resolve, AV_DISCOVERY_DELAY_MS));
+        }
+    }
+    return null;
+}
+
 /** 找回或创建读库库锚点（幂等）。 */
 export async function ensureLibraryAnchor(settings: GleanSettings, plugin: Plugin): Promise<LibraryAnchor> {
     const notebookId = settings.anchorNotebooks[0];
@@ -48,7 +62,7 @@ export async function ensureLibraryAnchor(settings: GleanSettings, plugin: Plugi
         await writeClip(plugin, created, { internal: true });
         hostDoc = { id: created, content: LIBRARY_DOC_TITLE, hpath: `/${LIBRARY_DOC_TITLE}`, box: notebookId, updated: "" };
     }
-    let av = await findAvInDoc(hostDoc.id);
+    let av = await findAvWithRetry(hostDoc.id);
     if (!av) {
         av = await createDatabaseInDoc(hostDoc.id);
     }

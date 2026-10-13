@@ -24,7 +24,7 @@ registerHooks({
     },
 });
 
-const { batchSetStatus, batchSetStatusDetailed, captureClip, captureDocument, findClipUrlConflict, listAnchorDocs, listClipDocs, measureClipBody, readClipContext, reconcileIndex, scanDocScopes, scanPreview, writeClip } = await import(
+const { batchSetStatus, batchSetStatusDetailed, captureClip, captureDocument, findClipUrlConflict, listAnchorDocs, listClipDocs, listDocsByIds, measureClipBody, readClipContext, reconcileIndex, scanDocScopes, scanPreview, writeClip } = await import(
     "../src/services/clip-store.ts"
 );
 const { readClipAuthor, saveClipAuthor } = await import("../src/services/clip-store.ts");
@@ -89,6 +89,11 @@ function harness() {
             if (failPageOffset === offset && sql.includes("box IN")) throw new Error("page failed");
             const byId = sql.match(/WHERE id = '([^']+)'/);
             if (byId) return docs.has(byId[1]) ? [docs.get(byId[1])] : [];
+            const byIds = sql.match(/id IN \(([^)]+)\)/);
+            if (byIds) {
+                const ids = [...byIds[1].matchAll(/'([^']+)'/g)].map((match) => match[1]);
+                return ids.filter((id) => docs.has(id)).map((id) => docs.get(id));
+            }
             if (sql.includes("box IN")) {
                 const boxes = [...(sql.match(/box IN \(([^)]+)\)/)?.[1].matchAll(/'([^']+)'/g) ?? [])].map((m) => m[1]);
                 return [...docs.values()].filter((doc) => boxes.includes(doc.box)).sort(sortDocs).slice(offset, offset + limit);
@@ -127,6 +132,20 @@ test("作者自动写入保护已有值及清空，显式作者编辑只改署�
     await saveClipAuthor(current.plugin as never, "author-clip", "新署名", "");
     assert.equal(current.attrs.get("author-clip")?.["custom-clip-author"], undefined);
     assert.equal((await readClipAuthor("author-clip")).author, "");
+});
+
+test("按恢复检查点精确 ID 批量读取文档元数据并拒绝非法 ID", async () => {
+    const current = harness();
+    const first = "20261014000000-abcdefg";
+    const second = "20261014000001-bcdefgh";
+    current.add(first, "box-1");
+    current.add(second, "box-2");
+    const rows = await listDocsByIds([first, second, first]);
+    assert.deepEqual(rows.map((row) => row.id).sort(), [first, second]);
+    assert.match(current.queries.at(-1) ?? "", /id IN \('20261014000000-abcdefg','20261014000001-bcdefgh'\)/);
+    const before = current.queries.length;
+    await assert.rejects(listDocsByIds(["not-an-id"]));
+    assert.equal(current.queries.length, before);
 });
 
 test("非法旧署名保持原属性，修正需原始值核对；非法输入不写入", async () => {
