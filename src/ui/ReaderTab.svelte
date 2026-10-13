@@ -9,7 +9,7 @@
     import type { ProtyleController } from "../libs/protyle-controller";
     import ProtyleHost from "./ProtyleHost.svelte";
     import ReadingPositionControls from "./ReadingPositionControls.svelte";
-    import { onMount } from "svelte";
+    import { onMount, tick } from "svelte";
     import { untrack } from "svelte";
     import type { GleanFacade } from "../types";
     import { t } from "../libs/i18n";
@@ -425,8 +425,10 @@
         readerRoot?.focus({ preventScroll: true });
     }
 
-    function exitImmersive(): void {
+    async function exitImmersive(): Promise<void> {
         immersive = false;
+        await tick();
+        readerRoot?.querySelector<HTMLButtonElement>(".glean-reader__toolbar-immersive")?.focus();
     }
 
     function toggleCompanion(): void {

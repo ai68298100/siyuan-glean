@@ -45,7 +45,7 @@
         <option value="rating">{t(i18n, "library.sortRating")}</option>
         <option value="title">{t(i18n, "library.sortTitle")}</option>
     </select>
-    <button type="button" class="glean-filter-dir" class:glean-filter-dir--active={direction === "asc"} aria-label={t(i18n, "library.toggleDirection")} aria-pressed={direction === "asc"} title={t(i18n, "library.toggleDirection")} onclick={() => direction = direction === "desc" ? "asc" : "desc"}><span class="glean-filter-dir__icon" aria-hidden="true"><svg class="glean-icon glean-icon--xs"><use href={direction === "desc" ? "#iconGleanArrowDown" : "#iconGleanArrowUp"} /></svg></span><span class="glean-filter-dir__label">{t(i18n, "library.toggleDirection")}</span></button>
+    <button type="button" class="glean-filter-dir" class:glean-filter-dir--active={direction === "asc"} aria-label={`${t(i18n, "library.toggleDirection")}: ${t(i18n, direction === "asc" ? "library.directionAscending" : "library.directionDescending")}`} aria-pressed={direction === "asc"} title={`${t(i18n, "library.toggleDirection")}: ${t(i18n, direction === "asc" ? "library.directionAscending" : "library.directionDescending")}`} onclick={() => direction = direction === "desc" ? "asc" : "desc"}><span class="glean-filter-dir__icon" aria-hidden="true"><svg class="glean-icon glean-icon--xs"><use href={direction === "desc" ? "#iconGleanArrowDown" : "#iconGleanArrowUp"} /></svg></span><span class="glean-filter-dir__label">{t(i18n, "library.toggleDirection")}</span></button>
     <ActionPopover label={t(i18n, "library.moreFilters")}>
         {#if onManageTagAliases}
             <button type="button" class="glean-btn glean-btn--ghost" onclick={onManageTagAliases}>{t(i18n, "library.tagAliasManage")}</button>

@@ -118,6 +118,12 @@ let mobileFilterDraft = $state<MobileFilterDraft>({
 let mobileFilterSheet = $state<HTMLElement | null>(null);
 let mobileFilterReturnFocus: HTMLElement | null = null;
 let disposeMobileFilterFocus = () => {};
+type MobileFilterBackgroundState = {
+    nodes: Array<{ element: HTMLElement; inert: boolean; ariaHidden: string | null }>;
+    rootOverflow: { value: string; priority: string };
+    bodyOverflow: { value: string; priority: string };
+};
+let mobileFilterBackgroundState: MobileFilterBackgroundState | null = null;
 let selection = $state<ReadonlySet<string>>(new Set());
 let batchBusy = $state(false);
 let aiBatchOpen = $state(false);
@@ -161,6 +167,7 @@ onMount(() => {
     window.addEventListener("online", syncOnlineState);
     window.addEventListener("offline", syncOnlineState);
     return () => {
+        restoreMobileFilterBackground();
         disposeMobileFilterFocus();
         cleanup();
         window.removeEventListener("online", syncOnlineState);
@@ -605,6 +612,7 @@ const headerSubtitle = $derived.by(() => {
 });
 
 function openMobileFilters(): void {
+    if (mobileFilterOpen) return;
     mobileFilterDraft = {
         site: selectedSite,
         author: selectedAuthor,
@@ -621,6 +629,7 @@ function openMobileFilters(): void {
     void tick().then(() => {
         if (!mobileFilterOpen) return;
         if (!mobileFilterSheet) return;
+        isolateMobileFilterBackground(mobileFilterSheet);
         disposeMobileFilterFocus = installModalFocus(mobileFilterSheet, {
             onClose: closeMobileFilters,
             returnFocus: mobileFilterReturnFocus,
@@ -628,8 +637,58 @@ function openMobileFilters(): void {
     });
 }
 
+function isolateMobileFilterBackground(sheet: HTMLElement): void {
+    if (mobileFilterBackgroundState) return;
+    const layer = sheet.parentElement;
+    const panelRoot = rootEl;
+    if (!layer || !panelRoot?.contains(sheet)) return;
+    const nodes: HTMLElement[] = [];
+    let branch: HTMLElement = layer;
+    while (branch !== document.body) {
+        const parent = branch.parentElement;
+        if (!parent) break;
+        for (const element of Array.from(parent.children)) {
+            if (element instanceof HTMLElement && element !== branch) nodes.push(element);
+        }
+        branch = parent;
+    }
+    const rootStyle = document.documentElement.style;
+    const bodyStyle = document.body.style;
+    mobileFilterBackgroundState = {
+        nodes: nodes.map((element) => ({ element, inert: element.inert, ariaHidden: element.getAttribute("aria-hidden") })),
+        rootOverflow: { value: rootStyle.getPropertyValue("overflow"), priority: rootStyle.getPropertyPriority("overflow") },
+        bodyOverflow: { value: bodyStyle.getPropertyValue("overflow"), priority: bodyStyle.getPropertyPriority("overflow") },
+    };
+    for (const { element } of mobileFilterBackgroundState.nodes) {
+        element.inert = true;
+        element.setAttribute("aria-hidden", "true");
+    }
+    rootStyle.setProperty("overflow", "hidden", "important");
+    bodyStyle.setProperty("overflow", "hidden", "important");
+}
+
+function restoreMobileFilterBackground(): void {
+    const state = mobileFilterBackgroundState;
+    if (!state) return;
+    for (const { element, inert, ariaHidden } of state.nodes) {
+        if (!element.isConnected) continue;
+        element.inert = inert;
+        if (ariaHidden === null) element.removeAttribute("aria-hidden");
+        else element.setAttribute("aria-hidden", ariaHidden);
+    }
+    const restoreOverflow = (style: CSSStyleDeclaration, property: string, saved: { value: string; priority: string }) => {
+        if (!saved.value) style.removeProperty(property);
+        else style.setProperty(property, saved.value, saved.priority);
+    };
+    restoreOverflow(document.documentElement.style, "overflow", state.rootOverflow);
+    restoreOverflow(document.body.style, "overflow", state.bodyOverflow);
+    mobileFilterBackgroundState = null;
+}
+
 function closeMobileFilters(): void {
     mobileFilterOpen = false;
+    // Re-enable the trigger before the focus trap tries to return focus to it.
+    restoreMobileFilterBackground();
     const dispose = disposeMobileFilterFocus;
     disposeMobileFilterFocus = () => {};
     dispose();
@@ -1975,7 +2034,8 @@ function metaLine(entry: Row): string {
                             <button
                                 type="button"
                                 class="glean-mobile-filter-direction"
-                                aria-label={t(i18n, "library.toggleDirection")}
+                                aria-label={`${t(i18n, "library.toggleDirection")}: ${t(i18n, mobileFilterDraft.direction === "asc" ? "library.directionAscending" : "library.directionDescending")}`}
+                                title={`${t(i18n, "library.toggleDirection")}: ${t(i18n, mobileFilterDraft.direction === "asc" ? "library.directionAscending" : "library.directionDescending")}`}
                                 aria-pressed={mobileFilterDraft.direction === "asc"}
                                 onclick={() => (mobileFilterDraft.direction = mobileFilterDraft.direction === "desc" ? "asc" : "desc")}
                             >

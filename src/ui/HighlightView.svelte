@@ -15,6 +15,8 @@ import {
 import { findRelated } from "../services/enrich-service";
 import { makeQuoteCardPreview } from "./flashcard-dialog";
 import type { GleanSettings } from "../services/settings";
+import { loadUiPrefs } from "../services/prefs";
+import { displayTagAlias, type TagAlias } from "../domain/ui-prefs";
 
 interface Props { facade: GleanFacade }
 let { facade }: Props = $props();
@@ -43,14 +45,33 @@ let exportBusy = $state(false);
 let exportError = $state("");
 let exportStatus = $state("");
 let retryAction = $state<"copy" | "csv" | "preview" | "save">("preview");
+let tagAliases = $state<TagAlias[]>([]);
 let generation = 0;
 let loadedContext = "";
+let tagAliasGeneration = 0;
 
 const facets = $derived(highlightFacets(items));
 const filtered = $derived(filterHighlights(items, { search, site, tag, aiTag, sort, direction }));
 const highlightPageSize = 20;
 const visible = $derived(pageHighlights(filtered, page, highlightPageSize));
 const labels = $derived({ title: t(i18n, "highlight.exportTitle"), original: t(i18n, "highlight.original"), source: t(i18n, "highlight.source") });
+
+$effect(() => {
+    let active = true;
+    const syncTagAliases = (): void => {
+        const request = ++tagAliasGeneration;
+        void loadUiPrefs(facade.pluginInstance).then((prefs) => {
+            if (active && request === tagAliasGeneration) tagAliases = prefs.tagAliases;
+        }).catch(() => undefined);
+    };
+    syncTagAliases();
+    document.addEventListener("glean:tag-aliases-changed", syncTagAliases);
+    return () => {
+        active = false;
+        tagAliasGeneration += 1;
+        document.removeEventListener("glean:tag-aliases-changed", syncTagAliases);
+    };
+});
 
 $effect(() => {
     const targetScope = scope;
@@ -247,7 +268,7 @@ function openDoc(id: string) {
     <div class="glean-highlights__filters" role="search" aria-label={t(i18n, "action.search")}>
         <input type="search" bind:value={search} oninput={() => page = 1} placeholder={t(i18n, "highlight.searchPlaceholder")} aria-label={t(i18n, "action.search")} />
         <label>{t(i18n, "library.filterSite")}<select bind:value={site} onchange={() => page = 1}><option value="">{t(i18n, "action.filterAll")}</option>{#each facets.sites as value}<option value={value}>{value}</option>{/each}</select></label>
-        <label>{t(i18n, "library.filterTag")}<select bind:value={tag} onchange={() => page = 1}><option value="">{t(i18n, "action.filterAll")}</option>{#each facets.tags as value}<option value={value}>{value}</option>{/each}</select></label>
+        <label>{t(i18n, "library.filterTag")}<select bind:value={tag} onchange={() => page = 1}><option value="">{t(i18n, "action.filterAll")}</option>{#each facets.tags as value}<option value={value}>{displayTagAlias(tagAliases, value)}</option>{/each}</select></label>
         <label>{t(i18n, "library.filterAiTag")}<select bind:value={aiTag} onchange={() => page = 1}><option value="">{t(i18n, "action.filterAll")}</option>{#each facets.aiTags as value}<option value={value}>{value}</option>{/each}</select></label>
         <label>{t(i18n, "library.sort")}<select bind:value={sort} onchange={() => page = 1}><option value="id">{t(i18n, "action.sortTime")}</option><option value="title">{t(i18n, "library.sortTitle")}</option><option value="site">{t(i18n, "library.filterSite")}</option></select></label>
         <button class="glean-filter-dir" aria-pressed={direction === "asc"} aria-label={`${t(i18n, "library.toggleDirection")}: ${t(i18n, direction === "asc" ? "library.directionAscending" : "library.directionDescending")}`} title={`${t(i18n, "library.toggleDirection")}: ${t(i18n, direction === "asc" ? "library.directionAscending" : "library.directionDescending")}`} onclick={() => { direction = direction === "asc" ? "desc" : "asc"; page = 1; }}><span class="glean-filter-dir__icon" aria-hidden="true"><svg class="glean-icon glean-icon--xs"><use href={direction === "asc" ? "#iconGleanArrowUp" : "#iconGleanArrowDown"} /></svg></span><span class="glean-filter-dir__label">{t(i18n, "library.toggleDirection")}</span></button>

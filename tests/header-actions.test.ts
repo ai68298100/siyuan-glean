@@ -70,7 +70,10 @@ test("interactive prototype explicitly marks synthetic data and provides view, c
     const prototype = read("design/prototype-v2.html");
     assert.match(prototype, /合成示例数据/);
     assert.match(prototype, /不连接思源 \/ API \/ AI/);
-    for (const view of ["home", "library", "stats", "highlights", "settings"]) assert.match(prototype, new RegExp(`data-view="${view}"`));
+    for (const view of ["home", "library", "stats", "highlights"]) assert.match(prototype, new RegExp(`data-view="${view}"`));
+    assert.match(prototype, /data-page="reader"/);
+    assert.match(prototype, /<dialog class="screen settings-dialog" id="settings"/);
+    assert.match(prototype, /data-action="settings"/);
     for (const canvas of ["wide", "dock", "mobile"]) assert.match(prototype, new RegExp(`data-canvas="${canvas}"`));
     for (const state of ["idle", "loading", "success", "failure", "empty"]) assert.match(prototype, new RegExp(`data-state="${state}"`));
     assert.match(prototype, /data-action="theme"/);
@@ -83,10 +86,11 @@ test("prototype empty result replaces sample content and mobile more opens real 
     assert.match(prototype, /html\[data-demo-state="empty"\] \[data-page\]\.is-active \.home-content/);
     assert.match(prototype, /html\[data-demo-state="empty"\] \[data-page\]\.is-active \.settings-content/);
     assert.match(prototype, /aria-controls="mobile-more-panel" aria-expanded="false"/);
-    assert.match(prototype, /id="mobile-more-panel"[\s\S]*data-view="stats"[\s\S]*data-view="settings"/);
+    assert.match(prototype, /id="mobile-more-panel"[\s\S]*data-view="stats"[\s\S]*data-action="settings"/);
     assert.match(prototype, /data-action="mobile-maintenance"/);
     assert.match(prototype, /function closeMobileMore\(returnFocus=false\)/);
-    assert.match(prototype, /event\.key!=='Escape'\)return;if\(!document\.querySelector\('#mobile-more-panel'\)\.classList\.contains\('hidden'\)\)\{closeMobileMore\(true\);return\}/);
+    assert.match(prototype, /function closeSettings\(\)[\s\S]*dialog\.close\(\)/);
+    assert.match(prototype, /document\.querySelector\('#settings'\)\.addEventListener\('cancel'/);
     assert.match(prototype, /data-onboarding-dialog[\s\S]*data-onboarding-copy[\s\S]*onboarding-next/);
     assert.match(prototype, /case 'onboarding':onboardingStep=0;updateOnboarding\(\);document\.querySelector\('\[data-onboarding-dialog\]'\)\.classList\.remove\('hidden'\)/);
     assert.match(prototype, /mobile-maintenance':navigate\('settings'\)/);
@@ -339,6 +343,14 @@ test("additions prototype controls have local demo behavior and share semantic t
     assert.match(additions, /addEventListener\('click'/);
     assert.match(additions, /合成示例 · 不调用 API/);
     assert.match(additions, /@media\(max-width:760px\)/);
+});
+
+test("highlight tag filter uses the same UI alias while retaining the original filter value", () => {
+    const source = read("src/ui/HighlightView.svelte");
+    assert.match(source, /loadUiPrefs\(facade\.pluginInstance\)/);
+    assert.match(source, /glean:tag-aliases-changed/);
+    assert.match(source, /<option value=\{value\}>\{displayTagAlias\(tagAliases, value\)\}<\/option>/);
+    assert.match(source, /bind:value=\{tag\}/);
 });
 
 test("large library keeps full filtering but bounds list, table and kanban DOM windows", () => {

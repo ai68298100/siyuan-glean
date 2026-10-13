@@ -131,6 +131,29 @@ test("mobile filter drawer traps keyboard focus and returns it on close", () => 
     assert.match(modalFocus, /focus\(\{ preventScroll: true \}\)/);
 });
 
+test("mobile filter drawer isolates and restores its background", () => {
+    const source = read("src/ui/DockPanel.svelte");
+    const close = source.slice(source.indexOf("function closeMobileFilters"), source.indexOf("// 切换主视图", source.indexOf("function closeMobileFilters")));
+    assert.match(source, /isolateMobileFilterBackground\(mobileFilterSheet\)/);
+    assert.match(source, /while \(branch !== document\.body\)/);
+    assert.match(source, /element\.inert = true/);
+    assert.match(source, /element\.setAttribute\("aria-hidden", "true"\)/);
+    assert.match(source, /rootStyle\.setProperty\("overflow", "hidden", "important"\)/);
+    assert.match(source, /bodyStyle\.setProperty\("overflow", "hidden", "important"\)/);
+    assert.match(source, /restoreMobileFilterBackground\(\)/);
+    assert.match(source, /if \(ariaHidden === null\) element\.removeAttribute\("aria-hidden"\)/);
+    assert.match(source, /saved\.priority/);
+    assert.ok(close.indexOf("restoreMobileFilterBackground()") < close.indexOf("dispose()"));
+});
+
+test("library sort direction announces the current direction", () => {
+    const filters = read("src/ui/LibraryFilters.svelte");
+    const dock = read("src/ui/DockPanel.svelte");
+    assert.match(filters, /library\.directionAscending/);
+    assert.match(filters, /library\.directionDescending/);
+    assert.match(dock, /mobileFilterDraft\.direction === "asc" \? "library\.directionAscending" : "library\.directionDescending"/);
+});
+
 test("mobile viewport math isolates keyboard inset and threshold", () => {
     assert.equal(mobileKeyboardInset({ innerHeight: 800, viewportHeight: 800 }), 0);
     assert.equal(mobileKeyboardInset({ innerHeight: 800, viewportHeight: 512 }), 288);
