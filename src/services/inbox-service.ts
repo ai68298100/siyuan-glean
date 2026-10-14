@@ -2,10 +2,10 @@
  * 收集箱服务（T-1500）：云端收集箱条目 → 思源文档 + 读库属性。
  * 云剪藏自带完整 markdown（shorthandMd）——迁入比导入器更完整：正文直接落地。
  * 迁入 = 建文档 → captureClip（URL/站点/时间/src=inbox）→ removeShorthands（云端删除）。
- * 失败语义：查列表失败（未登录/无订阅）→ available:false（UI 隐藏）；单条迁入失败不删云端（可重试）。
+ * 失败语义：查列表失败保留权限/网络/超时原因并由 UI 提供重试；单条迁入失败不删云端（可重试）。
  */
 import type { Plugin } from "siyuan";
-import { getShorthands, removeShorthands, type Shorthand, type ShorthandsPage } from "../api/inbox";
+import { getShorthands, removeShorthands, type InboxErrorReason, type Shorthand, type ShorthandsPage } from "../api/inbox";
 import { createDocWithMd } from "../api/client";
 import { ATTR, parseClipAttrs, siteFromUrl } from "../domain/schema";
 import { normalizeUrl } from "../domain/url";
@@ -18,20 +18,35 @@ export { InboxRecoveryError } from "./inbox-recovery";
 export interface InboxStatus {
     available: boolean;
     page: ShorthandsPage | null;
+    /** unavailable 仍需展示原因；不把未登录/网络错误伪装成空列表。 */
+    error?: InboxErrorReason;
 }
 
 export async function checkInbox(): Promise<InboxStatus> {
     const result = await getShorthands(1);
-    if (!result.page) return { available: false, page: null };
+    if (!result.page) return { available: false, page: null, error: result.error || "unavailable" };
     return { available: true, page: result.page };
 }
 
 /** hCreated（"2026-09-29 10:00" 等）→ 思源时间；解析不出为空串。 */
 function cloudTimeToSiyuan(hCreated: string): string {
-    if (!hCreated) return "";
-    const parsed = Date.parse(hCreated.replace(" ", "T"));
+    const value = hCreated.trim();
+    const match = /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,3}))?)?)?(?:\s*(Z|([+-])(\d{2}):?(\d{2}))?)?$/i.exec(value);
+    if (!match) return "";
+    const year = Number(match[1]);
+    const month = Number(match[2]);
+    const day = Number(match[3]);
+    const hour = Number(match[4] ?? 0);
+    const minute = Number(match[5] ?? 0);
+    const second = Number(match[6] ?? 0);
+    const leapYear = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+    const daysInMonth = [31, leapYear ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1];
+    if (year < 1 || month < 1 || month > 12 || day < 1 || day > (daysInMonth ?? 0) || hour > 23 || minute > 59 || second > 59) return "";
+    if (match[8] && match[8].toUpperCase() !== "Z" && (Number(match[10]) > 23 || Number(match[11]) > 59)) return "";
+    const parsed = Date.parse(value.replace(" ", "T"));
     if (Number.isNaN(parsed)) return "";
     const date = new Date(parsed);
+    if (date.getFullYear() < 1 || date.getFullYear() > 9999) return "";
     const pad = (n: number) => String(n).padStart(2, "0");
     return `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`;
 }
@@ -169,7 +184,7 @@ async function captureInboxDocument(plugin: Plugin, shorthand: Shorthand, docId:
         site: shorthand.shorthandURL ? siteFromUrl(shorthand.shorthandURL) : undefined,
         src: "inbox",
         time: cloudTime || undefined,
-        timeSource: cloudTime ? "source" : "capture",
+        timeSource: cloudTime ? "source" : undefined,
         markdown,
         contentType: shorthand.shorthandMd?.trim() ? "fulltext" : "link",
         allowDuplicate,

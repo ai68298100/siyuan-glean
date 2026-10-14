@@ -216,11 +216,13 @@ export async function runImport(
                     const expectedLocation = { box: snapshot.meta.box, hpath: snapshot.meta.hpath };
                     const expectedAttrs = Object.fromEntries(Object.values(ATTR).map((key) => [key, snapshot.attrs[key] ?? null]));
                     if (attrs.status) {
-                        await writeClip(plugin, entry.docId, {}, { expectedLocation, expectedAttrs });
+                        const repaired = await writeClip(plugin, entry.docId, {}, { expectedLocation, expectedAttrs });
+                        if (repaired.indexSyncFailed) throw new ImportRowError("capture");
                     } else {
                         const captured = await captureClip(plugin, entry.docId, { url: row.url, site: row.site || siteFromUrl(row.url), src: formatToSrc(options.format), time: row.time || siyuanTimestamp(), timeSource: row.time ? "source" : "capture", status: row.status, doneTime: row.status === "done" ? row.doneTime : "", contentType: "link", markdown: buildImportMarkdown(row.title || row.url, row.url, row.site, row.time, row.tags, row.doneTime), expectedLocation, expectedAttrs });
                         if (captured.conflict) throw new ImportRowError("conflict");
                         if (!captured.captured) throw new ImportRowError("changed");
+                        if (captured.indexSyncFailed) throw new ImportRowError("capture");
                     }
                     await requireImportDocument(entry.docId, progress, entry.hpath, row.url, true);
                     entry.state = "applied";

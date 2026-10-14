@@ -8,21 +8,21 @@ import { exportMdContent, querySql } from "../api/client";
 import { stripMarkdown } from "../domain/migrate";
 import { ARTICLE_QUESTION_CONTEXT_MAX_LENGTH, buildArticleQuestionPrompt, buildSummarizePrompt, buildTranslatePrompt, clampArticleQuestion, parseArticleQuestionResponse, type ArticleQuestionResult } from "../domain/reader";
 import { parseClipAttrs } from "../domain/schema";
-import { activeAiSettings, aiQuotaAvailable, callLLM, enqueueEnrich, logAiEvent, recordAiUsage } from "./enrich-service";
+import { activeAiSettings, aiQuotaAvailable, callLLM, enqueueEnrich, logAiEvent, recordAiUsage, type AiCallFailure } from "./enrich-service";
 import { readClipAttributeSnapshot, writeClip } from "./clip-store";
 import type { GleanSettings } from "./settings";
 
 export interface ReaderAiOutcome {
     ok: boolean;
     text?: string;
-    skipped?: "off" | "cap" | "error";
+    skipped?: "off" | "cap" | "error" | AiCallFailure;
 }
 
 export interface ArticleQuestionOutcome {
     ok: boolean;
     result?: ArticleQuestionResult;
     truncated?: boolean;
-    skipped?: "off" | "cap" | "error" | "changed" | "invalid";
+    skipped?: "off" | "cap" | "error" | "changed" | "invalid" | AiCallFailure;
 }
 
 /**
@@ -163,7 +163,7 @@ export async function readerArticleQuestion(
             currentSettings = activeAiSettings(plugin, settings);
             if (!articleQuestionEnabled(currentSettings) || !(await aiQuotaAvailable(plugin, currentSettings))) return { ok: false, skipped: articleQuestionEnabled(currentSettings) ? "cap" as const : "off" as const };
             const llm = await callLLM(plugin, currentSettings, prompt);
-            if (!llm.ok) return { ok: false, skipped: "error" as const };
+            if (!llm.ok) return { ok: false, skipped: llm.failure ?? "error" as const };
             await recordAiUsage(plugin);
             if (hasSelection && !(await selectionBlockBelongsToDoc(selectionBlockId, docId))) return { ok: false, skipped: "changed" as const };
             const after = await readClipAttributeSnapshot(docId);
@@ -215,7 +215,7 @@ async function readerCall(
             const llm = await callLLM(plugin, currentSettings, prompt);
             if (!llm.ok) {
                 await logAiEvent(plugin, docId, stage, "模型调用失败，已跳过");
-                return { ok: false, skipped: "error" };
+                return { ok: false, skipped: llm.failure ?? "error" };
             }
             await recordAiUsage(plugin);
             if (!readerAiEnabled(activeAiSettings(plugin, settings))) return { ok: false, skipped: "off" };

@@ -289,6 +289,7 @@ export async function runAiBatch(plugin: Plugin, preview: AiBatchPreview, settin
                     else if (!outcome.ok && !aiBatchOutputChanged(before, after) && locationMatches && identityMatches) {
                         if (outcome.skipped === "off" || outcome.skipped === "cap") { stage = "pending"; reason = outcome.skipped; }
                         else if (outcome.skipped === "parse") { stage = "failed"; reason = "parse"; }
+                        else if (outcome.skipped === "permission" || outcome.skipped === "network" || outcome.skipped === "timeout") { stage = "failed"; reason = outcome.skipped; }
                     }
                 }
                 const next = replaceRow(journal, row.docId, { stage, reason });

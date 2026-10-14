@@ -3,6 +3,7 @@
     import { showMessage } from "siyuan";
     import type { GleanFacade } from "../types";
     import { t } from "../libs/i18n";
+    import { aiFailureKey } from "../libs/ai-feedback";
     import { createLatestRequestGate } from "../libs/latest-request";
     import { AuthorEditError, readClipAuthor, saveClipAuthor, type AuthorEditSnapshot } from "../services/clip-store";
     import type { AuthorSuggestion } from "../domain/author";
@@ -158,7 +159,7 @@
                 suggestionDocId = id;
                 suggestionExpectedAuthor = expectedAuthor;
             } else if (outcome.reason !== "cancelled") {
-                suggestionMessage = `author.suggestion.${outcome.reason}`;
+                suggestionMessage = aiFailureKey(outcome.reason) ?? `author.suggestion.${outcome.reason}`;
                 if (outcome.reason === "changed") needsReload = true;
             }
         } catch {

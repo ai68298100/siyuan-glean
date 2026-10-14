@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { registerHooks } from "node:module";
+import { webcrypto } from "node:crypto";
 
 registerHooks({
     resolve(specifier, context, nextResolve) {
@@ -12,7 +13,7 @@ registerHooks({
         if (url === "glean-external-test:siyuan") {
             return {
                 format: "module",
-                source: "export const fetchSyncPost = async (...args) => globalThis.__gleanExternalPost(...args);",
+                source: "export const fetchSyncPost = async (...args) => globalThis.__gleanExternalPost(...args); export const getFrontend = () => globalThis.__gleanFrontend || 'desktop';",
                 shortCircuit: true,
             };
         }
@@ -27,6 +28,7 @@ const { migrateShorthand } = await import("../src/services/inbox-service.ts");
 const { snapshotClip } = await import("../src/services/snapshot-service.ts");
 const { captureClip, captureDocument } = await import("../src/services/clip-store.ts");
 const { normalizeSettings } = await import("../src/services/settings.ts");
+const { chatCompletionDirect, testDirectChannel } = await import("../src/api/ai-direct.ts");
 
 function mockResponse(response) {
     const calls = [];
@@ -113,6 +115,83 @@ test("收集箱合法空列表保持可用，内层失败不能伪装成空列�
     }
 });
 
+test("收集箱不可用保留权限和网络原因", async () => {
+    mockResponse({ code: 0, data: { code: 403, msg: "subscription required", data: { shorthands: [] } } });
+    assert.equal((await getShorthands()).error, "permission");
+    mockResponse(new TypeError("Failed to fetch"));
+    assert.equal((await getShorthands()).error, "network");
+});
+
+test("AI 自定义通道保留权限、超时与网络分类，并向连接测试给出可读说明", async () => {
+    const originalFetch = globalThis.fetch;
+    const settings = normalizeSettings({ ai: { channel: "custom", customBaseUrl: "https://ai.example/v1", customModel: "model", customSecretName: "test-key" } });
+    const plugin = { getSecret: () => "secret" };
+    try {
+        globalThis.fetch = async () => new Response("unauthorized", { status: 401 });
+        assert.equal((await chatCompletionDirect(plugin, settings, "ping")).kind, "permission");
+        assert.match((await testDirectChannel(plugin, settings)).message, /未授权/);
+        globalThis.fetch = async () => { throw new DOMException("The operation timed out", "TimeoutError"); };
+        assert.equal((await chatCompletionDirect(plugin, settings, "ping")).kind, "timeout");
+        globalThis.fetch = async () => { throw new TypeError("Failed to fetch"); };
+        assert.equal((await chatCompletionDirect(plugin, settings, "ping")).kind, "network");
+    } finally {
+        globalThis.fetch = originalFetch;
+    }
+});
+
+test("AI 直连只合并同插件同凭据的无取消请求，带取消信号的请求各自独立", async () => {
+    const originalFetch = globalThis.fetch;
+    const originalCrypto = Object.getOwnPropertyDescriptor(globalThis, "crypto");
+    const settings = normalizeSettings({ ai: { channel: "custom", customBaseUrl: "https://ai.example/v1", customModel: "model", customSecretName: "test-key" } });
+    const requests = [];
+    globalThis.fetch = (url, init) => new Promise((resolve, reject) => {
+        const request = { url, init, resolve, reject };
+        requests.push(request);
+        init.signal?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")), { once: true });
+    });
+    const finish = (request, text) => request.resolve(new Response(JSON.stringify({ choices: [{ message: { content: text } }] }), { status: 200 }));
+    const waitForRequests = async (count) => {
+        for (let attempt = 0; attempt < 20 && requests.length < count; attempt += 1) {
+            await new Promise((resolve) => setTimeout(resolve, 5));
+        }
+    };
+    let currentSecret = "secret-a";
+    const pluginA = { getSecret: () => currentSecret };
+    const pluginB = { getSecret: () => "secret-a" };
+    try {
+        Object.defineProperty(globalThis, "crypto", { configurable: true, value: webcrypto });
+        const first = chatCompletionDirect(pluginA, settings, "same prompt");
+        const sameFlight = chatCompletionDirect(pluginA, settings, "same prompt");
+        await waitForRequests(1);
+        assert.equal(requests.length, 1, "same plugin and credential should share a pending request");
+
+        currentSecret = "secret-b";
+        const rotatedCredential = chatCompletionDirect(pluginA, settings, "same prompt");
+        const otherPlugin = chatCompletionDirect(pluginB, settings, "same prompt");
+        await waitForRequests(3);
+        assert.equal(requests.length, 3, "rotated credentials and another plugin instance must not share");
+        assert.deepEqual(requests.map(({ init }) => init.headers.Authorization).sort(), ["Bearer secret-a", "Bearer secret-a", "Bearer secret-b"].sort());
+
+        requests.forEach((request, index) => finish(request, `reply-${index}`));
+        assert.deepEqual(await Promise.all([first, sameFlight, rotatedCredential, otherPlugin]).then((results) => results.map((result) => result.ok)), [true, true, true, true]);
+
+        const firstAbort = new AbortController();
+        const secondAbort = new AbortController();
+        const cancelled = chatCompletionDirect(pluginA, settings, "cancel test", { signal: firstAbort.signal });
+        const independent = chatCompletionDirect(pluginA, settings, "cancel test", { signal: secondAbort.signal });
+        await waitForRequests(5);
+        assert.equal(requests.length, 5, "signal-bound calls must never share a request");
+        firstAbort.abort();
+        assert.equal((await cancelled).reason, "aborted");
+        finish(requests[4], "still running");
+        assert.deepEqual(await independent, { ok: true, text: "still running" });
+    } finally {
+        globalThis.fetch = originalFetch;
+        if (originalCrypto) Object.defineProperty(globalThis, "crypto", originalCrypto);
+        else delete globalThis.crypto;
+    }
+});
+
 test("损坏的收集箱条目或分页不被伪装为可用数据", async () => {
     for (const data of [
         { shorthands: [null] }, { shorthands: [{}] }, { shorthands: [{ oId: "" }] },
@@ -127,9 +206,13 @@ test("损坏的收集箱条目或分页不被伪装为可用数据", async () =>
 });
 
 test("收集箱详情错误和空载荷降级为 null，合法载荷可回退请求 ID", async () => {
-    for (const response of [null, { code: 1 }, { code: 0, data: {} }, { code: 0, data: [] }, new Error("offline")]) {
+    for (const response of [{ code: 0, data: {} }, { code: 0, data: [] }]) {
         mockResponse(response);
         assert.equal(await getShorthand("cloud-1"), null);
+    }
+    for (const response of [null, { code: 1 }, new Error("offline")]) {
+        mockResponse(response);
+        await assert.rejects(getShorthand("cloud-1"));
     }
     const { oId, ...details } = cloudItem;
     mockResponse({ code: 0, data: details });
@@ -190,7 +273,16 @@ test("云端删除异常保留真实本地收录，返回 cloudRemoved=false", a
     assert.equal(result.cloudRemoved, false);
     assert.equal(context.attrs.get(createdInboxDocId)["custom-clip-status"], "inbox");
     assert.equal(context.attrs.get(createdInboxDocId)["custom-clip-url"], cloudItem.shorthandURL);
+    assert.equal(context.attrs.get(createdInboxDocId)["custom-clip-time"], "20260929100000");
     assert.equal(context.files.get("inbox-recovery.json").phase, "remove-pending");
+});
+
+test("收集箱非法日期不被 Date.parse 归一到另一天", async () => {
+    const context = serviceHarness();
+    await migrateShorthand(context.plugin, { ...cloudItem, hCreated: "2026-02-30 10:00" }, { notebookId: "box" });
+    const attrs = context.attrs.get(createdInboxDocId);
+    assert.equal(attrs["custom-clip-time"], createdInboxDocId.slice(0, 14));
+    assert.equal(attrs["custom-clip-time-source"], "document");
 });
 
 test("本地属性收录失败时不调用云端删除", async () => {
@@ -400,13 +492,16 @@ for (const stage of ["export", "emptyExport", "asset", "attribute", "snapshotInd
     });
 }
 
-test("收录属性或收录索引失败时不尝试快照", async () => {
+test("收录属性失败时不尝试快照；索引暂不可用时保留属性并跳过快照", async () => {
     for (const stage of ["attribute", "index"]) {
         const context = serviceHarness();
         context.plugin.settings.snapshotOnCapture = true;
         if (stage === "attribute") context.responses.set("/api/attr/setBlockAttrs", new Error("capture failed"));
         else context.plugin.saveData = async () => { throw new Error("capture failed"); };
-        await assert.rejects(captureClip(context.plugin, captureDocId, { contentType: "local" }), /capture failed/);
+        const result = stage === "attribute"
+            ? await assert.rejects(captureClip(context.plugin, captureDocId, { contentType: "local" }), /capture failed/)
+            : await captureClip(context.plugin, captureDocId, { contentType: "local" });
+        if (stage === "index") assert.equal(result.captured, true);
         assert.equal(context.calls.some((call) => ["/api/export/exportHTML", "/api/file/putFile"].includes(call.route)), false);
     }
 });
@@ -451,6 +546,6 @@ test("收集箱共享收录管线生成快照，快照失败仍允许真实本�
         assert.equal(context.attrs.get(createdInboxDocId)["custom-clip-status"], "inbox");
         assert.equal(context.attrs.get(createdInboxDocId)["custom-clip-url"], cloudItem.shorthandURL);
         assert.equal(Boolean(context.attrs.get(createdInboxDocId)["custom-clip-snapshot"]), !failed);
-        assert.equal(context.calls.filter((call) => call.route === "/api/export/exportHTML").length, 1);
+        assert.equal(context.calls.filter((call) => call.route === "/api/export/exportHTML").length, failed ? 2 : 1);
     }
 });

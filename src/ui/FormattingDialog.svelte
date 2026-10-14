@@ -2,6 +2,7 @@
     import { onMount } from "svelte";
     import { showMessage } from "siyuan";
     import { t } from "../libs/i18n";
+    import { aiFailureKey } from "../libs/ai-feedback";
     import { formattingCandidates, renderFormatting, type FormattingPlan } from "../domain/formatting";
     import { formattingAiEnabled, loadFormattingSession, planAiFormatting, saveFormattingDraft, type FormattingSession } from "../services/formatting-service";
     import type { GleanFacade } from "../types";
@@ -84,7 +85,7 @@
                 selected = selected.filter((id) => nextCandidates.some((candidate) => candidate.id === id));
                 message = t(i18n, "formatting.aiReady");
             } else {
-                message = t(i18n, `formatting.ai.${outcome.reason ?? "error"}`);
+                message = t(i18n, aiFailureKey(outcome.reason) ?? `formatting.ai.${outcome.reason ?? "error"}`);
             }
         } finally {
             if (!disposed) busy = false;

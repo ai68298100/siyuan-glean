@@ -71,9 +71,21 @@ function siteFromUrl(rawUrl: string): string {
     }
 }
 
+function hasInvalidCalendarDate(value: string): boolean {
+    const match = /^\s*(\d{4})[-/](\d{1,2})[-/](\d{1,2})(?=$|[Tt\s])/.exec(value);
+    if (!match) return false;
+    const year = Number(match[1]);
+    const month = Number(match[2]);
+    const day = Number(match[3]);
+    const leapYear = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+    const daysInMonth = [31, leapYear ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1];
+    return year < 1 || month < 1 || month > 12 || day < 1 || day > (daysInMonth ?? 0);
+}
+
 /** unix 秒/毫秒 / ISO 8601 → YYYYMMDDHHmmss；解析不出或年份落在 1-9999 之外为空串（防负数/巨值产生垃圾年份）。 */
 export function toSiyuanTime(value: unknown): string {
     if (typeof value !== "string" && typeof value !== "number") return "";
+    if (typeof value === "string" && hasInvalidCalendarDate(value)) return "";
     const num = typeof value === "number" ? value : /^\d{10}$|^\d{13}$/.test(value.trim()) ? Number(value) : Date.parse(value);
     if (typeof num !== "number" || !Number.isFinite(num)) return "";
     const date = new Date(num < 10_000_000_000 ? num * 1000 : num);

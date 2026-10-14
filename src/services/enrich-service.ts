@@ -130,7 +130,17 @@ export interface EnrichOutcome {
     /** 语义查重告警（可能已有相似文章），供 UI 提示 */
     duplicates: DuplicateWarning[];
     /** 未富化的原因：off / cap / parse / error；成功为空串 */
-    skipped?: string;
+    skipped?: "off" | "cap" | "parse" | "error" | AiCallFailure;
+}
+
+export type AiCallFailure = "permission" | "network" | "timeout";
+
+function classifyAiFailure(error: unknown): AiCallFailure | undefined {
+    const message = String((error as Error)?.message ?? error);
+    if (/\b401\b|\b403\b|unauthori[sz]ed|forbidden|token.{0,20}expired/iu.test(message)) return "permission";
+    if (/timeout|timed out|超时|abort/iu.test(message)) return "timeout";
+    if (/network|fetch failed|connection|offline|econn|enetunreach|ehostunreach|internet disconnected/iu.test(message)) return "network";
+    return undefined;
 }
 
 /** LLM 通道路由：custom=拾遗专用直连（失败转 reason）；siyuan=官方通道。伴读动作复用（D-0030）。 */
@@ -138,14 +148,21 @@ export async function callLLM(
     plugin: Plugin,
     settings: GleanSettings,
     msg: string
-): Promise<{ ok: boolean; text?: string; reason?: string }> {
+): Promise<{ ok: boolean; text?: string; failure?: AiCallFailure }> {
     if (settings.ai.channel === "custom") {
-        return chatCompletionDirect(plugin, settings, msg);
+        const outcome = await chatCompletionDirect(plugin, settings, msg);
+        if (outcome.ok) return { ok: true, text: outcome.text };
+        const failure = outcome.kind === "permission" ? "permission"
+            : outcome.kind === "timeout" ? "timeout"
+                : outcome.kind === "network" || outcome.kind === "browser" ? "network"
+                    : classifyAiFailure(new Error(String(outcome.status ?? "")));
+        return { ok: false, ...(failure ? { failure } : {}) };
     }
     try {
         return { ok: true, text: await chatGPT(msg) };
     } catch (error) {
-        return { ok: false, reason: String((error as Error)?.message ?? error).slice(0, 160) };
+        const failure = classifyAiFailure(error);
+        return { ok: false, ...(failure ? { failure } : {}) };
     }
 }
 
@@ -184,7 +201,7 @@ async function enrichClipInner(plugin: Plugin, docId: string, settings: GleanSet
         const llm = await callLLM(plugin, currentSettings, prompt);
         if (!llm.ok) {
             await appendLog(plugin, docId, "llm", "模型调用失败，已跳过");
-            return { ok: false, duplicates: [], skipped: "error" };
+            return { ok: false, duplicates: [], skipped: llm.failure ?? "error" };
         }
         await recordAiUsage(plugin);
         currentSettings = activeAiSettings(plugin, settings);
@@ -255,10 +272,12 @@ export function enqueueEnrich<T>(task: () => Promise<T>): Promise<T> {
  * 收录自动富化入口（fire-and-forget）：仅在 enrichMode==="auto" 时执行；绝不阻塞收录主流程。
  * 上限在 enrichClip 内统一把守（auto 与 manual 共享额度）。
  */
-export function autoEnrich(plugin: Plugin, docId: string, settings: GleanSettings): void {
+export function autoEnrich(plugin: Plugin, docId: string, settings: GleanSettings, onChanged?: () => void): void {
     if (activeAiSettings(plugin, settings).ai.enrichMode !== "auto") return;
     // enrichClip 已负责入队；这里再次 enqueue 会让当前任务等待排在自己后面的任务，永远无法结束。
-    void enrichClip(plugin, docId, settings);
+    void enrichClip(plugin, docId, settings).then((result) => {
+        if (result.ok) onChanged?.();
+    });
 }
 
 export type RelatedReason = "disabled" | "embedding-disabled" | "no-hits" | "error" | "ok";

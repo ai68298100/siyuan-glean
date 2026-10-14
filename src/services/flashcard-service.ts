@@ -11,7 +11,7 @@ import {
     type FlashcardContent, type FlashcardSource, type FlashcardValidation,
 } from "../domain/flashcard";
 import { writeClip } from "./clip-store";
-import { activeAiSettings, aiQuotaAvailable, callLLM, enqueueEnrich, logAiEvent, recordAiUsage } from "./enrich-service";
+import { activeAiSettings, aiQuotaAvailable, callLLM, enqueueEnrich, logAiEvent, recordAiUsage, type AiCallFailure } from "./enrich-service";
 import type { GleanSettings } from "./settings";
 import {
     advanceFlashcardRecovery, createFlashcardRecovery, FLASHCARD_RECOVERY_FILE, parseFlashcardRecovery,
@@ -42,7 +42,7 @@ export interface FlashcardSaveOutcome {
     hostDocId?: string;
 }
 
-export type QuestionCardReason = "off" | "cap" | "invalid" | "error" | "busy" | "cancelled" | "sourceChanged" | "readFailed";
+export type QuestionCardReason = "off" | "cap" | "invalid" | "error" | "busy" | "cancelled" | "sourceChanged" | "readFailed" | AiCallFailure;
 
 export type FlashcardRecoveryReason = "invalid" | "readFailed" | "missing" | "registerFailed" | "checkpointFailed" | "clearFailed";
 export interface FlashcardRecoveryResult {
@@ -223,7 +223,7 @@ export async function draftQuestionCard(
             const currentSettings = activeAiSettings(plugin, settings);
             if (!questionCardEnabled(currentSettings)) return { ok: false, reason: "off" as const };
             const outcome = await callLLM(plugin, currentSettings, prompt);
-            if (!outcome.ok) return { ok: false, reason: "error" as const };
+            if (!outcome.ok) return { ok: false, reason: outcome.failure ?? "error" as const };
             await recordAiUsage(plugin);
             if (session.cancelled) return { ok: false, reason: "cancelled" as const };
             if (!questionCardEnabled(activeAiSettings(plugin, settings))) return { ok: false, reason: "off" as const };

@@ -4,7 +4,7 @@ export const AI_BATCH_VERSION = 1;
 export const AI_BATCH_MAX_ROWS = 5000;
 export const AI_BATCH_MAX_BYTES = 2 * 1024 * 1024;
 export const AI_BATCH_STAGES = ["pending", "running", "succeeded", "failed", "unknown", "skipped"] as const;
-export const AI_BATCH_REASONS = ["", "changed", "ineligible", "missing", "read", "off", "cap", "parse", "error", "readback", "interrupted"] as const;
+export const AI_BATCH_REASONS = ["", "changed", "ineligible", "missing", "read", "off", "cap", "parse", "error", "permission", "network", "timeout", "readback", "interrupted"] as const;
 export const AI_BATCH_EXPECTED_KEYS = [ATTR.summary, ATTR.aiTags, ATTR.status, ATTR.url, ATTR.internal, ATTR.excluded] as const;
 
 export type AiBatchStage = typeof AI_BATCH_STAGES[number];
@@ -57,7 +57,7 @@ export function parseAiBatchJournal(value: unknown): AiBatchJournal | null {
         }
         const stage = row.stage as AiBatchStage;
         const reason = row.reason as AiBatchReason;
-        if ((["running", "succeeded", "failed", "unknown"].includes(stage) && row.attempt === 0) || ((stage === "running" || stage === "succeeded") && reason !== "") || (stage === "failed" && reason !== "parse") || (stage === "unknown" && !["error", "readback", "interrupted"].includes(reason)) || (stage === "pending" && !["", "off", "cap"].includes(reason)) || (stage === "skipped" && !["changed", "ineligible", "missing", "read"].includes(reason))) {
+        if ((["running", "succeeded", "failed", "unknown"].includes(stage) && row.attempt === 0) || ((stage === "running" || stage === "succeeded") && reason !== "") || (stage === "failed" && !["parse", "permission", "network", "timeout"].includes(reason)) || (stage === "unknown" && !["error", "readback", "interrupted"].includes(reason)) || (stage === "pending" && !["", "off", "cap"].includes(reason)) || (stage === "skipped" && !["changed", "ineligible", "missing", "read"].includes(reason))) {
             throw new Error("Invalid AI batch stage/reason");
         }
         return { docId: row.docId, stage, attempt: row.attempt as number, reason };

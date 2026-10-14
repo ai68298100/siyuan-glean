@@ -8,9 +8,27 @@ Lv Glean organizes clippings and articles already in SiYuan. It does not crawl t
 
 [中文说明](README.md) · [Latest Release](https://github.com/ai68298100/siyuan-glean/releases/latest) · [Capability matrix](docs/CAPABILITY-MATRIX.md) · [Feedback](https://github.com/ai68298100/siyuan-glean/issues/new/choose)
 
-## v1.3.3 update (2026-10-10)
+## v1.3.4 update (2026-10-14)
 
-This release prevents duplicate library bindings during SiYuan's asynchronous database refresh window and improves reading-companion performance and action feedback. Real-host visual and screen-reader acceptance is still pending under B-0002.
+This patch consolidates the shared design-token system without changing user-facing behavior or visual intent, while making asynchronous actions, index writes, and migration recovery more reliable. Real-host visual, screen-reader, and external integrations remain subject to B-0002/B-0005 acceptance.
+
+**Added:**
+
+- Three-layer design tokens (primitive, semantic, and component) plus the `tokens:audit` script; see [`docs/UI-STANDARD.md`](docs/UI-STANDARD.md).
+- Migration checkpoint task identity and incremental recovery guards, so failed rows can be re-confirmed and retried against current document facts.
+
+**Improved:**
+
+- Shared colors, 4px spacing, typography, radii, shadows, z-index, and motion tokens; buttons, labels, and cards now reuse component variants.
+- Kernel requests and bulk actions now share busy locks, timeouts, race protection, classified errors, and retryable feedback to prevent duplicate writes and stale responses.
+- Empty, error, validation, and recovery states are aligned across migration, library refresh, Today's Gleaning, settings, and AI tag cleanup.
+
+**Fixed:**
+
+- Index read/save failures no longer report silent success; fact-source readback failures show refresh/rebuild guidance, while full reconciliation and rebuild can clear the damaged-index guard.
+- Corrected field validation and focus placement, disabled invalid entry points, compressed recovery checkpoints, and duplicate AV bindings caused by delayed index visibility.
+
+Measured consolidation: spacing token coverage improved from 36.7% to 96.7%; typography coverage from 31.6% to 99.8%; radii, shadows, z-index, and motion reached 100%. Color literals fell from 32 occurrences/27 values to 24/20, and token declarations from 231 to 210. The 24-case real-host visual matrix still awaits B-0002 evidence.
 
 **Added:**
 
@@ -43,6 +61,16 @@ QQ group: **871707735** for bug reports, feature requests, and discussion.
 
 <details>
 <summary>Released version history (click to expand)</summary>
+
+### v1.3.3 (2026-10-10)
+
+This release prevented duplicate library bindings during SiYuan's asynchronous database refresh window and improved reading-companion performance and action feedback. Real-host visual and screen-reader acceptance remained pending under B-0002.
+
+Added: AV refresh retry protection, explicit confirmation for failed import retries, localized AI channel test errors, and retryable failed items from bulk archive.
+
+Improved: consistent article preview/open actions, busy states for settings and bulk actions, and clearer Today's Gleaning, filter, and statistics hierarchy.
+
+Fixed: excerpt flashcards without a locatable source block, partial archive feedback, and related bilingual copy.
 
 ### v1.3.2 (2026-10-10)
 
@@ -151,7 +179,7 @@ Ordinary notes are not bulk-captured just because of their location, and opening
 
 ## Compatibility and acceptance
 
-The current stable release is [v1.3.3](https://github.com/ai68298100/siyuan-glean/releases/tag/v1.3.3). Its automated gates have passed; this does not mean every real environment has been accepted.
+The current stable release is [v1.3.4](https://github.com/ai68298100/siyuan-glean/releases/tag/v1.3.4). Its automated gates have passed; this does not mean every real environment has been accepted.
 
 Desktop host, Android/mobile, browser frontend, real models, the official clipper, external files, and subscription services still require environment-specific checks. Prerequisites, fallbacks, and open blockers are listed in the [capability matrix](docs/CAPABILITY-MATRIX.md) and [known blockers](docs/BLOCKERS.md). Unit tests and isolated E2E are not device acceptance.
 

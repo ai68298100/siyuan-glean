@@ -119,7 +119,7 @@ const isDigits = (value: string): boolean => /^\d+$/.test(value);
 function parseNumber(value: string | undefined): number | undefined {
     if (value === undefined || !isDigits(value)) return undefined;
     const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : undefined;
+    return Number.isSafeInteger(parsed) ? parsed : undefined;
 }
 
 /** IAL 是用户可手改的，解析时对范围型数字做防御性钳制 */
@@ -233,12 +233,22 @@ export function isClipDoc(ial: Record<string, string | undefined>): boolean {
 /* ---------- 序列化 ---------- */
 
 function clampInt(value: number, min: number, max: number): number {
+    if (!Number.isFinite(value)) throw new RangeError("Invalid numeric value");
     return Math.min(max, Math.max(min, Math.round(value)));
+}
+
+function nonNegativeInt(value: number, field: string): number {
+    if (!Number.isFinite(value)) throw new RangeError(`Invalid ${field}`);
+    if (value <= 0) return 0;
+    const rounded = Math.round(value);
+    if (!Number.isSafeInteger(rounded)) throw new RangeError(`Invalid ${field}`);
+    return rounded;
 }
 
 /**
  * 属性补丁 → IAL 写入形态。
- * - number 字段做范围钳制（priority 1-5 / rating 0-5），undefined/null 的键不出现在结果里；
+ * - number 字段拒绝非有限/不安全整数；priority/rating 再做范围钳制（priority 1-5 / rating 0-5）；
+ *   undefined/null 的键不出现在结果里；
  * - 显式传 null 的键保留为 null（删除语义）；
  * - aiTags 数组序列化为逗号分割字符串。
  */
@@ -261,9 +271,9 @@ export function serializePatch(patch: ClipPatch): AttrPatch {
     if (patch.favorite !== undefined) put(ATTR.favorite, patch.favorite ? "true" : null);
     if (patch.status !== undefined) put(ATTR.status, patch.status ?? null);
     if (patch.doneTime !== undefined) put(ATTR.doneTime, patch.doneTime || null);
-    if (patch.words !== undefined) put(ATTR.words, patch.words === null ? null : String(Math.max(0, Math.round(patch.words))));
-    if (patch.minutes !== undefined) put(ATTR.minutes, patch.minutes === null ? null : String(Math.max(0, Math.round(patch.minutes))));
-    if (patch.readMinutes !== undefined) put(ATTR.readMinutes, patch.readMinutes === null ? null : String(Math.max(0, Math.round(patch.readMinutes))));
+    if (patch.words !== undefined) put(ATTR.words, patch.words === null ? null : String(nonNegativeInt(patch.words, "words")));
+    if (patch.minutes !== undefined) put(ATTR.minutes, patch.minutes === null ? null : String(nonNegativeInt(patch.minutes, "minutes")));
+    if (patch.readMinutes !== undefined) put(ATTR.readMinutes, patch.readMinutes === null ? null : String(nonNegativeInt(patch.readMinutes, "readMinutes")));
     if (patch.priority !== undefined) put(ATTR.priority, patch.priority === null ? null : String(clampInt(patch.priority, 1, 5)));
     if (patch.rating !== undefined) put(ATTR.rating, patch.rating === null ? null : String(clampInt(patch.rating, 0, 5)));
     if (patch.aiTags !== undefined) put(ATTR.aiTags, patch.aiTags === null ? null : patch.aiTags.join(","));
@@ -290,8 +300,9 @@ export function serializePatch(patch: ClipPatch): AttrPatch {
 
 /** 预计阅读分钟：400 字/分钟，四舍五入；至少 1 分钟（有正文时）。 */
 export function estimateMinutes(words: number): number {
-    if (words <= 0) return 0;
-    return Math.max(1, Math.round(words / 400));
+    if (!Number.isFinite(words) || words <= 0) return 0;
+    const minutes = Math.round(words / 400);
+    return Number.isSafeInteger(minutes) ? Math.max(1, minutes) : 0;
 }
 
 /** 中英混排字数：CJK 字符逐字计，拉丁词按词计。 */
@@ -341,7 +352,7 @@ export function siyuanDate(now: Date = new Date()): string {
 
 /** 入库时间（YYYYMMDDHHmmss）距今天数；解析失败返回 null。 */
 export function daysSince(time: string | undefined, now: Date = new Date()): number | null {
-    if (!time || !/^\d{14}$/.test(time)) return null;
+    if (!time || !documentTimeFromId(time) || !Number.isFinite(now.getTime())) return null;
     const parsed = new Date(
         Number(time.slice(0, 4)),
         Number(time.slice(4, 6)) - 1,

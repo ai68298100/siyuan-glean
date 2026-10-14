@@ -6,7 +6,7 @@
  * 快照资产/AV 行/外部打卡历史按契约保留（§7.3），插件不代用户清理。
  */
 import type { Plugin } from "siyuan";
-import { createDocWithMd, getBlockAttrs, moveDocs, querySql, removeDoc } from "../api/client";
+import { createDocWithMd, getBlockAttrs, isKernelRequestError, moveDocs, querySql, removeDoc } from "../api/client";
 import { ATTR } from "../domain/schema";
 import { hostHpathOf, hostParentFolderOf, hostTitleOf, isUnderHost, isHostItself, type HostKind } from "../domain/lifecycle";
 import { writeClip } from "./clip-store";
@@ -22,6 +22,8 @@ interface DocRow {
 }
 
 const sqlSafe = (value: string) => value.replace(/'/g, "''");
+const hostCreations = new WeakMap<Plugin, Map<string, Promise<DocRow>>>();
+const uncertainHostCreations = new WeakMap<Plugin, Set<string>>();
 
 /** SQL 读文档当前路径四元组（索引异步——移动后轮询此查询收敛）。 */
 async function docRow(docId: string): Promise<DocRow | null> {
@@ -44,8 +46,9 @@ async function untilSettled<T>(probe: () => Promise<T | undefined | null>, timeo
 /** 同目录同名宿主查找（T-1869：同路径 createDocWithMd 静默新建不幂等，必须先 SQL 查）。 */
 async function findHost(box: string, hostHpath: string): Promise<DocRow | null> {
     const rows = await querySql<DocRow>(
-        `SELECT id, path, hpath, box, content AS title FROM blocks WHERE type = 'd' AND box = '${sqlSafe(box)}' AND hpath = '${sqlSafe(hostHpath)}' LIMIT 1`
+        `SELECT id, path, hpath, box, content AS title FROM blocks WHERE type = 'd' AND box = '${sqlSafe(box)}' AND hpath = '${sqlSafe(hostHpath)}'`
     );
+    if (rows.length > 1) throw new Error("同一路径存在多个宿主文档，无法安全确认");
     return rows[0] ?? null;
 }
 
@@ -56,17 +59,60 @@ async function findHost(box: string, hostHpath: string): Promise<DocRow | null> 
  */
 export async function ensureHost(plugin: Plugin, box: string, currentHpath: string, kind: HostKind): Promise<DocRow> {
     const hostHpath = hostHpathOf(currentHpath, kind);
-    const existing = await findHost(box, hostHpath);
-    if (existing) return existing;
-    const markdown = `# ${hostTitleOf(kind)}\n\n由小驴拾遗创建的宿主文档，收录已归档文章。`;
-    const hostId = await createDocWithMd(box, hostHpath, markdown);
-    if (!hostId) throw new Error("宿主文档创建失败（无返回 ID）");
-    const host = await untilSettled(async () => {
-        const row = await docRow(hostId);
-        return row?.path ? row : null;
-    }, 8000, "宿主索引收敛");
-    await writeClip(plugin, hostId, { internal: true }, { force: true });
-    return host;
+    const key = JSON.stringify([box, hostHpath]);
+    let pluginCreations = hostCreations.get(plugin);
+    if (!pluginCreations) {
+        pluginCreations = new Map();
+        hostCreations.set(plugin, pluginCreations);
+    }
+    let uncertainHosts = uncertainHostCreations.get(plugin);
+    if (!uncertainHosts) {
+        uncertainHosts = new Set();
+        uncertainHostCreations.set(plugin, uncertainHosts);
+    }
+    const pending = pluginCreations.get(key);
+    if (pending) return pending;
+
+    const creation = (async () => {
+        // Recheck under the per-destination lock: a prior caller may have created this host
+        // while this caller was waiting to enter the critical section.
+        const existing = await findHost(box, hostHpath);
+        if (existing) {
+            uncertainHosts.delete(key);
+            return existing;
+        }
+        if (uncertainHosts.has(key)) throw new Error("宿主文档创建结果暂时无法确认；请检查目标目录后再重试");
+        const markdown = `# ${hostTitleOf(kind)}\n\n由小驴拾遗创建的宿主文档，收录已归档文章。`;
+        let hostId: string;
+        try {
+            hostId = await createDocWithMd(box, hostHpath, markdown);
+        } catch (error) {
+            if (isKernelRequestError(error) && (error.kind === "network" || error.kind === "timeout")) {
+                uncertainHosts.add(key);
+                try {
+                    const recovered = await untilSettled(() => findHost(box, hostHpath), 3000, "宿主创建结果确认");
+                    uncertainHosts.delete(key);
+                    return recovered;
+                } catch {
+                    throw new Error("宿主文档创建结果暂时无法确认；请检查目标目录后再重试");
+                }
+            }
+            throw error;
+        }
+        if (!hostId) throw new Error("宿主文档创建失败（无返回 ID）");
+        const host = await untilSettled(async () => {
+            const row = await docRow(hostId);
+            return row?.path ? row : null;
+        }, 8000, "宿主索引收敛");
+        await writeClip(plugin, hostId, { internal: true }, { force: true });
+        return host;
+    })();
+    pluginCreations.set(key, creation);
+    try {
+        return await creation;
+    } finally {
+        if (pluginCreations.get(key) === creation) pluginCreations.delete(key);
+    }
 }
 
 export interface MoveResult {

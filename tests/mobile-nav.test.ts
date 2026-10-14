@@ -174,7 +174,7 @@ test("mobile keyboard avoidance shares visual viewport vars across dock and dial
     assert.match(dialog, /installMobileViewportVars/);
     assert.match(viewport, /visualViewport/);
     assert.match(styles, /bottom: var\(--glean-keyboard-inset, 0px\)/);
-    assert.match(styles, /padding-bottom: var\(--glean-keyboard-inset, 0px\)/);
+    assert.match(styles, /padding-bottom: var\(--glean-keyboard-inset, (?:0px|var\(--glean-space-0\))\)/);
     assert.match(styles, /max-height: calc\(var\(--glean-visual-viewport-height, 100vh\) - 16px\)/);
     assert.match(styles, /scroll-padding-bottom: calc\(72px \+ var\(--glean-keyboard-inset, 0px\)\)/);
 });
@@ -186,9 +186,9 @@ test("mobile layout reserves all safe-area edges for dock content and sheets", (
     assert.match(styles, /--glean-safe-bottom:\s*env\(safe-area-inset-bottom/);
     assert.match(styles, /--glean-safe-left:\s*env\(safe-area-inset-left/);
     assert.match(styles, /--glean-mobile-nav-space:\s*calc\(/);
-    assert.match(styles, /padding-top:\s*calc\(12px \+ var\(--glean-safe-top/);
-    assert.match(styles, /padding: 6px calc\(8px \+ var\(--glean-safe-right/);
-    assert.match(styles, /padding: 12px calc\(12px \+ var\(--glean-safe-right/);
+    assert.match(styles, /padding-top:\s*calc\((?:12px|var\(--glean-space-3\)) \+ var\(--glean-safe-top/);
+    assert.match(styles, /padding:\s*(?:6px|var\(--glean-space-1-5\)) calc\((?:8px|var\(--glean-space-2\)) \+ var\(--glean-safe-right/);
+    assert.match(styles, /padding:\s*(?:12px|var\(--glean-space-3\)) calc\((?:12px|var\(--glean-space-3\)) \+ var\(--glean-safe-right/);
 });
 
 test("mobile narrow and landscape layouts keep long text and sheets usable", () => {
@@ -236,7 +236,8 @@ test("today pin stays a visible action and uses the clip store path", () => {
     assert.match(view, /aria-pressed=\{isPinnedToday\(pick\)\}/);
     assert.match(view, /resurface\.pinToday/);
     assert.match(view, /resurface\.unpinToday/);
-    assert.match(service, /writeClip\(plugin, docId, \{ pinned: next \|\| null \}/);
+    assert.match(service, /withClipEditQueue\(plugin, docId, async \(write\) =>/);
+    assert.match(service, /write\(\{ pinned: next \|\| null \}, \{[\s\S]*expectedAttrs:/);
     assert.match(service, /todayStamp\(\)/);
 });
 

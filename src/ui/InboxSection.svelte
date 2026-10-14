@@ -1,10 +1,11 @@
 <script lang="ts">
-/** 收集箱区（T-1500）：云端收集箱条目列表 → 一键迁入读库。不可用（未登录/无订阅）时整块隐藏。 */
+/** 收集箱区（T-1500）：云端收集箱条目列表 → 一键迁入读库。不可用时保留原因和重试入口。 */
 import { openTab, showMessage } from "siyuan";
 import type { GleanFacade } from "../types";
 import { t } from "../libs/i18n";
 import { removeShorthands, type Shorthand } from "../api/inbox";
 import { checkInbox, InboxRecoveryError, migrateShorthand } from "../services/inbox-service";
+import type { InboxErrorReason } from "../api/inbox";
 import { clearInboxRecovery, loadInboxRecovery } from "../services/inbox-recovery";
 import type { InboxRecovery } from "../domain/inbox-recovery";
 
@@ -23,6 +24,7 @@ const i18n = $derived(facade.i18n);
 let available = $state(false);
 let checked = $state(false);
 let inboxCheckFailed = $state(false);
+let inboxError = $state<InboxErrorReason>("unavailable");
 let expanded = $state(false);
 let items = $state<Shorthand[]>([]);
 let busyId = $state("");
@@ -71,7 +73,8 @@ async function refresh() {
         const status = await checkInbox();
         available = status.available;
         items = status.page?.shorthands ?? [];
-        inboxCheckFailed = false;
+        inboxCheckFailed = !status.available;
+        inboxError = status.error ?? "unavailable";
         try {
             applyRecovery(await loadInboxRecovery(facade.pluginInstance));
         } catch (error) {
@@ -79,12 +82,24 @@ async function refresh() {
             showMessage(recoveryMessage(error), 5000);
         }
     } catch {
-        // 查询失败与"未订阅收集箱"区分开：给用户重试入口而不是静默隐藏整个区域
+        // 传输层已保留权限/网络/超时分类；未知宿主异常仍显示通用失败和重试。
         available = false;
         inboxCheckFailed = true;
+        inboxError = "unavailable";
     } finally {
         checked = true;
     }
+}
+
+function inboxErrorMessage(reason: InboxErrorReason): string {
+    const keys: Record<InboxErrorReason, string> = {
+        permission: "inbox.permissionRequired",
+        network: "inbox.networkFailed",
+        timeout: "inbox.timeout",
+        invalid: "inbox.invalidResponse",
+        unavailable: "inbox.unavailable",
+    };
+    return t(i18n, keys[reason]);
 }
 
 $effect(() => {
@@ -154,7 +169,7 @@ async function dismiss(item: Shorthand) {
 {#if checked && inboxCheckFailed}
     <div class="glean-inbox" role="region" aria-label={t(i18n, "inbox.title")}>
         <div class="glean-inbox__empty" role="status">
-            {t(i18n, "inbox.checkFailed")}
+            {inboxErrorMessage(inboxError)}
             <button class="glean-linkish" type="button" onclick={() => void refresh()}>{t(i18n, "action.retry")}</button>
         </div>
     </div>

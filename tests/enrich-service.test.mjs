@@ -24,7 +24,7 @@ registerHooks({
     },
 });
 
-const { autoEnrich, enrichClip, findDuplicates, findRelated, findRelatedOutcome, usageToday } = await import("../src/services/enrich-service.ts");
+const { autoEnrich, callLLM, enrichClip, findDuplicates, findRelated, findRelatedOutcome, usageToday } = await import("../src/services/enrich-service.ts");
 
 function harness() {
     const attrs = new Map();
@@ -171,6 +171,32 @@ test("真实模型失败不占成功额度，恢复后仍可调用且日志脱�
     assert.deepEqual(fixture.files.get("ai-log.json").map((entry) => entry.stage), ["llm"]);
     assert.doesNotMatch(JSON.stringify(fixture.files.get("ai-log.json")), /private|sk-secret/);
     assert.equal(await usageToday(fixture.plugin), 1);
+});
+
+test("官方 AI 错误仅按稳定错误码分类，失败日志不包含服务端私密详情", async () => {
+    for (const [detail, expected] of [["HTTP 401 Unauthorized sk-secret", "permission"], ["network connection refused sk-secret", "network"], ["request timeout sk-secret", "timeout"]]) {
+        const fixture = harness();
+        fixture.answers.push(new Error(detail));
+        const outcome = await enrichClip(fixture.plugin, "classified", fixture.settings("manual"));
+        assert.equal(outcome.skipped, expected);
+        assert.doesNotMatch(JSON.stringify(fixture.files.get("ai-log.json")), /sk-secret|Unauthorized|connection refused/);
+    }
+});
+
+test("自定义 AI 通道向调用方只返回安全错误类别，不透传响应详情或密钥", async () => {
+    const fixture = harness();
+    fixture.plugin.getSecret = () => "sk-secret";
+    const settings = fixture.settings("manual");
+    settings.ai = { ...settings.ai, channel: "custom", customBaseUrl: "https://ai.example/v1/chat/completions", customModel: "model", customSecretName: "test" };
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async () => new Response("upstream echoed sk-secret", { status: 401 });
+    try {
+        const outcome = await callLLM(fixture.plugin, settings, "prompt");
+        assert.deepEqual(outcome, { ok: false, failure: "permission" });
+        assert.doesNotMatch(JSON.stringify(outcome), /sk-secret|upstream echoed|401/);
+    } finally {
+        globalThis.fetch = originalFetch;
+    }
 });
 
 test("auto 富化只入队一次，两篇完成后队列仍可处理后续手动任务", async () => {

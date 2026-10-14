@@ -11,7 +11,7 @@ import {
     type FormattingPlan,
 } from "../domain/formatting";
 import { readClipDocument, writeClip } from "./clip-store";
-import { activeAiSettings, aiQuotaAvailable, callLLM, enqueueEnrich, logAiEvent, recordAiUsage } from "./enrich-service";
+import { activeAiSettings, aiQuotaAvailable, callLLM, enqueueEnrich, logAiEvent, recordAiUsage, type AiCallFailure } from "./enrich-service";
 import type { GleanSettings } from "./settings";
 
 interface FormattingSource {
@@ -38,7 +38,7 @@ export interface FormattingDraftLabels {
     source: string;
 }
 
-export type FormattingAiReason = "off" | "cap" | "tooLong" | "invalid" | "error" | "busy";
+export type FormattingAiReason = "off" | "cap" | "tooLong" | "invalid" | "error" | "busy" | AiCallFailure;
 export type FormattingSaveReason = "changed" | "readFailed" | "markFailed" | "createUnknown" | "empty" | "busy" | "invalid";
 
 async function readSource(docId: string): Promise<FormattingSource> {
@@ -72,7 +72,7 @@ export async function planAiFormatting(plugin: Plugin, session: FormattingSessio
             const outcome = await callLLM(plugin, currentSettings, prompt);
             if (!outcome.ok) {
                 await logAiEvent(plugin, session.source.id, "formatting-call", "Model call failed");
-                return { ok: false, reason: "error" };
+                return { ok: false, reason: outcome.failure ?? "error" };
             }
             await recordAiUsage(plugin);
             if (!formattingAiEnabled(activeAiSettings(plugin, settings))) return { ok: false, reason: "off" as const };

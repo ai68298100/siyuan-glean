@@ -92,6 +92,16 @@ export function confirmIndexRebuilt(): void {
     indexCorrupted = false;
 }
 
+/**
+ * 增量写入前读取当前保护状态。
+ *
+ * 索引是派生缓存，读取损坏时增量写不能用空/局部快照覆盖原文件；
+ * 写属性的调用方需要据此把“属性已写入、索引待重建”反馈给界面。
+ */
+export function isIndexCorrupted(): boolean {
+    return indexCorrupted;
+}
+
 export async function loadIndex(plugin: Plugin, options: { strict?: boolean } = {}): Promise<GleanIndex> {
     try {
         const raw = await plugin.loadData(INDEX_FILE);
@@ -163,8 +173,8 @@ export async function loadIndex(plugin: Plugin, options: { strict?: boolean } = 
     }
 }
 
-export async function saveIndex(plugin: Plugin, index: GleanIndex): Promise<GleanIndex> {
-    if (indexCorrupted) {
+export async function saveIndex(plugin: Plugin, index: GleanIndex, options: { repair?: boolean } = {}): Promise<GleanIndex> {
+    if (indexCorrupted && !options.repair) {
         // 损坏未消除前拒绝增量落盘，避免空/局部索引覆盖原文件。
         console.warn("[glean] 索引处于损坏保护，本次变更仅保留在内存，等待完整对账/重建后恢复落盘");
         return index;

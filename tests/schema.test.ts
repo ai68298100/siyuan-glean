@@ -94,6 +94,20 @@ test("serializePatch：数字钳制与空串删除语义", () => {
     assert.equal(patch[ATTR.aiTags], "a,b");
 });
 
+test("数字属性拒绝非有限值和超出安全整数范围的计数", () => {
+    for (const value of [Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY]) {
+        assert.throws(() => serializePatch({ words: value }), RangeError);
+        assert.throws(() => serializePatch({ priority: value }), RangeError);
+    }
+    assert.throws(() => serializePatch({ readMinutes: Number.MAX_SAFE_INTEGER + 1 }), RangeError);
+    assert.equal(serializePatch({ priority: 1e308 })[ATTR.priority], "5");
+    assert.equal(serializePatch({ words: -4 })[ATTR.words], "0");
+    assert.equal(serializePatch({ readMinutes: -Number.MAX_VALUE })[ATTR.readMinutes], "0");
+    assert.equal(parseClipAttrs({ [ATTR.words]: "9007199254740992" }).words, undefined);
+    assert.equal(estimateMinutes(Number.NaN), 0);
+    assert.equal(estimateMinutes(Number.POSITIVE_INFINITY), 0);
+});
+
 test("serializePatch：真实阅读分钟独立于预计分钟", () => {
     assert.deepEqual(serializePatch({ minutes: 8, readMinutes: 3 }), {
         [ATTR.minutes]: "8",
@@ -145,6 +159,8 @@ test("daysSince：按入库时间算天数", () => {
     assert.equal(daysSince("20260920120000", now), 9);
     assert.equal(daysSince("bad", now), null);
     assert.equal(daysSince(undefined, now), null);
+    assert.equal(daysSince("20260230120000", now), null);
+    assert.equal(daysSince("20260929120000", new Date(Number.NaN)), null);
 });
 
 test("canTransition：状态机白名单", () => {

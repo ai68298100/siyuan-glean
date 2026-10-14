@@ -1,5 +1,17 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-14 v1.3.4 发布准备）
+
+- 版本源已从 `1.3.3` 升至 `1.3.4`；双语 README、CHANGELOG、RELEASE、RELEASE-MEDIA 和 RELEASE-CANDIDATE 已同步本次设计令牌、异步状态、索引一致性与迁移恢复改动。
+- 发布候选明确保留真实宿主、读屏、移动端、外部能力和“默认手动”的能力矩阵边界；Workbench 预览入口的索引待同步提示仍是未完成项。
+- 本地发布门禁已通过：`pnpm check`、`pnpm test` 1334/1334、`pnpm build`、`pnpm check:release`（`package.zip` 418766B，SHA-256 `6603FD964FA82C6B943FC6CECC155F23D2FF443DB4EB2016D4AF4823E022DB5E`）、`pnpm perf:check`、`pnpm visual:check`、`pnpm task:ledger -- --check` 和 `git diff --check`。接下来提交、push、创建 `v1.3.4` tag/Release，并回填远端附件证据。
+
+## 当前有效交接（2026-10-14 设计令牌二次收敛）
+
+- 在保持计算值不变的前提下，移除 21 个未引用的光学/类型/动效别名，按钮、chip 与卡片实际规则改用组件令牌；`src/index.scss` 根令牌由 231 个降至 210 个，递归不可达预留别名由 34 个降至 4 个。
+- `scripts/design-token-audit.mjs` 现在额外报告根令牌规模、4px 间距栅格比例和重复令牌值；当前工作树：间距 96.7%、字号/行高/字重/字距 99.8%、圆角/阴影/层级/动效 100%，根间距栅格 15/32（46.9%）。非栅格 optical 值属于既有视觉白名单，不在本轮强行四舍五入。
+- 已更新 `docs/UI-STANDARD.md` 的六档字体角色、optical 迁移规则和组件变体用法；门禁：`pnpm check`、`pnpm test` 1334/1334、`pnpm build`、`pnpm check:release`、`pnpm perf:check`、`pnpm visual:check`、`pnpm task:ledger -- --check`、`git diff --check` 均通过。版本保持 1.3.3，未打 tag、未发布、未 push。
+
 ## 当前有效交接（2026-10-14 T-3351/D-0223 控件状态审查）
 
 - 导入失败重试、恢复上下文/写入失败、AI 标签合并确认与部分失败反馈、设置草稿字段校验已补齐就地反馈、忙碌锁、错误标记与重试/焦点回收；Dock 无效聚焦目标和闪烁定时器已清理，预览关闭回焦优先落到可聚焦控件。

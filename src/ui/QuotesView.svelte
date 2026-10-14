@@ -11,7 +11,7 @@ import type { GleanFacade } from "../types";
 import { t } from "../libs/i18n";
 import type { GleanIndex } from "../services/index-store";
 import { listLibraryQuotes, listQuoteRoots, getQuoteColor, setQuoteColor } from "../services/highlights";
-import { exportQuotesToDoc } from "../services/excerpt-service";
+import { exportQuotesToDoc, QuoteExportError } from "../services/excerpt-service";
 import { filterQuotes, formatQuoteShare, quoteFacets, type QuoteEntry, type QuoteFilter } from "../domain/quotes";
 import { createLatestRequestGate } from "../libs/latest-request";
 
@@ -30,6 +30,8 @@ let entries = $state<QuoteEntryWithColor[]>([]);
 let loading = $state(true);
 let loadFailed = $state(false);
 let exporting = $state(false);
+let exportRetry = $state<{ key: string; fingerprint: string } | null>(null);
+let exportError = $state("");
 let colorBusyId = $state("");
 /** 单页上限；超出时提示仅展示最近 N 条（地基分页已备好，翻页随视图走查再开）。 */
 const PAGE_SIZE = 500;
@@ -40,6 +42,8 @@ let filter = $state<QuoteFilter>({});
 
 const facets = $derived(quoteFacets(entries));
 const filtered = $derived(filterQuotes(entries, filter));
+const exportFingerprint = $derived(JSON.stringify([facade.settings.anchorNotebooks[0] ?? "", filtered.map((entry) => entry.id)]));
+const exportRetryMatches = $derived(Boolean(exportRetry && exportRetry.fingerprint === exportFingerprint));
 
 onMount(() => {
     void loadQuotes();
@@ -143,19 +147,30 @@ async function copyQuoteShare(quote: QuoteEntry): Promise<void> {
 }
 
 async function doExport(): Promise<void> {
-    if (filtered.length === 0) return;
+    if (filtered.length === 0 || exporting) return;
     const notebookId = facade.settings.anchorNotebooks[0];
     if (!notebookId) {
         showMessage(t(i18n, "panel.noAnchorHint"), 4000);
         return;
     }
     exporting = true;
+    exportError = "";
+    const fingerprint = JSON.stringify([notebookId, filtered.map((entry) => entry.id)]);
+    const retryKey = exportRetry?.fingerprint === fingerprint ? exportRetry.key : "";
+    if (!retryKey) exportRetry = null;
     try {
-        await exportQuotesToDoc(filtered, notebookId);
+        await exportQuotesToDoc(filtered, notebookId, retryKey);
+        exportRetry = null;
         showMessage(t(i18n, "quotes.exportDone", { n: filtered.length }), 3500);
     } catch (error) {
         console.warn("[glean] 摘录导出失败:", error);
-        showMessage(t(i18n, "msg.actionFailed"), 5000);
+        if (error instanceof QuoteExportError) {
+            exportRetry = error.reason === "operationChanged" ? null : { fingerprint, key: error.operationKey };
+            exportError = t(i18n, `quotes.export.${error.reason}`);
+        } else {
+            exportRetry = null;
+            exportError = t(i18n, "msg.actionFailed");
+        }
     } finally {
         exporting = false;
     }
@@ -266,7 +281,17 @@ async function doExport(): Promise<void> {
             {/each}
         </div>
         <button class="glean-primary-btn" disabled={exporting || filtered.length === 0} onclick={() => void doExport()}>
-            📤 {exporting ? t(i18n, "quotes.exporting") : t(i18n, "quotes.export", { n: filtered.length })}
+            📤 {exporting ? t(i18n, "quotes.exporting") : exportRetryMatches ? t(i18n, "quotes.exportCheck") : t(i18n, "quotes.export", { n: filtered.length })}
         </button>
+        {#if exportError}
+            <div class="glean-empty" role="alert">
+                <div class="glean-empty__hint">{exportError}</div>
+                {#if exportRetryMatches}
+                    <button class="glean-btn glean-btn--ghost" disabled={exporting} aria-busy={exporting} onclick={() => void doExport()}>
+                        {t(i18n, "action.retry")}
+                    </button>
+                {/if}
+            </div>
+        {/if}
     {/if}
 </div>

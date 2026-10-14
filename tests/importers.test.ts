@@ -148,6 +148,8 @@ test("toSiyuanTime：unix 秒与 ISO 双支持，非法为空", () => {
     assert.equal(toSiyuanTime(1484250667), "20170113035107"); // 本地时区
     assert.equal(toSiyuanTime("2023-05-01T10:00:00Z").slice(0, 8), "20230501");
     assert.equal(toSiyuanTime("not-a-date"), "");
+    assert.equal(toSiyuanTime("2026-02-30T10:00:00Z"), "");
+    assert.equal(toSiyuanTime("2024-02-29T10:00:00Z").slice(0, 8), "20240229");
 });
 
 test("parseImport auto + 文件内 URL 去重", () => {

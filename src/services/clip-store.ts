@@ -13,6 +13,7 @@ import {
     getBlockAttrs,
     querySql,
     setBlockAttrs,
+    type KernelErrorKind,
     type DocRow,
     type Ial,
     type ExportMarkdownOptions,
@@ -40,6 +41,7 @@ import {
     confirmIndexRebuilt,
     emptyIndex,
     loadIndex,
+    isIndexCorrupted,
     saveIndex,
     withIndexLock,
     type CandidateEntry,
@@ -175,6 +177,29 @@ export interface WriteClipOptions {
 export interface WriteClipResult {
     attrs: ClipAttrs;
     skippedKeys: string[];
+    /** 文档属性已读回确认，但两次派生索引保存都失败；调用方应提示刷新，不能当作写入失败。 */
+    indexSyncFailed?: boolean;
+}
+
+export interface StatusWriteFailure {
+    id: string;
+    kind: KernelErrorKind;
+}
+
+export interface StatusWriteResult {
+    ok: number;
+    succeeded: string[];
+    failures: StatusWriteFailure[];
+    indexSyncFailed: string[];
+}
+
+function clipWriteErrorKind(error: unknown): KernelErrorKind {
+    const kind = (error as { kind?: unknown } | null)?.kind;
+    if (kind === "permission" || kind === "network" || kind === "timeout" || kind === "protocol" || kind === "kernel" || kind === "aborted" || kind === "superseded") return kind;
+    const message = String((error as Error)?.message ?? error ?? "");
+    if (/timeout|超时/iu.test(message)) return "timeout";
+    if (/network|offline|fetch|连接|网络/iu.test(message)) return "network";
+    return "kernel";
 }
 
 /** 与已有读库文章比较 URL；返回冲突文章的轻量元数据。 */
@@ -254,24 +279,37 @@ async function automaticSnapshotEnabled(plugin: Plugin): Promise<boolean> {
     }
 }
 
-function queueClipEdit<Result>(plugin: Plugin, docId: string, action: () => Promise<Result>): Promise<Result> {
+/**
+ * 串行执行同一篇文章的属性读改写。
+ *
+ * 公开给需要组合多个读取/写入步骤的服务（例如重浮和阅读计时），
+ * 避免服务层在队列外先读快照、再写回而互相覆盖。
+ */
+export type QueuedClipWriter = (patch: ClipPatch, options?: WriteClipOptions) => Promise<WriteClipResult>;
+
+export function withClipEditQueue<Result>(plugin: Plugin, docId: string, action: (write: QueuedClipWriter) => Promise<Result>): Promise<Result> {
     let queues = explicitEdits.get(plugin);
     if (!queues) { queues = new Map(); explicitEdits.set(plugin, queues); }
     const pending = queues.get(docId) ?? Promise.resolve();
-    const result = pending.then(action);
+    const write: QueuedClipWriter = (patch, options = {}) => writeClipUnlocked(plugin, docId, patch, options);
+    const result = pending.then(() => action(write));
     const settled = result.then(() => {}, () => {});
     queues.set(docId, settled);
     void settled.then(() => { if (queues.get(docId) === settled) queues.delete(docId); });
     return result;
 }
 
+function queueClipEdit<Result>(plugin: Plugin, docId: string, action: (write: QueuedClipWriter) => Promise<Result>): Promise<Result> {
+    return withClipEditQueue(plugin, docId, action);
+}
+
 export async function saveClipAuthor(plugin: Plugin, docId: string, expected: string, draft: string): Promise<AuthorEditSnapshot> {
     const author = normalizeAuthor(draft);
     if (author === null) throw new AuthorEditError("invalid");
-    return queueClipEdit(plugin, docId, async () => {
+    return queueClipEdit(plugin, docId, async (write) => {
         const before = await readClipAuthor(docId);
         if (before.raw !== expected) throw new AuthorEditError("changed");
-        await writeClip(plugin, docId, { author }, { force: true, expectedAuthor: expected });
+        await write({ author }, { force: true, expectedAuthor: expected });
         const after = await readClipAuthor(docId);
         if (after.raw !== author) throw new AuthorEditError("changed");
         return after;
@@ -320,14 +358,14 @@ export async function saveReadingMinutes(plugin: Plugin, docId: string, expected
         throw new ClipRestoreError("changed");
     }
     const serialized = String(minutes);
-    return queueClipEdit(plugin, docId, async () => {
+    return queueClipEdit(plugin, docId, async (write) => {
         const current = await readReadingMinutes(docId);
         if (current.raw !== expected.raw || current.meta.box !== expected.location.box || current.meta.hpath !== expected.location.hpath) {
             throw new ClipRestoreError("changed");
         }
         let writeError: unknown;
         try {
-            await writeClip(plugin, docId, { readMinutes: minutes }, {
+            await write({ readMinutes: minutes }, {
                 force: true,
                 expectedAttrs: { [ATTR.readMinutes]: expected.raw, [ATTR.status]: current.statusRaw },
                 expectedLocation: expected.location,
@@ -345,6 +383,31 @@ export async function saveReadingMinutes(plugin: Plugin, docId: string, expected
     });
 }
 
+/**
+ * 在同一篇文章的串行队列内累加真实阅读分钟。
+ * 读取、校验、写回和读回必须属于同一个队列项，避免两个阅读页签
+ * 同时结算时都基于旧值计算而丢失其中一份增量。
+ */
+export async function addReadingMinutes(plugin: Plugin, docId: string, gained: number): Promise<number> {
+    if (!Number.isSafeInteger(gained) || gained <= 0) throw new ClipRestoreError("changed");
+    return queueClipEdit(plugin, docId, async (write) => {
+        const current = await readReadingMinutes(docId);
+        const next = current.minutes + gained;
+        if (!Number.isSafeInteger(next) || next < 0) throw new ClipRestoreError("changed");
+        const expectedLocation = { box: current.meta.box, hpath: current.meta.hpath };
+        await write({ readMinutes: next }, {
+            force: true,
+            expectedAttrs: { [ATTR.readMinutes]: current.raw, [ATTR.status]: current.statusRaw },
+            expectedLocation,
+        });
+        const after = await readReadingMinutes(docId);
+        if (after.minutes !== next || after.meta.box !== expectedLocation.box || after.meta.hpath !== expectedLocation.hpath) {
+            throw new ClipRestoreError("changed");
+        }
+        return gained;
+    });
+}
+
 export async function verifyReadingBlock(docId: string, blockId: string): Promise<void> {
     if (!/^\d{14}-[a-z0-9]{7}$/.test(docId) || !/^\d{14}-[a-z0-9]{7}$/.test(blockId)) throw new ClipRestoreError("missing");
     const rows = await querySql<{ id: string; root_id: string }>(`SELECT id, root_id FROM blocks WHERE id = '${blockId}' LIMIT 1`);
@@ -357,14 +420,14 @@ export async function saveReadingPosition(plugin: Plugin, docId: string, expecte
     if (expected.meta.id !== docId) throw new ClipRestoreError("changed");
     const location = { box: expected.meta.box, hpath: expected.meta.hpath };
     const raw = expected.raw;
-    return queueClipEdit(plugin, docId, async () => {
+    return queueClipEdit(plugin, docId, async (write) => {
         const current = await readClipAttributeSnapshot(docId);
         const attrs = parseClipAttrs(current.attrs);
         if (!attrs.status || attrs.internal || (current.attrs[ATTR.readingPosition] ?? null) !== raw) throw new ClipRestoreError("changed");
         await verifyReadingBlock(docId, targetPosition.blockId);
         let writeError: unknown;
         try {
-            await writeClip(plugin, docId, { readingPosition: targetPosition }, { expectedAttrs: { [ATTR.readingPosition]: raw, [ATTR.status]: current.attrs[ATTR.status] }, expectedLocation: location });
+            await write({ readingPosition: targetPosition }, { expectedAttrs: { [ATTR.readingPosition]: raw, [ATTR.status]: current.attrs[ATTR.status] }, expectedLocation: location });
         } catch (error) {
             if (error instanceof ClipRestoreError) throw error;
             writeError = error;
@@ -388,7 +451,7 @@ export async function readClipAttributeSnapshot(docId: string): Promise<ClipAttr
 }
 
 export async function restoreClipFields(plugin: Plugin, docId: string, snapshot: ClipAttributeSnapshot, patch: ClipPatch, allowDuplicate = false): Promise<void> {
-    await queueClipEdit(plugin, docId, async () => {
+    await queueClipEdit(plugin, docId, async (write) => {
         const serialized = serializePatch(patch);
         const source = ATTR.url in serialized ? serialized[ATTR.url] || "" : snapshot.attrs[ATTR.url] || "";
         const restoresSource = ATTR.url in serialized || (Boolean(serialized[ATTR.status]) && !parseClipAttrs(snapshot.attrs).status);
@@ -397,7 +460,7 @@ export async function restoreClipFields(plugin: Plugin, docId: string, snapshot:
         if (restoresSource) expectedAttrs[ATTR.url] = snapshot.attrs[ATTR.url] ?? null;
         let writeError: unknown;
         try {
-            await writeClip(plugin, docId, patch, { force: true, expectedAttrs, expectedLocation: { box: snapshot.meta.box, hpath: snapshot.meta.hpath } });
+            await write(patch, { force: true, expectedAttrs, expectedLocation: { box: snapshot.meta.box, hpath: snapshot.meta.hpath } });
         } catch (error) {
             if (error instanceof ClipRestoreError) throw error;
             writeError = error;
@@ -415,7 +478,7 @@ export async function restoreClipFields(plugin: Plugin, docId: string, snapshot:
 const USER_GUARDED_KEYS = [ATTR.url, ATTR.status, ATTR.priority, ATTR.rating, ATTR.author] as const;
 
 /** 写属性补丁（增量），成功后同步索引。返回实际跳过的键。 */
-export async function writeClip(
+async function writeClipUnlocked(
     plugin: Plugin,
     docId: string,
     patch: ClipPatch,
@@ -446,24 +509,55 @@ export async function writeClip(
             }
         }
     }
+    let attributesWritten = false;
     if (Object.keys(serialized).length > 0) {
         await setBlockAttrs(docId, serialized);
+        attributesWritten = true;
     }
-
     const merged: Ial = { ...ial };
     for (const [key, value] of Object.entries(serialized)) {
         if (value === null) delete merged[key];
         else merged[key] = value;
     }
-    const meta = await fetchDocMeta(docId);
-    // 索引读改写整体串行：并发增量写或与完整对账交错时，后保存者会用旧快照覆盖新索引
-    await withIndexLock(async () => {
-        const index = await loadIndex(plugin);
-        applyAttrsToIndex(index, { ...meta, id: docId }, merged);
-        await saveIndex(plugin, index);
-    });
+    try {
+        const meta = await fetchDocMeta(docId);
+        // 索引读改写整体串行：并发增量写或与完整对账交错时，后保存者会用旧快照覆盖新索引
+        await withIndexLock(async () => {
+            const index = await loadIndex(plugin);
+            applyAttrsToIndex(index, { ...meta, id: docId }, merged);
+            await saveIndex(plugin, index);
+            if (isIndexCorrupted()) {
+                // saveIndex 在损坏保护期间会保留内存结果但拒绝落盘；
+                // 将其显式转为可恢复的索引同步失败，而不是误报完全成功。
+                throw new Error("index persistence is suspended until rebuild");
+            }
+        });
 
-    return { attrs: parseClipAttrs(merged), skippedKeys };
+        return { attrs: parseClipAttrs(merged), skippedKeys };
+    } catch (error) {
+        // 属性写入成功后，saveData 失败只影响派生缓存。读回事实源确认后
+        // 按写成功返回，避免 UI 报失败并诱导用户重复操作。
+        if (attributesWritten) {
+            try {
+                const confirmed = await getBlockAttrs(docId);
+                const matches = Object.entries(serialized).every(([key, value]) => (confirmed[key] ?? null) === value);
+                if (matches) return { attrs: parseClipAttrs(confirmed), skippedKeys, indexSyncFailed: true };
+            } catch {
+                // 保留原始索引错误；没有事实源读回证据时不能宣称写入成功。
+            }
+        }
+        throw error;
+    }
+}
+
+/** 所有文档属性写入的统一入口；同一文档的读改写自动串行。 */
+export function writeClip(
+    plugin: Plugin,
+    docId: string,
+    patch: ClipPatch,
+    options: WriteClipOptions = {},
+): Promise<WriteClipResult> {
+    return withClipEditQueue(plugin, docId, (write) => write(patch, options));
 }
 
 /** 收录（三入口共用）：首次收录补缺失字段；已带有效状态时幂等跳过。 */
@@ -489,13 +583,13 @@ export async function captureClip(
         expectedAttrs?: WriteClipOptions["expectedAttrs"];
         expectedLocation?: WriteClipOptions["expectedLocation"];
     } = {}
-): Promise<{ captured: boolean; attrs: ClipAttrs; conflict?: DocMeta }> {
+): Promise<{ captured: boolean; attrs: ClipAttrs; conflict?: DocMeta; indexSyncFailed?: boolean }> {
     const ial = await getBlockAttrs(docId);
     const current = parseClipAttrs(ial);
     if (current.status) {
         if (options.clearExcluded && current.excluded) {
             const restored = await writeClip(plugin, docId, { excluded: false });
-            return { captured: false, attrs: restored.attrs };
+            return { captured: false, attrs: restored.attrs, indexSyncFailed: restored.indexSyncFailed };
         }
         return { captured: false, attrs: current };
     }
@@ -524,8 +618,15 @@ export async function captureClip(
     if (!ial[ATTR.minutes] && metadata.minutes > 0) patch.minutes = metadata.minutes;
     if (options.doneTime && !ial[ATTR.doneTime]) patch.doneTime = options.doneTime;
     if (options.clearExcluded && current.excluded) patch.excluded = false;
-    const result = await writeClip(plugin, docId, patch, { forceStatus: true, expectedAttrs: options.expectedAttrs, expectedLocation: options.expectedLocation });
-    if (await automaticSnapshotEnabled(plugin) && !result.attrs.snapshot) {
+    const observedKeys = new Set([ATTR.status, ATTR.url, ...Object.keys(serializePatch(patch))]);
+    const expectedAttrs = Object.fromEntries([...observedKeys].map((key) => [key, ial[key] ?? null]));
+    Object.assign(expectedAttrs, options.expectedAttrs ?? {});
+    const result = await writeClip(plugin, docId, patch, { forceStatus: true, expectedAttrs, expectedLocation: options.expectedLocation });
+    // A snapshot is a derived asset whose path is indexed from the just-written
+    // article. Defer it until the index has converged; otherwise a successful
+    // attribute write followed by a failed index save would create an asset that
+    // the current index cannot reliably expose or reconcile.
+    if (!result.indexSyncFailed && await automaticSnapshotEnabled(plugin) && !result.attrs.snapshot) {
         try {
             const { snapshotClip } = await import("./snapshot-service");
             const { path } = await snapshotClip(plugin, docId, { expectedAttrs: { [ATTR.snapshot]: ial[ATTR.snapshot] ?? null } });
@@ -534,7 +635,7 @@ export async function captureClip(
             console.warn("[glean] automatic snapshot failed");
         }
     }
-    return { captured: true, attrs: result.attrs };
+    return { captured: true, attrs: result.attrs, indexSyncFailed: result.indexSyncFailed };
 }
 
 /** 显式收录入口：先取得导出的 Markdown，再进入统一属性写入管线。 */
@@ -542,7 +643,7 @@ export async function captureDocument(
     plugin: Plugin,
     docId: string,
     options: Omit<Parameters<typeof captureClip>[2], "markdown"> = {},
-): Promise<{ captured: boolean; attrs: ClipAttrs; conflict?: DocMeta }> {
+): Promise<{ captured: boolean; attrs: ClipAttrs; conflict?: DocMeta; indexSyncFailed?: boolean }> {
     const markdown = (await exportMdContent(docId))?.content ?? "";
     return captureClip(plugin, docId, { ...options, clearExcluded: true, markdown });
 }
@@ -561,21 +662,31 @@ export async function batchSetStatusDetailed(
     plugin: Plugin,
     docIds: string[],
     status: ClipStatus,
-): Promise<{ ok: number; succeeded: string[] }> {
+): Promise<StatusWriteResult> {
     const succeeded: string[] = [];
+    const failures: StatusWriteFailure[] = [];
+    const indexSyncFailed: string[] = [];
     for (const docId of docIds) {
         try {
             // 这是用户显式状态动作，不适用自动写入的手填字段保护。
             // 标记读完同时记录完成时间（D-0028）：归档/恢复不抹除，再次标记读完覆盖。
             const patch: Partial<ClipAttrs> = { status };
             if (status === "done") patch.doneTime = siyuanTimestamp();
-            await writeClip(plugin, docId, patch, { forceStatus: true });
+            const result = await writeClip(plugin, docId, patch, { forceStatus: true });
             succeeded.push(docId);
-        } catch {
-            // 单篇失败不阻断批量；UI 通过刷新反映真实状态
+            if (result.indexSyncFailed) indexSyncFailed.push(docId);
+        } catch (error) {
+            failures.push({ id: docId, kind: clipWriteErrorKind(error) });
         }
     }
-    return { ok: succeeded.length, succeeded };
+    // Keep the historical enumerable shape (`ok`/`succeeded`) for integrations
+    // while exposing structured diagnostics to newer callers.
+    const result: StatusWriteResult = { ok: succeeded.length, succeeded, failures, indexSyncFailed };
+    Object.defineProperties(result, {
+        failures: { value: failures, enumerable: false },
+        indexSyncFailed: { value: indexSyncFailed, enumerable: false },
+    });
+    return result;
 }
 
 export interface ClipBodyMeasurement {
@@ -845,18 +956,32 @@ async function batchGetClipAttrsForIndex(ids: string[]) {
  * 仍会保留移出主锚点笔记本的已收录文章。
  */
 const reconcileFlights = new WeakMap<object, { key: string; promise: Promise<GleanIndex> }>();
+const reconcileGenerations = new WeakMap<object, number>();
+
+function nextReconcileGeneration(plugin: Plugin): number {
+    const generation = (reconcileGenerations.get(plugin) ?? 0) + 1;
+    reconcileGenerations.set(plugin, generation);
+    return generation;
+}
+
+function isCurrentReconcile(plugin: Plugin, generation: number): boolean {
+    return reconcileGenerations.get(plugin) === generation;
+}
 
 export async function reconcileIndex(plugin: Plugin, settings: GleanSettings): Promise<GleanIndex> {
     const key = JSON.stringify(settings.anchorNotebooks);
     const running = reconcileFlights.get(plugin);
     if (running?.key === key) return running.promise;
+    const generation = nextReconcileGeneration(plugin);
     const promise = (async () => {
         const scopes = await scanDocScopes(settings);
         const index = await indexFromScopes(scopes);
-        // 保存与损坏解除入锁：消除"save-save 交错"。注意扫描本身在锁外——
-        // 扫描→保存间隙内的一次增量写仍可能被这份陈旧快照覆盖（低频，下次对账自愈）。
+        if (!isCurrentReconcile(plugin, generation)) throw new Error("Index reconcile superseded");
+        // 保存与损坏解除入锁：消除 save-save 交错；扫描期间若已有更新的
+        // 对账请求，旧快照在进入锁前即丢弃，不能覆盖增量写入后的索引。
         const saved = await withIndexLock(async () => {
-            const result = await saveIndex(plugin, index);
+            if (!isCurrentReconcile(plugin, generation)) throw new Error("Index reconcile superseded");
+            const result = await saveIndex(plugin, index, { repair: true });
             confirmIndexRebuilt();
             return result;
         });
@@ -872,10 +997,13 @@ export async function reconcileIndex(plugin: Plugin, settings: GleanSettings): P
 
 /** 首启只读预览：完整扫描并更新派生索引，但不写任何文章属性。 */
 export async function scanPreview(plugin: Plugin, settings: GleanSettings): Promise<ScanPreview> {
+    const generation = nextReconcileGeneration(plugin);
     const scopes = await scanDocScopes(settings);
     const index = await indexFromScopes(scopes);
+    if (!isCurrentReconcile(plugin, generation)) throw new Error("Index scan superseded");
     await withIndexLock(async () => {
-        await saveIndex(plugin, index);
+        if (!isCurrentReconcile(plugin, generation)) throw new Error("Index scan superseded");
+        await saveIndex(plugin, index, { repair: true });
         confirmIndexRebuilt();
     });
     return buildScanPreview(scopes, index);
@@ -887,10 +1015,13 @@ function rowToMeta(row: DocRow): DocMeta {
 
 /** 全量重建：完整分页重扫三类范围并写入新索引。不动文档属性。 */
 export async function rebuildIndex(plugin: Plugin, settings: GleanSettings): Promise<GleanIndex> {
+    const generation = nextReconcileGeneration(plugin);
     const scopes = await scanDocScopes(settings);
     const index = await indexFromScopes(scopes);
+    if (!isCurrentReconcile(plugin, generation)) throw new Error("Index rebuild superseded");
     const saved = await withIndexLock(async () => {
-        const result = await saveIndex(plugin, index);
+        if (!isCurrentReconcile(plugin, generation)) throw new Error("Index rebuild superseded");
+        const result = await saveIndex(plugin, index, { repair: true });
         confirmIndexRebuilt();
         return result;
     });

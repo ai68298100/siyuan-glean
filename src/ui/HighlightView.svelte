@@ -12,7 +12,7 @@ import {
     copyHighlights, exportHighlightsCsv, HighlightExportError, highlightDocumentTitle, listDocHighlights, listLibraryHighlights,
     prepareHighlightExport, saveHighlightDraft, type HighlightExportSession, type HighlightItem, type HighlightSaveReason,
 } from "../services/highlights";
-import { findRelated } from "../services/enrich-service";
+import { findRelatedOutcome, type RelatedReason } from "../services/enrich-service";
 import { makeQuoteCardPreview } from "./flashcard-dialog";
 import type { GleanSettings } from "../services/settings";
 import { loadUiPrefs } from "../services/prefs";
@@ -23,6 +23,7 @@ let { facade }: Props = $props();
 const instanceId = $props.id();
 const titleId = `glean-highlights-title-${instanceId}`;
 const previewTitleId = `glean-highlights-preview-title-${instanceId}`;
+const relatedTitleId = `glean-highlights-related-title-${instanceId}`;
 const i18n = $derived(facade.i18n);
 const currentDocId = $derived(facade.currentDocId());
 let scope = $state<"current" | "library">("current");
@@ -30,6 +31,8 @@ let items = $state<HighlightItem[]>([]);
 let loading = $state(true);
 let loadError = $state("");
 let related = $state<Array<{ id: string; title: string }>>([]);
+let relatedLoading = $state(false);
+let relatedReason = $state<RelatedReason | null>("disabled");
 let docTitle = $state("");
 let cardingKey = $state("");
 let search = $state("");
@@ -47,6 +50,7 @@ let exportStatus = $state("");
 let retryAction = $state<"copy" | "csv" | "preview" | "save">("preview");
 let tagAliases = $state<TagAlias[]>([]);
 let generation = 0;
+let relatedGeneration = 0;
 let loadedContext = "";
 let tagAliasGeneration = 0;
 
@@ -83,6 +87,10 @@ $effect(() => {
 
 async function loadHighlights(targetScope: "current" | "library", docId: string, settings: GleanSettings) {
     const request = ++generation;
+    relatedGeneration += 1;
+    relatedLoading = false;
+    related = [];
+    relatedReason = "disabled";
     const context = `${targetScope}:${docId}`;
     if (context !== loadedContext) {
         items = [];
@@ -123,14 +131,8 @@ async function loadHighlights(targetScope: "current" | "library", docId: string,
         items = next;
         selected = retainHighlightSelection(next, selected);
         docTitle = title;
-        related = [];
         if (targetScope === "current") {
-            try {
-                const matches = await findRelated(docId, next[0]?.text || docId, [], { plugin: facade.pluginInstance, settings });
-                if (request === generation) related = matches;
-            } catch {
-                if (request === generation) related = [];
-            }
+            void loadRelated(docId, next[0]?.text || docId, settings, request);
         }
     } catch (error) {
         if (request === generation) {
@@ -140,6 +142,32 @@ async function loadHighlights(targetScope: "current" | "library", docId: string,
     } finally {
         if (request === generation) loading = false;
     }
+}
+
+async function loadRelated(docId: string, query: string, settings: GleanSettings, listRequest: number): Promise<void> {
+    const request = ++relatedGeneration;
+    related = [];
+    relatedReason = null;
+    relatedLoading = true;
+    try {
+        const outcome = await findRelatedOutcome(docId, query, [], { plugin: facade.pluginInstance, settings });
+        if (request !== relatedGeneration || listRequest !== generation) return;
+        related = outcome.items;
+        relatedReason = outcome.reason;
+    } catch {
+        if (request === relatedGeneration && listRequest === generation) {
+            related = [];
+            relatedReason = "error";
+        }
+    } finally {
+        if (request === relatedGeneration && listRequest === generation) relatedLoading = false;
+    }
+}
+
+function retryRelated(): void {
+    const docId = currentDocId;
+    if (scope !== "current" || !docId || loading || loadError || relatedLoading) return;
+    void loadRelated(docId, items[0]?.text || docId, facade.settings, generation);
 }
 
 function refresh() {
@@ -355,10 +383,30 @@ function openDoc(id: string) {
             <button disabled={visible.page >= visible.pages} onclick={() => page = visible.page + 1}>{t(i18n, "highlight.nextPage")}</button>
         </nav>
     {/if}
-    {#if scope === "current" && related.length}
-        <div class="glean-sect">✨ {t(i18n, "ai.relatedTitle")}</div>
-        {#each related as item (item.id)}<button class="glean-rel" onclick={() => openDoc(item.id)}><span class="glean-rel__t">{item.title}</span><svg class="glean-rel__go glean-icon glean-icon--xs" aria-hidden="true"><use href="#iconGleanArrowRight" /></svg></button>{/each}
-        <div class="glean-highlights__meta">AI · {t(i18n, "ai.actionsPreview")}</div>
+    {#if scope === "current" && currentDocId && !loading && !loadError}
+        <section class="glean-highlights__related" aria-labelledby={relatedTitleId} aria-busy={relatedLoading}>
+            <div class="glean-sect" id={relatedTitleId}>✨ {t(i18n, "ai.relatedTitle")}</div>
+            {#if relatedLoading}
+                <p class="glean-highlights__related-state" role="status" aria-live="polite">{t(i18n, "reader.relatedLoading")}</p>
+            {:else if relatedReason === "ok" && related.length}
+                {#each related as item (item.id)}<button class="glean-rel" onclick={() => openDoc(item.id)}><span class="glean-rel__t">{item.title}</span><svg class="glean-rel__go glean-icon glean-icon--xs" aria-hidden="true"><use href="#iconGleanArrowRight" /></svg></button>{/each}
+                <div class="glean-highlights__meta">AI · {t(i18n, "ai.actionsPreview")}</div>
+            {:else if relatedReason === "error"}
+                <div class="glean-highlights__related-error" role="alert">
+                    <p>{t(i18n, "reader.relatedFailed")}</p>
+                    <button class="glean-btn glean-btn--ghost" disabled={relatedLoading} onclick={retryRelated}>{t(i18n, "reader.relatedRetry")}</button>
+                </div>
+            {:else if relatedReason === "embedding-disabled"}
+                <p class="glean-highlights__related-state" role="status">{t(i18n, "reader.relatedEmbeddingDisabled")}</p>
+            {:else if relatedReason === "disabled"}
+                <p class="glean-highlights__related-state" role="status">{t(i18n, "reader.relatedDisabled")}</p>
+            {:else}
+                <div class="glean-highlights__related-empty" role="status">
+                    <span class="glean-empty__art" aria-hidden="true"><svg><use href="#iconGleanWheat" /></svg></span>
+                    <span>{t(i18n, "reader.relatedNoHits")}</span>
+                </div>
+            {/if}
+        </section>
     {/if}
 </div>
 
@@ -373,6 +421,12 @@ function openDoc(id: string) {
         font-size: 14px;
         line-height: 1.6;
     }
+    .glean-highlights__related { display: grid; gap: var(--glean-space-2); min-width: 0; }
+    .glean-highlights__related-state { margin: 0; color: var(--b3-theme-on-surface); font-size: var(--glean-text-sm); overflow-wrap: anywhere; }
+    .glean-highlights__related-empty { display: flex; align-items: center; gap: var(--glean-space-2); color: var(--b3-theme-on-surface); font-size: var(--glean-text-sm); }
+    .glean-highlights__related-empty .glean-empty__art { flex: 0 0 32px; width: 32px; height: 32px; }
+    .glean-highlights__related-error { display: flex; flex-wrap: wrap; align-items: center; gap: var(--glean-space-2); padding: var(--glean-space-2); border: 1px solid var(--b3-theme-error); border-radius: var(--glean-radius-md); }
+    .glean-highlights__related-error p { flex: 1 1 220px; margin: 0; color: var(--b3-theme-error); font-size: var(--glean-text-sm); overflow-wrap: anywhere; }
 
     .glean-highlights__head {
         gap: 16px;

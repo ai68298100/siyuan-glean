@@ -4,9 +4,10 @@ import { onMount, tick } from "svelte";
 import { openTab, showMessage } from "siyuan";
 import type { GleanFacade } from "../types";
 import { t } from "../libs/i18n";
+import { aiFailureKey } from "../libs/ai-feedback";
 import type { ClipStatus } from "../domain/schema";
 import { normalizeUrl } from "../domain/url";
-import { batchSetStatus, batchSetStatusDetailed, captureDocument, findClipUrlConflict, reconcileIndex, writeClip } from "../services/clip-store";
+import { batchSetStatusDetailed, captureDocument, findClipUrlConflict, reconcileIndex, writeClip, type StatusWriteResult } from "../services/clip-store";
 import { autoEnrich, enrichClip } from "../services/enrich-service";
 import { snapshotClip } from "../services/snapshot-service";
 import { exportArticleMarkdown } from "../services/library-export-service";
@@ -36,6 +37,7 @@ import ClipRankControls from "./ClipRankControls.svelte";
 import { installMobileViewportVars } from "../libs/mobile-viewport";
 import { installEscapeHandler, installModalFocus } from "../libs/modal-focus";
 import { createRefreshQueue } from "../libs/refresh-queue";
+import { kernelErrorKind } from "../api/client";
 import { applySavedView, createSavedView, deleteSavedView, displayTagAlias, governanceCueMuted, localDateStamp, setDefaultSavedView, normalizeTagAliases, type GovernanceCueKey, type GovernanceMuted, type SavedView, type TagAlias } from "../domain/ui-prefs";
 
 interface Props {
@@ -1110,8 +1112,8 @@ async function capture(entry: CandidateEntry) {
     try {
         const result = await captureDocument(facade.pluginInstance, entry.id, { url: entry.url || undefined });
         if (result.captured) {
-            showMessage(t(i18n, "msg.added"), 2500);
-            autoEnrich(facade.pluginInstance, entry.id, facade.settings);
+            showMessage(t(i18n, result.indexSyncFailed ? "msg.writeIndexPending" : "msg.added"), 3500);
+            autoEnrich(facade.pluginInstance, entry.id, facade.settings, () => facade.notifyDataChanged());
             facade.notifyDataChanged();
         } else if (result.conflict) {
             showMessage(`${t(i18n, "inbox.duplicate")}: ${result.conflict.title || result.conflict.hpath}`, 4000);
@@ -1121,7 +1123,7 @@ async function capture(entry: CandidateEntry) {
         await reload();
     } catch (error) {
         console.warn("[glean] 收录失败:", error);
-        showMessage(t(i18n, offline ? "msg.offlineRetry" : "msg.captureFailed"), 3500);
+        showMessage(writeFailureMessage(error, offline ? "msg.offlineRetry" : "msg.captureFailed"), 3500);
     } finally {
         candidateBusyId = "";
     }
@@ -1132,12 +1134,12 @@ async function captureAsLocal(entry: CandidateEntry) {
     candidateBusyId = entry.id;
     try {
         const result = await captureDocument(facade.pluginInstance, entry.id, { contentType: "local" });
-        showMessage(t(i18n, result.captured ? "msg.added" : "msg.alreadyIn"), 2500);
+        showMessage(t(i18n, result.indexSyncFailed ? "msg.writeIndexPending" : result.captured ? "msg.added" : "msg.alreadyIn"), 3500);
         if (result.captured) facade.notifyDataChanged();
         await reload();
     } catch (error) {
         console.warn("[glean] 本地文档收录失败:", error);
-        showMessage(t(i18n, offline ? "msg.offlineRetry" : "msg.captureFailed"), 3500);
+        showMessage(writeFailureMessage(error, offline ? "msg.offlineRetry" : "msg.captureFailed"), 3500);
     } finally {
         candidateBusyId = "";
     }
@@ -1147,13 +1149,13 @@ async function excludeCandidate(entry: CandidateEntry) {
     if (candidateBusyId) return;
     candidateBusyId = entry.id;
     try {
-        await writeClip(facade.pluginInstance, entry.id, { excluded: true });
-        showMessage(t(i18n, "msg.candidateExcluded"), 2500);
+        const result = await writeClip(facade.pluginInstance, entry.id, { excluded: true });
+        showMessage(t(i18n, result.indexSyncFailed ? "msg.writeIndexPending" : "msg.candidateExcluded"), 3500);
         facade.notifyDataChanged();
         await reload();
     } catch (error) {
         console.warn("[glean] 忽略候选失败:", error);
-        showMessage(t(i18n, offline ? "msg.offlineRetry" : "msg.captureFailed"), 3500);
+        showMessage(writeFailureMessage(error, offline ? "msg.offlineRetry" : "msg.captureFailed"), 3500);
     } finally {
         candidateBusyId = "";
     }
@@ -1178,13 +1180,14 @@ async function saveCandidateUrl(entry: CandidateEntry) {
             showMessage(`${t(i18n, "inbox.duplicate")}: ${conflict.title || conflict.hpath}`, 4000);
             return;
         }
-        await writeClip(facade.pluginInstance, entry.id, { url }, { force: true });
+        const result = await writeClip(facade.pluginInstance, entry.id, { url }, { force: true });
         editingCandidateId = "";
         facade.notifyDataChanged();
+        if (result.indexSyncFailed) showMessage(t(i18n, "msg.writeIndexPending"), 3500);
         await reload();
     } catch (error) {
         console.warn("[glean] 修正来源失败:", error);
-        showMessage(t(i18n, offline ? "msg.offlineRetry" : "msg.captureFailed"), 3500);
+        showMessage(writeFailureMessage(error, offline ? "msg.offlineRetry" : "msg.captureFailed"), 3500);
     } finally {
         candidateBusyId = "";
     }
@@ -1197,6 +1200,21 @@ function candidateEvidence(entry: CandidateEntry): string {
 function candidateMissing(entry: CandidateEntry): string {
     return entry.missing.filter((item) => item !== "status")
         .map((item) => t(i18n, `candidate.missing.${item}`)).join(" · ");
+}
+
+function writeFailureMessage(error: unknown, fallbackKey: string): string {
+    const kind = kernelErrorKind(error);
+    if (kind === "permission") return t(i18n, "msg.writeFailed.permission");
+    if (kind === "network") return t(i18n, "msg.writeFailed.network");
+    if (kind === "timeout") return t(i18n, "msg.writeFailed.timeout");
+    return t(i18n, fallbackKey);
+}
+
+function statusFailureKey(kind: string): string {
+    if (kind === "permission") return "msg.statusFailure.permission";
+    if (kind === "network") return "msg.statusFailure.network";
+    if (kind === "timeout") return "msg.statusFailure.timeout";
+    return "msg.statusFailure.generic";
 }
 
 function clipType(entry: ClipIndexEntry): string {
@@ -1231,7 +1249,7 @@ async function enrich(entry: ClipIndexEntry) {
         } else if (outcome.skipped === "off") {
             showMessage(t(i18n, "ai.disabled"), 3000);
         } else {
-            showMessage(t(i18n, "ai.enrichFailed"), 3000);
+            showMessage(t(i18n, aiFailureKey(outcome.skipped) ?? "ai.enrichFailed"), 3000);
         }
         if (outcome.ok) facade.notifyDataChanged();
     } finally {
@@ -1244,17 +1262,22 @@ async function setStatus(entry: ClipIndexEntry, status: ClipStatus) {
     if (statusActionId) return false;
     statusActionId = entry.id;
     try {
-        const ok = await batchSetStatus(facade.pluginInstance, [entry.id], status);
+        const result = await batchSetStatusDetailed(facade.pluginInstance, [entry.id], status);
+        const ok = result.ok;
         if (ok === 1 && status === "done" && facade.settings.integration.checkinEnabled && facade.settings.integration.checkinItemId) {
             void recordReadingDone(facade.settings.integration.checkinItemId, entry.id, entry.title);
         }
-        showMessage(t(i18n, ok === 1 ? "msg.statusChanged" : "msg.statusFailed"), 3000);
+        const failure = result.failures[0];
+        const message = failure
+            ? t(i18n, statusFailureKey(failure.kind))
+            : t(i18n, result.indexSyncFailed.length ? "msg.statusIndexPending" : result.ok === 1 ? "msg.statusChanged" : "msg.statusFailed");
+        showMessage(message, 3500);
         if (ok === 1) facade.notifyDataChanged();
         await reload();
         return ok === 1;
     } catch (error) {
         console.warn("[glean] 状态变更失败:", error);
-        showMessage(t(i18n, offline ? "msg.offlineRetry" : "msg.statusFailed"), 3000);
+        showMessage(writeFailureMessage(error, offline ? "msg.offlineRetry" : "msg.statusFailed"), 3500);
         return false;
     } finally {
         statusActionId = "";
@@ -1290,14 +1313,14 @@ async function batchApply(status: ClipStatus) {
 async function applySelectedStatus(status: ClipStatus) {
     if (selection.size === 0) return;
     const total = selection.size;
-    let result: { ok: number; succeeded: string[] };
+    let result: StatusWriteResult;
     try {
         result = await batchSetStatusDetailed(facade.pluginInstance, [...selection], status);
         if (result.ok > 0) facade.notifyDataChanged();
         await reload();
     } catch (error) {
         console.warn("[glean] 批量状态变更失败:", error);
-        showMessage(t(i18n, offline ? "msg.offlineRetry" : "msg.statusFailed"), 3500);
+        showMessage(writeFailureMessage(error, offline ? "msg.offlineRetry" : "msg.statusFailed"), 3500);
         return;
     }
     if (status === "done" && result.ok > 0 && facade.settings.integration.checkinEnabled && facade.settings.integration.checkinItemId) {
@@ -1310,7 +1333,16 @@ async function applySelectedStatus(status: ClipStatus) {
             entry.title,
         )));
     }
-    showMessage(t(i18n, "msg.statusBatchResult", { ok: result.ok, total }), 3500);
+    const details = [
+        ...(result.failures.length ? [t(i18n, statusFailureKey(result.failures[0].kind))] : []),
+        ...(result.indexSyncFailed.length ? [t(i18n, "msg.indexSyncPendingShort")] : []),
+    ].join(" ");
+    showMessage(
+        details
+            ? t(i18n, "msg.statusBatchResultDetailed", { ok: result.ok, total, failed: result.failures.length, details })
+            : t(i18n, "msg.statusBatchResult", { ok: result.ok, total }),
+        4500,
+    );
     const succeeded = new Set(result.succeeded);
     selection = new Set([...selection].filter((id) => !succeeded.has(id)));
 }
@@ -2579,7 +2611,7 @@ function metaLine(entry: Row): string {
             {quickCaptureBusy}
         />
     {:else if view === "stats"}
-        <StatsView {facade} {index} {currentTime} onCaptured={() => void reload()} />
+        <StatsView {facade} {index} {currentTime} {loading} {loadError} onRetry={() => void reload()} onCaptured={() => void reload()} />
     {:else}
         <HighlightView {facade} />
     {/if}

@@ -13,6 +13,7 @@
     import { untrack } from "svelte";
     import type { GleanFacade } from "../types";
     import { t } from "../libs/i18n";
+import { aiFailureKey } from "../libs/ai-feedback";
     import { fulltextBodyState } from "../domain/content";
     import { canCountReading, createReadingTimer, readingTimerMinutes, setReadingTimerActive, type ReadingTimerState } from "../domain/reading-timer";
     import { hasSourceAction, resolveCarrier, sourceUrlForCarrier } from "../domain/carrier";
@@ -645,7 +646,7 @@
             } else if (outcome.skipped === "cap") {
                 showMessage(t(i18n, "ai.capReached", { n: facade.settings.ai.enrichDailyCap }), 4000);
             } else if (outcome.skipped !== "off") {
-                showMessage(t(i18n, "ai.enrichFailed"), 3000);
+                showMessage(t(i18n, aiFailureKey(outcome.skipped) ?? "ai.enrichFailed"), 3000);
             }
         } finally {
             aiBusy = "";
@@ -667,7 +668,7 @@
             } else if (outcome.skipped === "cap") {
                 showMessage(t(i18n, "ai.capReached", { n: facade.settings.ai.enrichDailyCap }), 4000);
             } else if (outcome.skipped !== "off") {
-                showMessage(t(i18n, "ai.enrichFailed"), 3000);
+                showMessage(t(i18n, aiFailureKey(outcome.skipped) ?? "ai.enrichFailed"), 3000);
             }
         } finally {
             aiBusy = "";
@@ -697,7 +698,7 @@
             } else if (outcome.skipped === "invalid") {
                 showMessage(t(i18n, "reader.articleQuestion.invalid"), 3000);
             } else if (outcome.skipped !== "off") {
-                showMessage(t(i18n, "ai.enrichFailed"), 3000);
+                showMessage(t(i18n, aiFailureKey(outcome.skipped) ?? "ai.enrichFailed"), 3000);
             }
         } finally {
             aiBusy = "";
@@ -732,6 +733,7 @@
         if (reason === "embedding-disabled") return t(i18n, "reader.relatedEmbeddingDisabled");
         if (reason === "error") return t(i18n, "reader.relatedFailed");
         if (reason === "disabled") return t(i18n, "reader.relatedDisabled");
+        if (reason === "no-hits") return t(i18n, "reader.relatedNoHits");
         return t(i18n, "reader.relatedNone");
     }
 

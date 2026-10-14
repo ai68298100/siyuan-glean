@@ -198,8 +198,15 @@ export function installBridge(facade: BridgeFacade, version: string, host: Bridg
                 if (!clip) throw new Error("Not a confirmed reading library article");
                 const patch: Partial<ClipAttrs> = { status };
                 if (status === "done") patch.doneTime = siyuanTimestamp();
-                await writeClip(facade.pluginInstance, id, patch, { forceStatus: true });
+                const written = await writeClip(facade.pluginInstance, id, patch, { forceStatus: true });
                 assertActive();
+                // The document attribute is the source of truth. A failed
+                // derived-index save is recoverable and must not make callers
+                // repeat a real write; surface refresh will reconcile it.
+                if (written.indexSyncFailed) {
+                    facade.notifyDataChanged();
+                    return;
+                }
                 facade.notifyDataChanged();
             });
         },

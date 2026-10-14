@@ -5,7 +5,7 @@
  * 会话时长/累加为纯计算可测；写入统一经 writeClip。
  */
 import type { Plugin } from "siyuan";
-import { readClip, writeClip } from "./clip-store";
+import { addReadingMinutes } from "./clip-store";
 
 /** 会话已读分钟（向下取整；不足 1 分钟为 0——不写）。 */
 export function sessionMinutes(sessionStartMs: number, nowMs: number = Date.now()): number {
@@ -25,8 +25,5 @@ export async function settleReadingMinutes(
 ): Promise<number> {
     const gained = sessionMinutes(sessionStartMs, nowMs);
     if (gained <= 0) return 0;
-    const attrs = await readClip(docId);
-    const next = (attrs.readMinutes ?? 0) + gained;
-    await writeClip(plugin, docId, { readMinutes: next });
-    return gained;
+    return addReadingMinutes(plugin, docId, gained);
 }

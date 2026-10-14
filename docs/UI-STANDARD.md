@@ -54,10 +54,39 @@
 
 ### 2.3 字体与数字
 
-- 字号阶梯：11 / 11.5 / 12 / 12.8(卡片标题) / 13 / 13.5(弹窗标题) / 15(面板品牌) / 23(统计数字)。
-- 卡片标题 600 字重；统计大数字 800 + `font-variant-numeric: tabular-nums` + 渐变裁切文字
-  （`background-clip: text`，深→品牌橙 130%）。
-- 不引入外部字体；跟随思源主题字体栈。
+核心文字角色固定为六档，新增页面优先复用角色令牌：
+
+| 角色 | 字号 | 行高 | 字重 | 适用场景 |
+|---|---:|---:|---:|---|
+| `caption` | 10px | 1.35 | 400 | 辅助说明、时间、来源 |
+| `meta` | 11px | 1.45 | 500 | 状态、标签、紧凑元数据 |
+| `body` | 13px | 1.5 | 400 | 正文、表单、列表内容 |
+| `label` | 14px | 1.3 | 600 | 控件文字、分组标题 |
+| `title` | 16px | 1.3 | 600 | 卡片/页面标题 |
+| `display` | 23px | 1.2 | 800 | 统计数字和关键指标 |
+
+现有页面中仍保留少量 `9–34px` 的 optical token（例如 12.8px 卡片标题、18px 阅读工具栏、34px 引导主标题），这些是为保持原型几何而保留的迁移值，不得在新页面扩散；逐页完成视觉截图对比后再归并到六档。卡片标题使用 600 字重；统计大数字使用 800 + `font-variant-numeric: tabular-nums` + 渐变裁切文字（`background-clip: text`，深→品牌橙 130%）。不引入外部字体，跟随思源主题字体栈。
+
+### 2.4 令牌使用规则（实现约束）
+
+令牌按 **primitive → semantic → component** 三层使用。组件样式只能消费 semantic 或 component 令牌；只有令牌声明区可以直接出现品牌色、状态色和尺寸字面量。这样修改主题或全局密度时只需修改一处，不会让页面之间出现“同义不同值”。
+
+| 层级 | 允许内容 | 示例 | 何时新增 |
+|---|---|---|---|
+| primitive | 原始色值、4px 间距栅格、字号/字重、圆角、时长、层级 | `--glean-color-orange-500`、`--glean-space-4` | 新的品牌/状态色或确实缺失的基础档位 |
+| semantic | 与语义绑定的表面、文字、状态和交互反馈 | `--glean-error-surface`、`--glean-st-done` | 同一语义在两个以上组件重复出现，或主题切换需要映射 |
+| component | 组件尺寸、间距、圆角、阴影组合 | `--glean-btn-height-md`、`--glean-card-padding` | 多个页面需要同一组件契约；不得为单个页面特例创建 |
+
+使用时遵循以下规则：
+
+1. 间距优先取 `--glean-space-*`（4px 栅格）；视觉上确需 2/3/5/6/7/9/10px 的微间距时，只能使用已声明的 optical 别名，并在审计中保持白名单，不在组件里写新的裸值。新布局不得新增非栅格 token。
+2. 字号必须同时指定对应的 `--glean-text-*`、`--glean-leading-*` 和 `--glean-weight-*`；正文、标题、说明和统计数字不能各自发明档位。
+3. 圆角、阴影、层级和动效时长使用 `--glean-radius-*`、`--glean-shadow-*`、`--glean-z-*` 和 `--glean-duration-*`；`z-index` 只从令牌取值，避免弹层互相遮挡。
+4. 颜色使用 b3 主题变量或由其映射的 `--glean-*` 语义令牌。状态色只表达五种文章状态，错误/成功等反馈色不得借用文章状态色。
+5. 组件需要一个新值时，先检查是否能复用现有令牌；若不能，先在本节追加用途和理由，再同时更新 `src/index.scss`、canonical 原型和审计数据。
+6. `var()` 缺省值只用于宿主版本兼容，不得借此绕过令牌体系；无障碍高对比度或 reduced-motion 例外必须写出原因。
+
+每轮收敛应运行 `node scripts/design-token-audit.mjs`，在变更说明中记录 spacing、typography、radius、shadow、layering、motion 和颜色字面量的基线与当前值。没有审计数据，不以“已统一”作为验收结论。
 
 ## 3. 布局系统（三档画布）
 
@@ -114,6 +143,27 @@
 
 ### 4.6 迁移器步进器
 `glean-stepper`：三步球（扫描报告→分批回填→完成），done=绿底✓ / on=渐变球+投影；配 `glean-mstats` 三卡（绿/灰/橙分色）。
+
+### 4.7 通用组件变体矩阵（唯一允许集合）
+
+下表是跨页面可复用的最小变体集合。变体名称、尺寸和状态应与实现中的类名及原型保持一致；没有列出的组合不要临时拼接样式。
+
+| 组件 | 允许变体 | 尺寸 | 必须覆盖的状态 | 保留理由 |
+|---|---|---|---|---|
+| `glean-btn` | `primary`（实现类 `--pri`）、`secondary`（基类）、`ghost`、`danger` | `sm`、`md`、`lg` | hover、focus-visible、pressed、disabled、loading、success、error | 四种语义足以覆盖主任务、次任务、低干扰入口和破坏性操作；`danger` 仅用于已确认的破坏性动作 |
+| `glean-icon-btn` | `default`、`labeled`、`danger` | `sm`、`md` | title/aria-label、hover、focus-visible、pressed、disabled、loading | 图标密度和窄栏空间需要独立尺寸；`labeled` 只在宽画布显示文字，避免重复造按钮 |
+| `glean-input` / `glean-select` | `default`、`search`、`compact` | `md`、`lg` | empty、focus、filled、invalid、disabled、loading | `search` 保留搜索图标和清除入口；`compact` 只服务 rail/表格工具栏，不为单页微调 |
+| `glean-tag` / `glean-chip` | `status`、`filter`、`source`、`ai` | `sm`、`md` | default、selected、removable、disabled、overflow | 状态、筛选、来源和 AI 结果的语义不同，必须保留可读文本；AI 变体必须带来源标记 |
+| `glean-card` | `default`、`selected`、`loading`、`error`、`empty` | `md`、`lg` | hover、focus-within、selected、loading、error、empty | 列表卡、候选卡和统计块共享结构；状态变体保证异步/空结果不会渲染成空白 |
+| `glean-dialog` / `glean-sheet` | `default`、`confirm`、`task` | `sm`、`md`、`lg` | opening、busy、success、error、dismissible | `confirm` 约束危险操作，`task` 承载可恢复后台任务；不使用通用聊天窗变体 |
+| `glean-empty` | `default`、`filtered`、`permission`、`offline` | `md` | illustration、说明、引导动作、retry（适用时） | 让空数据、筛选无结果、权限不足和离线状态可区分且可继续操作 |
+
+变体新增规则：
+
+- 新增变体必须同时提供“用户问题/语义差异、适用页面、无障碍名称、默认与错误态截图”四项说明，并在本表留下理由；只因颜色、间距或单页布局不同不得新增变体。
+- 尺寸只保留 `sm/md/lg` 三档。触控目标低于 44px 时仅允许桌面 `sm`，移动端必须回退 `md`；图标按钮的可见尺寸与点击热区分开处理。
+- `loading` 状态锁定重复触发并保留原动作名称，`error` 状态提供可读原因和重试入口，`empty` 状态必须提供插图、说明与下一步动作；这些是状态，不是新的视觉变体。
+- 样式实现集中在 `src/index.scss`，组件 `<style>` 不复制令牌。原型新增状态先在 `design/prototype-v2.html` 镜像，再实现组件并通过 `pnpm check` 与视觉走查。
 
 ## 5. 场景标准
 

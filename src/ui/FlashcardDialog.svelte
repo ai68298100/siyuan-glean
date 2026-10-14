@@ -2,6 +2,7 @@
     import { onMount, untrack } from "svelte";
     import { showMessage } from "siyuan";
     import { t } from "../libs/i18n";
+    import { aiFailureKey } from "../libs/ai-feedback";
     import {
         FLASHCARD_AI_QUOTE_LIMIT, FLASHCARD_BACK_LIMIT, FLASHCARD_FRONT_LIMIT, validateFlashcard,
         type FlashcardSource,
@@ -54,7 +55,7 @@
                 message = t(i18n, "flashcard.aiReady");
             } else {
                 const reason = outcome.reason ?? "error";
-                message = t(i18n, reason === "sourceChanged" || reason === "readFailed" || reason === "cancelled" || reason === "busy" ? `flashcard.save.${reason}` : `flashcard.ai.${reason}`);
+                message = t(i18n, aiFailureKey(reason) ?? (reason === "sourceChanged" || reason === "readFailed" || reason === "cancelled" || reason === "busy" ? `flashcard.save.${reason}` : `flashcard.ai.${reason}`));
             }
         } finally {
             if (!disposed) busy = false;

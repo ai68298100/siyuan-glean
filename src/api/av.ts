@@ -69,12 +69,19 @@ export interface AvRenderResult {
 
 export async function renderView(avId: string, dbBlockId: string, createIfNotExist = false): Promise<AvRenderResult> {
     // 事务落库存在异步滞后，调用方需要行数据时应自行重试（av-spike 实证）
-    return kernelPost<AvRenderResult>("/api/av/renderAttributeView", {
+    const body = {
         id: avId,
         blockID: dbBlockId,
         query: "",
         pageSize: -1,
         createIfNotExist,
+    };
+    if (createIfNotExist) return kernelPost<AvRenderResult>("/api/av/renderAttributeView", body);
+    return kernelPost<AvRenderResult>("/api/av/renderAttributeView", body, {
+        requestKey: `view:${avId}:${dbBlockId}`,
+        latestKey: `view:${avId}:${dbBlockId}`,
+        retryable: true,
+        retry: { attempts: 2, delayMs: 200, maxDelayMs: 400 },
     });
 }
 
@@ -110,9 +117,15 @@ export async function bindDocsAsRows(avId: string, dbBlockId: string, docIds: st
 
 /** 绑定文档 ID → 行 itemID 的官方换算端点。 */
 export async function mapBoundDocIds(avId: string, docIds: string[]): Promise<Record<string, string>> {
+    const requestIds = [...new Set(docIds)].sort();
     const data = await kernelPost<unknown>("/api/av/getAttributeViewItemIDsByBoundIDs", {
         avID: avId,
         blockIDs: docIds,
+    }, {
+        requestKey: `bound-docs:${avId}:${requestIds.join(",")}`,
+        latestKey: `bound-docs:${avId}:${requestIds.join(",")}`,
+        retryable: true,
+        retry: { attempts: 2, delayMs: 150, maxDelayMs: 300 },
     });
     if (!data || typeof data !== "object" || Array.isArray(data)) throw new Error("Invalid AV binding map");
     const mapped: Record<string, string> = {};

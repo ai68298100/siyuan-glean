@@ -13,6 +13,7 @@
     let busy = $state<"scan" | string | "">("");
     let scanned = $state(false);
     let error = $state(false);
+    let scanError = $state(false);
     let message = $state("");
     let confirmKey = $state("");
 
@@ -29,19 +30,20 @@
         keepByGroup = { ...keepByGroup, [keyOf(plan)]: value };
     }
 
-    async function runScan(setError = true, keepPlansOnFailure = false): Promise<boolean> {
+    async function runScan(keepPlansOnFailure = false): Promise<boolean> {
         try {
             plans = await suggestAiTagMerges(facade.pluginInstance);
             keepByGroup = Object.fromEntries(plans.map((plan) => [keyOf(plan), plan.keep]));
             scanned = true;
+            scanError = false;
             return true;
         } catch {
+            scanError = true;
             // apply 后的刷新失败保留旧 plans：剩余待合并分组不应从界面上消失；手动扫描仍显示错误
             if (keepPlansOnFailure && plans.length > 0) return false;
             plans = [];
             keepByGroup = {};
             scanned = false;
-            if (setError) error = true;
             return false;
         }
     }
@@ -50,6 +52,7 @@
         if (busy) return;
         busy = "scan";
         error = false;
+        scanError = false;
         message = "";
         try { await runScan(); } finally { busy = ""; }
     }
@@ -75,7 +78,7 @@
                 : t(i18n, "aiTagMerge.applied", { n: result.applied });
             if (result.failed > 0) error = true;
             // 合并已生效：随后的重扫失败只影响列表刷新（保留剩余分组），不把成功提示吞成错误
-            await runScan(false, true);
+            await runScan(true);
         } catch {
             error = true;
         } finally {
@@ -95,10 +98,16 @@
         </button>
     </div>
 
-    {#if error}
+    {#if message}
+        <p class="glean-ai-tag-merge__status" class:glean-ai-tag-merge__status--error={error} role={error ? "alert" : "status"} aria-live={error ? "assertive" : "polite"}>{message}</p>
+    {:else if error}
         <p class="glean-ai-tag-merge__status glean-ai-tag-merge__status--error" role="alert">{t(i18n, "aiTagMerge.error")}</p>
-    {:else if message}
-        <p class="glean-ai-tag-merge__status" role="status" aria-live="polite">{message}</p>
+    {/if}
+    {#if scanError}
+        <div class="glean-ai-tag-merge__scan-error" role="alert">
+            <p>{t(i18n, "aiTagMerge.scanFailed")}</p>
+            <button class="glean-btn glean-btn--ghost" disabled={Boolean(busy)} onclick={() => void scan()}>{t(i18n, "aiTagMerge.retryScan")}</button>
+        </div>
     {/if}
 
     {#if scanned && plans.length === 0}
@@ -145,6 +154,8 @@
     .glean-ai-tag-merge__hint, .glean-ai-tag-merge__empty { padding: var(--glean-space-2) 0; }
     .glean-ai-tag-merge__status { color: var(--glean-st-done-text) !important; }
     .glean-ai-tag-merge__status--error { color: var(--b3-theme-error) !important; }
+    .glean-ai-tag-merge__scan-error { display: flex; flex-wrap: wrap; align-items: center; gap: var(--glean-space-2); padding: var(--glean-space-2); border: 1px solid var(--b3-theme-error); border-radius: var(--glean-radius-md); }
+    .glean-ai-tag-merge__scan-error p { color: var(--b3-theme-error); }
     @media (max-width: 600px) {
         .glean-ai-tag-merge__head { display: grid; }
         .glean-ai-tag-merge__head button { justify-self: start; min-height: 44px; }

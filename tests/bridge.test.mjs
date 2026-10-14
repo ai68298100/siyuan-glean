@@ -323,13 +323,10 @@ test("对账查询、属性、索引保存和后续属性回读失败均拒绝�
     context.controls.saveError = saveError;
     await assert.rejects(context.bridge.listClips(), (actual) => actual === saveError);
     context.controls.saveError = null;
-    let batchCount = 0;
     const readError = new Error("fresh attributes failed");
-    context.controls.beforeRequest = (route) => {
-        if (route === "/api/attr/batchGetBlockAttrs" && ++batchCount === 2) throw readError;
-    };
+    context.failures.set("/api/attr/batchGetBlockAttrs", readError);
     await assert.rejects(context.bridge.listClips(), (actual) => actual === readError);
-    context.controls.beforeRequest = null;
+    context.failures.delete("/api/attr/batchGetBlockAttrs");
     assert.equal((await context.bridge.listClips()).length, 1);
 });
 
@@ -385,7 +382,7 @@ test("写入非法状态/ID/候选/internal/缺失文档均拒绝且不落属性
     assert.equal(attributeWrites(context).length, 0);
 });
 
-test("真实属性写入及索引保存失败传播且不通知成功，失败后队列继续", async () => {
+test("真实属性写入失败会传播；索引保存失败保留事实写入并允许队列继续", async () => {
     const context = harness({ enabled: true });
     const id = context.add(1);
     const writeError = new Error("attribute write denied");
@@ -396,12 +393,12 @@ test("真实属性写入及索引保存失败传播且不通知成功，失败�
     context.failures.delete("/api/attr/setBlockAttrs");
     const saveError = new Error("index save denied");
     context.controls.saveError = saveError;
-    await assert.rejects(context.bridge.setClipStatus(id, "reading"), (actual) => actual === saveError);
+    await context.bridge.setClipStatus(id, "reading");
     assert.equal(context.attrs.get(id)["custom-clip-status"], "reading");
-    assert.equal(context.notifications(), 0);
+    assert.equal(context.notifications(), 1);
     context.controls.saveError = null;
     await context.bridge.setClipStatus(id, "archived");
-    assert.equal(context.notifications(), 1);
+    assert.equal(context.notifications(), 2);
     assert.equal(context.files.get("glean-index.json").clips[id].status, "archived");
 });
 

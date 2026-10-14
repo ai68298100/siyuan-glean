@@ -13,7 +13,12 @@ export interface RiffDeck {
 }
 
 export async function getRiffDecks(): Promise<RiffDeck[]> {
-    const data = await kernelPost<RiffDeck[]>("/api/riff/getRiffDecks", {});
+    const data = await kernelPost<RiffDeck[]>("/api/riff/getRiffDecks", {}, {
+        requestKey: "all",
+        latestKey: "all",
+        retryable: true,
+        retry: { attempts: 2, delayMs: 150, maxDelayMs: 300 },
+    });
     return Array.isArray(data) ? data : [];
 }
 

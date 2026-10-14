@@ -18,7 +18,12 @@ export interface AIEditorAction {
 }
 
 export async function listAIEditorActions(): Promise<AIEditorAction[]> {
-    const data = await kernelPost<AIEditorAction[]>("/api/ai/editor/lsActions", {});
+    const data = await kernelPost<AIEditorAction[]>("/api/ai/editor/lsActions", {}, {
+        requestKey: "all",
+        latestKey: "all",
+        retryable: true,
+        retry: { attempts: 2, delayMs: 150, maxDelayMs: 300 },
+    });
     return Array.isArray(data) ? data : [];
 }
 

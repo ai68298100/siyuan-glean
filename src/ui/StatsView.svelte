@@ -18,14 +18,20 @@ interface Props {
     index: GleanIndex;
     currentTime: Date;
     onCaptured?: () => void;
+    loading?: boolean;
+    loadError?: boolean;
+    onRetry?: () => void;
 }
 
-let { facade, index, currentTime, onCaptured }: Props = $props();
+let { facade, index, currentTime, onCaptured, loading = false, loadError = false, onRetry }: Props = $props();
 
 const i18n = $derived(facade.i18n);
 const instanceId = $props.id();
 const idPrefix = `glean-stats-${instanceId}`;
 const idFor = (part: string) => `${idPrefix}-${part}`;
+const freshnessStamp = $derived(Number.isFinite(Date.parse(index.updatedAt))
+    ? new Date(index.updatedAt).toLocaleString()
+    : index.updatedAt.slice(0, 40));
 
 let period = $state<ReviewPeriodKind>("week");
 let referenceDate = $state(reviewDateInput());
@@ -179,6 +185,26 @@ function downloadCsv(): void {
 </script>
 
 <div class="glean-stats" aria-busy={busy}>
+    {#if loading && !index.updatedAt}
+        <div class="glean-stats__load-state" role="status" aria-live="polite" aria-busy="true">
+            <div class="glean-empty__art" aria-hidden="true"><svg><use href="#iconGleanSpark" /></svg></div>
+            <p>{t(i18n, "review.indexLoading")}</p>
+        </div>
+    {:else if loadError && !index.updatedAt}
+        <div class="glean-stats__load-state glean-stats__load-state--error" role="alert" aria-live="assertive">
+            <div class="glean-empty__art" aria-hidden="true"><svg><use href="#iconGleanClose" /></svg></div>
+            <p>{t(i18n, "review.indexLoadFailed")}</p>
+            {#if onRetry}<button class="glean-btn" aria-busy={loading} disabled={loading} onclick={onRetry}>{t(i18n, "review.retryLoad")}</button>{/if}
+        </div>
+    {:else}
+        {#if loadError}
+            <div class="glean-stats__freshness glean-stats__freshness--stale" role="alert" aria-live="assertive">
+                <span>{t(i18n, "review.cachedStale", { at: freshnessStamp })}</span>
+                {#if onRetry}<button class="glean-btn" aria-busy={loading} disabled={loading} onclick={onRetry}>{t(i18n, "review.retryLoad")}</button>{/if}
+            </div>
+        {:else if index.updatedAt}
+            <p class="glean-stats__freshness" role="status">{t(i18n, "review.indexUpdated", { at: freshnessStamp })}</p>
+        {/if}
     <section class="glean-stats__overview" aria-labelledby={idFor("overview-title")}>
         <div class="glean-stats__intro">
             <div>
@@ -329,6 +355,7 @@ function downloadCsv(): void {
             <textarea class="glean-stats__field" readonly value={session.markdown} spellcheck="false"></textarea>
         </label>
     {/if}
+    {/if}
 </div>
 
 <style>
@@ -338,6 +365,38 @@ function downloadCsv(): void {
         gap: 20px;
         font-size: 14px;
         line-height: 1.6;
+    }
+
+    .glean-stats__load-state,
+    .glean-stats__freshness {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: var(--glean-space-3);
+        min-width: 0;
+        padding: var(--glean-space-3) var(--glean-space-4);
+        border: 1px solid var(--glean-border-soft);
+        border-radius: var(--glean-radius-md);
+        background: var(--glean-status-surface);
+        overflow-wrap: anywhere;
+    }
+
+    .glean-stats__load-state {
+        min-height: 190px;
+        flex-direction: column;
+        justify-content: center;
+        text-align: center;
+    }
+
+    .glean-stats__load-state p,
+    .glean-stats__freshness { margin: 0; }
+
+    .glean-stats__load-state--error,
+    .glean-stats__freshness--stale {
+        color: var(--b3-theme-error);
+        border-color: color-mix(in srgb, var(--b3-theme-error) 30%, var(--glean-border-soft));
+        background: var(--glean-error-surface);
     }
 
     .glean-stats__overview {

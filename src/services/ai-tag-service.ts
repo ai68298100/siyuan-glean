@@ -5,8 +5,9 @@
  */
 import type { Plugin } from "siyuan";
 import { findSimilarTagGroups, type AiTagMergeSuggestion } from "../domain/enrich";
+import { ATTR, serializePatch } from "../domain/schema";
 import { loadIndex } from "./index-store";
-import { writeClip } from "./clip-store";
+import { withClipEditQueue } from "./clip-store";
 
 export interface AiTagMergePlan extends AiTagMergeSuggestion {
     /** 会受到合并影响的文档篇数 */
@@ -15,7 +16,7 @@ export interface AiTagMergePlan extends AiTagMergeSuggestion {
 
 /** 扫描索引内全部 AI 标签，返回相似组合并建议（含影响篇数）。不写任何东西。 */
 export async function suggestAiTagMerges(plugin: Plugin): Promise<AiTagMergePlan[]> {
-    const index = await loadIndex(plugin);
+    const index = await loadIndex(plugin, { strict: true });
     const byTag = new Map<string, string[]>();
     for (const clip of Object.values(index.clips)) {
         for (const tag of clip.aiTags) {
@@ -45,7 +46,7 @@ export interface AiTagMergeResult {
 
 export async function applyAiTagMerge(plugin: Plugin, variants: string[], keep: string): Promise<AiTagMergeResult> {
     if (!keep.trim() || variants.length === 0 || !variants.includes(keep)) return { applied: 0, failed: 0 };
-    const index = await loadIndex(plugin);
+    const index = await loadIndex(plugin, { strict: true });
     const from = new Set(variants.filter((variant) => variant !== keep));
     let applied = 0;
     let failed = 0;
@@ -55,7 +56,14 @@ export async function applyAiTagMerge(plugin: Plugin, variants: string[], keep: 
             .map((tag) => (from.has(tag) ? keep : tag))
             .filter((tag, position, all) => all.indexOf(tag) === position);
         try {
-            await writeClip(plugin, clip.id, { aiTags: nextTags });
+            // 以索引中的原始标签作为并发守门：合并期间若用户或另一个窗口
+            // 已更新标签，当前文档计为失败，避免旧全量数组覆盖新标签。
+            const expectedAiTags = serializePatch({ aiTags: clip.aiTags })[ATTR.aiTags] ?? null;
+            await withClipEditQueue(plugin, clip.id, async (write) => {
+                await write({ aiTags: nextTags }, {
+                    expectedAttrs: { [ATTR.aiTags]: expectedAiTags },
+                });
+            });
             applied += 1;
         } catch {
             // 单篇失败不阻断；UI 显示部分失败并允许重试

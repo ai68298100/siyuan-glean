@@ -45,6 +45,7 @@ test("阶段与原因必须一致，尝试次数不可负、分数或假称未�
     for (const row of [
         { stage: "running", reason: "", attempt: 1 }, { stage: "succeeded", reason: "", attempt: 2 },
         { stage: "failed", reason: "parse", attempt: 1 }, { stage: "unknown", reason: "interrupted", attempt: 1 },
+        { stage: "failed", reason: "permission", attempt: 1 }, { stage: "failed", reason: "network", attempt: 1 }, { stage: "failed", reason: "timeout", attempt: 1 },
         { stage: "pending", reason: "cap", attempt: 2 }, { stage: "skipped", reason: "changed", attempt: 0 },
     ]) assert.ok(parseAiBatchJournal({ ...journal(), rows: [{ docId: firstId, ...row }] }));
 });

@@ -9,6 +9,10 @@ export const batchGetBlockAttrs = (...args) => globalThis.__gleanTestApi.batchGe
 export const setBlockAttrs = (...args) => globalThis.__gleanTestApi.setBlockAttrs(...args);
 export const querySql = (...args) => globalThis.__gleanTestApi.querySql(...args);
 export const exportMdContent = (...args) => globalThis.__gleanTestApi.exportMdContent(...args);
+export const kernelErrorKind = (error) => {
+    const kind = error && error.kind;
+    return ["permission", "network", "timeout", "protocol", "kernel", "aborted", "superseded"].includes(kind) ? kind : "kernel";
+};
 `;
 const apiUrl = `data:text/javascript,${encodeURIComponent(apiStub)}`;
 
@@ -52,15 +56,32 @@ function harness() {
     let activeMarkdownExports = 0;
     let maxMarkdownExports = 0;
     let failAnchorQuery = false;
+    let failSaveIndex = false;
+    let failLoadIndex = false;
     let failPageOffset: number | null = null;
+    let getAttrsGate: { remaining: number; entered: ReturnType<typeof Promise.withResolvers<void>>; released: ReturnType<typeof Promise.withResolvers<void>> } | null = null;
     const failWriteIds = new Set<string>();
 
     const plugin = {
-        async loadData(name: string) { return structuredClone(saved.get(name) ?? null); },
-        async saveData(name: string, value: unknown) { saved.set(name, structuredClone(value)); },
+        async loadData(name: string) {
+            if (name === "glean-index.json" && failLoadIndex) throw new Error("index read failed");
+            return structuredClone(saved.get(name) ?? null);
+        },
+        async saveData(name: string, value: unknown) {
+            if (name === "glean-index.json" && failSaveIndex) throw new Error("index save failed");
+            saved.set(name, structuredClone(value));
+        },
     };
     (globalThis as Record<string, unknown>).__gleanTestApi = {
-        async getBlockAttrs(id: string) { return { ...(attrs.get(id) ?? {}) }; },
+        async getBlockAttrs(id: string) {
+            const gate = getAttrsGate;
+            if (gate && gate.remaining > 0) {
+                gate.remaining -= 1;
+                if (gate.remaining === 0) gate.entered.resolve();
+                await gate.released.promise;
+            }
+            return { ...(attrs.get(id) ?? {}) };
+        },
         async batchGetBlockAttrs(ids: string[]) {
             return ids.filter((id) => docs.has(id)).map((id) => ({ id, attrs: { ...(attrs.get(id) ?? {}) } }));
         },
@@ -113,7 +134,20 @@ function harness() {
         attrs.set(id, ial);
         markdowns.set(id, markdown);
     };
-    return { plugin, docs, attrs, saved, queries, writes, add, failWriteIds, maxMarkdownExports: () => maxMarkdownExports, setFailAnchorQuery: (value: boolean) => { failAnchorQuery = value; }, setFailPageOffset: (value: number | null) => { failPageOffset = value; } };
+    return {
+        plugin, docs, attrs, saved, queries, writes, add, failWriteIds,
+        maxMarkdownExports: () => maxMarkdownExports,
+        setFailAnchorQuery: (value: boolean) => { failAnchorQuery = value; },
+        setFailSaveIndex: (value: boolean) => { failSaveIndex = value; },
+        setFailLoadIndex: (value: boolean) => { failLoadIndex = value; },
+        setFailPageOffset: (value: number | null) => { failPageOffset = value; },
+        holdNextTwoAttributeReads: () => {
+            const entered = Promise.withResolvers<void>();
+            const released = Promise.withResolvers<void>();
+            getAttrsGate = { remaining: 2, entered, released };
+            return { entered: entered.promise, release: () => released.resolve() };
+        },
+    };
 }
 
 test("作者自动写入保护已有值及清空，显式作者编辑只改署名并读回", async () => {
@@ -250,6 +284,31 @@ test("显式批量改状态覆盖旧值，持久索引与文档属性一致", as
     assert.equal(index.clips["clip-1"].status, "reading");
 });
 
+test("属性写入成功但索引 saveData 失败时返回可恢复的索引同步结果", async () => {
+    const h = harness();
+    h.add("index-save-failure", "box-1", { "custom-clip-status": "inbox" });
+    h.setFailSaveIndex(true);
+    const result = await writeClip(h.plugin as never, "index-save-failure", { status: "reading" }, { forceStatus: true });
+    assert.equal(result.attrs.status, "reading");
+    assert.equal(result.indexSyncFailed, true);
+    assert.equal(h.attrs.get("index-save-failure")?.["custom-clip-status"], "reading");
+    assert.equal(h.saved.has("glean-index.json"), false);
+});
+
+test("索引损坏保护不会伪装增量同步成功，完整重建后恢复落盘", async () => {
+    const h = harness();
+    h.add("index-corrupt", "box-1", { "custom-clip-status": "inbox" });
+    h.setFailLoadIndex(true);
+    const result = await writeClip(h.plugin as never, "index-corrupt", { status: "done" }, { forceStatus: true });
+    assert.equal(result.attrs.status, "done");
+    assert.equal(result.indexSyncFailed, true);
+    h.setFailLoadIndex(false);
+    const rebuilt = await reconcileIndex(h.plugin as never, { anchorNotebooks: ["box-1"] } as never);
+    assert.equal(rebuilt.clips["index-corrupt"].status, "done");
+    assert.equal((h.saved.get("glean-index.json") as { clips: Record<string, { status: string }> }).clips["index-corrupt"].status, "done");
+    h.setFailSaveIndex(false);
+});
+
 test("批量状态动作只报告真正写成功的文档 ID，供打卡桥避免误报", async () => {
     const h = harness();
     h.add("first", "box-1", { "custom-clip-status": "reading" });
@@ -259,6 +318,8 @@ test("批量状态动作只报告真正写成功的文档 ID，供打卡桥避�
     h.failWriteIds.add("failure");
     const result = await batchSetStatusDetailed(h.plugin as never, ["first", "failure", "last"], "done");
     assert.deepEqual(result, { ok: 2, succeeded: ["first", "last"] });
+    assert.deepEqual(result.failures, [{ id: "failure", kind: "kernel" }]);
+    assert.deepEqual(result.indexSyncFailed, []);
     assert.equal(h.attrs.get("first")?.["custom-clip-status"], "done");
     assert.equal(h.attrs.get("failure")?.["custom-clip-status"], "reading");
     assert.equal(h.attrs.get("last")?.["custom-clip-status"], "done");
@@ -386,6 +447,23 @@ test("新建导入文档的首次收录保留来源状态和时间，再次收�
     const second = await captureClip(h.plugin as never, "imported", { status: "inbox" });
     assert.equal(second.captured, false);
     assert.equal(h.attrs.get("imported")?.["custom-clip-status"], "done");
+    assert.equal(h.writes.length, 1);
+});
+
+test("并发首次收录基于相同旧属性快照时第二个状态写入被拒绝", async () => {
+    const h = harness();
+    h.add("capture-race", "box-1");
+    const gate = h.holdNextTwoAttributeReads();
+    const first = captureClip(h.plugin as never, "capture-race", { status: "done", src: "import-pocket" });
+    const second = captureClip(h.plugin as never, "capture-race", { status: "later", src: "import-raindrop" });
+    await gate.entered;
+    gate.release();
+
+    const results = await Promise.allSettled([first, second]);
+    assert.equal(results.filter((result) => result.status === "fulfilled").length, 1);
+    const rejected = results.find((result) => result.status === "rejected");
+    assert.equal((rejected as PromiseRejectedResult).reason.reason, "changed");
+    assert.equal(h.attrs.get("capture-race")?.["custom-clip-status"], "done");
     assert.equal(h.writes.length, 1);
 });
 

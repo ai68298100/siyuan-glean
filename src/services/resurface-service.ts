@@ -5,7 +5,7 @@
  * “开始阅读”只进入 reading；读完必须由用户明确执行“标记已读”。
  */
 import type { Plugin } from "siyuan";
-import { parseClipAttrs, type ClipStatus } from "../domain/schema";
+import { ATTR, parseClipAttrs, type ClipStatus } from "../domain/schema";
 import { currentCompletionStreak } from "../domain/stats";
 import {
     pickDaily,
@@ -20,7 +20,7 @@ import {
     type SurfaceReason,
 } from "../domain/resurface";
 import { loadIndex, type GleanIndex } from "./index-store";
-import { readClip, writeClip } from "./clip-store";
+import { readClip, withClipEditQueue, writeClip } from "./clip-store";
 import type { GleanSettings } from "./settings";
 
 function indexToSurfaceItems(index: GleanIndex): SurfaceItem[] {
@@ -100,40 +100,62 @@ export interface SurfaceUndoToken {
 }
 
 export async function actOnSurface(plugin: Plugin, docId: string, action: SurfaceAction): Promise<SurfaceUndoToken> {
-    const current = await readClip(docId);
-    if (!current.status) throw new Error("文章状态缺失，无法执行重浮动作");
-    const before: SurfaceStateSnapshot = {
-        status: current.status,
-        lastSurfaced: current.lastSurfaced ?? "",
-    };
-    const after: SurfaceStateSnapshot = {
-        status: action === "read" ? "reading" : action === "archive" ? "archived" : before.status,
-        lastSurfaced: todayStamp(),
-    };
-    const patch = { status: after.status, lastSurfaced: after.lastSurfaced };
-    await writeClip(plugin, docId, patch, { force: true });
-    return { before, after };
+    return withClipEditQueue(plugin, docId, async (write) => {
+        const current = await readClip(docId);
+        if (!current.status) throw new Error("文章状态缺失，无法执行重浮动作");
+        const before: SurfaceStateSnapshot = {
+            status: current.status,
+            lastSurfaced: current.lastSurfaced ?? "",
+        };
+        const after: SurfaceStateSnapshot = {
+            status: action === "read" ? "reading" : action === "archive" ? "archived" : before.status,
+            lastSurfaced: todayStamp(),
+        };
+        const patch = { status: after.status, lastSurfaced: after.lastSurfaced };
+        await write(patch, {
+            force: true,
+            expectedAttrs: {
+                [ATTR.status]: current.status,
+                [ATTR.lastSurfaced]: current.lastSurfaced ?? null,
+            },
+        });
+        return { before, after };
+    });
 }
 
 export async function setSurfacePinned(plugin: Plugin, docId: string, pinned: boolean): Promise<string> {
-    const current = await readClip(docId);
-    if (!current.status) throw new Error("文章状态缺失，无法修改今日置顶");
-    const next = pinned ? todayStamp() : "";
-    await writeClip(plugin, docId, { pinned: next || null }, { force: true });
-    return next;
+    return withClipEditQueue(plugin, docId, async (write) => {
+        const current = await readClip(docId);
+        if (!current.status) throw new Error("文章状态缺失，无法修改今日置顶");
+        const next = pinned ? todayStamp() : "";
+        await write({ pinned: next || null }, {
+            force: true,
+            expectedAttrs: {
+                [ATTR.status]: current.status,
+                [ATTR.pinned]: current.pinned ?? null,
+            },
+        });
+        return next;
+    });
 }
 
 export async function undoSurfaceAction(plugin: Plugin, docId: string, token: SurfaceUndoToken): Promise<void> {
-    const current = await readClip(docId);
-    if (current.status !== token.after.status || (current.lastSurfaced ?? "") !== token.after.lastSurfaced) {
-        throw new Error("文章状态已变化，无法撤销");
-    }
-    await writeClip(
-        plugin,
-        docId,
-        { status: token.before.status, lastSurfaced: token.before.lastSurfaced },
-        { force: true },
-    );
+    return withClipEditQueue(plugin, docId, async (write) => {
+        const current = await readClip(docId);
+        if (current.status !== token.after.status || (current.lastSurfaced ?? "") !== token.after.lastSurfaced) {
+            throw new Error("文章状态已变化，无法撤销");
+        }
+        await write(
+            { status: token.before.status, lastSurfaced: token.before.lastSurfaced },
+            {
+                force: true,
+                expectedAttrs: {
+                    [ATTR.status]: current.status,
+                    [ATTR.lastSurfaced]: current.lastSurfaced ?? null,
+                },
+            },
+        );
+    });
 }
 
 /** 超龄归档候选（T-1401/T-1710）：在对账后的索引上列清单，归档前供用户勾选。 */

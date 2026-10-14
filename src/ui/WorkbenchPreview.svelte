@@ -124,7 +124,7 @@
         const url = sourceUrl;
         void process(async () => {
             await confirmPreviewCandidate(facade.pluginInstance, id, url, asLocal);
-            autoEnrich(facade.pluginInstance, id, facade.settings);
+            autoEnrich(facade.pluginInstance, id, facade.settings, () => facade.notifyDataChanged());
         }, "msg.added");
     }
 

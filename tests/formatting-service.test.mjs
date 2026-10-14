@@ -130,12 +130,14 @@ for (const stage of ["mark", "index"]) {
         const fixture = harness();
         const session = await loadFormattingSession(originalId);
         fixture.failure[stage] = true;
-        assert.deepEqual(await saveFormattingDraft(fixture.plugin, session, [], labels), { ok: false, docId: draftId, reason: "markFailed" });
-        assert.equal(session.state, "created");
+        const first = await saveFormattingDraft(fixture.plugin, session, [], labels);
+        assert.deepEqual(first, stage === "index" ? { ok: true, docId: draftId } : { ok: false, docId: draftId, reason: "markFailed" });
+        assert.equal(session.state, stage === "index" ? "saved" : "created");
         assert.equal(session.createdDocId, draftId);
         fixture.documents.get(originalId).markdown += "\n\nchanged";
         fixture.failure[stage] = false;
-        assert.deepEqual(await saveFormattingDraft(fixture.plugin, session, [], labels), { ok: true, docId: draftId });
+        const restored = await saveFormattingDraft(fixture.plugin, session, [], labels);
+        assert.deepEqual(restored, { ok: true, docId: draftId });
         assert.equal(fixture.countCreates(), 1);
     });
 }

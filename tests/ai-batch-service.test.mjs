@@ -242,7 +242,7 @@ test("成功结果已持久但保存响应丢失：停止后重读保留 succeed
 });
 
 test("模型网络错误不假称未消费，属性写入失败/响应丢失/索引失败均 unknown 且停止后续", async () => {
-    for (const kind of ["network", "writeReject", "writeLost", "index", "usage"]) {
+    for (const kind of ["network", "writeReject", "writeLost", "usage"]) {
         const current = harness();
         const preview = await previewNewAiBatch(current.plugin, [firstId, secondId], settings());
         if (kind === "network") current.controls.onAi = async () => ({ code: 1, msg: "response lost after remote processing" });
@@ -260,6 +260,30 @@ test("模型网络错误不假称未消费，属性写入失败/响应丢失/索
         await loadAiBatch(current.plugin);
         await rejectsReason(previewAiBatchResume(current.plugin, [firstId], settings()), "unknownAuthorization");
         assert.equal(current.aiCalls().length, 1);
+    }
+});
+
+test("索引派生缓存保存失败但属性读回已确认时记成功并继续后续文章", async () => {
+    const current = harness();
+    const preview = await previewNewAiBatch(current.plugin, [firstId, secondId], settings());
+    current.controls.failIndexSave = true;
+    await runAiBatch(current.plugin, preview, settings(), { confirmed: true });
+    assert.deepEqual(current.saved().rows.map((row) => row.stage), ["succeeded", "succeeded"]);
+    assert.equal(current.attrs.get(firstId)[ATTR.summary], "模型生成的摘要");
+    assert.equal(current.aiCalls().length, 2);
+});
+
+test("模型明确权限、网络和超时失败时检查点记录安全分类，不写文章", async () => {
+    for (const [message, reason] of [["HTTP 401 Unauthorized", "permission"], ["network connection refused", "network"], ["request timeout", "timeout"]]) {
+        const current = harness();
+        const preview = await previewNewAiBatch(current.plugin, [firstId, secondId], settings());
+        current.controls.onAi = async () => ({ code: 1, msg: message });
+        await runAiBatch(current.plugin, preview, settings(), { confirmed: true });
+        assert.equal(current.saved().rows[0].stage, "failed");
+        assert.equal(current.saved().rows[0].reason, reason);
+        assert.equal(current.saved().rows[1].stage, "failed");
+        assert.equal(current.attrs.get(firstId)[ATTR.summary], "旧摘要");
+        assert.doesNotMatch(JSON.stringify(current.saved()), /Unauthorized|connection refused|request timeout/);
     }
 });
 

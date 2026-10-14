@@ -29,6 +29,7 @@ import { ensurePresetActions } from "./services/ai-actions";
 import { makeQuoteCardPreview } from "./ui/flashcard-dialog";
 import { migrateShorthand } from "./services/inbox-service";
 import { getShorthand } from "./api/inbox";
+import { isKernelRequestError, kernelErrorKind } from "./api/client";
 import { DEFAULT_SETTINGS, loadSettings, saveSettings, type GleanSettings } from "./services/settings";
 import { installBridge } from "./services/bridge";
 import pluginManifest from "../plugin.json";
@@ -634,7 +635,12 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
                 ok += 1;
             } catch (error) {
                 console.warn("[glean] 收集箱迁入失败:", error);
-                showMessage(t(this.i18n, "msg.actionFailed"), 3500);
+                const kind = isKernelRequestError(error) ? error.kind : kernelErrorKind(error);
+                const messageKey = kind === "permission" ? "inbox.permissionRequired"
+                    : kind === "network" ? "inbox.networkFailed"
+                    : kind === "timeout" ? "inbox.timeout"
+                    : "msg.actionFailed";
+                showMessage(t(this.i18n, messageKey), 4500);
             }
         }
         if (ok > 0) showMessage(t(this.i18n, "inbox.migrated"), 3000);
@@ -670,7 +676,7 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
                     : t(this.i18n, result.captured ? "msg.added" : "msg.alreadyIn"),
                 3000,
             );
-            if (result.captured) autoEnrich(this, docId, this.settings);
+            if (result.captured) autoEnrich(this, docId, this.settings, () => this.notifyDataChanged());
             this.notifyDataChanged();
         } catch (error) {
             console.warn("[glean] 手动收录失败:", error);
@@ -715,7 +721,7 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
                             : t(this.i18n, result.captured ? "msg.added" : "msg.alreadyIn"),
                         3000,
                     );
-                    if (result.captured) autoEnrich(this, rootId, this.settings);
+                    if (result.captured) autoEnrich(this, rootId, this.settings, () => this.notifyDataChanged());
                     this.notifyDataChanged();
                 } catch (error) {
                     console.warn("[glean] 右键收录失败:", error);

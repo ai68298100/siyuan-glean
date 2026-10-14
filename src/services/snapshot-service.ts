@@ -32,11 +32,15 @@ async function snapshotClipOnce(plugin: Plugin, docId: string, options: Pick<Wri
     const html = exported?.content ?? "";
     if (!html) throw new Error("快照导出为空");
     await putFile(path, new Blob([html], { type: "text/html" }), path.split("/").pop() ?? "snapshot.html");
-    await writeClip(plugin, docId, { snapshot: path }, {
+    const written = await writeClip(plugin, docId, { snapshot: path }, {
         force: true,
         ...options,
         expectedAttrs: { ...options.expectedAttrs, [ATTR.snapshot]: null },
     });
+    // The snapshot attribute is the durable pointer to the asset. Surface an
+    // index-sync failure to the caller so capture can keep the warning/retry
+    // state visible even though the attribute itself is already confirmed.
+    if (written.indexSyncFailed) throw new Error("snapshot index sync pending");
     return { path, created: true };
 }
 

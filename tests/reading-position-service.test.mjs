@@ -29,7 +29,7 @@ registerHooks({
     },
 });
 
-const { readReadingPosition, saveReadingPosition, readReadingMinutes, saveReadingMinutes, verifyReadingBlock, ClipRestoreError } = await import("../src/services/clip-store.ts");
+const { readReadingPosition, saveReadingPosition, readReadingMinutes, saveReadingMinutes, addReadingMinutes, verifyReadingBlock, ClipRestoreError } = await import("../src/services/clip-store.ts");
 const { captureReadingPosition, restoreReadingPosition, readingViewport } = await import("../src/libs/reading-position.ts");
 const docId = "20261004120000-aaaaaaa";
 const otherDocId = "20261004120000-bbbbbbb";
@@ -244,6 +244,17 @@ test("真实阅读分钟独立写回，保留预计分钟与用户字段并校�
     assert.equal(fixture.attrs.get(docId)["custom-clip-read-minutes"], "7");
     assert.equal(fixture.attrs.get(docId)["custom-clip-minutes"], "10");
     assert.equal(fixture.attrs.get(docId)["custom-clip-author"], "用户");
+});
+
+test("真实阅读分钟并发结算在同一文档队列内累加，不丢失任一会话增量", async () => {
+    const fixture = harness();
+    const outcomes = await Promise.all([
+        addReadingMinutes(fixture.plugin, docId, 3),
+        addReadingMinutes(fixture.plugin, docId, 4),
+    ]);
+    assert.deepEqual(outcomes, [3, 4]);
+    assert.equal(fixture.attrs.get(docId)["custom-clip-read-minutes"], "7");
+    assert.equal((await readReadingMinutes(docId)).minutes, 7);
 });
 
 test("真实阅读分钟拒绝旧快照、移动后的文档和写入后读回不一致", async () => {

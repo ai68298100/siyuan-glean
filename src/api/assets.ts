@@ -13,7 +13,13 @@ export interface ExportHtmlResult {
 
 /** 导出文档为单文件 HTML（内容字符串）。大文档导出走长超时。 */
 export async function exportDocHtml(id: string): Promise<ExportHtmlResult> {
-    const data = await kernelPost<ExportHtmlResult>("/api/export/exportHTML", { id, pdf: false }, { timeoutMs: KERNEL_TIMEOUT_LONG_MS });
+    const data = await kernelPost<ExportHtmlResult>("/api/export/exportHTML", { id, pdf: false }, {
+        timeoutMs: KERNEL_TIMEOUT_LONG_MS,
+        requestKey: `html:${id}`,
+        latestKey: `html:${id}`,
+        retryable: true,
+        retry: { attempts: 2, delayMs: 250, maxDelayMs: 500 },
+    });
     if (!data || typeof data.content !== "string") throw new Error("快照导出响应缺少 HTML 正文");
     return data;
 }

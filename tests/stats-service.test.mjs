@@ -184,6 +184,17 @@ for (const stage of ["mark", "index", "read"]) {
         const markdown = session.markdown;
         fixture.failure[stage] = true;
         const first = await saveReadingReviewReport(fixture.plugin, session, true);
+        if (stage === "index") {
+            // Attribute facts are confirmed even when the derived index cannot
+            // be persisted; the new contract keeps the report usable and lets
+            // the next reconciliation repair the cache.
+            assert.deepEqual(first, { ok: true, docId: reportId });
+            assert.equal(session.state, "saved");
+            assert.equal(fixture.countCreates(), 1);
+            assert.equal(fixture.documents.get(reportId).markdown, markdown);
+            fixture.failure[stage] = false;
+            return;
+        }
         assert.equal(first.ok, false);
         assert.equal(first.docId, reportId);
         assert.equal(first.reason, stage === "read" ? "readFailed" : "markFailed");

@@ -20,7 +20,7 @@ registerHooks({
     },
 });
 
-const { excerptFromSelection, insertQuoteExcerpt, selectionBelongsToHost } = await import("../src/services/excerpt-service.ts");
+const { excerptFromSelection, exportQuotesToDoc, insertQuoteExcerpt, QuoteExportError, selectionBelongsToHost } = await import("../src/services/excerpt-service.ts");
 
 const validBlockId = "20261004120000-aaaaaaa";
 
@@ -182,4 +182,99 @@ test("插入摘录先校验目标块 ID，合法 ID 才调用内核", async () =
     assert.equal(calls.length, 1);
     assert.equal(calls[0].route, "/api/block/insertBlock");
     assert.equal(calls[0].body.previousID, validBlockId);
+});
+
+const exportEntry = {
+    id: "20261014115900-aaaaaaa",
+    rootId: "20261014115800-bbbbbbb",
+    text: "选中的引用内容",
+    title: "来源文章",
+    site: "example.test",
+    tags: [],
+    aiTags: [],
+    color: "",
+};
+const exportKey = "20261014120000-ccccccc";
+
+test("摘录导出同一操作键的并发提交只创建一次", async () => {
+    const entered = Promise.withResolvers();
+    const release = Promise.withResolvers();
+    let creates = 0;
+    const calls = [];
+    globalThis.__gleanExcerptPost = async (route, body) => {
+        calls.push({ route, body });
+        if (route === "/api/filetree/createDocWithMd") {
+            creates += 1;
+            entered.resolve();
+            await release.promise;
+            return { code: 0, data: "20261014120001-ddddddd" };
+        }
+        if (route === "/api/query/sql") return { code: 0, data: [] };
+        assert.fail(`Unexpected route ${route}`);
+    };
+
+    const first = exportQuotesToDoc([exportEntry], "box-export-concurrent", exportKey);
+    await entered.promise;
+    const second = exportQuotesToDoc([exportEntry], "box-export-concurrent", exportKey);
+    release.resolve();
+
+    assert.deepEqual(await Promise.all([first, second]), ["20261014120001-ddddddd", "20261014120001-ddddddd"]);
+    assert.equal(creates, 1);
+    assert.match(calls.find((call) => call.route === "/api/filetree/createDocWithMd").body.path, /-ccccccc$/);
+});
+
+test("创建响应丢失时按确切目标路径对账，找到唯一文档则恢复成功", async () => {
+    let targetPath = "";
+    const calls = [];
+    globalThis.__gleanExcerptPost = async (route, body) => {
+        calls.push({ route, body });
+        if (route === "/api/filetree/createDocWithMd") {
+            targetPath = body.path;
+            throw new Error("connection lost after create");
+        }
+        if (route === "/api/query/sql") {
+            assert.ok(body.stmt.includes(`hpath = '${targetPath}'`));
+            return { code: 0, data: [{ id: "20261014120002-eeeeeee", box: "box-export-reconcile", hpath: targetPath }] };
+        }
+        assert.fail(`Unexpected route ${route}`);
+    };
+
+    assert.equal(await exportQuotesToDoc([exportEntry], "box-export-reconcile", exportKey), "20261014120002-eeeeeee");
+    assert.equal(calls.filter((call) => call.route === "/api/filetree/createDocWithMd").length, 1);
+});
+
+test("未知创建结果重试只查原目标，不会再次 createDocWithMd", async () => {
+    let creates = 0;
+    globalThis.__gleanExcerptPost = async (route) => {
+        if (route === "/api/filetree/createDocWithMd") {
+            creates += 1;
+            throw new Error("connection lost and no row has appeared");
+        }
+        if (route === "/api/query/sql") return { code: 0, data: [] };
+        assert.fail(`Unexpected route ${route}`);
+    };
+
+    await assert.rejects(exportQuotesToDoc([exportEntry], "box-export-unknown", exportKey), (error) => {
+        assert.ok(error instanceof QuoteExportError);
+        assert.equal(error.reason, "unknown");
+        assert.equal(error.operationKey, exportKey);
+        return true;
+    });
+    await assert.rejects(exportQuotesToDoc([exportEntry], "box-export-unknown"), (error) => {
+        assert.ok(error instanceof QuoteExportError);
+        assert.equal(error.reason, "unknown");
+        assert.equal(error.operationKey, exportKey);
+        return true;
+    });
+    assert.equal(creates, 1);
+});
+
+test("同一导出恢复键不能被另一份内容复用", async () => {
+    globalThis.__gleanExcerptPost = async (route) => {
+        if (route === "/api/filetree/createDocWithMd") throw new Error("connection lost");
+        if (route === "/api/query/sql") return { code: 0, data: [] };
+        assert.fail(`Unexpected route ${route}`);
+    };
+    await assert.rejects(exportQuotesToDoc([exportEntry], "box-export-changed", exportKey), { reason: "unknown" });
+    await assert.rejects(exportQuotesToDoc([{ ...exportEntry, text: "修改后的引用" }], "box-export-changed", exportKey), { reason: "operationChanged" });
 });

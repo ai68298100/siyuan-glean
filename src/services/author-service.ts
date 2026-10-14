@@ -2,10 +2,10 @@ import type { Plugin } from "siyuan";
 import { exportMdContent } from "../api/client";
 import { authorSuggestionText, buildAuthorSuggestionPrompt, parseAuthorSuggestion, type AuthorSuggestion } from "../domain/author";
 import { AuthorEditError, readClipAuthor } from "./clip-store";
-import { activeAiSettings, aiQuotaAvailable, callLLM, enqueueEnrich, logAiEvent, recordAiUsage } from "./enrich-service";
+import { activeAiSettings, aiQuotaAvailable, callLLM, enqueueEnrich, logAiEvent, recordAiUsage, type AiCallFailure } from "./enrich-service";
 import type { GleanSettings } from "./settings";
 
-export type AuthorSuggestionReason = "off" | "cap" | "empty" | "invalid" | "changed" | "cancelled" | "error";
+export type AuthorSuggestionReason = "off" | "cap" | "empty" | "invalid" | "changed" | "cancelled" | "error" | AiCallFailure;
 export type AuthorSuggestionOutcome = { ok: true; suggestion: AuthorSuggestion } | { ok: false; reason: AuthorSuggestionReason };
 
 export function authorSuggestionEnabled(settings: GleanSettings): boolean {
@@ -53,7 +53,7 @@ export async function suggestClipAuthor(
             const outcome = await callLLM(plugin, currentSettings(), prompt);
             if (!outcome.ok) {
                 await logAiEvent(plugin, docId, "author-suggestion-call", "Author suggestion model unavailable");
-                return { ok: false, reason: "error" };
+                return { ok: false, reason: outcome.failure ?? "error" };
             }
             await recordAiUsage(plugin);
             const afterCall = stopped();
