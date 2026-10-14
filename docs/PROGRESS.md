@@ -3,7 +3,8 @@
 ## v1.3.4 发布准备（2026-10-14）
 
 - [x] 已同步 `package.json`、`plugin.json`、双语 README、CHANGELOG、发布候选与媒体清单为 `1.3.4` 口径；候选文档保留真实宿主、默认手动和能力矩阵边界。
-- [x] 本地门禁已通过：`pnpm check`、`pnpm test` 1334/1334、`pnpm build`、`pnpm check:release`（`package.zip` 418766B，SHA-256 `6603FD964FA82C6B943FC6CECC155F23D2FF443DB4EB2016D4AF4823E022DB5E`）、`pnpm perf:check`、`pnpm visual:check`、`pnpm task:ledger -- --check`、`git diff --check`；待提交、push、tag、GitHub Release 和远端附件校验。
+- [x] 本地门禁已通过：`pnpm check`、`pnpm test` 1334/1334、`pnpm build`、`pnpm check:release`（`package.zip` 418766B，SHA-256 `6603FD964FA82C6B943FC6CECC155F23D2FF443DB4EB2016D4AF4823E022DB5E`）、`pnpm perf:check`、`pnpm visual:check`、`pnpm task:ledger -- --check`、`git diff --check`。
+- [x] 发布提交 `0b864b9fb94c0a046fbe3d644f1a4a090a7a65f4` 已推送 `main`；annotated tag `v1.3.4` 与 [GitHub Release](https://github.com/ai68298100/siyuan-glean/releases/tag/v1.3.4) 已创建。远端 `package.zip` 418766B，SHA-256 `6603FD964FA82C6B943FC6CECC155F23D2FF443DB4EB2016D4AF4823E022DB5E`，与本地一致。
 - [ ] Workbench 预览入口的索引待同步提示仍待 UI 审查补齐；不把该项写成已验收能力。
 
 ## 设计令牌收敛 — 样式统一（2026-10-14）
