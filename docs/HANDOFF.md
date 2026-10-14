@@ -5,6 +5,7 @@
 - 版本源已从 `1.3.3` 升至 `1.3.4`；双语 README、CHANGELOG、RELEASE、RELEASE-MEDIA 和 RELEASE-CANDIDATE 已同步本次设计令牌、异步状态、索引一致性与迁移恢复改动。
 - 发布候选明确保留真实宿主、读屏、移动端、外部能力和“默认手动”的能力矩阵边界；Workbench 预览入口的索引待同步提示仍是未完成项。
 - 本地发布门禁已通过：`pnpm check`、`pnpm test` 1334/1334、`pnpm build`、`pnpm check:release`（`package.zip` 418766B，SHA-256 `6603FD964FA82C6B943FC6CECC155F23D2FF443DB4EB2016D4AF4823E022DB5E`）、`pnpm perf:check`、`pnpm visual:check`、`pnpm task:ledger -- --check` 和 `git diff --check`。发布提交 `0b864b9fb94c0a046fbe3d644f1a4a090a7a65f4` 已推送，`v1.3.4` tag/Release 与远端附件校验一致；后续保留真实宿主 B-0002/B-0005 验收边界。
+- GitHub Quality gates `38579950262` 与 CodeQL `38579950264` 均成功；集市 PR 未获单独授权，不执行。
 
 ## 当前有效交接（2026-10-14 设计令牌二次收敛）
 

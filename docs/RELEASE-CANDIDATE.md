@@ -19,6 +19,7 @@
 | 任务账本与差异 | 通过 | `pnpm task:ledger -- --check`、`git diff --check` |
 | 隔离内核 | 以本轮实际证据为准；不替代真实宿主验收 | `scripts/e2e/` 与 `scripts/spike/` |
 | GitHub 发布 | 已完成，远端附件校验一致 | [v1.3.4 Release](https://github.com/ai68298100/siyuan-glean/releases/tag/v1.3.4)；tag/Release 提交 `0b864b9fb94c0a046fbe3d644f1a4a090a7a65f4`；附件 418766B，SHA-256 `6603FD964FA82C6B943FC6CECC155F23D2FF443DB4EB2016D4AF4823E022DB5E` |
+| GitHub 工作流 | Quality gates、CodeQL 均成功 | [Quality gates 38579950262](https://github.com/ai68298100/siyuan-glean/actions/runs/38579950262)、[CodeQL 38579950264](https://github.com/ai68298100/siyuan-glean/actions/runs/38579950264) |
 
 本轮变更重点是设计令牌收敛、统一异步控件状态、索引写入结果一致性、迁移检查点压缩和 AV 刷新延迟保护。AI 仍默认手动且需要用户配置通道；详细前置条件以[能力矩阵](CAPABILITY-MATRIX.md)为准。
 
