@@ -38,11 +38,17 @@ export async function suggestAiTagMerges(plugin: Plugin): Promise<AiTagMergePlan
  * 应用一组合并：组内除 keep 外的全部变体替换为 keep，逐篇写回（aiTags 全量替换语义）。
  * 返回实际写成功的文档篇数；单篇失败不阻断。
  */
-export async function applyAiTagMerge(plugin: Plugin, variants: string[], keep: string): Promise<number> {
-    if (!keep.trim() || variants.length === 0 || !variants.includes(keep)) return 0;
+export interface AiTagMergeResult {
+    applied: number;
+    failed: number;
+}
+
+export async function applyAiTagMerge(plugin: Plugin, variants: string[], keep: string): Promise<AiTagMergeResult> {
+    if (!keep.trim() || variants.length === 0 || !variants.includes(keep)) return { applied: 0, failed: 0 };
     const index = await loadIndex(plugin);
     const from = new Set(variants.filter((variant) => variant !== keep));
-    let ok = 0;
+    let applied = 0;
+    let failed = 0;
     for (const clip of Object.values(index.clips)) {
         if (!clip.aiTags.some((tag) => from.has(tag))) continue;
         const nextTags = clip.aiTags
@@ -50,10 +56,11 @@ export async function applyAiTagMerge(plugin: Plugin, variants: string[], keep: 
             .filter((tag, position, all) => all.indexOf(tag) === position);
         try {
             await writeClip(plugin, clip.id, { aiTags: nextTags });
-            ok += 1;
+            applied += 1;
         } catch {
-            // 单篇失败不阻断；UI 通过刷新反映真实状态
+            // 单篇失败不阻断；UI 显示部分失败并允许重试
+            failed += 1;
         }
     }
-    return ok;
+    return { applied, failed };
 }

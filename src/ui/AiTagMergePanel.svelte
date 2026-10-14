@@ -14,6 +14,7 @@
     let scanned = $state(false);
     let error = $state(false);
     let message = $state("");
+    let confirmKey = $state("");
 
     function keyOf(plan: AiTagMergePlan): string {
         return plan.variants.join("\u0000");
@@ -57,13 +58,22 @@
         if (busy) return;
         const keep = keepOf(plan);
         if (!plan.variants.includes(keep)) return;
-        busy = keyOf(plan);
+        const key = keyOf(plan);
+        if (confirmKey !== key) {
+            confirmKey = key;
+            return;
+        }
+        confirmKey = "";
+        busy = key;
         error = false;
         message = "";
         try {
-            const changed = await applyAiTagMerge(facade.pluginInstance, plan.variants, keep);
+            const result = await applyAiTagMerge(facade.pluginInstance, plan.variants, keep);
             facade.notifyDataChanged();
-            message = t(i18n, "aiTagMerge.applied", { n: changed });
+            message = result.failed > 0
+                ? t(i18n, "aiTagMerge.partial", { applied: result.applied, failed: result.failed })
+                : t(i18n, "aiTagMerge.applied", { n: result.applied });
+            if (result.failed > 0) error = true;
             // 合并已生效：随后的重扫失败只影响列表刷新（保留剩余分组），不把成功提示吞成错误
             await runScan(false, true);
         } catch {
@@ -108,8 +118,9 @@
                         </select>
                     </label>
                     <button class="glean-btn glean-btn--pri" disabled={Boolean(busy)} aria-busy={busy === keyOf(plan)} onclick={() => void apply(plan)}>
-                        {busy === keyOf(plan) ? t(i18n, "aiTagMerge.applying") : t(i18n, "aiTagMerge.apply")}
+                        {busy === keyOf(plan) ? t(i18n, "aiTagMerge.applying") : confirmKey === keyOf(plan) ? t(i18n, "aiTagMerge.confirm") : t(i18n, "aiTagMerge.apply")}
                     </button>
+                    {#if confirmKey === keyOf(plan) && !busy}<button class="glean-btn glean-btn--ghost" onclick={() => (confirmKey = "")}>{t(i18n, "action.cancel")}</button>{/if}
                 </div>
             {/each}
         </div>

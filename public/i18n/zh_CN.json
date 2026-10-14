@@ -1138,5 +1138,7 @@
   "settings.invalidNumber": "请输入范围内的数字。",
   "settings.customBaseUrlInvalid": "请输入有效的 HTTP(S) API 地址。",
   "settings.customModelRequired": "请输入模型名称。",
-  "settings.customSecretRequired": "请输入思源密钥名称。"
+  "settings.customSecretRequired": "请输入思源密钥名称。",
+  "aiTagMerge.partial": "已更新 ${applied} 篇，另有 ${failed} 篇失败，可再次重试。",
+  "aiTagMerge.confirm": "确认合并"
 }
