@@ -85,9 +85,12 @@ let readerOpenInTab = $state(DEFAULT_SETTINGS.reader.openInTab);
 let readerMode = $state<"read" | "edit">(DEFAULT_SETTINGS.reader.defaultMode);
 let originalSettings = $state<GleanSettings>(cloneSettings(DEFAULT_SETTINGS));
 let saveBusy = $state(false);
+let validationField = $state("");
+let validationError = $state("");
 let confirmDiscardOpen = $state(false);
 let keepEditingButton = $state<HTMLButtonElement>();
 let saveButton = $state<HTMLButtonElement>();
+let settingsRoot = $state<HTMLElement | null>(null);
 let showNewbieHint = $state(false);
 let dismissHintBusy = $state(false);
 let exportBusy = $state<"csv" | "diagnostic" | "markdownArchive" | "">("");
@@ -254,6 +257,23 @@ function loadDraft(settings: GleanSettings) {
     readerMode = settings.reader.defaultMode;
 }
 
+function validateDraft(): { field: string; message: string } | null {
+    const numeric: Array<[string, number, number, number]> = [
+        ["aiDailyCap", aiDailyCap, 0, 500],
+        ["dailyCount", dailyCount, 1, 10],
+        ["inboxQuota", inboxQuota, 5, 1000],
+        ["staleDays", staleDays, 7, 3650],
+    ];
+    const invalid = numeric.find(([, value, min, max]) => !Number.isFinite(value) || value < min || value > max);
+    if (invalid) return { field: invalid[0], message: t(i18n, "settings.invalidNumber") };
+    if (aiChannel === "custom") {
+        if (!/^https?:\/\//i.test(customBaseUrl.trim())) return { field: "customBaseUrl", message: t(i18n, "settings.customBaseUrlInvalid") };
+        if (!customModel.trim()) return { field: "customModel", message: t(i18n, "settings.customModelRequired") };
+        if (!customSecretName.trim()) return { field: "customSecretName", message: t(i18n, "settings.customSecretRequired") };
+    }
+    return null;
+}
+
 function buildDraftSettings(): GleanSettings {
     return normalizeSettings({
         ...originalSettings,
@@ -286,6 +306,16 @@ function buildDraftSettings(): GleanSettings {
 
 async function save() {
     if (saveBusy) return;
+    const validation = validateDraft();
+    if (validation) {
+        validationField = validation.field;
+        validationError = validation.message;
+        await tick();
+        settingsRoot?.querySelector<HTMLElement>(`[aria-invalid="true"]`)?.focus();
+        return;
+    }
+    validationField = "";
+    validationError = "";
     saveBusy = true;
     try {
         const draft = buildDraftSettings();
@@ -467,7 +497,8 @@ async function doMountBoard() {
 }
 </script>
 
-<section class="glean-settings" aria-labelledby={titleId} aria-busy={saveBusy || testBusy || boardBusy || rebuildBusy || Boolean(exportBusy) || dismissHintBusy || notebookLoading || checkinLoading || aiLogLoading}>
+<section class="glean-settings" bind:this={settingsRoot} aria-labelledby={titleId} aria-busy={saveBusy || testBusy || boardBusy || rebuildBusy || Boolean(exportBusy) || dismissHintBusy || notebookLoading || checkinLoading || aiLogLoading}>
+    {#if validationError}<div class="glean-load-error" role="alert" aria-live="assertive">{validationError}</div>{/if}
     <div class="glean-settings__layout">
         <nav class="glean-settings__nav" aria-labelledby={navLabelId}>
             <div class="glean-settings__brand">
@@ -623,7 +654,7 @@ async function doMountBoard() {
                     {t(i18n, "settings.aiDailyCap")}
                     <div class="glean-set-row__desc">{t(i18n, "settings.aiDailyCapDesc")}</div>
                 </div>
-                <input class="glean-mini-input" type="number" min="0" max="500" aria-label={t(i18n, "settings.aiDailyCap")} bind:value={aiDailyCap} />
+                <input class="glean-mini-input" type="number" min="0" max="500" aria-invalid={validationField === "aiDailyCap"} aria-label={t(i18n, "settings.aiDailyCap")} bind:value={aiDailyCap} />
             </div>
             <div class="glean-set-row">
                 <div class="glean-set-row__lb">
@@ -707,7 +738,7 @@ async function doMountBoard() {
             {#if aiChannel === "custom"}
                 <div class="glean-set-row">
                     <div class="glean-set-row__lb">{t(i18n, "settings.customBaseUrl")}</div>
-                    <input class="glean-mini-input glean-settings__wide-input" aria-label={t(i18n, "settings.customBaseUrl")} placeholder="https://…/v1" bind:value={customBaseUrl} />
+                    <input class="glean-mini-input glean-settings__wide-input" aria-label={t(i18n, "settings.customBaseUrl")} aria-invalid={validationField === "customBaseUrl"} placeholder="https://…/v1" bind:value={customBaseUrl} />
                 </div>
                 {#if /^http:\/\//i.test(customBaseUrl.trim())}
                     <div class="glean-set-row" role="alert">
@@ -716,14 +747,14 @@ async function doMountBoard() {
                 {/if}
                 <div class="glean-set-row">
                     <div class="glean-set-row__lb">{t(i18n, "settings.customModel")}</div>
-                    <input class="glean-mini-input glean-settings__wide-input" aria-label={t(i18n, "settings.customModel")} placeholder="free-model" bind:value={customModel} />
+                    <input class="glean-mini-input glean-settings__wide-input" aria-label={t(i18n, "settings.customModel")} aria-invalid={validationField === "customModel"} placeholder="free-model" bind:value={customModel} />
                 </div>
                 <div class="glean-set-row">
                     <div class="glean-set-row__lb">
                         {t(i18n, "settings.customSecretName")}
                         <div class="glean-set-row__desc">{t(i18n, "settings.customSecretDesc")}</div>
                     </div>
-                    <input class="glean-mini-input glean-settings__wide-input" aria-label={t(i18n, "settings.customSecretName")} bind:value={customSecretName} />
+                    <input class="glean-mini-input glean-settings__wide-input" aria-label={t(i18n, "settings.customSecretName")} aria-invalid={validationField === "customSecretName"} bind:value={customSecretName} />
                 </div>
                 <div class="glean-set-row">
                     <div class="glean-set-row__lb">{t(i18n, "settings.testConnection")}</div>
@@ -741,7 +772,7 @@ async function doMountBoard() {
         <div class="glean-set-group">
             <div class="glean-set-row">
                 <div class="glean-set-row__lb">{t(i18n, "settings.resurfaceCount")}</div>
-                <input class="glean-mini-input" type="number" min="1" max="10" aria-label={t(i18n, "settings.resurfaceCount")} bind:value={dailyCount} />
+                <input class="glean-mini-input" type="number" min="1" max="10" aria-invalid={validationField === "dailyCount"} aria-label={t(i18n, "settings.resurfaceCount")} bind:value={dailyCount} />
             </div>
             <div class="glean-set-row">
                 <div class="glean-set-row__lb">{t(i18n, "settings.resurfaceIncludeDone")}</div>
@@ -749,11 +780,11 @@ async function doMountBoard() {
             </div>
             <div class="glean-set-row">
                 <div class="glean-set-row__lb">{t(i18n, "settings.inboxQuota")}</div>
-                <input class="glean-mini-input" type="number" min="5" max="1000" aria-label={t(i18n, "settings.inboxQuota")} bind:value={inboxQuota} />
+                <input class="glean-mini-input" type="number" min="5" max="1000" aria-invalid={validationField === "inboxQuota"} aria-label={t(i18n, "settings.inboxQuota")} bind:value={inboxQuota} />
             </div>
             <div class="glean-set-row">
                 <div class="glean-set-row__lb">{t(i18n, "settings.staleDays")}</div>
-                <input class="glean-mini-input" type="number" min="7" max="3650" aria-label={t(i18n, "settings.staleDays")} bind:value={staleDays} />
+                <input class="glean-mini-input" type="number" min="7" max="3650" aria-invalid={validationField === "staleDays"} aria-label={t(i18n, "settings.staleDays")} bind:value={staleDays} />
             </div>
         </div>
     </div>

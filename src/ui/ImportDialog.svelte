@@ -455,8 +455,9 @@ function openProgressDocument(id: string): void {
         {/if}
         <div class="glean-migrate__ops glean-migrate__ops--footer">
             {#if retryRows.length > 0}
-                <button class="glean-btn glean-btn--ghost" disabled={busy || !resumeConfirmed || progressReadFailed || notebookLoading || notebookError} onclick={() => void startImport(retryRows)}>{t(i18n, "import.retryFailed")}</button>
+                <button class="glean-btn glean-btn--ghost" disabled={busy || !resumeConfirmed || progressReadFailed || notebookLoading || notebookError || !targetAvailable} aria-describedby={!targetAvailable ? `${idPrefix}-retry-target-error` : undefined} onclick={() => void startImport(retryRows)}>{t(i18n, "import.retryFailed")}</button>
             {/if}
+            {#if retryRows.length > 0 && !targetAvailable}<p id={`${idPrefix}-retry-target-error`} class="glean-import-progress__error" role="alert">{t(i18n, "import.progress.error.target")}</p>{/if}
             <button class="glean-btn glean-btn--pri" onclick={() => void onClose()}>{t(i18n, "action.close")}</button>
         </div>
     {/if}

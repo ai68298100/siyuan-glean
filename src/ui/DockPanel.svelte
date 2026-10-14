@@ -155,6 +155,8 @@ onMount(() => {
         disposeTagAliasFocus();
         if (dayRefreshTimer !== null) window.clearTimeout(dayRefreshTimer);
         dayRefreshTimer = null;
+        if (focusFlashTimer !== null) window.clearTimeout(focusFlashTimer);
+        focusFlashTimer = null;
         document.removeEventListener("visibilitychange", onVisibilityChange);
         window.removeEventListener("focus", syncDayClock);
         document.removeEventListener("glean:tag-aliases-changed", onTagAliasesChanged);
@@ -185,6 +187,7 @@ let enrichingId = $state("");
 let statusActionId = $state("");
 let pendingFocusId = $state("");
 let focusRequested = false;
+let focusFlashTimer: number | null = null;
 let mobileMoreOpen = $state(false);
 let mobileMoreTrigger = $state<HTMLButtonElement | null>(null);
 let mobileMoreMenu = $state<HTMLDivElement | null>(null);
@@ -1038,7 +1041,11 @@ async function focusClipById(id: string, openPreview = false): Promise<void> {
     clearFilters();
     if (!index.clips[id] && !index.candidates[id]) await reload();
     if (pendingFocusId !== id) return;
-    if (!index.clips[id] && !index.candidates[id]) return;
+    if (!index.clips[id] && !index.candidates[id]) {
+        pendingFocusId = "";
+        focusRequested = false;
+        return;
+    }
     activeQueue = index.clips[id]?.status || "inbox";
     authorTimeline = false;
     if (openPreview) {
@@ -1063,10 +1070,18 @@ $effect(() => {
     void tick().then(() => {
         if (pendingFocusId !== id) return;
         const target = rootEl?.querySelector<HTMLElement>(`[data-glean-clip-id="${CSS.escape(id)}"]`);
-        if (!target) return;
+        if (!target) {
+            pendingFocusId = "";
+            focusRequested = false;
+            return;
+        }
         target.scrollIntoView({ block: "center", behavior: "smooth" });
         target.classList.add("glean-focus-flash");
-        window.setTimeout(() => target.classList.remove("glean-focus-flash"), 1200);
+        if (focusFlashTimer !== null) window.clearTimeout(focusFlashTimer);
+        focusFlashTimer = window.setTimeout(() => {
+            target.classList.remove("glean-focus-flash");
+            focusFlashTimer = null;
+        }, 1200);
         pendingFocusId = "";
     });
 });
@@ -1344,7 +1359,9 @@ function closePreview(): void {
     const target = previewReturnFocus;
     previewReturnFocus = null;
     void tick().then(() => {
-        const fallback = rootEl?.querySelector<HTMLElement>('[data-glean-clip-id], .glean-q, button');
+        const row = rootEl?.querySelector<HTMLElement>('[data-glean-clip-id]');
+        const fallback = row?.querySelector<HTMLElement>('button, input, select, a')
+            ?? rootEl?.querySelector<HTMLElement>('.glean-q, button');
         (target?.isConnected ? target : fallback)?.focus({ preventScroll: true });
     });
 }

@@ -21,16 +21,36 @@
     let { facade, docId, onClose }: Props = $props();
     const i18n = $derived(facade.i18n);
     let pending = $state(false);
+    let contextLoading = $state(true);
+    let contextError = $state(false);
+    let actionError = $state("");
+    let lastMoveOut = $state(false);
     // T-1876 可发现性：移出目标目录
     let ctx = $state<DocHostContext | null>(null);
 
+    async function loadContext(): Promise<void> {
+        if (contextLoading) return;
+        contextLoading = true;
+        contextError = false;
+        try {
+            ctx = await docHostContext(docId);
+        } catch {
+            contextError = true;
+        } finally {
+            contextLoading = false;
+        }
+    }
+
     onMount(() => {
-        void docHostContext(docId).then((value) => { ctx = value; }).catch(() => undefined);
+        contextLoading = false;
+        void loadContext();
     });
 
     async function settle(feedbackKey: string, moveOut: boolean): Promise<void> {
         if (pending) return;
         pending = true;
+        actionError = "";
+        lastMoveOut = moveOut;
         try {
             if (moveOut) await moveDocOutOfHost(docId);
             await writeClip(facade.pluginInstance, docId, { status: "later" }, { forceStatus: true });
@@ -40,23 +60,27 @@
         } catch (error) {
             console.warn("[glean] 恢复失败:", error);
             // 两步操作（移出宿主 + 写状态）部分失败时提示已完成的进度，避免重复执行的语义混乱
-            showMessage(moveOut ? t(i18n, "restore.partialMoved") : t(i18n, "msg.actionFailed"), 4000);
+            actionError = moveOut ? "restore.partialMoved" : "msg.actionFailed";
+            showMessage(t(i18n, actionError), 4000);
         } finally {
             pending = false;
         }
     }
 </script>
 
-<div class="glean-archive-dlg">
+<div class="glean-archive-dlg" aria-busy={pending || contextLoading}>
     <div class="glean-archive-dlg__hint">{t(i18n, "restore.hint")}</div>
-    <button class="glean-archive-dlg__opt" disabled={pending} onclick={() => void settle("restore.done", false)}>
+    {#if contextLoading}<p class="glean-load-error" role="status" aria-live="polite">{t(i18n, "panel.loading")}</p>{/if}
+    {#if contextError}<div class="glean-load-error" role="alert" aria-live="assertive"><span>{t(i18n, "msg.actionFailed")}</span><button class="glean-btn" disabled={contextLoading} onclick={() => void loadContext()}>{t(i18n, "action.retry")}</button></div>{/if}
+    {#if actionError}<div class="glean-load-error" role="alert" aria-live="assertive"><span>{t(i18n, actionError)}</span><button class="glean-btn" disabled={pending} onclick={() => void settle(lastMoveOut ? "restore.doneMoved" : "restore.done", lastMoveOut)}>{t(i18n, "action.retry")}</button></div>{/if}
+    <button class="glean-archive-dlg__opt" disabled={pending || contextLoading || contextError} aria-busy={pending} onclick={() => void settle("restore.done", false)}>
         <span class="glean-archive-dlg__icon" aria-hidden="true">↩</span>
         <span class="glean-archive-dlg__body">
             <span class="glean-archive-dlg__name">{t(i18n, "restore.inPlace")}</span>
             <span class="glean-archive-dlg__desc">{t(i18n, "restore.inPlaceHint")}</span>
         </span>
     </button>
-    <button class="glean-archive-dlg__opt" disabled={pending} onclick={() => void settle("restore.doneMoved", true)}>
+    <button class="glean-archive-dlg__opt" disabled={pending || contextLoading || contextError} aria-busy={pending} onclick={() => void settle("restore.doneMoved", true)}>
         <span class="glean-archive-dlg__icon" aria-hidden="true">📂</span>
         <span class="glean-archive-dlg__body">
             <span class="glean-archive-dlg__name">{t(i18n, "restore.moveOut")}</span>

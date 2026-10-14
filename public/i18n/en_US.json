@@ -1134,5 +1134,9 @@
   "reader.articleQuestion.evidence": "Evidence",
   "reader.articleQuestion.insufficient": "The article does not provide enough evidence to answer this question.",
   "reader.articleQuestion.changed": "The article changed; the old answer was not shown.",
-  "reader.articleQuestion.invalid": "Enter a question or select valid article text first."
+  "reader.articleQuestion.invalid": "Enter a question or select valid article text first.",
+  "settings.invalidNumber": "Enter a number within the allowed range.",
+  "settings.customBaseUrlInvalid": "Enter a valid HTTP(S) API URL.",
+  "settings.customModelRequired": "Enter a model name.",
+  "settings.customSecretRequired": "Enter the Siyuan secret name."
 }

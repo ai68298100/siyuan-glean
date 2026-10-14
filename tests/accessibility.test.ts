@@ -226,6 +226,11 @@ test("import and migration dialogs provide unique headings and accessible progre
     assert.match(migrateDialog, /<h2 id=\{titleId\}/);
     assert.match(migrateDialog, /role="group" aria-label=\{t\(i18n, "migrate\.writing"\)\}/);
     assert.match(migrateDialog, /role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow=\{progressPct\}/);
+    assert.match(importDialog, /import.retryFailed[\s\S]*!targetAvailable/);
+    const restoreDialog = read("src/ui/RestoreDialog.svelte");
+    assert.match(restoreDialog, /aria-busy=\{pending \|\| contextLoading\}/);
+    assert.match(restoreDialog, /contextError[\s\S]*action\.retry/);
+    assert.match(restoreDialog, /actionError[\s\S]*action\.retry/);
 });
 
 test("icon-only actions expose labels independent of hover tooltips", () => {

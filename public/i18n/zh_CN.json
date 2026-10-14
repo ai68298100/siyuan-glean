@@ -1134,5 +1134,9 @@
   "reader.articleQuestion.evidence": "依据",
   "reader.articleQuestion.insufficient": "文章中没有足够依据回答这个问题。",
   "reader.articleQuestion.changed": "文章已变化，旧回答未展示。",
-  "reader.articleQuestion.invalid": "请输入问题或先选择有效正文。"
+  "reader.articleQuestion.invalid": "请输入问题或先选择有效正文。",
+  "settings.invalidNumber": "请输入范围内的数字。",
+  "settings.customBaseUrlInvalid": "请输入有效的 HTTP(S) API 地址。",
+  "settings.customModelRequired": "请输入模型名称。",
+  "settings.customSecretRequired": "请输入思源密钥名称。"
 }
