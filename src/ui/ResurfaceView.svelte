@@ -139,7 +139,8 @@ async function togglePin(pick: SurfacePick): Promise<void> {
     if (actingId || undoingId) return;
     actingId = pick.item.id;
     try {
-        await setSurfacePinned(facade.pluginInstance, pick.item.id, !isPinnedToday(pick));
+        const result = await setSurfacePinned(facade.pluginInstance, pick.item.id, !isPinnedToday(pick));
+        if (result.indexSyncFailed) showMessage(t(i18n, "msg.writeIndexPending"), 4000);
         facade.notifyDataChanged();
         onMutated();
     } catch (error) {
@@ -154,7 +155,9 @@ async function act(pick: SurfacePick, action: SurfaceAction) {
     if (disposed || actingId || undoingId) return;
     actingId = pick.item.id;
     try {
-        const token = await actOnSurface(facade.pluginInstance, pick.item.id, action);
+        const result = await actOnSurface(facade.pluginInstance, pick.item.id, action);
+        const token = result.token;
+        if (result.indexSyncFailed) showMessage(t(i18n, "msg.statusIndexPending"), 4000);
         if (facade.isMobile) {
             undoNotice = {
                 id: pick.item.id,
@@ -286,8 +289,9 @@ async function undoLastAction(): Promise<void> {
     if (!notice || actingId || undoingId) return;
     undoingId = notice.id;
     try {
-        await undoSurfaceAction(facade.pluginInstance, notice.id, notice.token);
+        const result = await undoSurfaceAction(facade.pluginInstance, notice.id, notice.token);
         undoNotice = null;
+        if (result.indexSyncFailed) showMessage(t(i18n, "msg.statusIndexPending"), 4000);
         facade.notifyDataChanged();
         onMutated();
     } catch {

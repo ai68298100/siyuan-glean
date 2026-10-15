@@ -11,7 +11,7 @@
     import { autoEnrich } from "../services/enrich-service";
     import { recordReadingDone } from "../services/checkin-bridge";
     import { excerptFromSelection, selectionBelongsToHost, type ExcerptSelection } from "../services/excerpt-service";
-    import { confirmPreviewCandidate, excludePreviewCandidate, PreviewActionError, quotePreviewExcerpt, savePreviewCandidateUrl, setPreviewStatus } from "../services/workbench-preview";
+    import { confirmPreviewCandidate, excludePreviewCandidate, PreviewActionError, quotePreviewExcerpt, savePreviewCandidateUrl, setPreviewStatus, type PreviewWriteResult } from "../services/workbench-preview";
     import ProtyleHost from "./ProtyleHost.svelte";
     import AuthorEditor from "./AuthorEditor.svelte";
     import { exportArticleMarkdown } from "../services/library-export-service";
@@ -86,14 +86,14 @@
         showMessage(`${t(i18n, key)}${detail ? `: ${detail}` : ""}`, 3500);
     }
 
-    async function process(action: () => Promise<void>, successKey: string, advance = true): Promise<void> {
+    async function process(action: () => Promise<void | PreviewWriteResult>, successKey: string, advance = true): Promise<void> {
         if (busy) return;
         const processed = untrack(() => onProcessed);
         const refresh = untrack(() => onRefresh);
         busy = true;
         try {
-            await action();
-            showMessage(t(i18n, successKey), 2500);
+            const result = await action();
+            showMessage(t(i18n, result?.indexSyncFailed ? "msg.writeIndexPending" : successKey), result?.indexSyncFailed ? 4000 : 2500);
             if (advance) await processed();
             else {
                 await refresh();
@@ -112,10 +112,11 @@
         const id = entry.id;
         const title = entry.title;
         void process(async () => {
-            await setPreviewStatus(facade.pluginInstance, id, status);
+            const result = await setPreviewStatus(facade.pluginInstance, id, status);
             if (status === "done" && facade.settings.integration.checkinEnabled && facade.settings.integration.checkinItemId) {
                 void recordReadingDone(facade.settings.integration.checkinItemId, id, title);
             }
+            return result;
         }, "msg.statusChanged");
     }
 
@@ -123,8 +124,9 @@
         const id = entry.id;
         const url = sourceUrl;
         void process(async () => {
-            await confirmPreviewCandidate(facade.pluginInstance, id, url, asLocal);
+            const result = await confirmPreviewCandidate(facade.pluginInstance, id, url, asLocal);
             autoEnrich(facade.pluginInstance, id, facade.settings, () => facade.notifyDataChanged());
+            return result;
         }, "msg.added");
     }
 

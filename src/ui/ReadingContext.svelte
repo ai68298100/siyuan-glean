@@ -10,7 +10,7 @@
     import { t } from "../libs/i18n";
     import { hasSourceAction, openTargetForCarrier, resolveCarrier, sourceUrlForCarrier } from "../domain/carrier";
     import { fulltextBodyState, type FulltextBodyState } from "../domain/content";
-    import { batchSetStatus, measureClipBody, readClipContext, type ReadingClipContext } from "../services/clip-store";
+    import { batchSetStatusDetailed, measureClipBody, readClipContext, type ReadingClipContext } from "../services/clip-store";
     import type { ClipStatus } from "../domain/schema";
     import { recordReadingDone } from "../services/checkin-bridge";
     import ClipStatusActions from "./ClipStatusActions.svelte";
@@ -106,10 +106,12 @@
             const measured = await measureClipBody(facade.pluginInstance, context.id);
             if (context) context = { ...context, words: measured.words };
             showMessage(
-                measured.missing
+                measured.indexSyncFailed
+                    ? t(i18n, "msg.writeIndexPending")
+                    : measured.missing
                     ? t(i18n, "clip.bodyMissingConfirm")
                     : t(i18n, "clip.bodyOk", { n: measured.words }),
-                3500
+                measured.indexSyncFailed ? 4000 : 3500
             );
             facade.notifyDataChanged();
         } catch (error) {
@@ -150,8 +152,8 @@
         const current = context;
         busy = true;
         try {
-            const changed = await batchSetStatus(facade.pluginInstance, [current.id], status);
-            if (changed !== 1) {
+            const result = await batchSetStatusDetailed(facade.pluginInstance, [current.id], status);
+            if (result.ok !== 1) {
                 showMessage(t(i18n, "msg.statusFailed"), 3000);
                 return false;
             }
@@ -161,7 +163,7 @@
             // 对账可能在写入期间完成；保留最新标题/来源，只覆盖刚刚成功的状态。
             context = { ...(context?.id === current.id ? context : current), status };
             facade.notifyDataChanged();
-            showMessage(t(i18n, "msg.statusChanged"), 2500);
+            showMessage(t(i18n, result.indexSyncFailed.length ? "msg.statusIndexPending" : "msg.statusChanged"), 3500);
             return true;
         } catch (error) {
             console.warn("[glean] 阅读上下文状态变更失败:", error);

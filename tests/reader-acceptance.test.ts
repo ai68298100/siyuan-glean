@@ -7,6 +7,7 @@ const root = resolve(import.meta.dirname, "..");
 const reader = readFileSync(resolve(root, "src/ui/ReaderTab.svelte"), "utf8");
 const protyle = readFileSync(resolve(root, "src/ui/ProtyleHost.svelte"), "utf8");
 const preview = readFileSync(resolve(root, "src/ui/WorkbenchPreview.svelte"), "utf8");
+const authorEditor = readFileSync(resolve(root, "src/ui/AuthorEditor.svelte"), "utf8");
 const context = readFileSync(resolve(root, "src/ui/ReadingContext.svelte"), "utf8");
 const styles = readFileSync(resolve(root, "src/index.scss"), "utf8");
 const entry = readFileSync(resolve(root, "src/index.ts"), "utf8");
@@ -31,6 +32,34 @@ test("阅读页签覆盖正文诊断、载体降级、摘录、制卡、回跳�
     assert.match(reader, /openLibraryArticle/);
     assert.match(reader, /doneAndNext/);
     assert.equal((reader.match(/>✓→ \{t\(i18n, "reader\.doneNext"\)\}<\/button>/g) ?? []).length, 1);
+});
+
+test("工作台预览写入保留索引待同步结果，作者编辑也显示恢复提示", () => {
+    assert.match(preview, /const result = await action\(\);[\s\S]*?result\?\.indexSyncFailed \? "msg\.writeIndexPending" : successKey/);
+    assert.match(preview, /const result = await setPreviewStatus[\s\S]*?return result/);
+    assert.match(preview, /const result = await confirmPreviewCandidate[\s\S]*?return result/);
+    assert.match(authorEditor, /result\.indexSyncFailed \? "msg\.writeIndexPending" : "author\.saved"/);
+});
+
+test("阅读状态、评分和今日拾遗写入会提示索引待同步", () => {
+    const contextSource = readFileSync(resolve(root, "src/ui/ReadingContext.svelte"), "utf8");
+    const dock = readFileSync(resolve(root, "src/ui/DockPanel.svelte"), "utf8");
+    const resurface = readFileSync(resolve(root, "src/ui/ResurfaceView.svelte"), "utf8");
+    const archive = readFileSync(resolve(root, "src/ui/ArchiveDialog.svelte"), "utf8");
+    const restore = readFileSync(resolve(root, "src/ui/RestoreDialog.svelte"), "utf8");
+    assert.match(reader, /batchSetStatusDetailed[\s\S]*?result\.indexSyncFailed\.length \? "msg\.statusIndexPending"/);
+    assert.match(reader, /result\.indexSyncFailed \? "msg\.writeIndexPending" : "msg\.rankSaved"/);
+    assert.match(reader, /result\.indexSyncFailed \? "msg\.writeIndexPending" : "reader\.aiSummarySaved"/);
+    assert.match(reader, /measured\.indexSyncFailed[\s\S]*?"msg\.writeIndexPending"/);
+    assert.match(reader, /result\.indexSyncFailed \? "msg\.writeIndexPending" : "snapshot\.done"/);
+    assert.match(contextSource, /result\.indexSyncFailed\.length \? "msg\.statusIndexPending"/);
+    assert.match(contextSource, /measured\.indexSyncFailed[\s\S]*?"msg\.writeIndexPending"/);
+    assert.match(dock, /result\.indexSyncFailed \? "msg\.writeIndexPending" : "msg\.rankSaved"/);
+    assert.match(resurface, /result\.indexSyncFailed\) showMessage\(t\(i18n, "msg\.statusIndexPending"\)/);
+    assert.match(archive, /result\?\.indexSyncFailed \? "msg\.statusIndexPending"/);
+    assert.match(restore, /result\.indexSyncFailed \? "msg\.statusIndexPending"/);
+    assert.match(dock, /outcome\.indexSyncFailed[\s\S]*?"msg\.writeIndexPending"/);
+    assert.match(dock, /result\.indexSyncFailed \? "msg\.writeIndexPending" : "snapshot\.done"/);
 });
 
 test("阅读页签快照图标和移动阅读动作可发现且可操作", () => {

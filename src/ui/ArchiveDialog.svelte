@@ -40,9 +40,9 @@
 
     async function runSettled(feedbackKey: string, action: () => Promise<unknown>): Promise<void> {
         try {
-            await action();
+            const result = await action() as { indexSyncFailed?: boolean } | undefined;
             facade.notifyDataChanged();
-            showMessage(t(i18n, feedbackKey), 3000);
+            showMessage(t(i18n, result?.indexSyncFailed ? "msg.statusIndexPending" : feedbackKey), result?.indexSyncFailed ? 4000 : 3000);
             onClose();
         } catch (error) {
             console.warn("[glean] 归档后处理失败:", error);
@@ -61,7 +61,7 @@
 
     const keepInPlace = () => settle("archive.doneInPlace", async () => {
         // 保留原位置 = 三选项的默认语义：只写状态，不动文档（与今日拾遗/批量快速归档同语义）
-        await writeClip(facade.pluginInstance, docId, { status: "archived" }, { forceStatus: true });
+        return writeClip(facade.pluginInstance, docId, { status: "archived" }, { forceStatus: true });
     });
 
     const moveToArchive = () => settle("archive.doneMoved", () => archiveMoveDoc(facade.pluginInstance, docId));

@@ -3,7 +3,11 @@ import type { ClipStatus } from "../domain/schema.ts";
 import { normalizeUrl } from "../domain/url.ts";
 import { getHighlightBlocks } from "../api/client";
 import { insertQuoteExcerpt } from "./excerpt-service";
-import { batchSetStatus, captureDocument, findClipUrlConflict, readClip, writeClip } from "./clip-store";
+import { batchSetStatusDetailed, captureDocument, findClipUrlConflict, readClip, writeClip } from "./clip-store";
+
+export interface PreviewWriteResult {
+    indexSyncFailed: boolean;
+}
 
 export class PreviewActionError extends Error {
     readonly reason: "changed" | "invalidUrl" | "conflict" | "failed";
@@ -21,27 +25,31 @@ async function requireCandidate(id: string) {
     return attrs;
 }
 
-export async function setPreviewStatus(plugin: Plugin, id: string, status: ClipStatus): Promise<void> {
+export async function setPreviewStatus(plugin: Plugin, id: string, status: ClipStatus): Promise<PreviewWriteResult> {
     const attrs = await readClip(id);
     if (!attrs.status || attrs.internal) throw new PreviewActionError("changed");
-    if (await batchSetStatus(plugin, [id], status) !== 1) throw new PreviewActionError("failed");
+    const result = await batchSetStatusDetailed(plugin, [id], status);
+    if (result.ok !== 1) throw new PreviewActionError("failed");
+    return { indexSyncFailed: result.indexSyncFailed.includes(id) };
 }
 
-export async function confirmPreviewCandidate(plugin: Plugin, id: string, candidateUrl: string, asLocal = false): Promise<void> {
+export async function confirmPreviewCandidate(plugin: Plugin, id: string, candidateUrl: string, asLocal = false): Promise<PreviewWriteResult> {
     const attrs = await requireCandidate(id);
     const url = attrs.url || candidateUrl;
     if (asLocal ? Boolean(url) : !normalizeUrl(url)) throw new PreviewActionError(asLocal ? "changed" : "invalidUrl");
     const result = await captureDocument(plugin, id, asLocal ? { contentType: "local" } : { url });
     if (result.conflict) throw new PreviewActionError("conflict", result.conflict.title || result.conflict.hpath);
     if (!result.captured) throw new PreviewActionError("changed");
+    return { indexSyncFailed: result.indexSyncFailed === true };
 }
 
-export async function excludePreviewCandidate(plugin: Plugin, id: string): Promise<void> {
+export async function excludePreviewCandidate(plugin: Plugin, id: string): Promise<PreviewWriteResult> {
     await requireCandidate(id);
-    await writeClip(plugin, id, { excluded: true });
+    const result = await writeClip(plugin, id, { excluded: true });
+    return { indexSyncFailed: result.indexSyncFailed === true };
 }
 
-export async function savePreviewCandidateUrl(plugin: Plugin, id: string, expectedUrl: string, draft: string): Promise<void> {
+export async function savePreviewCandidateUrl(plugin: Plugin, id: string, expectedUrl: string, draft: string): Promise<PreviewWriteResult> {
     const url = draft.trim();
     if (!normalizeUrl(url)) throw new PreviewActionError("invalidUrl");
     const attrs = await requireCandidate(id);
@@ -50,7 +58,8 @@ export async function savePreviewCandidateUrl(plugin: Plugin, id: string, expect
     if (conflict) throw new PreviewActionError("conflict", conflict.title || conflict.hpath);
     const latest = await requireCandidate(id);
     if ((latest.url ?? "") !== expectedUrl) throw new PreviewActionError("changed");
-    await writeClip(plugin, id, { url }, { force: true });
+    const result = await writeClip(plugin, id, { url }, { force: true });
+    return { indexSyncFailed: result.indexSyncFailed === true };
 }
 
 export async function quotePreviewExcerpt(docId: string, blockId: string, text: string): Promise<void> {

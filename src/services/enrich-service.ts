@@ -131,6 +131,7 @@ export interface EnrichOutcome {
     duplicates: DuplicateWarning[];
     /** 未富化的原因：off / cap / parse / error；成功为空串 */
     skipped?: "off" | "cap" | "parse" | "error" | AiCallFailure;
+    indexSyncFailed?: boolean;
 }
 
 export type AiCallFailure = "permission" | "network" | "timeout";
@@ -211,11 +212,11 @@ async function enrichClipInner(plugin: Plugin, docId: string, settings: GleanSet
             await appendLog(plugin, docId, "parse", "模型响应无法解析为 JSON，已跳过");
             return { ok: false, duplicates: [], skipped: "parse" };
         }
-        await writeClip(plugin, docId, { summary: parsed.summary, aiTags: parsed.tags }, options);
+        const written = await writeClip(plugin, docId, { summary: parsed.summary, aiTags: parsed.tags }, options);
         const duplicates = currentSettings.ai.dedupOnEnrich
             ? await findDuplicates(plugin, docId, title || parsed.summary)
             : [];
-        return { ok: true, duplicates };
+        return { ok: true, duplicates, ...(written.indexSyncFailed ? { indexSyncFailed: true } : {}) };
     } catch {
         await appendLog(plugin, docId, "enrich", "富化失败，已跳过");
         return { ok: false, duplicates: [], skipped: "error" };

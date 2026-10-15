@@ -99,7 +99,15 @@ export interface SurfaceUndoToken {
     after: SurfaceStateSnapshot;
 }
 
-export async function actOnSurface(plugin: Plugin, docId: string, action: SurfaceAction): Promise<SurfaceUndoToken> {
+export interface SurfaceWriteResult {
+    indexSyncFailed: boolean;
+}
+
+export interface SurfaceActionResult extends SurfaceWriteResult {
+    token: SurfaceUndoToken;
+}
+
+export async function actOnSurface(plugin: Plugin, docId: string, action: SurfaceAction): Promise<SurfaceActionResult> {
     return withClipEditQueue(plugin, docId, async (write) => {
         const current = await readClip(docId);
         if (!current.status) throw new Error("文章状态缺失，无法执行重浮动作");
@@ -112,40 +120,40 @@ export async function actOnSurface(plugin: Plugin, docId: string, action: Surfac
             lastSurfaced: todayStamp(),
         };
         const patch = { status: after.status, lastSurfaced: after.lastSurfaced };
-        await write(patch, {
+        const result = await write(patch, {
             force: true,
             expectedAttrs: {
                 [ATTR.status]: current.status,
                 [ATTR.lastSurfaced]: current.lastSurfaced ?? null,
             },
         });
-        return { before, after };
+        return { token: { before, after }, indexSyncFailed: result.indexSyncFailed === true };
     });
 }
 
-export async function setSurfacePinned(plugin: Plugin, docId: string, pinned: boolean): Promise<string> {
+export async function setSurfacePinned(plugin: Plugin, docId: string, pinned: boolean): Promise<SurfaceWriteResult & { pinned: string }> {
     return withClipEditQueue(plugin, docId, async (write) => {
         const current = await readClip(docId);
         if (!current.status) throw new Error("文章状态缺失，无法修改今日置顶");
         const next = pinned ? todayStamp() : "";
-        await write({ pinned: next || null }, {
+        const result = await write({ pinned: next || null }, {
             force: true,
             expectedAttrs: {
                 [ATTR.status]: current.status,
                 [ATTR.pinned]: current.pinned ?? null,
             },
         });
-        return next;
+        return { pinned: next, indexSyncFailed: result.indexSyncFailed === true };
     });
 }
 
-export async function undoSurfaceAction(plugin: Plugin, docId: string, token: SurfaceUndoToken): Promise<void> {
+export async function undoSurfaceAction(plugin: Plugin, docId: string, token: SurfaceUndoToken): Promise<SurfaceWriteResult> {
     return withClipEditQueue(plugin, docId, async (write) => {
         const current = await readClip(docId);
         if (current.status !== token.after.status || (current.lastSurfaced ?? "") !== token.after.lastSurfaced) {
             throw new Error("文章状态已变化，无法撤销");
         }
-        await write(
+        const result = await write(
             { status: token.before.status, lastSurfaced: token.before.lastSurfaced },
             {
                 force: true,
@@ -155,6 +163,7 @@ export async function undoSurfaceAction(plugin: Plugin, docId: string, token: Su
                 },
             },
         );
+        return { indexSyncFailed: result.indexSyncFailed === true };
     });
 }
 
@@ -170,17 +179,19 @@ export function staleCandidatesFromIndex(index: GleanIndex, settings: GleanSetti
 export async function archiveStaleCandidates(
     plugin: Plugin,
     docIds: string[]
-): Promise<{ ok: number; succeeded: string[] }> {
+): Promise<{ ok: number; succeeded: string[]; indexSyncFailed: string[] }> {
     const succeeded: string[] = [];
+    const indexSyncFailed: string[] = [];
     for (const docId of docIds) {
         try {
-            await writeClip(plugin, docId, { status: "archived" }, { force: true });
+            const result = await writeClip(plugin, docId, { status: "archived" }, { force: true });
             succeeded.push(docId);
+            if (result.indexSyncFailed) indexSyncFailed.push(docId);
         } catch {
             // 单篇失败不阻断批量；调用方以真实成功数反馈
         }
     }
-    return { ok: succeeded.length, succeeded };
+    return { ok: succeeded.length, succeeded, indexSyncFailed };
 }
 
 /**

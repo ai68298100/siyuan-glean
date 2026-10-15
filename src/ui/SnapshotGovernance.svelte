@@ -51,8 +51,10 @@
             const result = await batchSnapshotClips(facade.pluginInstance, entriesToProcess as readonly SnapshotBatchEntry[]);
             failed = result.failed;
             lastResult = { succeeded: result.succeeded.length, failed: result.failed.length };
-            if (result.failed.length > 0) showMessage(t(i18n, "snapshot.batchPartial", { ok: result.succeeded.length, failed: result.failed.length }), 5000);
-            else showMessage(t(i18n, "snapshot.batchDone", { n: result.succeeded.length }), 4000);
+            const message = result.failed.length > 0
+                ? t(i18n, "snapshot.batchPartial", { ok: result.succeeded.length, failed: result.failed.length })
+                : t(i18n, "snapshot.batchDone", { n: result.succeeded.length });
+            showMessage(result.indexSyncFailed.length ? `${message} ${t(i18n, "msg.indexSyncPendingShort")}` : message, 5000);
             facade.notifyDataChanged();
         } catch {
             showMessage(t(i18n, "snapshot.batchFailed"), 5000);

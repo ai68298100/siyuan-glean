@@ -110,13 +110,13 @@
         busy = true;
         errorKey = "";
         try {
-            await saveClipAuthor(facade.pluginInstance, id, expected, text);
+            const result = await saveClipAuthor(facade.pluginInstance, id, expected, text);
             facade.notifyDataChanged();
             if (!mounted || !isCurrent() || docId !== id) return;
             editing = false;
             draft = "";
             snapshot = null;
-            showMessage(t(i18n, "author.saved"), 2500);
+            showMessage(t(i18n, result.indexSyncFailed ? "msg.writeIndexPending" : "author.saved"), result.indexSyncFailed ? 4000 : 2500);
             trigger?.focus();
             await refresh?.();
         } catch (error) {

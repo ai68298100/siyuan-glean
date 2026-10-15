@@ -5,7 +5,7 @@ import { registerHooks } from "node:module";
 const stub = `
 export const readClip = (...args) => globalThis.__previewApi.readClip(...args);
 export const writeClip = (...args) => globalThis.__previewApi.writeClip(...args);
-export const batchSetStatus = (...args) => globalThis.__previewApi.batchSetStatus(...args);
+export const batchSetStatusDetailed = (...args) => globalThis.__previewApi.batchSetStatusDetailed(...args);
 export const captureDocument = (...args) => globalThis.__previewApi.captureDocument(...args);
 export const findClipUrlConflict = (...args) => globalThis.__previewApi.findClipUrlConflict(...args);
 `;
@@ -25,10 +25,11 @@ const { setPreviewStatus, confirmPreviewCandidate, excludePreviewCandidate, save
 function harness(attrs = {}) {
     const calls = [];
     const api = {
+        writeResult: { indexSyncFailed: false },
         async readClip() { calls.push(["read"]); return { ...attrs }; },
-        async writeClip(...args) { calls.push(["write", ...args]); return {}; },
-        async batchSetStatus(...args) { calls.push(["status", ...args]); return 1; },
-        async captureDocument(...args) { calls.push(["capture", ...args]); return { captured: true, attrs: {} }; },
+        async writeClip(...args) { calls.push(["write", ...args]); return api.writeResult; },
+        async batchSetStatusDetailed(...args) { calls.push(["status", ...args]); return { ok: 1, succeeded: [args[1][0]], failures: [], indexSyncFailed: [] }; },
+        async captureDocument(...args) { calls.push(["capture", ...args]); return { captured: true, attrs: {}, indexSyncFailed: false }; },
         async findClipUrlConflict() { calls.push(["conflict"]); return null; },
     };
     globalThis.__previewApi = api;
@@ -42,10 +43,12 @@ test("预览改状态仅允许当前已收录非internal文档，失败不冒充
         assert.equal(current.writes().length, 0);
     }
     const current = harness({ status: "later" });
-    await setPreviewStatus({}, "doc", "done");
+    assert.deepEqual(await setPreviewStatus({}, "doc", "done"), { indexSyncFailed: false });
     assert.deepEqual(current.writes(), [["status", {}, ["doc"], "done"]]);
-    current.api.batchSetStatus = async () => 0;
+    current.api.batchSetStatusDetailed = async () => ({ ok: 0, succeeded: [], failures: [{ id: "doc", kind: "kernel" }], indexSyncFailed: [] });
     await assert.rejects(setPreviewStatus({}, "doc", "done"), { reason: "failed" });
+    current.api.batchSetStatusDetailed = async () => ({ ok: 1, succeeded: ["doc"], failures: [], indexSyncFailed: ["doc"] });
+    assert.deepEqual(await setPreviewStatus({}, "doc", "done"), { indexSyncFailed: true });
 });
 
 test("预览确认候选复查资格，已有手填来源优先，冲突不推进", async () => {
@@ -56,10 +59,18 @@ test("预览确认候选复查资格，已有手填来源优先，冲突不推�
         assert.equal(current.writes().length, 0);
     }
     const current = harness({ url: "https://manual.example/a" });
-    await confirmPreviewCandidate({}, "doc", "https://cache.example/a");
+    assert.deepEqual(await confirmPreviewCandidate({}, "doc", "https://cache.example/a"), { indexSyncFailed: false });
     assert.deepEqual(current.writes(), [["capture", {}, "doc", { url: "https://manual.example/a" }]]);
     current.api.captureDocument = async () => ({ captured: false, conflict: { title: "Existing" } });
     await assert.rejects(confirmPreviewCandidate({}, "doc", "https://cache.example/a"), { reason: "conflict", detail: "Existing" });
+    current.api.captureDocument = async () => ({ captured: true, attrs: {}, indexSyncFailed: true });
+    assert.deepEqual(await confirmPreviewCandidate({}, "doc", "https://cache.example/a"), { indexSyncFailed: true });
+});
+
+test("预览排除候选向调用方报告索引同步失败", async () => {
+    const current = harness();
+    current.api.writeResult = { indexSyncFailed: true };
+    assert.deepEqual(await excludePreviewCandidate({}, "doc"), { indexSyncFailed: true });
 });
 
 test("无来源候选可明确转本地，非法来源不能确认或静默丢来源", async () => {
@@ -92,8 +103,10 @@ test("补来源：非法草稿、用户中途修改或查重冲突均拒绝覆�
 
 test("补来源成功经统一写服务显式force，网络失败不自动重发", async () => {
     const current = harness();
-    await savePreviewCandidateUrl({}, "doc", "", " https://new.example/a ");
+    assert.deepEqual(await savePreviewCandidateUrl({}, "doc", "", " https://new.example/a "), { indexSyncFailed: false });
     assert.deepEqual(current.writes(), [["write", {}, "doc", { url: "https://new.example/a" }, { force: true }]]);
+    current.api.writeResult = { indexSyncFailed: true };
+    assert.deepEqual(await savePreviewCandidateUrl({}, "doc", "", "https://new.example/a"), { indexSyncFailed: true });
     let attempts = 0;
     current.api.writeClip = async () => { attempts += 1; throw new Error("response lost"); };
     await assert.rejects(savePreviewCandidateUrl({}, "doc", "", "https://new.example/a"), /response lost/);

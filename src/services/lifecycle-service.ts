@@ -119,6 +119,7 @@ export interface MoveResult {
     /** false = 已在宿主下，幂等 no-op（状态仍会确保写入） */
     moved: boolean;
     hostHpath: string;
+    indexSyncFailed?: boolean;
 }
 
 /**
@@ -144,8 +145,8 @@ export async function moveDocToHost(plugin: Plugin, docId: string, kind: HostKin
         moved = true;
     }
     // 状态写 archived：显式用户动作（forceStatus）；writeClip 内部按最新 hpath 刷新索引投影
-    await writeClip(plugin, docId, { status: "archived" }, { forceStatus: true });
-    return { moved, hostHpath };
+    const result = await writeClip(plugin, docId, { status: "archived" }, { forceStatus: true });
+    return { moved, hostHpath, indexSyncFailed: result.indexSyncFailed === true };
 }
 
 /** 归档后处理·移入【归档】宿主（T-1866 三选项之一的服务层）。 */

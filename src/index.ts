@@ -19,7 +19,7 @@ import SettingsView from "./ui/SettingsView.svelte";
 import { svelteDialog } from "./libs/dialog";
 import { createDialogSingleton } from "./libs/dialog-singleton";
 import { t, type I18nBundle } from "./libs/i18n";
-import { captureDocument, batchSetStatus, readClip, readClipContext } from "./services/clip-store";
+import { captureDocument, batchSetStatusDetailed, readClip, readClipContext } from "./services/clip-store";
 import { autoEnrich, enrichClip } from "./services/enrich-service";
 import { excerptFromSelection, insertQuoteExcerpt } from "./services/excerpt-service";
 import { pickNextUnread } from "./services/resurface-service";
@@ -431,8 +431,8 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
         const id = this.requireCurrentDoc();
         if (!id) return;
         try {
-            const changed = await batchSetStatus(this, [id], status);
-            if (changed !== 1) {
+            const result = await batchSetStatusDetailed(this, [id], status);
+            if (result.ok !== 1) {
                 showMessage(t(this.i18n, "msg.statusFailed"), 3000);
                 return;
             }
@@ -441,7 +441,7 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
                 void recordReadingDone(this.settings.integration.checkinItemId, id, context?.title ?? "");
             }
             this.notifyDataChanged();
-            showMessage(t(this.i18n, "msg.statusChanged"), 2500);
+            showMessage(t(this.i18n, result.indexSyncFailed.length ? "msg.statusIndexPending" : "msg.statusChanged"), 3500);
         } catch (error) {
             console.warn("[glean] 状态命令失败:", error);
             showMessage(t(this.i18n, "msg.statusFailed"), 3000);
@@ -520,9 +520,10 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
             try {
                 const kind = await docUnderHostKind(docId);
                 if (!kind) {
-                    await batchSetStatus(this, [docId], "later");
+                    const result = await batchSetStatusDetailed(this, [docId], "later");
+                    if (result.ok !== 1) throw new Error("Restore status write failed");
                     this.notifyDataChanged();
-                    showMessage(t(this.i18n, "msg.statusChanged"), 2500);
+                    showMessage(t(this.i18n, result.indexSyncFailed.length ? "msg.statusIndexPending" : "msg.statusChanged"), 3500);
                     return;
                 }
                 svelteDialog({

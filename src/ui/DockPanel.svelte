@@ -482,9 +482,11 @@ async function doArchiveStale() {
         const result = await archiveStaleCandidates(facade.pluginInstance, ids);
         const succeeded = new Set(result.succeeded);
         const failed = ids.filter((id) => !succeeded.has(id));
+        const indexPending = result.indexSyncFailed.length > 0;
+        const resultText = t(i18n, failed.length ? "panel.staleArchivePartial" : "panel.staleArchived", failed.length ? { ok: result.ok, total: ids.length } : { n: result.ok });
         showMessage(
-            t(i18n, failed.length ? "panel.staleArchivePartial" : "panel.staleArchived", failed.length ? { ok: result.ok, total: ids.length } : { n: result.ok }),
-            failed.length ? 5000 : 3000,
+            indexPending ? `${resultText} ${t(i18n, "msg.indexSyncPendingShort")}` : resultText,
+            failed.length || indexPending ? 5000 : 3000,
         );
         if (failed.length) staleSelected = new Set(failed);
         else stalePreviewOpen = false;
@@ -1239,10 +1241,12 @@ async function enrich(entry: ClipIndexEntry) {
         const outcome = await enrichClip(facade.pluginInstance, entry.id, facade.settings);
         if (outcome.ok) {
             showMessage(
-                outcome.duplicates.length > 0
+                outcome.indexSyncFailed
+                    ? t(i18n, "msg.writeIndexPending")
+                    : outcome.duplicates.length > 0
                     ? t(i18n, "ai.similarFound", { title: outcome.duplicates[0].title })
                     : t(i18n, "ai.enrichDone"),
-                3500
+                outcome.indexSyncFailed ? 4000 : 3500
             );
         } else if (outcome.skipped === "cap") {
             showMessage(t(i18n, "ai.capReached", { n: facade.settings.ai.enrichDailyCap }), 4000);
@@ -1550,8 +1554,8 @@ async function toggleSurfacePin(entry: ClipIndexEntry) {
     const nextPinned = !isPinnedToday(entry);
     statusActionId = entry.id;
     try {
-        await setSurfacePinned(facade.pluginInstance, entry.id, nextPinned);
-        showMessage(t(i18n, nextPinned ? "resurface.pinToday" : "resurface.unpinToday"), 2500);
+        const result = await setSurfacePinned(facade.pluginInstance, entry.id, nextPinned);
+        showMessage(t(i18n, result.indexSyncFailed ? "msg.writeIndexPending" : nextPinned ? "resurface.pinToday" : "resurface.unpinToday"), result.indexSyncFailed ? 4000 : 2500);
         facade.notifyDataChanged();
         await reload();
     } catch (error) {
@@ -1569,8 +1573,8 @@ async function setPriority(entry: ClipIndexEntry, value: number) {
     }
     statusActionId = entry.id;
     try {
-        await writeClip(facade.pluginInstance, entry.id, { priority: value }, { force: true });
-        showMessage(t(i18n, "msg.rankSaved"), 2500);
+        const result = await writeClip(facade.pluginInstance, entry.id, { priority: value }, { force: true });
+        showMessage(t(i18n, result.indexSyncFailed ? "msg.writeIndexPending" : "msg.rankSaved"), result.indexSyncFailed ? 4000 : 2500);
         facade.notifyDataChanged();
         await reload();
     } catch (error) {
@@ -1588,8 +1592,8 @@ async function setRating(entry: ClipIndexEntry, value: number) {
     }
     statusActionId = entry.id;
     try {
-        await writeClip(facade.pluginInstance, entry.id, { rating: value }, { force: true });
-        showMessage(t(i18n, "msg.rankSaved"), 2500);
+        const result = await writeClip(facade.pluginInstance, entry.id, { rating: value }, { force: true });
+        showMessage(t(i18n, result.indexSyncFailed ? "msg.writeIndexPending" : "msg.rankSaved"), result.indexSyncFailed ? 4000 : 2500);
         facade.notifyDataChanged();
         await reload();
     } catch (error) {
@@ -1634,8 +1638,9 @@ async function takeSnapshot(entry: ClipIndexEntry) {
     }
     snappingId = entry.id;
     try {
-        const { path } = await snapshotClip(facade.pluginInstance, entry.id);
-        showMessage(t(i18n, "snapshot.done"), 3000);
+        const result = await snapshotClip(facade.pluginInstance, entry.id);
+        const { path } = result;
+        showMessage(t(i18n, result.indexSyncFailed ? "msg.writeIndexPending" : "snapshot.done"), result.indexSyncFailed ? 4000 : 3000);
         entry.snapshot = path;
         facade.notifyDataChanged();
         await reload();

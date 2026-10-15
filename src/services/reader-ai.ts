@@ -233,6 +233,7 @@ async function readerCall(
 }
 
 /** 用户显式保存总结为 AI 摘要（既有 custom-clip-summary 属性；summary 非手填保护字段）。 */
-export async function saveReaderSummary(plugin: Plugin, docId: string, text: string): Promise<void> {
-    await writeClip(plugin, docId, { summary: text });
+export async function saveReaderSummary(plugin: Plugin, docId: string, text: string): Promise<{ indexSyncFailed: boolean }> {
+    const result = await writeClip(plugin, docId, { summary: text });
+    return { indexSyncFailed: result.indexSyncFailed === true };
 }

@@ -389,7 +389,7 @@ test("阅读结果默认只在内存，显式保存摘要保持用户字段不�
     const outcome = await readerSummarize(fixture.plugin, docId, fixture.settings);
     assert.deepEqual(outcome, { ok: true, text: "测试结果" });
     assert.deepEqual(fixture.attrs.get(docId), before);
-    await saveReaderSummary(fixture.plugin, docId, outcome.text);
+    assert.deepEqual(await saveReaderSummary(fixture.plugin, docId, outcome.text), { indexSyncFailed: false });
     assert.deepEqual(fixture.attrs.get(docId), { ...before, "custom-clip-summary": "测试结果" });
     assert.equal(await usageToday(fixture.plugin), 1);
 });

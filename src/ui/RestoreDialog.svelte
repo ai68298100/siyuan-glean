@@ -53,9 +53,9 @@
         lastMoveOut = moveOut;
         try {
             if (moveOut) await moveDocOutOfHost(docId);
-            await writeClip(facade.pluginInstance, docId, { status: "later" }, { forceStatus: true });
+            const result = await writeClip(facade.pluginInstance, docId, { status: "later" }, { forceStatus: true });
             facade.notifyDataChanged();
-            showMessage(t(i18n, feedbackKey), 3000);
+            showMessage(t(i18n, result.indexSyncFailed ? "msg.statusIndexPending" : feedbackKey), result.indexSyncFailed ? 4000 : 3000);
             onClose();
         } catch (error) {
             console.warn("[glean] 恢复失败:", error);

@@ -10,7 +10,7 @@ import { readClipAttributeSnapshot, writeClip, type WriteClipOptions } from "./c
 
 const snapshotFlights = new WeakMap<object, Map<string, Promise<{ path: string; created: boolean }>>>();
 
-export async function snapshotClip(plugin: Plugin, docId: string, options: Pick<WriteClipOptions, "expectedAttrs"> = {}): Promise<{ path: string; created: boolean }> {
+export async function snapshotClip(plugin: Plugin, docId: string, options: Pick<WriteClipOptions, "expectedAttrs"> = {}): Promise<{ path: string; created: boolean; indexSyncFailed?: boolean }> {
     let flights = snapshotFlights.get(plugin);
     if (!flights) { flights = new Map(); snapshotFlights.set(plugin, flights); }
     const running = flights.get(docId);
@@ -21,7 +21,7 @@ export async function snapshotClip(plugin: Plugin, docId: string, options: Pick<
     finally { if (flights.get(docId) === promise) flights.delete(docId); }
 }
 
-async function snapshotClipOnce(plugin: Plugin, docId: string, options: Pick<WriteClipOptions, "expectedAttrs">): Promise<{ path: string; created: boolean }> {
+async function snapshotClipOnce(plugin: Plugin, docId: string, options: Pick<WriteClipOptions, "expectedAttrs">): Promise<{ path: string; created: boolean; indexSyncFailed?: boolean }> {
     const before = await readClipAttributeSnapshot(docId);
     const current = parseClipAttrs(before.attrs);
     if (!current.status || current.internal) throw new Error("仅已收录的非内部文章可生成快照");
@@ -37,11 +37,7 @@ async function snapshotClipOnce(plugin: Plugin, docId: string, options: Pick<Wri
         ...options,
         expectedAttrs: { ...options.expectedAttrs, [ATTR.snapshot]: null },
     });
-    // The snapshot attribute is the durable pointer to the asset. Surface an
-    // index-sync failure to the caller so capture can keep the warning/retry
-    // state visible even though the attribute itself is already confirmed.
-    if (written.indexSyncFailed) throw new Error("snapshot index sync pending");
-    return { path, created: true };
+    return { path, created: true, ...(written.indexSyncFailed ? { indexSyncFailed: true } : {}) };
 }
 
 export interface SnapshotBatchEntry {
@@ -66,6 +62,7 @@ export interface SnapshotBatchResult {
     succeeded: SnapshotBatchSuccess[];
     skipped: number;
     failed: SnapshotBatchFailure[];
+    indexSyncFailed: string[];
 }
 
 /** 批量补拍逐篇串行执行；单篇失败不会阻断其他文章，调用方可只重试 failed。 */
@@ -73,16 +70,18 @@ export async function batchSnapshotClips(plugin: Plugin, entries: readonly Snaps
     const pending = entries.filter((entry) => typeof entry.snapshot !== "string" || entry.snapshot.trim().length === 0);
     const succeeded: SnapshotBatchSuccess[] = [];
     const failed: SnapshotBatchFailure[] = [];
+    const indexSyncFailed: string[] = [];
     let skipped = 0;
     for (const entry of pending) {
         try {
             const result = await snapshotClip(plugin, entry.id, { expectedAttrs: { [ATTR.snapshot]: null } });
             if (result.created) succeeded.push({ id: entry.id, title: entry.title ?? "", path: result.path });
             else skipped += 1;
+            if (result.indexSyncFailed) indexSyncFailed.push(entry.id);
         } catch {
             // 保留失败项但不把宿主异常/正文泄露到 UI 或 saveData；用户可显式重试。
             failed.push({ id: entry.id, title: entry.title ?? "" });
         }
     }
-    return { attempted: pending.length, succeeded, skipped, failed };
+    return { attempted: pending.length, succeeded, skipped, failed, indexSyncFailed };
 }

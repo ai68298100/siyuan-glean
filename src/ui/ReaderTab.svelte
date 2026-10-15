@@ -21,7 +21,7 @@ import { aiFailureKey } from "../libs/ai-feedback";
     import type { ClipStatus } from "../domain/schema";
     import { DEFAULT_SETTINGS } from "../services/settings";
     import {
-        batchSetStatus,
+        batchSetStatusDetailed,
         measureClipBody,
         readClipContext,
         saveReadingMinutes,
@@ -762,9 +762,9 @@ import { aiFailureKey } from "../libs/ai-feedback";
         if (!aiResult || aiResult.kind !== "summarize" || !context || context.id !== docId || summarySaving || summarySaved) return;
         summarySaving = true;
         try {
-            await saveReaderSummary(facade.pluginInstance, context.id, aiResult.text);
+            const result = await saveReaderSummary(facade.pluginInstance, context.id, aiResult.text);
             summarySaved = true;
-            showMessage(t(i18n, "reader.aiSummarySaved"), 2500);
+            showMessage(t(i18n, result.indexSyncFailed ? "msg.writeIndexPending" : "reader.aiSummarySaved"), result.indexSyncFailed ? 4000 : 2500);
             facade.notifyDataChanged();
         } catch {
             showMessage(t(i18n, "reader.actionFailed"), 3000);
@@ -801,10 +801,12 @@ import { aiFailureKey } from "../libs/ai-feedback";
             if (!currentSession(current.id, generation)) return;
             if (context?.id === current.id) context = { ...context, words: measured.words };
             showMessage(
-                measured.missing
+                measured.indexSyncFailed
+                    ? t(i18n, "msg.writeIndexPending")
+                    : measured.missing
                     ? t(i18n, "clip.bodyMissingConfirm")
                     : t(i18n, "clip.bodyOk", { n: measured.words }),
-                3500
+                measured.indexSyncFailed ? 4000 : 3500
             );
         } catch (error) {
             console.warn("[glean] 正文检测失败:", error);
@@ -831,8 +833,8 @@ import { aiFailureKey } from "../libs/ai-feedback";
         const generation = sessionGeneration;
         statusBusy = true;
         try {
-            const changed = await batchSetStatus(facade.pluginInstance, [current.id], status);
-            if (changed !== 1) {
+            const result = await batchSetStatusDetailed(facade.pluginInstance, [current.id], status);
+            if (result.ok !== 1) {
                 showMessage(t(i18n, "msg.statusFailed"), 3000);
                 return;
             }
@@ -845,7 +847,7 @@ import { aiFailureKey } from "../libs/ai-feedback";
                 context = { ...(context?.id === current.id ? context : current), status };
             }
             facade.notifyDataChanged();
-            showMessage(t(i18n, "msg.statusChanged"), 2500);
+            showMessage(t(i18n, result.indexSyncFailed.length ? "msg.statusIndexPending" : "msg.statusChanged"), 3500);
         } catch (error) {
             console.warn("[glean] 阅读状态变更失败:", error);
             showMessage(t(i18n, "msg.statusFailed"), 3000);
@@ -870,8 +872,8 @@ import { aiFailureKey } from "../libs/ai-feedback";
         const generation = sessionGeneration;
         statusBusy = true;
         try {
-            const changed = await batchSetStatus(facade.pluginInstance, [current.id], "done");
-            if (changed !== 1) {
+            const result = await batchSetStatusDetailed(facade.pluginInstance, [current.id], "done");
+            if (result.ok !== 1) {
                 showMessage(t(i18n, "msg.statusFailed"), 3000);
                 return;
             }
@@ -885,10 +887,12 @@ import { aiFailureKey } from "../libs/ai-feedback";
             if (!next) {
                 contextRequests.invalidate();
                 context = { ...(context?.id === current.id ? context : current), status: "done" };
-                showMessage(t(i18n, "reader.noNext"), 3000);
+                const message = t(i18n, "reader.noNext");
+                showMessage(result.indexSyncFailed.length ? `${message} ${t(i18n, "msg.statusIndexPending")}` : message, 4000);
                 return;
             }
-            showMessage(t(i18n, "msg.statusChanged"), 2000);
+            if (result.indexSyncFailed.length) showMessage(t(i18n, "msg.statusIndexPending"), 4000);
+            else showMessage(t(i18n, "msg.statusChanged"), 2000);
             docId = next;
             aiResult = null;
             summarySaving = false;
@@ -911,13 +915,13 @@ import { aiFailureKey } from "../libs/ai-feedback";
         const generation = sessionGeneration;
         statusBusy = true;
         try {
-            await writeClip(facade.pluginInstance, current.id, { priority: value }, { force: true });
+            const result = await writeClip(facade.pluginInstance, current.id, { priority: value }, { force: true });
             if (currentSession(current.id, generation)) {
                 contextRequests.invalidate();
                 context = { ...(context?.id === current.id ? context : current), priority: value };
             }
             facade.notifyDataChanged();
-            showMessage(t(i18n, "msg.rankSaved"), 2500);
+            showMessage(t(i18n, result.indexSyncFailed ? "msg.writeIndexPending" : "msg.rankSaved"), result.indexSyncFailed ? 4000 : 2500);
         } catch {
             showMessage(t(i18n, "msg.statusFailed"), 3000);
         } finally {
@@ -931,13 +935,13 @@ import { aiFailureKey } from "../libs/ai-feedback";
         const generation = sessionGeneration;
         statusBusy = true;
         try {
-            await writeClip(facade.pluginInstance, current.id, { rating: value }, { force: true });
+            const result = await writeClip(facade.pluginInstance, current.id, { rating: value }, { force: true });
             if (currentSession(current.id, generation)) {
                 contextRequests.invalidate();
                 context = { ...(context?.id === current.id ? context : current), rating: value };
             }
             facade.notifyDataChanged();
-            showMessage(t(i18n, "msg.rankSaved"), 2500);
+            showMessage(t(i18n, result.indexSyncFailed ? "msg.writeIndexPending" : "msg.rankSaved"), result.indexSyncFailed ? 4000 : 2500);
         } catch {
             showMessage(t(i18n, "msg.statusFailed"), 3000);
         } finally {
@@ -955,12 +959,13 @@ import { aiFailureKey } from "../libs/ai-feedback";
         const generation = sessionGeneration;
         snapping = true;
         try {
-            const { path } = await snapshotClip(facade.pluginInstance, current.id);
+            const result = await snapshotClip(facade.pluginInstance, current.id);
+            const { path } = result;
             if (currentSession(current.id, generation)) {
                 contextRequests.invalidate();
                 context = { ...(context?.id === current.id ? context : current), snapshot: path };
             }
-            showMessage(t(i18n, "snapshot.done"), 3000);
+            showMessage(t(i18n, result.indexSyncFailed ? "msg.writeIndexPending" : "snapshot.done"), result.indexSyncFailed ? 4000 : 3000);
             facade.notifyDataChanged();
         } catch {
             showMessage(t(i18n, "snapshot.failed"), 3000);

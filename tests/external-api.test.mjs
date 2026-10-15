@@ -398,6 +398,23 @@ test("快照资产异常时原快照和文章属性保持不变", async () => {
     }
 });
 
+test("快照属性已写但索引保存失败时返回成功路径和待同步标记", async () => {
+    const docId = "20261005000000-snap001";
+    const context = serviceHarness();
+    context.paths.set(docId, "/article");
+    context.attrs.set(docId, { "custom-clip-status": "done" });
+    const save = context.plugin.saveData;
+    context.plugin.saveData = async (name, value) => {
+        if (name === "glean-index.json") throw new Error("index unavailable");
+        return save(name, value);
+    };
+    const result = await snapshotClip(context.plugin, docId);
+    assert.equal(result.created, true);
+    assert.equal(result.indexSyncFailed, true);
+    assert.equal(context.attrs.get(docId)["custom-clip-snapshot"], result.path);
+    assert.equal(context.calls.some((call) => call.route === "/api/file/putFile"), true);
+});
+
 const captureDocId = "20261005000000-snap001";
 
 test("自动快照关闭、缺失或非法开关时仅完成收录", async () => {
@@ -485,10 +502,16 @@ for (const stage of ["export", "emptyExport", "asset", "attribute", "snapshotInd
         if (stage !== "snapshotIndex") assert.equal(attrs["custom-clip-snapshot"], undefined);
         else assert.ok(attrs["custom-clip-snapshot"]);
         assert.equal(context.files.get("glean-index.json").clips[captureDocId].status, "inbox");
-        assert.equal(warning.mock.calls.length, 1);
-        assert.deepEqual(warning.mock.calls[0].arguments, ["[glean] automatic snapshot failed"]);
+        if (stage === "snapshotIndex") {
+            assert.equal(result.indexSyncFailed, true);
+            assert.equal(warning.mock.calls.length, 0);
+        } else {
+            assert.equal(result.indexSyncFailed, undefined);
+            assert.equal(warning.mock.calls.length, 1);
+            assert.deepEqual(warning.mock.calls[0].arguments, ["[glean] automatic snapshot failed"]);
+        }
         assert.equal((await captureClip(context.plugin, captureDocId)).captured, false);
-        assert.equal(warning.mock.calls.length, 1);
+        assert.equal(warning.mock.calls.length, stage === "snapshotIndex" ? 0 : 1);
     });
 }
 

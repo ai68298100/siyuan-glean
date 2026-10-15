@@ -21,6 +21,7 @@ registerHooks({
             const queuedWrite = async (_plugin, id, patch) => {
                 await new Promise((resolve) => setTimeout(resolve, 1));
                 clips.set(id, { ...(clips.get(id) || {}), ...patch });
+                return { indexSyncFailed: globalThis.__resurfaceIndexFailure === true };
             };
             export const withClipEditQueue = (plugin, id, action) => {
                 const previous = queues.get(id) || Promise.resolve();
@@ -66,6 +67,12 @@ test("重浮属性读改写按文档串行，连续动作不会基于旧快照�
     const first = actOnSurface(plugin, "doc", "read");
     const second = setSurfacePinned(plugin, "doc", true);
     const [firstResult, secondResult] = await Promise.all([first, second]);
-    assert.equal(firstResult.before.status, "inbox");
-    assert.match(secondResult, /^\d{8}$/);
+    assert.equal(firstResult.token.before.status, "inbox");
+    assert.equal(firstResult.indexSyncFailed, false);
+    assert.match(secondResult.pinned, /^\d{8}$/);
+    assert.equal(secondResult.indexSyncFailed, false);
+    globalThis.__resurfaceIndexFailure = true;
+    assert.equal((await actOnSurface(plugin, "doc", "later")).indexSyncFailed, true);
+    assert.equal((await setSurfacePinned(plugin, "doc", false)).indexSyncFailed, true);
+    delete globalThis.__resurfaceIndexFailure;
 });

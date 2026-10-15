@@ -158,7 +158,8 @@ test("作者自动写入保护已有值及清空，显式作者编辑只改署�
         assert.deepEqual(result.skippedKeys, ["custom-clip-author"]);
         assert.equal(result.attrs.author, "手填公众号");
     }
-    await saveClipAuthor(current.plugin as never, "author-clip", "手填公众号", "  新署名  ");
+    const saved = await saveClipAuthor(current.plugin as never, "author-clip", "手填公众号", "  新署名  ");
+    assert.deepEqual(saved, { snapshot: { raw: "新署名", author: "新署名" }, indexSyncFailed: false });
     assert.equal((await readClipContext("author-clip"))?.author, "新署名");
     assert.equal(current.attrs.get("author-clip")?.["custom-clip-status"], "later");
     assert.equal(current.attrs.get("author-clip")?.["custom-clip-rating"], "5");
@@ -166,6 +167,17 @@ test("作者自动写入保护已有值及清空，显式作者编辑只改署�
     await saveClipAuthor(current.plugin as never, "author-clip", "新署名", "");
     assert.equal(current.attrs.get("author-clip")?.["custom-clip-author"], undefined);
     assert.equal((await readClipAuthor("author-clip")).author, "");
+});
+
+test("作者属性写入成功但索引保存失败时保留成功事实并返回待同步标记", async () => {
+    const current = harness();
+    current.add("author-index-pending", "box-1", { "custom-clip-status": "inbox", "custom-clip-author": "原作者" });
+    current.setFailSaveIndex(true);
+    const result = await saveClipAuthor(current.plugin as never, "author-index-pending", "原作者", "新作者");
+    assert.deepEqual(result, { snapshot: { raw: "新作者", author: "新作者" }, indexSyncFailed: true });
+    assert.equal(current.attrs.get("author-index-pending")?.["custom-clip-author"], "新作者");
+    current.setFailSaveIndex(false);
+    await reconcileIndex(current.plugin as never, { anchorNotebooks: ["box-1"] } as never);
 });
 
 test("按恢复检查点精确 ID 批量读取文档元数据并拒绝非法 ID", async () => {

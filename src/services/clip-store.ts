@@ -257,6 +257,10 @@ export class AuthorEditError extends Error {
 }
 
 export interface AuthorEditSnapshot { raw: string; author: string }
+export interface SaveClipAuthorResult {
+    snapshot: AuthorEditSnapshot;
+    indexSyncFailed: boolean;
+}
 
 export async function readClipAuthor(docId: string): Promise<AuthorEditSnapshot> {
     const meta = await fetchDocMeta(docId);
@@ -303,16 +307,16 @@ function queueClipEdit<Result>(plugin: Plugin, docId: string, action: (write: Qu
     return withClipEditQueue(plugin, docId, action);
 }
 
-export async function saveClipAuthor(plugin: Plugin, docId: string, expected: string, draft: string): Promise<AuthorEditSnapshot> {
+export async function saveClipAuthor(plugin: Plugin, docId: string, expected: string, draft: string): Promise<SaveClipAuthorResult> {
     const author = normalizeAuthor(draft);
     if (author === null) throw new AuthorEditError("invalid");
     return queueClipEdit(plugin, docId, async (write) => {
         const before = await readClipAuthor(docId);
         if (before.raw !== expected) throw new AuthorEditError("changed");
-        await write({ author }, { force: true, expectedAuthor: expected });
+        const written = await write({ author }, { force: true, expectedAuthor: expected });
         const after = await readClipAuthor(docId);
         if (after.raw !== author) throw new AuthorEditError("changed");
-        return after;
+        return { snapshot: after, indexSyncFailed: written.indexSyncFailed === true };
     });
 }
 
@@ -629,8 +633,10 @@ export async function captureClip(
     if (!result.indexSyncFailed && await automaticSnapshotEnabled(plugin) && !result.attrs.snapshot) {
         try {
             const { snapshotClip } = await import("./snapshot-service");
-            const { path } = await snapshotClip(plugin, docId, { expectedAttrs: { [ATTR.snapshot]: ial[ATTR.snapshot] ?? null } });
+            const snapshot = await snapshotClip(plugin, docId, { expectedAttrs: { [ATTR.snapshot]: ial[ATTR.snapshot] ?? null } });
+            const { path } = snapshot;
             result.attrs.snapshot = path;
+            if (snapshot.indexSyncFailed) result.indexSyncFailed = true;
         } catch {
             console.warn("[glean] automatic snapshot failed");
         }
@@ -695,6 +701,7 @@ export interface ClipBodyMeasurement {
     minutes: number;
     /** 全文载体下正文为空（0 字）= 剪入失败/被清空的诊断结论。 */
     missing: boolean;
+    indexSyncFailed?: boolean;
 }
 
 /**
@@ -713,7 +720,8 @@ export async function measureClipBody(plugin: Plugin, docId: string): Promise<Cl
         missing: metadata.words <= 0,
     };
     if (attrs.words !== measurement.words || attrs.minutes !== measurement.minutes) {
-        await writeClip(plugin, docId, { words: measurement.words, minutes: measurement.minutes });
+        const result = await writeClip(plugin, docId, { words: measurement.words, minutes: measurement.minutes });
+        if (result.indexSyncFailed) measurement.indexSyncFailed = true;
     }
     return measurement;
 }

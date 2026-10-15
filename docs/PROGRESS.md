@@ -1,12 +1,20 @@
 # 进度（PROGRESS）
 
+## T-3352/T-3351 收尾（2026-10-15）
+
+- [x] 统一透传 `indexSyncFailed`：文章属性已经写入、派生索引保存失败时，服务返回成功事实和待同步标记；自动快照保留资产路径和快照属性，不再把索引失败误报为快照失败。
+- [x] 读库预览、作者编辑、阅读页/上下文、评分/优先级、今日拾遗、归档/恢复、快照治理、AI 摘要/富化、插件命令和批量状态动作均显示现有双语“索引待同步”提示；未新增文章属性、端点、saveData 字段或 i18n 键。
+- [x] 回归：自动快照索引失败、收录返回标记、作者/状态/重浮/预览写入结果和 UI 静态反馈均已覆盖；`node --test tests/external-api.test.mjs` 37/37，完整 `pnpm test` 1339/1339。
+- [x] 最终门禁：`pnpm check` 0 错误/0 警告、`pnpm build`、`pnpm check:release`（`package.zip` 418850B）、`pnpm perf:check`、`pnpm visual:check`（24 项均等待真实宿主）、`pnpm task:ledger -- --check` 和 `git diff --check` 全部通过。
+- [ ] 真实思源权限/断网、多画布、移动端、读屏和索引恢复仍待 B-0002；版本保持 `1.3.4`，本轮不打 tag、不发 Release、不 push。
+
 ## v1.3.4 发布准备（2026-10-14）
 
 - [x] 已同步 `package.json`、`plugin.json`、双语 README、CHANGELOG、发布候选与媒体清单为 `1.3.4` 口径；候选文档保留真实宿主、默认手动和能力矩阵边界。
 - [x] 本地门禁已通过：`pnpm check`、`pnpm test` 1334/1334、`pnpm build`、`pnpm check:release`（`package.zip` 418766B，SHA-256 `6603FD964FA82C6B943FC6CECC155F23D2FF443DB4EB2016D4AF4823E022DB5E`）、`pnpm perf:check`、`pnpm visual:check`、`pnpm task:ledger -- --check`、`git diff --check`。
 - [x] 发布提交 `0b864b9fb94c0a046fbe3d644f1a4a090a7a65f4` 已推送 `main`；annotated tag `v1.3.4` 与 [GitHub Release](https://github.com/ai68298100/siyuan-glean/releases/tag/v1.3.4) 已创建。远端 `package.zip` 418766B，SHA-256 `6603FD964FA82C6B943FC6CECC155F23D2FF443DB4EB2016D4AF4823E022DB5E`，与本地一致。
 - [x] GitHub Quality gates `38579950262` 与 CodeQL `38579950264` 均成功；集市 PR 仍需单独授权。
-- [ ] Workbench 预览入口的索引待同步提示仍待 UI 审查补齐；不把该项写成已验收能力。
+- [x] Workbench 预览入口已补齐索引待同步提示；真实思源中的写后刷新与恢复仍待 B-0002。
 
 ## 设计令牌收敛 — 样式统一（2026-10-14）
 
@@ -21,7 +29,7 @@
 
 - [x] 增量属性写入遇到索引读取/保存异常时不再静默成功：事实源读回确认属性已落盘，返回 `indexSyncFailed`，保留可刷新/重建提示；属性写入失败仍按原错误分类返回。
 - [x] 完整对账、扫描预览和重建使用 repair 保存并解除损坏保护；新增回归覆盖 saveData 失败、索引损坏保护及重建恢复，`node --test tests/clip-store.test.ts` 35/35、`pnpm check:types`、`pnpm check:svelte` 通过。
-- [ ] Workbench 预览入口的索引待同步提示由 UI 审查继续补齐；版本保持 1.3.3，不升版、不发布、不 push。
+- [x] Workbench 预览入口的索引待同步提示已在本轮补齐；版本保持 1.3.4，不升版、不发布、不 push。
 
 ## T-3351/D-0223 全控件交互状态审查与字段校验（2026-10-14）
 
