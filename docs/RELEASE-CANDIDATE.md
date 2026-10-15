@@ -1,27 +1,27 @@
 # 发布候选复核
 
-> 2026-10-14 进入 `v1.3.4` 发布候选：统一全局设计令牌，并收口异步操作、索引写入和迁移恢复的可靠性。真实宿主、读屏、移动端和外部能力仍按能力矩阵及 B-0002/B-0005 验收。
+> 2026-10-16 进入 `v1.3.5` 发布候选：补齐索引同步失败反馈，并校准 S5 真实验收矩阵。真实宿主、读屏、移动端和外部能力仍按能力矩阵及 B-0002、B-0004–B-0008 验收。
 >
-> 本文记录本次 `v1.3.4` 候选、构建和 GitHub 发布证据；上一版 `v1.3.2` 与 `v1.3.3` 已发布；集市 PR 仍需单独授权，不执行。
+> 本文记录本次 `v1.3.5` 候选、构建和 GitHub 发布证据；上一版 `v1.3.4` 已发布；集市 PR 仍需单独授权，不执行。
 
 ## 1. 当前候选
 
 | 项目 | 结果 | 证据 |
 |---|---|---|
-| 源版本 | `1.3.4` | `package.json` 与 `plugin.json` 一致 |
-| 变更记录 | 已有 `v1.3.4` 条目 | `docs/CHANGELOG.md` |
+| 源版本 | `1.3.5` | `package.json` 与 `plugin.json` 一致 |
+| 变更记录 | 已有 `v1.3.5` 条目 | `docs/CHANGELOG.md` |
 | 类型与 Svelte 检查 | 通过，0 错误/0 警告 | `pnpm check` |
-| 全量测试 | 通过，1334/1334 | `pnpm test` |
+| 全量测试 | 通过，1339/1339 | `pnpm test` |
 | 生产构建 | 通过 | `pnpm build` |
-| 发布产物 | 通过，418766B；SHA-256 `6603FD964FA82C6B943FC6CECC155F23D2FF443DB4EB2016D4AF4823E022DB5E` | `pnpm check:release`；zip mtime 2026-10-14 22:01:46 +08:00 |
-| 性能门禁 | 通过；10k 扫描 7.79ms、索引重建 66.05ms、筛选 2.97ms、导入解析 33.82ms、今日拾遗 3.44ms | `pnpm perf:check` |
+| 发布产物 | 通过，420187B；SHA-256 `CDE715B78C1B907B62123A88BD0FF99020E39B64DE472D5FA27F5C709F316C0E` | `pnpm check:release`；zip mtime 2026-10-16 04:26:20 +08:00 |
+| 性能门禁 | 通过；10k 扫描 8.20ms、索引重建 69.06ms、筛选 2.47ms、导入解析 35.17ms、今日拾遗 3.40ms | `pnpm perf:check` |
 | 视觉矩阵 | 登记检查通过；24 个真实宿主案例仍待 B-0002 | `pnpm visual:check` |
 | 任务账本与差异 | 通过 | `pnpm task:ledger -- --check`、`git diff --check` |
 | 隔离内核 | 以本轮实际证据为准；不替代真实宿主验收 | `scripts/e2e/` 与 `scripts/spike/` |
-| GitHub 发布 | 已完成，远端附件校验一致 | [v1.3.4 Release](https://github.com/ai68298100/siyuan-glean/releases/tag/v1.3.4)；tag/Release 提交 `0b864b9fb94c0a046fbe3d644f1a4a090a7a65f4`；附件 418766B，SHA-256 `6603FD964FA82C6B943FC6CECC155F23D2FF443DB4EB2016D4AF4823E022DB5E` |
+| GitHub 发布 | 待本轮门禁与推送 | 目标 tag/Release：`v1.3.5` |
 | GitHub 工作流 | Quality gates、CodeQL 均成功 | [Quality gates 38579950262](https://github.com/ai68298100/siyuan-glean/actions/runs/38579950262)、[CodeQL 38579950264](https://github.com/ai68298100/siyuan-glean/actions/runs/38579950264) |
 
-本轮变更重点是设计令牌收敛、统一异步控件状态、索引写入结果一致性、迁移检查点压缩和 AV 刷新延迟保护。AI 仍默认手动且需要用户配置通道；详细前置条件以[能力矩阵](CAPABILITY-MATRIX.md)为准。
+本轮变更重点是索引同步失败反馈贯通、主要写入口的回归保护和 S5 验收矩阵校准。AI 仍默认手动且需要用户配置通道；详细前置条件以[能力矩阵](CAPABILITY-MATRIX.md)为准。
 
 ## 2. 仍需真实环境证据
 
@@ -33,10 +33,10 @@
 
 ## 3. 发布顺序
 
-1. 同步 `package.json`、`plugin.json`、双语 README 和 CHANGELOG，确认版本为 `1.3.4`。
+1. 同步 `package.json`、`plugin.json`、双语 README 和 CHANGELOG，确认版本为 `1.3.5`。
 2. 运行 `pnpm check`、`pnpm test`、`pnpm build`、`pnpm check:release`、`pnpm perf:check`、`pnpm visual:check`、`pnpm task:ledger -- --check` 与 `git diff --check`。
-3. 提交并推送 `main`，创建 annotated tag `v1.3.4` 并推送。
-4. annotated tag `v1.3.4` 与 GitHub Release 已发布；远端 `package.zip` 大小 418766B，SHA-256 `6603FD964FA82C6B943FC6CECC155F23D2FF443DB4EB2016D4AF4823E022DB5E`，与本地一致。
+3. 提交并推送 `main`，创建 annotated tag `v1.3.5` 并推送。
+4. 创建 `v1.3.5` GitHub Release 并上传本轮 `package.zip`，核对远端大小与 SHA-256。
 
 ## 4. 不得提前承诺
 

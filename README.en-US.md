@@ -8,6 +8,19 @@ Lv Glean organizes clippings and articles already in SiYuan. It does not crawl t
 
 [中文说明](README.md) · [Latest Release](https://github.com/ai68298100/siyuan-glean/releases/latest) · [Capability matrix](docs/CAPABILITY-MATRIX.md) · [Feedback](https://github.com/ai68298100/siyuan-glean/issues/new/choose)
 
+## v1.3.5 update (2026-10-16)
+
+This patch makes the “document facts saved, derived index sync pending” outcome explicit across write paths and tightens the acceptance boundaries for AI, AV, imports, snapshots, flashcards, and check-in integration. Real-host, model, and external-service acceptance remains tracked under B-0002 and B-0004–B-0008.
+
+**Fixed:**
+
+- Capture, status, rating/priority, author edits, reading AI, Today's Gleaning, archive/restore, snapshots, and Workbench preview now show an index-pending result when document attributes were saved but the derived index could not be persisted.
+- Added service and UI regressions to keep user attributes intact and avoid reporting ordinary success or snapshot failure for an index-only failure.
+
+**Documentation:**
+
+- Expanded the real acceptance matrices for article Q&A, author suggestions, one-way AV projection, flashcard recovery, Pocket HTML/CSV, and automatic snapshots.
+
 ## v1.3.4 update (2026-10-14)
 
 This patch consolidates the shared design-token system without changing user-facing behavior or visual intent, while making asynchronous actions, index writes, and migration recovery more reliable. Real-host visual, screen-reader, and external integrations remain subject to B-0002/B-0005 acceptance.
@@ -61,6 +74,18 @@ QQ group: **871707735** for bug reports, feature requests, and discussion.
 
 <details>
 <summary>Released version history (click to expand)</summary>
+
+### v1.3.5 (2026-10-16)
+
+This patch makes index-sync failures explicit across the main write paths and tightens the AI, AV, import, snapshot, flashcard, and check-in acceptance boundaries. Real-host, model, and external-service acceptance remains tracked separately.
+
+Fixed: show an index-pending result when document attributes were saved but the derived index failed, without overwriting user attributes or misreporting snapshot failures; added service and UI regressions.
+
+Documentation: expanded the matrices for article Q&A, author suggestions, one-way AV projection, flashcard recovery, Pocket HTML/CSV, and automatic snapshots.
+
+### v1.3.4 (2026-10-14)
+
+This release consolidated design tokens and tightened asynchronous actions, index writes, and migration recovery. Real-host visual, screen-reader, and external acceptance remained subject to B-0002/B-0005.
 
 ### v1.3.3 (2026-10-10)
 
@@ -179,7 +204,7 @@ Ordinary notes are not bulk-captured just because of their location, and opening
 
 ## Compatibility and acceptance
 
-The current stable release is [v1.3.4](https://github.com/ai68298100/siyuan-glean/releases/tag/v1.3.4). Its automated gates have passed; this does not mean every real environment has been accepted.
+The current stable release is [v1.3.5](https://github.com/ai68298100/siyuan-glean/releases/tag/v1.3.5). Its automated gates have passed; this does not mean every real environment has been accepted.
 
 Desktop host, Android/mobile, browser frontend, real models, the official clipper, external files, and subscription services still require environment-specific checks. Prerequisites, fallbacks, and open blockers are listed in the [capability matrix](docs/CAPABILITY-MATRIX.md) and [known blockers](docs/BLOCKERS.md). Unit tests and isolated E2E are not device acceptance.
 

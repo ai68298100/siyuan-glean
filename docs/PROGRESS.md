@@ -1,5 +1,13 @@
 # 进度（PROGRESS）
 
+## v1.3.5 发布准备（2026-10-16）
+
+- [x] 将 `package.json` 与 `plugin.json` 升至 `1.3.5`；双语 README、CHANGELOG、RELEASE、发布候选和媒体清单同步索引同步反馈与 S5 验收矩阵校准。
+- [x] 发布内容限定为索引失败反馈贯通、主要写入口回归和验收文档校准；不新增文章属性、内核端点、saveData 字段或 i18n 键。
+- [x] 完整门禁与生产构建已通过：`pnpm check` 0 错误/0 警告、`pnpm test` 1339/1339、`pnpm build`、`pnpm check:release`、`pnpm perf:check`、`pnpm visual:check`、`pnpm task:ledger -- --check` 和 `git diff --check`；`package.zip` 420187B，SHA-256 `CDE715B78C1B907B62123A88BD0FF99020E39B64DE472D5FA27F5C709F316C0E`。
+- [ ] 提交并推送 `main`、创建 annotated tag/ GitHub Release；集市 PR 仍需单独授权。
+- [ ] 真实思源宿主、真实模型、导入文件、assets/riff、收集箱和打卡联调仍按 B-0002、B-0004–B-0008 验收，不因本次 GitHub 发布关闭。
+
 ## T-3352/T-3351 收尾（2026-10-15）
 
 - [x] B-0012 隔离靶场复跑：在独立 workspace、思源 3.8.7、插件 1.3.4 上重跑 `scripts/e2e/s1-flow.mjs`，覆盖主链、备份、AV、制卡恢复、导入检查点和数据主权；首次断言漂移已由 `1db66f0` 对齐 `indexSyncFailed: []`，重跑全部通过，靶场已停止并清理。

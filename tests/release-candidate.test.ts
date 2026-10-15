@@ -37,7 +37,7 @@ test("发布候选继续引用能力矩阵的保守对外口径", () => {
     assert.match(candidate, /能力矩阵/);
     assert.match(candidate, /默认手动/);
     assert.match(candidate, /不写“全平台已验证”/);
-    assert.match(candidate, /v1\.3\.2/);
+    assert.match(candidate, /v1\.3\.4/);
     assert.match(capability, /真实状态/);
     assert.match(capability, /B-0004/);
     assert.match(capability, /B-0005/);
