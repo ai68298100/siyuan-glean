@@ -4,7 +4,7 @@
 
 | 任务 | 看板状态 | 代码状态 | 隔离验证 | 真实验收 | 延后/阻塞原因 |
 | --- | --- | --- | --- | --- | --- |
-| T-3353 | ◐ | 发布材料已同步，待本轮门禁与远端校验 | 待 `pnpm check`、`pnpm test`、`pnpm build`、`pnpm check:release`、`pnpm perf:check`、`pnpm visual:check`、`pnpm task:ledger -- --check` 和 `git diff --check` | 真实宿主、真实模型、真实导入文件、assets/riff、收集箱和打卡联调仍待 B-0002、B-0004–B-0008 | 无，发布不关闭这些 blocker |
+| T-3353 | x | 发布材料已同步，`main`/tag/Release 已发布 | `pnpm check`、`pnpm test` 1339/1339、`pnpm build`、`pnpm check:release`、`pnpm perf:check`、`pnpm visual:check`、`pnpm task:ledger -- --check` 和 `git diff --check` 通过 | 真实宿主、真实模型、真实导入文件、assets/riff、收集箱和打卡联调仍待 B-0002、B-0004–B-0008 | 发布不关闭这些 blocker |
 | T-3352 | ◐ | 统一传输、同文队列、写后读回及索引失败标记已实现，读库预览及主要写入口已显示“索引待同步” | `pnpm check`、`pnpm test`（1339/1339）、`pnpm build`、`pnpm check:release`、`pnpm perf:check`、`pnpm visual:check`、`pnpm task:ledger -- --check` 和 `git diff --check` 通过 | 待 B-0002（宿主权限、真实多画布/网络故障及写后视图更新） | 思源宿主控制 token/登录且 SDK 不能真正取消内核请求，插件不臆造登录路由或跨客户端事务保证 |
 | T-3351 | ◐ | 本轮已完成即时缺口，并将索引待同步结果贯通主要写入口 | `pnpm check`、`pnpm test`（1339/1339）、`pnpm build`、`pnpm check:release`、`pnpm perf:check`、`pnpm visual:check`、`pnpm task:ledger -- --check` 和 `git diff --check` 通过 | 待 B-0002（思源多画布、移动端、读屏和真实宿主错误注入） | 宿主 URL/history 不属于插件可安全接管范围，筛选/滚动持久快照需先确定宿主 tab 生命周期契约 |
 | T-3349 | ◐ | 完成 | 迁移回归及 S1 真实内核 E2E 通过 | 待 B-0002（真实思源存储异常、重载和迁移弹窗操作） | 隔离插件无法模拟作者宿主的持久化故障与真实恢复操作 |

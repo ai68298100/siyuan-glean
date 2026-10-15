@@ -18,7 +18,7 @@
 | 视觉矩阵 | 登记检查通过；24 个真实宿主案例仍待 B-0002 | `pnpm visual:check` |
 | 任务账本与差异 | 通过 | `pnpm task:ledger -- --check`、`git diff --check` |
 | 隔离内核 | 以本轮实际证据为准；不替代真实宿主验收 | `scripts/e2e/` 与 `scripts/spike/` |
-| GitHub 发布 | 待本轮门禁与推送 | 目标 tag/Release：`v1.3.5` |
+| GitHub 发布 | 已发布，远端附件校验一致 | [v1.3.5 Release](https://github.com/ai68298100/siyuan-glean/releases/tag/v1.3.5)；main `ac640f5702933f207fe531a631d28691b25a9521`；tag `v1.3.5`；附件 420187B，SHA-256 `CDE715B78C1B907B62123A88BD0FF99020E39B64DE472D5FA27F5C709F316C0E` |
 | GitHub 工作流 | Quality gates、CodeQL 均成功 | [Quality gates 38579950262](https://github.com/ai68298100/siyuan-glean/actions/runs/38579950262)、[CodeQL 38579950264](https://github.com/ai68298100/siyuan-glean/actions/runs/38579950264) |
 
 本轮变更重点是索引同步失败反馈贯通、主要写入口的回归保护和 S5 验收矩阵校准。AI 仍默认手动且需要用户配置通道；详细前置条件以[能力矩阵](CAPABILITY-MATRIX.md)为准。
@@ -35,8 +35,8 @@
 
 1. 同步 `package.json`、`plugin.json`、双语 README 和 CHANGELOG，确认版本为 `1.3.5`。
 2. 运行 `pnpm check`、`pnpm test`、`pnpm build`、`pnpm check:release`、`pnpm perf:check`、`pnpm visual:check`、`pnpm task:ledger -- --check` 与 `git diff --check`。
-3. 提交并推送 `main`，创建 annotated tag `v1.3.5` 并推送。
-4. 创建 `v1.3.5` GitHub Release 并上传本轮 `package.zip`，核对远端大小与 SHA-256。
+3. 已提交并推送 `main`，创建 annotated tag `v1.3.5` 并推送。
+4. 已创建 `v1.3.5` GitHub Release 并上传本轮 `package.zip`；远端大小与 SHA-256 已核对一致。
 
 ## 4. 不得提前承诺
 

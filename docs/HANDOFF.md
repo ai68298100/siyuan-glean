@@ -1,11 +1,11 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
-## 当前有效交接（2026-10-16 v1.3.5 发布候选）
+## 当前有效交接（2026-10-16 v1.3.5 已发布）
 
 - 用户已明确授权发布 `v1.3.5` GitHub Release；不提交集市 PR。D-0227 固化本次发布范围与真实验收边界。
 - `package.json` 与 `plugin.json` 均为 `1.3.5`；本轮完整门禁已通过：`pnpm check` 0 错误/0 警告、`pnpm test` 1339/1339、`pnpm build`、`pnpm check:release`、`pnpm perf:check`、`pnpm visual:check`、`pnpm task:ledger -- --check`、`git diff --check`。
 - 当前构建产物：`package.zip` 420187B，SHA-256 `CDE715B78C1B907B62123A88BD0FF99020E39B64DE472D5FA27F5C709F316C0E`，mtime `2026-10-16 04:26:20 +08:00`；视觉矩阵仍是 24 项待真实宿主。
-- 下一步任务 T-3353：提交发布材料、推送 `main`、创建并推送 annotated tag `v1.3.5`、创建 GitHub Release 并上传该 `package.zip`，再核对远端附件大小与 SHA-256。网络失败时不得宣称已发布，也不得覆盖远端。
+- T-3353 已完成：`main` 已推送至 `ac640f5702933f207fe531a631d28691b25a9521`，annotated tag `v1.3.5` 已推送，GitHub Release 已创建；远端 `package.zip` 420187B、SHA-256 `CDE715B78C1B907B62123A88BD0FF99020E39B64DE472D5FA27F5C709F316C0E` 与本地一致。下一步任务 T-3352/T-3351 回到 B-0002、B-0004–B-0008 的真实验收，不提交集市 PR。
 - 主思源仍未重启，B-0002、B-0004–B-0008 的真实宿主/模型/文件/assets/riff/收集箱/打卡证据继续保留，不能由本地门禁或隔离内核替代。
 
 ## 当前有效交接（2026-10-16 真实宿主验收准备）

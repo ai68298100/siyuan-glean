@@ -5,7 +5,7 @@
 - [x] 将 `package.json` 与 `plugin.json` 升至 `1.3.5`；双语 README、CHANGELOG、RELEASE、发布候选和媒体清单同步索引同步反馈与 S5 验收矩阵校准。
 - [x] 发布内容限定为索引失败反馈贯通、主要写入口回归和验收文档校准；不新增文章属性、内核端点、saveData 字段或 i18n 键。
 - [x] 完整门禁与生产构建已通过：`pnpm check` 0 错误/0 警告、`pnpm test` 1339/1339、`pnpm build`、`pnpm check:release`、`pnpm perf:check`、`pnpm visual:check`、`pnpm task:ledger -- --check` 和 `git diff --check`；`package.zip` 420187B，SHA-256 `CDE715B78C1B907B62123A88BD0FF99020E39B64DE472D5FA27F5C709F316C0E`。
-- [ ] 提交并推送 `main`、创建 annotated tag/ GitHub Release；集市 PR 仍需单独授权。
+- [x] 已提交并推送 `main`（`ac640f5`）、创建并推送 annotated tag `v1.3.5`、创建 GitHub Release 并上传 `package.zip`；远端附件 420187B、SHA-256 `CDE715B78C1B907B62123A88BD0FF99020E39B64DE472D5FA27F5C709F316C0E` 与本地一致；集市 PR 未执行。
 - [ ] 真实思源宿主、真实模型、导入文件、assets/riff、收集箱和打卡联调仍按 B-0002、B-0004–B-0008 验收，不因本次 GitHub 发布关闭。
 
 ## T-3352/T-3351 收尾（2026-10-15）
