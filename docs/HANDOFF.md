@@ -7,7 +7,8 @@
 - 本轮未新增数据契约、内核端点、saveData 字段或 i18n 键，复用既有中英文提示 `msg.writeIndexPending`、`msg.statusIndexPending` 和 `msg.indexSyncPendingShort`。
 - 验证：`node --test tests/external-api.test.mjs` 37/37；完整 `pnpm test` 1339/1339；`pnpm check` 0 错误/0 警告；`pnpm build`、`pnpm check:release`（`package.zip` 419335B）、`pnpm perf:check`、`pnpm visual:check`（24 项均等待真实宿主）、`pnpm task:ledger -- --check` 和 `git diff --check` 全部通过。
 - S5 矩阵审计已完成：`docs/AI-ACCEPTANCE.md` 补齐本文问答/作者建议，`docs/INTEGRATION-ACCEPTANCE.md` 补齐 AV 单向投影、闪卡恢复、Pocket HTML/CSV、自动快照和索引待同步边界；T-1711/T-1712/T-1713/T-1718 现标为代码/隔离完成、真实验收进行中。AV 仍只承诺属性→状态列，不承诺其他列稳定映射或反向同步。
-- 当前工作树仅含本轮文档与验收静态回归校准，版本继续为 `1.3.4`，本轮没有打 tag、发 Release 或 push。后续先做 B-0002 真实思源验收（权限/断网、写后刷新、多画布、移动端、读屏），再按 B-0004–B-0008 逐项补 AI、导入、快照、收集箱、闪卡/打卡和数据主权证据；不要把隔离测试当作真机通过。
+- 追加校准已完成：T-1798 标记为由 T-3268/D-0117 承接完成；UI 标准区分持久化/可审计结果与当前临时阅读 AI 结果，暂不引入 `generatedAt` 字段；B-0004/B-0005 真实验收说明已覆盖本文问答、作者建议及 Pocket 四格式。
+- 当前工作树干净，版本继续为 `1.3.4`，本轮没有打 tag、发 Release 或 push。最新全量 `pnpm test` 1339/1339、`pnpm check` 0 错误/0 警告、任务台账和差异检查通过。后续先做 B-0002 真实思源验收（权限/断网、写后刷新、多画布、移动端、读屏），再按 B-0004–B-0008 逐项补 AI、导入、快照、收集箱、闪卡/打卡和数据主权证据；不要把隔离测试当作真机通过。
 
 ## 当前有效交接（2026-10-14 v1.3.4 发布准备）
 

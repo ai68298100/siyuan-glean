@@ -14,6 +14,7 @@
 - [x] `docs/AI-ACCEPTANCE.md` 增补 AI-10/11 与 AI-F10/11，明确本文问答和作者建议的源变更、依据不足、开关/额度失败边界；AI-03 与当前结果卡契约对齐，不臆造 `generatedAt` 字段；问句制卡交叉引用集成矩阵。
 - [x] `docs/INTEGRATION-ACCEPTANCE.md` 增补 AV-01/AV-F01、CARD-01/CARD-F01、Pocket HTML/CSV 四格式、自动快照及 `indexSyncFailed` 语义；明确 AV 当前仅保证属性→AV 状态列，不承诺反向同步或其他列稳定映射。
 - [x] `docs/BLOCKERS.md` 和 `TODO.md` 已把 AV/制卡真实边界、B-0004–B-0008 依赖及已被现行矩阵承接的旧设计项标清；T-1711/T-1712/T-1713/T-1718 更新为“代码/隔离完成，真实验收进行中”。
+- [x] 追加清理旧计划：T-1798 明确由 T-3268/D-0117 承接；`docs/UI-STANDARD.md` 不再把当前临时阅读 AI 结果误写成必须持久化生成时间；B-0004/B-0005 说明同步覆盖本文问答、作者建议和 Pocket 四格式。
 - [ ] 真实样本仍需作者按 `AI-ACCEPTANCE.md`、`INTEGRATION-ACCEPTANCE.md` 操作；未取得 B-0002、B-0004–B-0008 证据前，不关闭 S5 或扩展 AV 列/双向同步。
 
 ## v1.3.4 发布准备（2026-10-14）
