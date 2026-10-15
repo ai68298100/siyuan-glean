@@ -370,7 +370,7 @@ async function runFlow(client, workspace) {
     const staleList = resurface.staleCandidatesFromIndex(staleIndex, settings);
     assert(staleList.some((item) => item.id === oldB));
     const archivedStale = await resurface.archiveStaleCandidates(plugin, [oldB]);
-    assert.deepEqual(archivedStale, { ok: 1, succeeded: [oldB] });
+    assert.deepEqual(archivedStale, { ok: 1, succeeded: [oldB], indexSyncFailed: [] });
     assert.equal((await client.apiChecked("/api/attr/getBlockAttrs", { id: oldB }))["custom-clip-status"], "archived");
     assert.equal((await client.apiChecked("/api/attr/getBlockAttrs", { id: oldA }))["custom-clip-status"], "inbox");
     pass("超龄清单来自对账索引；只归档勾选篇目并报告真实成功数");
