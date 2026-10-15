@@ -8,6 +8,7 @@
 - 验证：`node --test tests/external-api.test.mjs` 37/37；完整 `pnpm test` 1339/1339；`pnpm check` 0 错误/0 警告；`pnpm build`、`pnpm check:release`（`package.zip` 419335B）、`pnpm perf:check`、`pnpm visual:check`（24 项均等待真实宿主）、`pnpm task:ledger -- --check` 和 `git diff --check` 全部通过。
 - S5 矩阵审计已完成：`docs/AI-ACCEPTANCE.md` 补齐本文问答/作者建议，`docs/INTEGRATION-ACCEPTANCE.md` 补齐 AV 单向投影、闪卡恢复、Pocket HTML/CSV、自动快照和索引待同步边界；T-1711/T-1712/T-1713/T-1718 现标为代码/隔离完成、真实验收进行中。AV 仍只承诺属性→状态列，不承诺其他列稳定映射或反向同步。
 - 追加校准已完成：T-1798 标记为由 T-3268/D-0117 承接完成；UI 标准区分持久化/可审计结果与当前临时阅读 AI 结果，暂不引入 `generatedAt` 字段；B-0004/B-0005 真实验收说明已覆盖本文问答、作者建议及 Pocket 四格式。
+- B-0012 隔离靶场已复跑：独立 workspace 使用思源 3.8.7 与插件 1.3.4，S1 主链、备份、AV、制卡恢复、导入检查点和数据主权均通过；旧 E2E 断言已在 `1db66f0` 对齐当前 `indexSyncFailed` 返回契约，靶场已停止并清理。该证据仍属于隔离内核，不关闭 B-0002 的桌面/移动/读屏验收。
 - 当前工作树干净，版本继续为 `1.3.4`，本轮没有打 tag、发 Release 或 push。最新全量 `pnpm test` 1339/1339、`pnpm check` 0 错误/0 警告、任务台账和差异检查通过。后续先做 B-0002 真实思源验收（权限/断网、写后刷新、多画布、移动端、读屏），再按 B-0004–B-0008 逐项补 AI、导入、快照、收集箱、闪卡/打卡和数据主权证据；不要把隔离测试当作真机通过。
 
 ## 当前有效交接（2026-10-14 v1.3.4 发布准备）
