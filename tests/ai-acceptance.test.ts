@@ -13,6 +13,7 @@ const actions = readFileSync(resolve(root, "src/services/ai-actions.ts"), "utf8"
 const author = readFileSync(resolve(root, "src/services/author-service.ts"), "utf8");
 const index = readFileSync(resolve(root, "src/index.ts"), "utf8");
 const settings = readFileSync(resolve(root, "src/services/settings.ts"), "utf8");
+const uiStandard = readFileSync(resolve(root, "docs/UI-STANDARD.md"), "utf8");
 
 const mainCases = ["AI-01", "AI-02", "AI-03", "AI-04", "AI-05", "AI-06", "AI-07", "AI-08", "AI-09", "AI-10", "AI-11"];
 const failureCases = ["AI-F01", "AI-F02", "AI-F03", "AI-F04", "AI-F05", "AI-F06", "AI-F07", "AI-F08", "AI-F09", "AI-F10", "AI-F11"];
@@ -33,6 +34,8 @@ test("AI 矩阵锁定数据主权、额度和失败恢复要求", () => {
     for (const term of ["skipped=error", "skipped=parse", "不阻断收录", "不增加用量", "可重试"]) {
         assert.match(guide, new RegExp(term));
     }
+    assert.match(uiStandard, /持久化或可审计的 AI 结果必须显示动作、通道、生成时间/);
+    assert.match(uiStandard, /当前阅读伴生栏的临时摘要、翻译和问答至少显示动作、通道、依据范围/);
 });
 
 test("验收条目与 AI 代码入口保持对应", () => {
