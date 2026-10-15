@@ -6,7 +6,7 @@
 - 自动快照在资产和快照属性已成功写入、索引保存失败时返回路径及待同步标记；不会再被自动收录流程当作快照失败。批量快照、批量状态和超龄归档保留逐篇待同步结果。
 - 本轮未新增数据契约、内核端点、saveData 字段或 i18n 键，复用既有中英文提示 `msg.writeIndexPending`、`msg.statusIndexPending` 和 `msg.indexSyncPendingShort`。
 - 验证：`node --test tests/external-api.test.mjs` 37/37；完整 `pnpm test` 1339/1339；`pnpm check` 0 错误/0 警告；`pnpm build`、`pnpm check:release`（`package.zip` 418850B）、`pnpm perf:check`、`pnpm visual:check`（24 项均等待真实宿主）、`pnpm task:ledger -- --check` 和 `git diff --check` 全部通过。
-- 当前工作树保留 23 个未提交源/测试改动；版本继续为 `1.3.4`，本轮没有打 tag、发 Release 或 push。下一步先做 B-0002 真实思源验收（权限/断网、写后刷新、多画布、移动端、读屏），再按 S5/S6 逐项补 AI、导入、快照、收集箱和数据主权证据；不要把隔离测试当作真机通过。
+- 当前工作树保留 23 个未提交源/测试改动；版本继续为 `1.3.4`，本轮没有打 tag、发 Release 或 push。后续先做 B-0002 真实思源验收（权限/断网、写后刷新、多画布、移动端、读屏），再按 S5/S6 逐项补 AI、导入、快照、收集箱和数据主权证据；不要把隔离测试当作真机通过。
 
 ## 当前有效交接（2026-10-14 v1.3.4 发布准备）
 
