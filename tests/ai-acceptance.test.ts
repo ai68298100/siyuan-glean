@@ -10,11 +10,12 @@ const readerAi = readFileSync(resolve(root, "src/services/reader-ai.ts"), "utf8"
 const directAi = readFileSync(resolve(root, "src/api/ai-direct.ts"), "utf8");
 const domainDirectAi = readFileSync(resolve(root, "src/domain/ai-direct.ts"), "utf8");
 const actions = readFileSync(resolve(root, "src/services/ai-actions.ts"), "utf8");
+const author = readFileSync(resolve(root, "src/services/author-service.ts"), "utf8");
 const index = readFileSync(resolve(root, "src/index.ts"), "utf8");
 const settings = readFileSync(resolve(root, "src/services/settings.ts"), "utf8");
 
-const mainCases = ["AI-01", "AI-02", "AI-03", "AI-04", "AI-05", "AI-06", "AI-07", "AI-08", "AI-09"];
-const failureCases = ["AI-F01", "AI-F02", "AI-F03", "AI-F04", "AI-F05", "AI-F06", "AI-F07", "AI-F08", "AI-F09"];
+const mainCases = ["AI-01", "AI-02", "AI-03", "AI-04", "AI-05", "AI-06", "AI-07", "AI-08", "AI-09", "AI-10", "AI-11"];
+const failureCases = ["AI-F01", "AI-F02", "AI-F03", "AI-F04", "AI-F05", "AI-F06", "AI-F07", "AI-F08", "AI-F09", "AI-F10", "AI-F11"];
 
 test("AI 真实验收矩阵覆盖主流程、失败样本和 B-0004 边界", () => {
     assert.match(guide, /T-3211/);
@@ -42,7 +43,9 @@ test("验收条目与 AI 代码入口保持对应", () => {
     assert.match(enrich, /findRelated/);
     assert.match(readerAi, /readerSummarize/);
     assert.match(readerAi, /readerTranslate/);
+    assert.match(readerAi, /readerArticleQuestion/);
     assert.match(readerAi, /saveReaderSummary/);
+    assert.match(author, /authorSuggestion/);
     assert.match(directAi, /testDirectChannel/);
     assert.match(directAi, /browser-cors/);
     assert.match(actions, /拾遗 · 总结/);

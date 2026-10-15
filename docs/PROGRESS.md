@@ -5,8 +5,16 @@
 - [x] 统一透传 `indexSyncFailed`：文章属性已经写入、派生索引保存失败时，服务返回成功事实和待同步标记；自动快照保留资产路径和快照属性，不再把索引失败误报为快照失败。
 - [x] 读库预览、作者编辑、阅读页/上下文、评分/优先级、今日拾遗、归档/恢复、快照治理、AI 摘要/富化、插件命令和批量状态动作均显示现有双语“索引待同步”提示；未新增文章属性、端点、saveData 字段或 i18n 键。
 - [x] 回归：自动快照索引失败、收录返回标记、作者/状态/重浮/预览写入结果和 UI 静态反馈均已覆盖；`node --test tests/external-api.test.mjs` 37/37，完整 `pnpm test` 1339/1339。
-- [x] 最终门禁：`pnpm check` 0 错误/0 警告、`pnpm build`、`pnpm check:release`（`package.zip` 418850B）、`pnpm perf:check`、`pnpm visual:check`（24 项均等待真实宿主）、`pnpm task:ledger -- --check` 和 `git diff --check` 全部通过。
+- [x] 最终门禁：`pnpm check` 0 错误/0 警告、`pnpm build`、`pnpm check:release`（`package.zip` 419335B）、`pnpm perf:check`、`pnpm visual:check`（24 项均等待真实宿主）、`pnpm task:ledger -- --check` 和 `git diff --check` 全部通过。
 - [ ] 真实思源权限/断网、多画布、移动端、读屏和索引恢复仍待 B-0002；版本保持 `1.3.4`，本轮不打 tag、不发 Release、不 push。
+
+## S5 验收矩阵审计（2026-10-15）
+
+- [x] 对照代码、隔离回归和现行决策复核 T-1711/T-1712：富化/伴读/本文问答/作者建议、AV 单向状态投影、收集箱、四格式导入、手动与自动快照、闪卡恢复、打卡桥均已有入口或隔离证据；真实模型、文件、订阅、assets、riff、双插件和宿主刷新仍不视为通过。
+- [x] `docs/AI-ACCEPTANCE.md` 增补 AI-10/11 与 AI-F10/11，明确本文问答和作者建议的源变更、依据不足、开关/额度失败边界；AI-03 与当前结果卡契约对齐，不臆造 `generatedAt` 字段；问句制卡交叉引用集成矩阵。
+- [x] `docs/INTEGRATION-ACCEPTANCE.md` 增补 AV-01/AV-F01、CARD-01/CARD-F01、Pocket HTML/CSV 四格式、自动快照及 `indexSyncFailed` 语义；明确 AV 当前仅保证属性→AV 状态列，不承诺反向同步或其他列稳定映射。
+- [x] `docs/BLOCKERS.md` 和 `TODO.md` 已把 AV/制卡真实边界、B-0004–B-0008 依赖及已被现行矩阵承接的旧设计项标清；T-1711/T-1712/T-1713/T-1718 更新为“代码/隔离完成，真实验收进行中”。
+- [ ] 真实样本仍需作者按 `AI-ACCEPTANCE.md`、`INTEGRATION-ACCEPTANCE.md` 操作；未取得 B-0002、B-0004–B-0008 证据前，不关闭 S5 或扩展 AV 列/双向同步。
 
 ## v1.3.4 发布准备（2026-10-14）
 
