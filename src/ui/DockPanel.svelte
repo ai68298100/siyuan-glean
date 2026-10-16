@@ -2333,19 +2333,23 @@ function metaLine(entry: Row): string {
                                             <input type="checkbox" checked={selection.has(entry.id)} aria-label={t(i18n, "library.selectArticle")} onclick={(event) => event.stopPropagation()} onchange={(event) => toggleSelect(entry.id, event)} />
                                         </label>
                                         <span class={statusDotClass(entry.status)}></span>
-                                        <button type="button" class="glean-drow__ti" aria-label={articleActionLabel(entry.title, true)} title={entry.title || t(i18n, "panel.untitled")} onclick={() => selectPreview(entry.id)}>{entry.title || t(i18n, "panel.untitled")}</button>
-                                        <span class="glean-drow__site">{entry.site || sourceFallback(entry)}{#if entry.author}<button class="glean-source-author" onclick={(event) => { event.stopPropagation(); selectAuthor(entry.author!); }}>· {entry.author}</button>{/if}</span>
-                                         <span class={carrierClass(entry)} title={entry.contentType === "link" && !hasSourceAction(entry.contentType, entry.url) ? t(i18n, "clip.sourceMissing") : carrierLabel(entry)}>{carrierLabel(entry)}</span>
-                                        {#if entry.contentType === "link" && !hasSourceAction(entry.contentType, entry.url)}
-                                            <span class="glean-source-missing">{t(i18n, "clip.sourceMissing")}</span>
-                                        {/if}
-                                        {#if bodyPending(entry)}
-                                            <span class="glean-body-pending" title={t(i18n, "clip.bodyPendingHint")}>{t(i18n, "clip.bodyPending")}</span>
-                                        {/if}
-                                        <span class="glean-drow__len" title={timeSource(entry)}>{lengthLabel(entry)}</span>
-                                        <span class="glean-drow__st">
-                                            <span class="glean-st-badge glean-st-badge--{entry.status}">{queueLabel(entry.status)}</span>
-                                        </span>
+                                        <div class="glean-drow__body">
+                                            <button type="button" class="glean-drow__ti" aria-label={articleActionLabel(entry.title, true)} title={entry.title || t(i18n, "panel.untitled")} onclick={() => selectPreview(entry.id)}>{entry.title || t(i18n, "panel.untitled")}</button>
+                                            <div class="glean-drow__meta">
+                                                <span class="glean-drow__site" title={entry.site || sourceFallback(entry)}>{entry.site || sourceFallback(entry)}{#if entry.author}<button class="glean-source-author" onclick={(event) => { event.stopPropagation(); selectAuthor(entry.author!); }}>· {entry.author}</button>{/if}</span>
+                                                <span class={carrierClass(entry)} title={entry.contentType === "link" && !hasSourceAction(entry.contentType, entry.url) ? t(i18n, "clip.sourceMissing") : carrierLabel(entry)}>{carrierLabel(entry)}</span>
+                                                {#if entry.contentType === "link" && !hasSourceAction(entry.contentType, entry.url)}
+                                                    <span class="glean-source-missing">{t(i18n, "clip.sourceMissing")}</span>
+                                                {/if}
+                                                {#if bodyPending(entry)}
+                                                    <span class="glean-body-pending" title={t(i18n, "clip.bodyPendingHint")}>{t(i18n, "clip.bodyPending")}</span>
+                                                {/if}
+                                                <span class="glean-drow__len" title={timeSource(entry)}>{lengthLabel(entry)}</span>
+                                                <span class="glean-drow__st">
+                                                    <span class="glean-st-badge glean-st-badge--{entry.status}">{queueLabel(entry.status)}</span>
+                                                </span>
+                                            </div>
+                                        </div>
                                         <div class="glean-drow__ops">
                                             {#if entry.status === "archived"}
                                                 <button class="glean-btn glean-btn--ghost" disabled={Boolean(statusActionId)} onclick={(event) => { event.stopPropagation(); facade.openRestoreDialog(entry.id); }}>{t(i18n, "action.restore")}</button>
@@ -2376,13 +2380,17 @@ function metaLine(entry: Row): string {
                                         class:glean-drow--preview={previewId === entry.id}
                                     >
                                         <span class="glean-dot glean-dot--inbox"></span>
-                                        <button type="button" class="glean-drow__ti" aria-label={articleActionLabel(entry.title, true)} title={entry.title || t(i18n, "panel.untitled")} onclick={() => selectPreview(entry.id)}>{entry.title || t(i18n, "panel.untitled")}</button>
-                                        <span class="glean-drow__site" title={entry.url || entry.hpath}>{entry.site || candidateEvidence(entry)}</span>
-                                        {#if candidateMissing(entry)}<span class="glean-drow__len">{candidateMissing(entry)}</span>{/if}
-                                        <span class="glean-drow__st">
-                                            <span class="glean-candidate-state">{t(i18n, "candidate.pending")}</span>
-                                            {#if entry.url}<button class="glean-card__capture" disabled={Boolean(candidateBusyId)} aria-busy={candidateBusyId === entry.id} onclick={(e) => { e.stopPropagation(); void capture(entry); }}>{t(i18n, "action.addToInbox")}</button>{/if}
-                                        </span>
+                                        <div class="glean-drow__body">
+                                            <button type="button" class="glean-drow__ti" aria-label={articleActionLabel(entry.title, true)} title={entry.title || t(i18n, "panel.untitled")} onclick={() => selectPreview(entry.id)}>{entry.title || t(i18n, "panel.untitled")}</button>
+                                            <div class="glean-drow__meta">
+                                                <span class="glean-drow__site" title={entry.url || entry.hpath}>{entry.site || candidateEvidence(entry)}</span>
+                                                {#if candidateMissing(entry)}<span class="glean-drow__len">{candidateMissing(entry)}</span>{/if}
+                                                <span class="glean-drow__st">
+                                                    <span class="glean-candidate-state">{t(i18n, "candidate.pending")}</span>
+                                                    {#if entry.url}<button class="glean-card__capture" disabled={Boolean(candidateBusyId)} aria-busy={candidateBusyId === entry.id} onclick={(e) => { e.stopPropagation(); void capture(entry); }}>{t(i18n, "action.addToInbox")}</button>{/if}
+                                                </span>
+                                            </div>
+                                        </div>
                                         <div class="glean-drow__ops">
                                             <button class="glean-op-btn" disabled={Boolean(candidateBusyId)} title={t(i18n, "candidate.fixUrl")} aria-label={t(i18n, "candidate.fixUrl")} onclick={(e) => { e.stopPropagation(); startCandidateUrlEdit(entry); }}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanEdit" /></svg></button>
                                             {#if !entry.url}<button class="glean-op-btn" disabled={Boolean(candidateBusyId)} title={t(i18n, "candidate.captureLocal")} aria-label={t(i18n, "candidate.captureLocal")} onclick={(e) => { e.stopPropagation(); void captureAsLocal(entry); }}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanLocal" /></svg></button>{/if}

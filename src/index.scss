@@ -5172,6 +5172,7 @@ body.b3-theme-dark {
 .glean-lib__main {
     flex: 1;
     min-width: 0;
+    container: glean-library / inline-size;
     padding: var(--glean-space-3-5) var(--glean-space-4-5);
     overflow-y: auto;
     background: var(--glean-inset-surface);
@@ -5182,14 +5183,19 @@ body.b3-theme-dark {
     display: flex;
     flex-direction: column;
     gap: var(--glean-space-1-75);
+    width: 100%;
+    max-width: 1120px;
+    margin-inline: auto;
 }
 
 .glean-drow {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: var(--glean-space-2-5);
-    min-height: 44px;
+    display: grid;
+    grid-template-columns: 28px 6px minmax(0, 1fr);
+    align-items: start;
+    gap: var(--glean-space-2) var(--glean-space-2);
+    box-sizing: border-box;
+    min-width: 0;
+    min-height: 0;
     padding: var(--glean-space-2-75) var(--glean-space-3);
     border-radius: var(--glean-radius-14);
     background: var(--b3-theme-surface);
@@ -5213,9 +5219,27 @@ body.b3-theme-dark {
         box-shadow: inset 3px 0 0 var(--glean-accent-b), var(--glean-shadow-card);
     }
 
-    .glean-drow__ti {
-        flex: 1;
+    > .glean-drow__select {
+        grid-column: 1;
+        grid-row: 1;
+    }
+
+    > .glean-dot {
+        grid-column: 2;
+        grid-row: 1;
+        margin-top: var(--glean-space-2-5);
+    }
+
+    .glean-drow__body {
+        grid-column: 3;
         min-width: 0;
+    }
+
+    .glean-drow__ti {
+        display: -webkit-box;
+        width: 100%;
+        min-width: 0;
+        box-sizing: border-box;
         padding: var(--glean-space-0);
         border: 0;
         background: transparent;
@@ -5228,12 +5252,27 @@ body.b3-theme-dark {
         line-height: var(--glean-leading-1-4);
         overflow: hidden;
         text-overflow: ellipsis;
-        white-space: nowrap;
+        white-space: normal;
+        overflow-wrap: anywhere;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+    }
+
+    .glean-drow__meta {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: var(--glean-space-1) var(--glean-space-2);
+        min-width: 0;
+        margin-top: var(--glean-space-1);
+        font-size: var(--glean-text-xs);
+        color: var(--b3-theme-on-surface);
+        line-height: var(--glean-leading-normal);
     }
 
     .glean-drow__site {
-        width: 150px;
-        flex-shrink: 0;
+        min-width: 0;
+        max-width: 100%;
         font-size: var(--glean-text-xs);
         color: var(--b3-theme-on-surface);
         overflow: hidden;
@@ -5242,34 +5281,66 @@ body.b3-theme-dark {
     }
 
     .glean-drow__len {
-        width: 116px;
-        flex-shrink: 0;
+        max-width: 100%;
         font-size: var(--glean-text-xs);
         color: var(--b3-theme-on-surface);
         font-variant-numeric: tabular-nums;
-        white-space: nowrap;
+        overflow-wrap: anywhere;
     }
 
     .glean-drow__st {
-        width: 72px;
-        flex-shrink: 0;
-        text-align: right;
+        max-width: 100%;
+        text-align: left;
     }
 
     .glean-drow__ops {
+        grid-column: 3;
         display: flex;
         align-items: center;
-        justify-content: flex-end;
+        justify-content: flex-start;
         flex-wrap: wrap;
         gap: var(--glean-space-1-25);
         opacity: 1;
-        margin-left: auto;
-        padding-left: var(--glean-space-1);
-        border-left: 1px solid var(--glean-border-soft);
+        min-width: 0;
+        margin: var(--glean-space-0);
+        padding: var(--glean-space-0);
+        border: 0;
+    }
+
+    .glean-drow__ops > .glean-btn {
+        min-height: 28px;
+        padding: var(--glean-space-1) var(--glean-space-2);
+        white-space: normal;
+        overflow-wrap: anywhere;
+        font-size: var(--glean-text-xs);
+    }
+
+    .glean-drow__ops .glean-action-popover__trigger-label {
+        display: none;
+    }
+
+    .glean-action-popover__trigger--compact {
+        min-width: 28px;
+        justify-content: center;
     }
 
     &.glean-drow--selected .glean-drow__ops {
         opacity: 1;
+    }
+}
+
+/* 依据扣除导航、分面栏和预览后的真实列表宽度，才将动作放到右侧。 */
+@container glean-library (min-width: 680px) {
+    .glean-drow {
+        grid-template-columns: 28px 6px minmax(0, 1fr) max-content;
+        align-items: center;
+    }
+
+    .glean-drow .glean-drow__ops {
+        grid-column: 4;
+        grid-row: 1;
+        justify-content: flex-end;
+        max-width: 240px;
     }
 }
 
@@ -9838,28 +9909,6 @@ body.b3-theme-dark .glean-panel--mobile,
     }
 }
 
-/* 无预览的宽屏列表可以保持一行信息密度；带预览的列表继续允许自然换行，
-   避免右侧上下文被窄内容区挤压。 */
-@container glean-workbench (min-width: 1040px) {
-    .glean-lib:not(.glean-lib--preview) .glean-drow {
-        flex-wrap: nowrap;
-        min-height: 46px;
-        padding-inline: var(--glean-space-3-5);
-    }
-
-    .glean-lib:not(.glean-lib--preview) .glean-drow__site {
-        width: 164px;
-    }
-
-    .glean-lib:not(.glean-lib--preview) .glean-drow__len {
-        width: 128px;
-    }
-
-    .glean-lib:not(.glean-lib--preview) .glean-drow__st {
-        width: 84px;
-    }
-}
-
 /* 第二十一轮：设置长页的边界和异常状态收口。（原 scroll-padding 已随滚动容器移交组件内而移除） */
 .glean-settings__footer {
     bottom: calc(-16px + env(safe-area-inset-bottom, 0px));
@@ -10112,7 +10161,8 @@ body.b3-theme-dark .glean-panel--mobile,
 }
 
 .glean-rail {
-    width: 224px;
+    box-sizing: border-box;
+    width: 184px;
     padding: var(--glean-space-3) var(--glean-space-2-5);
     gap: var(--glean-space-2);
     background: color-mix(in srgb, var(--glean-inset-surface) 92%, var(--b3-theme-background));
@@ -10170,7 +10220,7 @@ body.b3-theme-dark .glean-panel--mobile,
 }
 
 .glean-lib__main {
-    padding: var(--glean-space-4) var(--glean-space-5);
+    padding: var(--glean-space-3) var(--glean-space-4);
     background: color-mix(in srgb, var(--glean-inset-surface) 95%, var(--b3-theme-background));
 }
 
@@ -10179,7 +10229,7 @@ body.b3-theme-dark .glean-panel--mobile,
 }
 
 .glean-drow {
-    min-height: 46px;
+    min-height: 0;
     padding: var(--glean-space-2-5) var(--glean-space-3-25);
     border-radius: var(--glean-radius-md);
 }
@@ -10234,7 +10284,7 @@ body.b3-theme-dark .glean-panel--mobile,
     }
 
     .glean-rail {
-        width: 204px;
+        display: none;
     }
 
     .glean-filters--compact .glean-filter {
@@ -10246,7 +10296,7 @@ body.b3-theme-dark .glean-panel--mobile,
    继续沿用上游的 0px 计算，避免预览比例出现溢出。 */
 @container glean-workbench (min-width: 951px) {
     .glean-lib--preview > .glean-preview-pane {
-        --glean-preview-rail-width: 224px;
+        --glean-preview-rail-width: 184px;
     }
 }
 
@@ -10552,6 +10602,10 @@ body.b3-theme-dark .glean-panel--mobile,
 }
 
 @media (max-width: 560px) {
+    .glean-drow {
+        grid-template-columns: 44px 6px minmax(0, 1fr);
+    }
+
     .glean-drow__select,
     .glean-kcard__select {
         flex-basis: 44px;
@@ -10840,11 +10894,9 @@ body.b3-theme-dark .glean-panel--mobile,
 }
 
 .glean-drow--candidate .glean-drow__st {
-    width: auto;
-    min-width: 108px;
     display: inline-flex;
     align-items: center;
-    justify-content: flex-end;
+    flex-wrap: wrap;
     gap: var(--glean-space-1);
 }
 
@@ -10884,22 +10936,6 @@ body.b3-theme-dark .glean-panel--mobile,
 }
 
 @media (max-width: 600px) {
-    .glean-drow--candidate .glean-drow__site,
-    .glean-drow--candidate .glean-drow__len {
-        width: auto;
-        flex: 1 1 calc(50% - 8px);
-    }
-
-    .glean-drow--candidate .glean-drow__st,
-    .glean-drow--candidate .glean-drow__ops {
-        flex-basis: 100%;
-        justify-content: flex-start;
-        border-left: 0;
-        border-top: 1px solid var(--glean-border-soft);
-        padding-top: var(--glean-space-2);
-        margin-left: var(--glean-space-0);
-    }
-
     .glean-drow--candidate .glean-drow__ops {
         gap: var(--glean-space-2);
     }
