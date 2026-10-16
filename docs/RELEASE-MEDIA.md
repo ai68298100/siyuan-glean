@@ -38,7 +38,9 @@
 
 1. `pnpm check && pnpm test` 全绿
 2. 隔离内核 E2E（spike 7/7 + av-spike 6/6）
-3. 版本号以 `package.json`/`plugin.json` 当前候选为准（本轮为 v1.3.5）；运行 `pnpm update-version` 后再构建
+3. 版本号以 `package.json`/`plugin.json` 当前候选为准（本轮为 v1.3.6）；运行 `pnpm update-version` 后再构建
 4. `pnpm check:release` 14/14
 5. preview.png 换成真机截图（1920×1280，首屏 + 面板拼图）
-6. **v1.3.5 tag / GitHub Release 按本轮授权执行；提集市 PR 仍需单独请示作者**
+6. **v1.3.6 tag / GitHub Release 按本轮紧急修复发布授权执行；提集市 PR 仍需单独请示作者**
+
+本轮阅读上下文修复可补拍：普通笔记切换、已收录文章重复切换、独立阅读页签与工作台预览。截图或录屏只作为对应环境的证据，不替代 B-0002、B-0004–B-0008 的真实宿主和外部能力验收。

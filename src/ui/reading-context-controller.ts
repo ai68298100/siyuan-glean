@@ -15,8 +15,14 @@ interface MountedContext {
 
 export function installReadingContext(facade: GleanFacade): () => void {
     const mounted = new Map<HTMLElement, MountedContext>();
+    let activeElement: HTMLElement | null = null;
+    let activeDocId = "";
 
     function detach(element: HTMLElement): void {
+        if (activeElement === element) {
+            activeElement = null;
+            activeDocId = "";
+        }
         const previous = mounted.get(element);
         if (!previous) return;
         mounted.delete(element);
@@ -27,10 +33,15 @@ export function installReadingContext(facade: GleanFacade): () => void {
     function attach(protyle: IProtyle): void {
         const element = protyle?.element;
         if (!(element instanceof HTMLElement)) return;
+        // 内嵌阅读器和工作台预览已有自己的上下文，不能再注入原生编辑器栏。
+        if (element.closest(".glean-protyle-host")) {
+            detach(element);
+            return;
+        }
         const docId = protyle.block?.rootID ?? "";
         const previous = mounted.get(element);
         if (previous?.docId === docId && previous.target.isConnected) {
-            document.dispatchEvent(new CustomEvent("glean:reading-context-refresh", { detail: { id: docId } }));
+            // 正文分段加载不改变根属性；重复刷新会令上下文栏与骨架屏反复交替。
             return;
         }
         detach(element);
@@ -44,7 +55,27 @@ export function installReadingContext(facade: GleanFacade): () => void {
     }
 
     const onLoaded = (event: CustomEvent<{ protyle: IProtyle }>) => attach(event.detail.protyle);
-    const onSwitched = (event: CustomEvent<{ protyle: IProtyle }>) => attach(event.detail.protyle);
+    const onSwitched = (event: CustomEvent<{ protyle: IProtyle }>) => {
+        const protyle = event.detail.protyle;
+        const element = protyle?.element;
+        const previous = element instanceof HTMLElement ? mounted.get(element) : undefined;
+        attach(protyle);
+        if (!(element instanceof HTMLElement)) return;
+        const current = mounted.get(element);
+        if (!current) {
+            activeElement = null;
+            activeDocId = "";
+            return;
+        }
+        const changed = activeElement !== element || activeDocId !== current.docId;
+        activeElement = element;
+        activeDocId = current.docId;
+        // 真正切回旧编辑器时读回外部手填属性；同一激活事件不重复请求。
+        // 新挂载由组件首次读取，属性写入另由 glean:data-changed 广播刷新。
+        if (changed && previous === current) {
+            document.dispatchEvent(new CustomEvent("glean:reading-context-refresh", { detail: { id: current.docId } }));
+        }
+    };
     const onDestroyed = (event: CustomEvent<{ protyle: IProtyle }>) => {
         const element = event.detail.protyle?.element;
         if (element instanceof HTMLElement) detach(element);

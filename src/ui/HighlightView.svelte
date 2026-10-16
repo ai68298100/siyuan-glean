@@ -302,7 +302,7 @@ function openDoc(id: string) {
         <button class="glean-filter-dir" aria-pressed={direction === "asc"} aria-label={`${t(i18n, "library.toggleDirection")}: ${t(i18n, direction === "asc" ? "library.directionAscending" : "library.directionDescending")}`} title={`${t(i18n, "library.toggleDirection")}: ${t(i18n, direction === "asc" ? "library.directionAscending" : "library.directionDescending")}`} onclick={() => { direction = direction === "asc" ? "desc" : "asc"; page = 1; }}><span class="glean-filter-dir__icon" aria-hidden="true"><svg class="glean-icon glean-icon--xs"><use href={direction === "asc" ? "#iconGleanArrowUp" : "#iconGleanArrowDown"} /></svg></span><span class="glean-filter-dir__label">{t(i18n, "library.toggleDirection")}</span></button>
         <button onclick={clearFilters}>{t(i18n, "library.clearFilters")}</button>
     </div>
-    {#if loading}
+    {#if loading && items.length === 0}
         <div class="glean-highlights__loading" role="status" aria-live="polite" aria-label={t(i18n, "panel.loading")}>
             {#each [0, 1, 2] as placeholder (placeholder)}
                 <div class="glean-highlights__loading-card" aria-hidden="true">

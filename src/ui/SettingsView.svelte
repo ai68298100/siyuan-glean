@@ -179,7 +179,7 @@ onMount(() => {
     let usageRequest = 0;
     const refreshUsage = () => {
         const request = ++usageRequest;
-        usageCount = null;
+        // 刷新期间保留已知用量，读取失败后再降级为未知。
         void usageToday(facade.pluginInstance).then((count) => {
             if (active && request === usageRequest) usageCount = count;
         }).catch(() => {

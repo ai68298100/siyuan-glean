@@ -8,6 +8,17 @@ Lv Glean organizes clippings and articles already in SiYuan. It does not crawl t
 
 [中文说明](README.md) · [Latest Release](https://github.com/ai68298100/siyuan-glean/releases/latest) · [Capability matrix](docs/CAPABILITY-MATRIX.md) · [Feedback](https://github.com/ai68298100/siyuan-glean/issues/new/choose)
 
+## v1.3.6 update (2026-10-16)
+
+This hotfix addresses repeated reading-context refresh related to [#16](https://github.com/ai68298100/siyuan-glean/issues/16), with the same lifecycle paths reviewed in native editors, ReaderTab, and Workbench preview.
+
+- Repeated load/switch events for the same native editor now reuse its reading context, avoiding remounts and repeated loading skeletons.
+- Background refresh keeps the resolved article content or no-bar state, reducing guide-background and reading-bar flicker.
+- Embedded editors in ReaderTab and Workbench preview no longer receive an extra native reading context.
+- Highlights, ReaderTab, and Settings keep existing content during background refresh, reducing skeleton-card, loading-bar, and usage-counter jumps.
+
+See the [release candidate record](docs/RELEASE-CANDIDATE.md) for this run's automated gates and release evidence. Real-host, screen-reader, mobile, and external capabilities remain subject to B-0002 and B-0004–B-0008 acceptance.
+
 ## v1.3.5 update (2026-10-16)
 
 This patch makes the “document facts saved, derived index sync pending” outcome explicit across write paths and tightens the acceptance boundaries for AI, AV, imports, snapshots, flashcards, and check-in integration. Real-host, model, and external-service acceptance remains tracked under B-0002 and B-0004–B-0008.
@@ -74,6 +85,10 @@ QQ group: **871707735** for bug reports, feature requests, and discussion.
 
 <details>
 <summary>Released version history (click to expand)</summary>
+
+### v1.3.6 (2026-10-16)
+
+Fixed: native reading contexts now handle repeated load/switch events idempotently and preserve resolved content or the no-bar state during background refresh. Embedded editors in ReaderTab and Workbench preview no longer mount an extra native reading context. Related issue: [#16](https://github.com/ai68298100/siyuan-glean/issues/16).
 
 ### v1.3.5 (2026-10-16)
 
@@ -204,7 +219,7 @@ Ordinary notes are not bulk-captured just because of their location, and opening
 
 ## Compatibility and acceptance
 
-The current stable release is [v1.3.5](https://github.com/ai68298100/siyuan-glean/releases/tag/v1.3.5). Its automated gates have passed; this does not mean every real environment has been accepted.
+This hotfix is [v1.3.6](https://github.com/ai68298100/siyuan-glean/releases/tag/v1.3.6). See the [release candidate record](docs/RELEASE-CANDIDATE.md) for automated gates and release evidence; this does not mean every real environment has been accepted.
 
 Desktop host, Android/mobile, browser frontend, real models, the official clipper, external files, and subscription services still require environment-specific checks. Prerequisites, fallbacks, and open blockers are listed in the [capability matrix](docs/CAPABILITY-MATRIX.md) and [known blockers](docs/BLOCKERS.md). Unit tests and isolated E2E are not device acceptance.
 

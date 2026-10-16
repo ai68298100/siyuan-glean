@@ -6,6 +6,7 @@
      * 当前根块属性每次加载都从 clip-store 读取，索引不能覆盖编辑器里的事实。
      */
     import { showMessage } from "siyuan";
+    import { untrack } from "svelte";
     import type { GleanFacade } from "../types";
     import { t } from "../libs/i18n";
     import { hasSourceAction, openTargetForCarrier, resolveCarrier, sourceUrlForCarrier } from "../domain/carrier";
@@ -29,11 +30,14 @@
     const maintenanceTitleId = `glean-reading-context-maintenance-title-${instanceId}`;
     let context = $state<ReadingClipContext | null>(null);
     let loading = $state(true);
+    let refreshing = $state(false);
     let loadError = $state(false);
     let busy = $state(false);
     let maintenanceOpen = $state(false);
     let reloadToken = 0;
     let mounted = true;
+    // 包括“普通文档，无阅读栏”的已判定结果；后台重读不重放骨架屏。
+    let settled = false;
 
     async function reload(): Promise<void> {
         const token = ++reloadToken;
@@ -45,12 +49,16 @@
             loading = false;
             return;
         }
-        loading = true;
-        loadError = false;
+        if (!settled) {
+            loading = true;
+            loadError = false;
+        }
+        refreshing = true;
         try {
             const next = await readClipContext(docId);
             if (token !== reloadToken || !mounted) return;
             context = next;
+            loadError = false;
         } catch (error) {
             // 编辑器切换期间根块可能已经销毁；上下文退出即可，不打扰正文。
             console.debug("[glean] 阅读上下文读取失败:", error);
@@ -58,20 +66,27 @@
             context = null;
             loadError = true;
         } finally {
-            if (token === reloadToken && mounted) loading = false;
+            if (token === reloadToken && mounted) {
+                settled = true;
+                loading = false;
+                refreshing = false;
+            }
         }
     }
 
     $effect(() => {
+        const id = docId;
         mounted = true;
+        settled = false;
         context = null;
         loading = true;
+        refreshing = false;
         loadError = false;
         maintenanceOpen = false;
-        void reload();
+        untrack(() => void reload());
         const handler = () => void reload();
         const refreshHandler = (event: Event) => {
-            if ((event as CustomEvent<{ id?: string }>).detail?.id === docId) void reload();
+            if ((event as CustomEvent<{ id?: string }>).detail?.id === id) void reload();
         };
         document.addEventListener("glean:data-changed", handler);
         document.addEventListener("glean:reading-context-refresh", refreshHandler);
@@ -201,15 +216,15 @@
         <div class="glean-reading-context__loading-label" role="status" aria-live="polite">{t(i18n, "panel.loading")}</div>
     </aside>
 {:else if loadError}
-    <aside class="glean-reading-context glean-reading-context--error" role="alert" aria-live="polite">
+    <aside class="glean-reading-context glean-reading-context--error" role="alert" aria-live="polite" aria-busy={refreshing}>
         <div class="glean-reading-context__error-main">
             <strong>{t(i18n, "reading.contextFailed")}</strong>
             <span>{t(i18n, "reading.contextLabel")}</span>
         </div>
-        <button type="button" class="glean-reading-context__source-btn" onclick={() => void reload()}>{t(i18n, "action.retry")}</button>
+        <button type="button" class="glean-reading-context__source-btn" disabled={refreshing} onclick={() => void reload()}>{t(i18n, "action.retry")}</button>
     </aside>
 {:else if context}
-    <aside class="glean-reading-context" aria-labelledby={titleId} aria-busy={busy || measuring}>
+    <aside class="glean-reading-context" aria-labelledby={titleId} aria-busy={busy || measuring || refreshing}>
         <div class="glean-reading-context__main">
             <div id={titleId} class="glean-reading-context__title" role="heading" aria-level="2" title={context.title}>{context.title || t(i18n, "panel.untitled")}</div>
             <div class="glean-reading-context__meta">

@@ -325,7 +325,8 @@ import { aiFailureKey } from "../libs/ai-feedback";
     async function loadContext(id: string): Promise<void> {
         const isCurrent = contextRequests.begin();
         if (mounted && docId === id) {
-            contextLoading = true;
+            // 后台刷新保留当前文章的伴读内容；首读、切文和失败重试仍显示加载反馈。
+            contextLoading = !context || context.id !== id;
             contextError = false;
         }
         try {

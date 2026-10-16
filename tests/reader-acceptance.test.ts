@@ -2,6 +2,12 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { runInNewContext } from "node:vm";
+import { ScriptTarget, transpileModule } from "typescript";
+import { compile } from "svelte/compiler";
+import { render } from "svelte/server";
+import * as serverRuntime from "svelte/internal/server";
+import { createLatestRequestGate } from "../src/libs/latest-request.ts";
 
 const root = resolve(import.meta.dirname, "..");
 const reader = readFileSync(resolve(root, "src/ui/ReaderTab.svelte"), "utf8");
@@ -103,7 +109,7 @@ test("Protyle 失败态在正文曾获焦时把焦点交给重试动作", () => 
 
 test("原生阅读上下文把维护动作降级到按需展开，正文缺失时自动展开", () => {
     assert.match(context, /const maintenanceId = `glean-reading-context-maintenance-\$\{instanceId\}`;/);
-    assert.match(context, /context = null;\s*loading = true;\s*loadError = false;\s*maintenanceOpen = false;\s*void reload\(\);/);
+    assert.match(context, /context = null;\s*loading = true;\s*refreshing = false;\s*loadError = false;\s*maintenanceOpen = false;\s*untrack\(\(\) => void reload\(\)\);/);
     assert.match(context, /bind:open=\{maintenanceOpen\}/);
     assert.match(context, /if \(bodyState === "missing"\) maintenanceOpen = true/);
     assert.match(context, /<details id=\{maintenanceId\}/);
@@ -141,4 +147,98 @@ test("阅读器验收文档明确真实宿主边界", () => {
     }
     assert.match(guide, /真实验收边界/);
     assert.match(guide, /可见动作条/);
+});
+
+test("阅读页签后台刷新保留当前上下文，首读和失败重试仍反馈加载，迟到旧请求不覆盖", async () => {
+    const start = reader.indexOf("async function loadContext(");
+    const end = reader.indexOf("function retryContext()", start);
+    assert.ok(start >= 0 && end > start);
+    const pending: Array<{ resolve: (value: unknown) => void; reject: (error: Error) => void }> = [];
+    const current = { id: "current", title: "已读入的文章" };
+    const state = {
+        context: current as typeof current | null, contextLoading: false, contextError: false,
+        mounted: true, docId: "current", contextRequests: createLatestRequestGate(),
+        readingTimerDocId: "current", readingTimerExpectedRaw: null, readingTimerExpectedLocation: null,
+        readingTimer: {}, createReadingTimer: () => ({}),
+        facade: { recordRecentReading() {} }, console: { debug() {} },
+        readClipContext: () => new Promise((resolve, reject) => pending.push({ resolve, reject })),
+    };
+    const loadSource = transpileModule(reader.slice(start, end), { compilerOptions: { target: ScriptTarget.ESNext } }).outputText;
+    const load = runInNewContext(`${loadSource}; loadContext`, state);
+    const background = load("current");
+    assert.equal(state.context, current);
+    assert.equal(state.contextLoading, false);
+    pending.shift()!.resolve({ id: "current", title: "已更新文章" });
+    await background;
+    assert.equal(state.context?.title, "已更新文章");
+
+    state.context = { id: "previous", title: "上篇文章" };
+    const switched = load("current");
+    assert.equal(state.contextLoading, true);
+    pending.shift()!.resolve(current);
+    await switched;
+    assert.equal(state.context, current);
+
+    state.context = null;
+    const first = load("current");
+    assert.equal(state.contextLoading, true);
+    pending.shift()!.reject(new Error("kernel unavailable"));
+    await first;
+    assert.equal(state.contextError, true);
+    assert.equal(state.contextLoading, false);
+    const retry = load("current");
+    assert.equal(state.contextLoading, true);
+    assert.equal(state.contextError, false);
+    const old = pending.shift()!;
+    const latest = load("current");
+    pending.shift()!.resolve(current);
+    await latest;
+    old.resolve({ id: "current", title: "迟到响应" });
+    await retry;
+    assert.equal(state.context?.title, current.title);
+    assert.equal(state.contextLoading, false);
+});
+
+test("设置用量后台刷新保留旧值，仅最新结果或最新失败改变显示", async () => {
+    const settings = readFileSync(resolve(root, "src/ui/SettingsView.svelte"), "utf8");
+    const start = settings.indexOf("const refreshUsage = () => {");
+    const end = settings.indexOf("refreshUsage();", start);
+    assert.ok(start >= 0 && end > start);
+    const pending: Array<{ resolve: (value: number) => void; reject: (error: Error) => void }> = [];
+    const state = {
+        usageRequest: 0, usageCount: 7 as number | null, active: true,
+        facade: { pluginInstance: {} },
+        usageToday: () => new Promise<number>((resolve, reject) => pending.push({ resolve, reject })),
+    };
+    const refresh = runInNewContext(`${settings.slice(start, end)}; refreshUsage`, state);
+    refresh();
+    assert.equal(state.usageCount, 7);
+    const old = pending.shift()!;
+    refresh();
+    pending.shift()!.resolve(8);
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(state.usageCount, 8);
+    old.reject(new Error("stale failure"));
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(state.usageCount, 8);
+    refresh();
+    assert.equal(state.usageCount, 8);
+    pending.shift()!.reject(new Error("current failure"));
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(state.usageCount, null);
+});
+
+test("摘录视图已有内容时刷新不插入占位卡，首次读取仍展示骨架", () => {
+    const highlights = readFileSync(resolve(root, "src/ui/HighlightView.svelte"), "utf8");
+    const skeleton = highlights.match(/\{#if [^\n]+\}\s*<div class="glean-highlights__loading"[\s\S]*?\{\/if\}/)?.[0];
+    assert.ok(skeleton);
+    const template = `<script>let { loading, items } = $props(); const i18n = {}; const t = (_, key) => key;</script>${skeleton}`;
+    const compiled = compile(template, { filename: "HighlightLoading.svelte", generate: "server" }).js.code;
+    const Component = new Function("$", compiled.replace(/^import .*;\s*$/gm, "").replace("export default function", "return function"))(serverRuntime);
+    const initial = render(Component, { props: { loading: true, items: [] } }).body;
+    const background = render(Component, { props: { loading: true, items: [{ id: "saved-highlight" }] } }).body;
+    const ready = render(Component, { props: { loading: false, items: [] } }).body;
+    assert.equal((initial.match(/glean-highlights__loading-card/g) ?? []).length, 3);
+    assert.ok(!background.includes("glean-highlights__loading-card"));
+    assert.ok(!ready.includes("glean-highlights__loading-card"));
 });
