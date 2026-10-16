@@ -5,7 +5,7 @@
 | 任务 | 看板状态 | 代码状态 | 隔离验证 | 真实验收 | 延后/阻塞原因 |
 | --- | --- | --- | --- | --- | --- |
 | T-3353 | x | 发布材料已同步，`main`/tag/Release 已发布 | `pnpm check`、`pnpm test` 1339/1339、`pnpm build`、`pnpm check:release`、`pnpm perf:check`、`pnpm visual:check`、`pnpm task:ledger -- --check` 和 `git diff --check` 通过 | 真实宿主、真实模型、真实导入文件、assets/riff、收集箱和打卡联调仍待 B-0002、B-0004–B-0008 | 发布不关闭这些 blocker |
-| T-3355 | ◐ | 核心修复与回归完成，三页后台刷新反馈同步收口，待发布 | `pnpm check` 0 错误/0 警告、全量测试 1353/1353、构建及发布/性能/视觉登记门禁通过 | 原始场景与设备结果仍待 B-0002，不关闭其他外部能力 blocker | 原始视频未能从工单附件读取，高频原场景不能冒充已复现，先发布已证事件链修复 |
+| T-3355 | x | 核心修复与回归完成，三页后台刷新反馈同步收口 | `pnpm check` 0 错误/0 警告、全量测试 1353/1353、构建及发布/性能/视觉登记门禁通过，发布提交 Quality gates/CodeQL 成功 | 原始场景与设备结果仍待 B-0002，不关闭其他外部能力 blocker | 原始视频未能从工单附件读取，高频原场景不能冒充已复现，先发布已证事件链修复 |
 | T-3354 | x | 规划文档与旧书签字段注释已校准，未启动新功能 | `pnpm check` 0 错误/0 警告、`pnpm test` 1339/1339、任务账本与差异检查通过，规划经独立只读复核 | 不适用（文档规划），不关闭 B-0002、B-0004–B-0008 | 候选方向未进入功能实施排期，实际执行仍由本板决定 |
 | T-3352 | ◐ | 统一传输、同文队列、写后读回及索引失败标记已实现，读库预览及主要写入口已显示“索引待同步” | `pnpm check`、`pnpm test`（1339/1339）、`pnpm build`、`pnpm check:release`、`pnpm perf:check`、`pnpm visual:check`、`pnpm task:ledger -- --check` 和 `git diff --check` 通过 | 待 B-0002（宿主权限、真实多画布/网络故障及写后视图更新） | 思源宿主控制 token/登录且 SDK 不能真正取消内核请求，插件不臆造登录路由或跨客户端事务保证 |
 | T-3351 | ◐ | 本轮已完成即时缺口，并将索引待同步结果贯通主要写入口 | `pnpm check`、`pnpm test`（1339/1339）、`pnpm build`、`pnpm check:release`、`pnpm perf:check`、`pnpm visual:check`、`pnpm task:ledger -- --check` 和 `git diff --check` 通过 | 待 B-0002（思源多画布、移动端、读屏和真实宿主错误注入） | 宿主 URL/history 不属于插件可安全接管范围，筛选/滚动持久快照需先确定宿主 tab 生命周期契约 |
