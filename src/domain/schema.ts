@@ -39,7 +39,7 @@ export const ATTR = {
     site: "custom-clip-site",
     author: "custom-clip-author",
     readingPosition: "custom-clip-reading-position",
-    /** 块级断点兼容字段；新阅读服务仅写入该字段，旧 JSON 断点继续由 readingPosition 管理。 */
+    /** 旧块级断点兼容读取字段；现行阅读服务只写 readingPosition 的 JSON 书签，不双写。 */
     readingPos: "custom-clip-reading-pos",
     favorite: "custom-clip-favorite",
     /** 引述块级颜色标记（不参与文章根块 ClipAttrs 投影）。 */

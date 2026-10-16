@@ -1,6 +1,6 @@
 # 小驴拾遗：产品逻辑复盘与重整方案
 
-> 2026-09-29，以仓库 `d392f43`（v1.0.4）为基线。本页是下一轮开发的产品与验收依据；涉及属性变更时，仍须先更新 [DATA-CONTRACT.md](DATA-CONTRACT.md)，再按 [AGENTS.md](../AGENTS.md) 开发。
+> 历史基线：2026-09-29，仓库 `d392f43`（v1.0.4）。本页保留 D-0016 的主线、缺陷证据与 S0–S6 验收口径；文中的旧版本、测试数字及缺陷表不代表当前实现。2026-10-16 起，未来投入方向见 [FUTURE-DIRECTION.md](FUTURE-DIRECTION.md)（D-0228），当前能力见 [CAPABILITY-MATRIX.md](CAPABILITY-MATRIX.md)，实际执行范围见 [TODO 当前执行板](../TODO.md)。涉及属性变更时，仍须先更新 [DATA-CONTRACT.md](DATA-CONTRACT.md)，再按 [AGENTS.md](../AGENTS.md) 开发。
 
 ## 一句话定位
 
