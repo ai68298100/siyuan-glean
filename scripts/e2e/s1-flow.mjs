@@ -27,6 +27,7 @@ const CREATED_BY = "siyuan-glean-s1-flow";
 const WORKSPACE = path.join(os.tmpdir(), `siyuan-glean-s1-${Date.now()}-${process.pid}`);
 const passedScenarios = [];
 const TARGET_ARGS = parseTargetArgs(process.argv.slice(2));
+const PLUGIN_NAME = `siyuan-glean-s1-e2e-${Date.now()}-${process.pid}`;
 
 async function runAttachedTarget() {
     const target = resolveTarget({ argv: process.argv.slice(2), baseArg: TARGET_ARGS["base-url"], tokenArg: TARGET_ARGS.token });
@@ -34,24 +35,15 @@ async function runAttachedTarget() {
     client.setToken(target.token);
     await prepareWriteSmoke((route, body) => client.api(route, body), { base: target.base, log: console });
     const workspace = path.join(os.tmpdir(), `siyuan-glean-attached-${Date.now()}-${process.pid}`);
-    globalThis.__gleanS1FetchSyncPost = async (route, body) => {
-        const result = await client.api(route, body);
-        if (route === "/api/filetree/createDocWithMd" && typeof result?.data === "string") {
-            const id = result.data;
-            const deadline = Date.now() + 10000;
-            while (Date.now() < deadline) {
-                const rows = await client.api("/api/query/sql", { stmt: `SELECT id FROM blocks WHERE id='${id}' AND type='d' LIMIT 1` });
-                if (rows?.code === 0 && rows.data?.some((row) => row.id === id)) break;
-                await new Promise((resolve) => setTimeout(resolve, 150));
-            }
-        }
-        return result;
-    };
+    const restoreFetch = installCheckpointFetch(target.base, target.token);
+    globalThis.__gleanS1FetchSyncPost = (route, body) => client.api(route, body);
     console.log(`S1 服务级 E2E：连接现有隔离靶场 ${target.base}`);
     try {
-        await runFlow(client, workspace);
+        await runFlow(client, workspace, target);
     } finally {
         await cleanupScratch((route, body) => client.api(route, body), { log: console }).catch((error) => console.warn(`临时库收尾清扫失败：${error.message}`));
+        await client.apiChecked("/api/file/removeFile", { path: `/data/storage/petal/${PLUGIN_NAME}` }).catch((error) => console.warn(`临时插件存储清扫失败：${error.message}`));
+        restoreFetch();
     }
 }
 
@@ -76,23 +68,52 @@ registerHooks({
     },
 });
 
-function pluginDataAt(workspace) {
-    const dir = path.join(workspace, "glean-s1-service-data");
-    fs.mkdirSync(dir, { recursive: true });
+// The production checkpoint adapter deliberately uses a same-origin raw Response.
+// Supply only its browser URL resolution and authentication; do not replace it.
+function installCheckpointFetch(base, token) {
+    const originalFetch = globalThis.fetch;
+    const route = "/api/file/getFile";
+    globalThis.fetch = (input, init) => {
+        if (input !== route) return originalFetch(input, init);
+        const headers = new Headers(init?.headers);
+        if (token) headers.set("Authorization", `Token ${token}`);
+        return originalFetch(new URL(route, base), { ...init, headers });
+    };
+    return () => { globalThis.fetch = originalFetch; };
+}
+
+function pluginDataAt(client, { base, token }) {
     const filename = (name) => {
         if (!/^[a-z0-9-]+\.json$/i.test(name)) throw new Error(`非法 saveData 文件名: ${name}`);
-        return path.join(dir, name);
+        return `/data/storage/petal/${PLUGIN_NAME}/${name}`;
     };
+    const headers = token ? { Authorization: `Token ${token}` } : {};
     return () => ({
+        name: PLUGIN_NAME,
         async loadData(name) {
-            try { return JSON.parse(fs.readFileSync(filename(name), "utf8")); }
-            catch (error) { if (error.code === "ENOENT") return undefined; throw error; }
+            const response = await fetch(`${base}/api/file/getFile`, {
+                method: "POST", headers: { ...headers, "Content-Type": "application/json" },
+                body: JSON.stringify({ path: filename(name) }), signal: AbortSignal.timeout(20000),
+            });
+            const value = JSON.parse(await response.text());
+            if (response.status === 202 && value?.code === 404 && value.data === null) return undefined;
+            assert.equal(response.status, 200, `loadData HTTP ${response.status}`);
+            return value;
         },
         async saveData(name, value) {
-            fs.writeFileSync(filename(name), `${JSON.stringify(value, null, 2)}\n`);
+            const form = new FormData();
+            form.append("path", filename(name));
+            form.append("file", new Blob([`${JSON.stringify(value, null, 2)}\n`], { type: "application/json" }), name);
+            const response = await fetch(`${base}/api/file/putFile`, {
+                method: "POST", headers, body: form, signal: AbortSignal.timeout(20000),
+            });
+            assert.equal(response.ok, true, `saveData HTTP ${response.status}`);
+            const result = await response.json();
+            assert.equal(result.code, 0, `saveData code=${result.code}`);
         },
         async removeData(name) {
-            fs.rmSync(filename(name), { force: true });
+            const result = await client.api("/api/file/removeFile", { path: filename(name) });
+            assert([0, 404].includes(result.code), `removeData code=${result.code}`);
         },
     });
 }
@@ -121,13 +142,14 @@ async function until(label, check, timeoutMs = 20000) {
 
 function pass(label) { passedScenarios.push(label); console.log(`✓ ${label}`); }
 
-async function runFlow(client, workspace) {
+async function runFlow(client, workspace, storage) {
+    fs.mkdirSync(workspace, { recursive: true });
     const clip = await import("../../src/services/clip-store.ts");
     const migrate = await import("../../src/services/migrate-service.ts");
     const importer = await import("../../src/services/import-service.ts");
     const carrier = await import("../../src/domain/carrier.ts");
     const library = await import("../../src/domain/library-view.ts");
-    const newPlugin = pluginDataAt(workspace);
+    const newPlugin = pluginDataAt(client, storage);
     const plugin = newPlugin();
 
     const notebookName = `siyuan-glean-s1-${process.pid}`;
@@ -864,6 +886,7 @@ async function main() {
     });
     const runEvidence = { workspace: WORKSPACE, kernel, base, port, startedAt: new Date().toISOString(), bazaarTrusted: false, completed: false, scenarios: passedScenarios };
     const saveRunEvidence = () => fs.writeFileSync(path.join(WORKSPACE, "s1-run-evidence.json"), `${JSON.stringify(runEvidence, null, 2)}\n`);
+    let restoreFetch = () => {};
     saveRunEvidence();
     try {
         const version = await waitForBoot(base, lines, () => {
@@ -873,27 +896,16 @@ async function main() {
         const token = TARGET_ARGS.token || process.env.SIYUAN_TOKEN || conf.api?.token || conf.accessAuthCode || "";
         if (!token) throw new Error("隔离内核未生成 token；请设置 SIYUAN_TOKEN 或检查 conf.json");
         client.setToken(token);
+        restoreFetch = installCheckpointFetch(base, token);
         await prepareWriteSmoke((route, body) => client.api(route, body), { base, log: console });
         await client.apiChecked("/api/setting/setBazaar", { trust: true, petalDisabled: false });
         runEvidence.kernelVersion = version;
         runEvidence.bazaarTrusted = true;
         saveRunEvidence();
-        globalThis.__gleanS1FetchSyncPost = async (route, body) => {
-            const result = await client.api(route, body);
-            if (route === "/api/filetree/createDocWithMd" && typeof result?.data === "string") {
-                const id = result.data;
-                const deadline = Date.now() + 10000;
-                while (Date.now() < deadline) {
-                    const rows = await client.api("/api/query/sql", { stmt: `SELECT id FROM blocks WHERE id='${id}' AND type='d' LIMIT 1` });
-                    if (rows?.code === 0 && rows.data?.some((row) => row.id === id)) break;
-                    await new Promise((resolve) => setTimeout(resolve, 150));
-                }
-            }
-            return result;
-        };
+        globalThis.__gleanS1FetchSyncPost = (route, body) => client.api(route, body);
         console.log(`S1 服务级 E2E：内核 ${JSON.stringify(version)}，回环端口 ${port}`);
         console.log(`隔离工作区：${WORKSPACE}`);
-        await runFlow(client, WORKSPACE);
+        await runFlow(client, WORKSPACE, { base, token });
         runEvidence.completed = true;
         console.log(`S1 服务级 E2E：全部通过（${passedScenarios.length} 条）`);
     } catch (error) {
@@ -901,7 +913,8 @@ async function main() {
         throw error;
     } finally {
         await cleanupScratch((route, body) => client.api(route, body), { log: console }).catch((error) => console.warn(`临时库收尾清扫失败：${error.message}`));
-        await shutdownKernel(client, child);
+        try { await shutdownKernel(client, child); }
+        finally { restoreFetch(); }
         runEvidence.finishedAt = new Date().toISOString();
         saveRunEvidence();
         fs.writeFileSync(path.join(WORKSPACE, "kernel-tail.log"), `${lines.slice(-100).join("\n")}\n`);

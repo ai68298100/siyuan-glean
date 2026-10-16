@@ -82,21 +82,34 @@ function harness() {
 function element(parent = null, options = {}) {
     const children = [];
     const attributes = new Map(Object.entries(options.attributes ?? {}));
-    const ownerDocument = parent?.ownerDocument ?? { defaultView: { getComputedStyle: (node) => ({ overflowY: node.overflow, display: node.display, visibility: node.visibility }) } };
+    const ownerDocument = parent?.ownerDocument ?? { defaultView: { getComputedStyle: (node) => {
+        let visibility = node.visibility;
+        for (let current = node.parentElement; current; current = current.parentElement) if (current.visibility !== "visible") visibility = current.visibility;
+        return { overflowY: node.overflow, display: node.display, visibility };
+    } } };
     const node = {
         parentElement: parent,
         isConnected: true, viewport: false, clientHeight: 100, scrollHeight: 1000, clientTop: 0, scrollTop: 200,
         top: 100, height: 100, width: 300, overflow: "auto", display: "block", visibility: "visible", focusCalls: [], scrollCalls: [],
+        className: options.viewport ? "protyle-content" : "", tagName: "DIV",
         ...options,
         ownerDocument, children, attributes,
         contains(candidate) { return candidate === node || children.some((child) => child.contains(candidate)); },
         getAttribute(name) { return attributes.get(name) ?? null; },
-        getClientRects() { return node.display === "none" ? [] : [node.getBoundingClientRect()]; },
+        getClientRects() {
+            for (let current = node; current; current = current.parentElement) if (current.display === "none") return [];
+            return [node.getBoundingClientRect()];
+        },
         getBoundingClientRect() { return { top: node.top, bottom: node.top + node.height, width: node.width, height: node.height }; },
+        matches(selector) { return selector.startsWith(".") && node.className.split(/\s+/).includes(selector.slice(1)); },
+        closest(selector) {
+            for (let current = node; current; current = current.parentElement) if (current.matches(selector)) return current;
+            return null;
+        },
         querySelectorAll(selector) {
             const descendants = children.flatMap((child) => [child, ...child.querySelectorAll("*")]);
-            if (selector === ".protyle-content, .protyle-preview") return descendants.filter((child) => child.viewport);
-            if (selector === "[data-node-id]") return descendants.filter((child) => child.attributes.has("data-node-id"));
+            if (selector === ".protyle-content, .protyle-preview, .protyle-preview .b3-typography") return descendants.filter((child) => child.matches(".protyle-content") || child.matches(".protyle-preview") || (child.matches(".b3-typography") && child.closest(".protyle-preview")));
+            if (selector === "[data-node-id], [id]") return descendants.filter((child) => child.attributes.has("data-node-id") || child.attributes.has("id"));
             return descendants;
         },
         scrollTo(value) { node.scrollCalls.push(value); node.scrollTop = value.top; },
@@ -111,6 +124,16 @@ function dom() {
     const viewport = element(host, { viewport: true });
     const block = element(viewport, { top: 50, height: 200, attributes: { "data-node-id": blockId, "data-type": "NodeParagraph" } });
     return { host, viewport, block };
+}
+
+function previewDom({ short = false, innerScroll = true } = {}) {
+    const host = element();
+    const preview = element(host, { viewport: true, className: "protyle-preview", scrollHeight: short || innerScroll ? 100 : 1000, scrollTop: short || innerScroll ? 0 : 200 });
+    const toolbar = element(preview, { className: "protyle-preview__action" });
+    const typography = element(preview, { className: "b3-typography", overflow: innerScroll ? "auto" : "visible", scrollHeight: short ? 100 : 1000, scrollTop: short ? 0 : 200 });
+    const root = element(typography, { top: 100, height: 40, tagName: "H1", attributes: { id: docId } });
+    const block = element(typography, { top: short ? 145 : 50, height: short ? 40 : 200, tagName: "P", attributes: { id: blockId } });
+    return { host, viewport: innerScroll ? typography : preview, preview, toolbar, typography, root, block };
 }
 
 let uiCount = 0;
@@ -285,13 +308,123 @@ test("DOM 保存块内偏移，恢复只滚动当前正文 viewport，外部同 
     assert.equal(external.viewport.scrollCalls.length, 0);
 });
 
-for (const change of ["detached", "hidden", "zeroHeight", "noOverflow", "overflowHidden", "invalidId", "noBlocks"]) {
+test("DOM 预览合法id锚点可保存恢复，确切文档根被排除而正文h1可定位", () => {
+    const { host, viewport, block, root } = previewDom({ innerScroll: false });
+    block.tagName = "H1";
+    assert.equal(readingViewport(host), viewport);
+    assert.deepEqual(captureReadingPosition(host, new Date(position.at), docId), { ...position, offset: 50 });
+    assert.equal(restoreReadingPosition(host, position, docId), true);
+    assert.deepEqual(viewport.scrollCalls, [{ top: 275, behavior: "auto" }]);
+    assert.equal(block.focusCalls.length, 1);
+    assert.equal(root.focusCalls.length, 0);
+    assert.equal(restoreReadingPosition(host, { ...position, blockId: docId }, docId), false);
+    assert.equal(captureReadingPosition(host), null);
+    assert.equal(restoreReadingPosition(host, position), false);
+});
+
+test("DOM 原生preview外壳不滚动时选typography，长文恢复回相同真实scrollTop", () => {
+    const { host, preview, typography, block } = previewDom();
+    Object.assign(preview, { clientHeight: 634, scrollHeight: 634, height: 634, display: "flex" });
+    Object.assign(typography, { clientHeight: 594, scrollHeight: 12362, height: 594, top: 140, scrollTop: 600, display: "flex" });
+    block.getBoundingClientRect = () => ({ top: typography.top + 560 - typography.scrollTop, bottom: typography.top + 860 - typography.scrollTop, width: 300, height: 300 });
+    assert.equal(readingViewport(host), typography);
+    const saved = captureReadingPosition(host, new Date(position.at), docId);
+    assert.deepEqual(saved, { ...position, offset: 40 });
+    typography.scrollTop = 0;
+    assert.equal(restoreReadingPosition(host, saved, docId), true);
+    assert.equal(typography.scrollTop, 600);
+    assert.deepEqual(typography.scrollCalls, [{ top: 600, behavior: "auto" }]);
+    assert.deepEqual(preview.scrollCalls, []);
+    assert.deepEqual(host.scrollCalls, []);
+    assert.deepEqual(captureReadingPosition(host, new Date(position.at), docId), saved);
+});
+
+test("DOM viewport不接受preview在宿主外的typography，也不接受隐藏兄弟滚动区", () => {
+    const externalPreview = element(null, { className: "protyle-preview" });
+    const host = element(externalPreview);
+    const unrelated = element(host, { className: "b3-typography" });
+    element(unrelated, { attributes: { id: blockId } });
+    assert.equal(readingViewport(host), null);
+    assert.equal(captureReadingPosition(host, new Date(position.at), docId), null);
+    const current = previewDom();
+    const hiddenPreview = element(current.host, { className: "protyle-preview", display: "none" });
+    element(hiddenPreview, { className: "b3-typography", scrollHeight: 12362 });
+    assert.equal(readingViewport(current.host), current.typography);
+});
+
+for (const mode of ["edit", "preview"]) {
+    test(`DOM ${mode}短文有真实overflow容器时允许记住/恢复，滚动保持零`, () => {
+        const { host, viewport, block } = mode === "preview" ? previewDom({ short: true }) : dom();
+        viewport.scrollHeight = viewport.clientHeight;
+        viewport.scrollTop = 0;
+        block.top = 145;
+        block.height = 40;
+        assert.equal(readingViewport(host), viewport);
+        assert.deepEqual(captureReadingPosition(host, new Date(position.at), docId), { ...position, offset: 0 });
+        assert.equal(restoreReadingPosition(host, position, docId), true);
+        assert.deepEqual(viewport.scrollCalls, [{ top: 0, behavior: "auto" }]);
+    });
+}
+
+test("DOM 编辑模式排除确切文档根与NodeDocument，不消费只有id的外部标记", () => {
+    const { host, viewport } = dom();
+    element(viewport, { top: 95, attributes: { "data-node-id": docId } });
+    element(viewport, { top: 98, attributes: { "data-node-id": otherBlockId, "data-type": "NodeDocument" } });
+    element(viewport, { top: 99, attributes: { id: blockId } });
+    assert.deepEqual(captureReadingPosition(host, new Date(position.at), docId), { ...position, offset: 50 });
+    assert.equal(restoreReadingPosition(host, position, docId), true);
+    assert.equal(restoreReadingPosition(host, { ...position, blockId: docId }, docId), false);
+});
+
+test("DOM 预览只消费宿主内preview typography锚点，工具条/外部同id不干扰", () => {
+    const { host, viewport, toolbar } = previewDom();
+    element(toolbar, { attributes: { id: blockId } });
+    element(host, { attributes: { id: blockId } });
+    const outsideTypography = element(host, { className: "b3-typography" });
+    element(outsideTypography, { attributes: { id: blockId } });
+    const external = previewDom();
+    assert.deepEqual(captureReadingPosition(host, new Date(position.at), docId), { ...position, offset: 50 });
+    assert.equal(restoreReadingPosition(host, position, docId), true);
+    assert.equal(viewport.scrollCalls.length, 1);
+    assert.equal(external.viewport.scrollCalls.length, 0);
+});
+
+for (const change of ["rootOnly", "duplicate", "hiddenBlock", "hiddenTypography", "invisibleTypography", "invalidId", "hiddenViewport"]) {
+    test(`DOM 预览${change}不猜测可用块`, () => {
+        const { host, viewport, typography, block } = previewDom();
+        if (change === "rootOnly") typography.children.splice(typography.children.indexOf(block), 1);
+        if (change === "duplicate") element(typography, { attributes: { id: blockId } });
+        if (change === "hiddenBlock") block.display = "none";
+        if (change === "hiddenTypography") typography.display = "none";
+        if (change === "invisibleTypography") typography.visibility = "hidden";
+        if (change === "invalidId") block.attributes.set("id", 'bad-id" onclick="bad');
+        if (change === "hiddenViewport") viewport.display = "none";
+        assert.equal(captureReadingPosition(host, new Date(position.at), docId), null);
+        assert.equal(restoreReadingPosition(host, position, docId), false);
+        assert.equal(viewport.scrollCalls.length, 0);
+    });
+}
+
+test("DOM 预览隐藏的重复锚点不替代或干扰唯一可见原块", () => {
+    const { host, typography, block } = previewDom();
+    element(typography, { display: "none", attributes: { id: blockId } });
+    assert.deepEqual(captureReadingPosition(host, new Date(position.at), docId), { ...position, offset: 50 });
+    assert.equal(restoreReadingPosition(host, position, docId), true);
+    assert.equal(block.focusCalls.length, 1);
+});
+
+test("DOM 已溢出外层优先于无滚动内层，不把短内容子容器误作真实滚动目标", () => {
+    const { host, viewport } = dom();
+    element(viewport, { viewport: true, className: "protyle-preview", scrollHeight: 100, clientHeight: 100 });
+    assert.equal(readingViewport(host), viewport);
+});
+
+for (const change of ["detached", "hidden", "zeroHeight", "overflowHidden", "invalidId", "noBlocks"]) {
     test(`DOM ${change} 不选择宿主/其他容器作为回退，不伪造位置`, () => {
         const { host, viewport, block } = dom();
         if (change === "detached") host.isConnected = false;
         if (change === "hidden") viewport.display = "none";
         if (change === "zeroHeight") viewport.height = 0;
-        if (change === "noOverflow") viewport.scrollHeight = viewport.clientHeight;
         if (change === "overflowHidden") viewport.overflow = "hidden";
         if (change === "invalidId") block.attributes.set("data-node-id", 'id" onclick="bad');
         if (change === "noBlocks") viewport.children.length = 0;
@@ -355,6 +488,25 @@ test("UI 自动读取不恢复、不写；只有明确 remember 才保存", asyn
     assert.equal(ui.notifications(), 1);
     ui.dispose();
     assert.equal(fixture.writes().length, 1);
+});
+
+test("UI 默认read预览短文可显式保存恢复，仍经服务核验块归属", async () => {
+    const fixture = harness();
+    const currentDom = previewDom({ short: true });
+    const ui = await controls(fixture, currentDom.host);
+    await ui.remember();
+    assert.equal(ui.inspect().messageKey, "reading.position.saved");
+    assert.equal(JSON.parse(fixture.attrs.get(docId)[positionKey]).blockId, blockId);
+    assert.equal(fixture.writes().length, 1);
+    await ui.restore();
+    assert.equal(ui.inspect().messageKey, "reading.position.restored");
+    assert.deepEqual(currentDom.viewport.scrollCalls, [{ top: 0, behavior: "auto" }]);
+    fixture.blocks.set(blockId, otherDocId);
+    await ui.restore();
+    assert.equal(ui.inspect().messageKey, "reading.position.blockMissing");
+    assert.equal(currentDom.viewport.scrollCalls.length, 1);
+    assert.equal(fixture.writes().length, 1);
+    ui.dispose();
 });
 
 test("UI 非法旧书签原值保留，用户明确记住当前位置后才替换", async () => {

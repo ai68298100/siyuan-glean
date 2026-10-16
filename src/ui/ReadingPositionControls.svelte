@@ -71,7 +71,7 @@
         const id = docId;
         const element = host;
         const expected = snapshot;
-        const position = captureReadingPosition(element);
+        const position = captureReadingPosition(element, new Date(), id);
         if (!position) { messageKey = "reading.position.notRendered"; return; }
         const current = begin(id, element);
         busy = true;
@@ -106,7 +106,7 @@
             if (!next.position) { messageKey = snapshotMessage(next); return; }
             await verifyReadingBlock(id, next.position.blockId);
             if (!current()) return;
-            if (restoreReadingPosition(element, next.position)) messageKey = "reading.position.restored";
+            if (restoreReadingPosition(element, next.position, id)) messageKey = "reading.position.restored";
             else {
                 blockFallback = { docId: id, blockId: next.position.blockId };
                 messageKey = "reading.position.notRendered";

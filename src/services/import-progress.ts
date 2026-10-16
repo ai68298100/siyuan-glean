@@ -1,4 +1,5 @@
 import type { Plugin } from "siyuan";
+import { readPluginJsonFile } from "../api/plugin-storage";
 import { IMPORT_PROGRESS_FILE, ImportProgressError, parseImportProgress, recoverImportProgress, type ImportProgress } from "../domain/import-progress";
 
 const activeImports = new WeakSet<object>();
@@ -15,10 +16,9 @@ export async function withImportLock<Result>(plugin: Plugin, operation: () => Pr
 
 export async function readImportProgress(plugin: Plugin): Promise<ImportProgress | null> {
     const raw = await storageOperation(plugin, "read", () => {
-        return plugin.loadData(IMPORT_PROGRESS_FILE);
+        return readPluginJsonFile(plugin.name, IMPORT_PROGRESS_FILE);
     });
-    if (raw === "") throw new ImportProgressError("read");
-    return raw === undefined || raw === null ? null : parseImportProgress(raw);
+    return raw === null ? null : parseImportProgress(raw);
 }
 
 async function storageOperation<Result>(plugin: Plugin, reason: "read" | "save", operation: () => Promise<Result>): Promise<Result> {

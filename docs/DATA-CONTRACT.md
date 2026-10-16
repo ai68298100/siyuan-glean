@@ -137,6 +137,11 @@ author 只描述来源署名，不参与文章资格推断；普通笔记不能�
 优先级、评分、重浮日期、摘要、快照路径、AI 标签、内容类型、时间来源和文档更新时间；`candidates` 保存未收录扫描候选的
 ID、标题、路径、笔记本、更新时间、可解释的来源证据（URL 属性/精确标签/官方模板/独立来源行）、来源 URL/站点与缺失项（URL、状态）；URL-only 半成品属于候选。真相永远是文档属性；索引仅是可重建缓存。候选证据与缺失项是可重建投影，不作为独立写入数据。
 当前更新时机 = 插件自身经 clip-store 写属性时 + 面板打开时对账；“重建索引”命令清空后重扫。对账只有在三类范围的**全部分页成功**后，才可依据完整扫描结果移除已删除、已失去候选资格或已移出扫描范围的候选；任一页失败时必须保留旧索引并报告失败，不能以部分结果清理条目。带有效状态或 URL 的文章由全库次锚点保留，不因移出主锚点笔记本而消失。
+
+**SQL 属性索引延迟下的已知 ID 补查（D-0236）**：对账、首启扫描预览和完整重建在三类范围及属性投影成功后，进入索引写锁，读取此时最新派生索引中本次扫描未见的合法文档 ID；这些 ID 只作只读查询目标，不沿用缓存中的标题、位置、状态、URL 或候选证据。按确切 ID 重读当前文档根块元数据和实时 IAL，仅当文档仍位于主锚点、实时 IAL 含状态/来源键（与 SQL 次锚点的键存在语义一致），或实时标签含精确“剪藏” token 时，才按现行属性/正文资格规则重新投影并纳入结果。补查的标签资格只使用实时 IAL.tags，不以延迟的 SQL tag 替代。已删除、已失去资格或仅剩正文证据且已移出扫描范围的文档不保留；补查不写文档属性。元数据、属性或必要正文读取失败时不保存新索引；批量属性响应缺少已查见的 ID 时须再核验文档是否已删除，仍存在则按读取失败处理，不能按空属性清掉条目。补查结束后再次核验本轮对账代次，过期任务不能落盘。
+
+派生索引仍可丢弃：补查读取沿用非严格缓存读取，坏缓存不能提供已知 ID 时仍允许从完整扫描结果修复重建，不因缓存读取失败永久阻止修复；因此缓存不可读且 SQL 尚未发现的文档、或完全未知的外部新增文档，仍受 SQL 发现延迟边界约束。已完成的并发增量写入通过锁内最新 ID 集合参与补查，不能被扫描前的旧快照覆盖；不靠固定等待时间保证一致性。
+
 `migrate-progress.json` 新格式只保存 `version/taskId/rows/cursor/finished`；每行只允许确切文档 `id`、处理 `state` 和可选的冲突文档 ID，不保存标题、路径、笔记本、URL、站点、正文、字数、时间或其他文章事实。游标是恢复位置；同一插件实例中的建立、分批回填、重试、逐行裁决和清理按顺序访问检查点，避免多个迁移窗口基于旧快照互相覆盖。已打开任务的窗口还必须携带预期 `taskId`；任务被另一窗口清理或替换后，旧窗口操作以 `changed` 结束，不得作用于新任务。服务层所有迁移写操作都必须传入非空预期 `taskId`，省略或空值均失败关闭；仅首次发现/显式重读等只读入口允许不带 ID。界面恢复标题/路径/已有属性时从思源文档实时读取，执行时重新读取属性并按当前正文重建候选来源。用户在扫描报告中暂存但尚未写入的手工 URL/本地/排除决定只留在内存；任务中断后必须重新确认尚未执行的决定，界面在开始前说明此行为。
 
 旧版 `version:1` 检查点曾保存文章事实。升级后读取时先校验旧结构，再仅保留任务 ID、文档 ID 与阶段，立即压缩为 `version:2`；已写入的文章属性不受影响，旧报告事实和未执行的手工决定不继续保存。`rows` 必须使用唯一思源文档 ID 和有限状态枚举，每行只允许 `id/state/conflictDocId`；任务顶层只允许 `version/taskId/rows/cursor/finished`。旧 V1 行内的非空 `url` 必须是有效的 http(s) 地址；`cursor` 必须位于 `0..rows.length`，非空任务中只有游标到尾才可标记 `finished`，空任务只能以 `finished:true` 表示。`finished` 仅表示本轮游标到尾，失败行仍保留供显式重试；暂停不得置完成或清除进度。读取时 `null/undefined` 才表示没有任务；存储异常和格式校验失败必须分别进入读取失败/损坏状态，保留原记录并禁用新扫描。只有用户明确确认清理损坏进度后才能删除检查点，且删除前重新读取并确认记录仍损坏；清理不回滚已经写入的文章属性，但会丢失逐行阶段和失败记录。重新执行失败行前先按确切文档 ID 重读元数据、属性和正文；正文来源由现行候选规则重新构建，已写成的文档只修复索引，不重复覆盖字段；新 dry-run 不得覆盖仍存在的检查点。恢复元数据通过既有 `/api/query/sql` 分块查询（每次最多 200 个 ID，校验思源 ID）读取，不新增端点。
@@ -235,6 +240,10 @@ prefs 同一插件实例的读改写串行，避免多入口互相丢偏好。�
 
 持有确切ID的恢复先核对根文档仍存在、位于原目标和当前来源相符且非internal；变化、移动或删除不创建替代。有效状态已存在时只同步索引，不改用户后续五态/完成时间/正文/tags/作者；仅半成品补缺，已填来源受保护且统一查重。暂停和弹窗关闭只阻止下一行，当前建文档/写属性动作可结束；已完成保留，进度/逐条失败/未知单独显示。单插件实例锁防止重入，日志读取/保存损坏失败必须就地反馈并停止，不静默覆盖；跨客户端无原子CAS仍保留。
 
+`createDocWithMd` 成功返回确切 ID 不代表 SQL 索引已立即可见。本轮新建且确切 ID 已保存到检查点后，首次资格回读仅在文档元数据暂不可见（`missing`）时按 100、200、400、800、1500、2000 毫秒有限等候，最多 7 次读取、累计等候 5 秒（不含各次内核请求耗时）；每次都通过 `clip-store.readClipAttributeSnapshot` 读取同一 ID，不重建文档、不按标题认领。读取异常、权限失败，或一旦可见后发现目标位置、来源、internal/excluded 等资格变化均立即失败，不用等候掩盖；旧检查点恢复与属性写后核对不套用此等候。超限继续保留确切 ID 和失败阶段供用户显式重试，不放松手填字段保护。
+
+检查点缺失与读取失败须按 §5.1 的原始文件响应区分。宿主 `Plugin.loadData` 在未知键时先初始化空串，文件缺失或网络失败又都会返回缓存，`plugin.data` 不是磁盘文件清单；不得靠空串、清缓存或预置 `null` 推断无任务，也不得为首次打开预写空记录。导入与迁移检查点读取经只读 JSON 适配器，以实际 `plugin.name` 和安全文件名定位私有目录；写入、删除仍沿用 SDK，导入写后/删除后核对沿用同一个严格读取入口。不扩展检查点结构，不改变已有 JSON `null` 的无任务含义。
+
 ### 3.11 批量富化任务与续跑（D-0092，T-3245）
 
 多选已收录非internal文章后只读生成清单，列出会替换已有摘要/AI标签的篇数、共享额度及通道，用户明确确认才开始。逐篇读取最新资格/位置及预览涉及的原始摘要/AI标签/状态/来源，变化跳过；模型只走既有共享队列，写入仍经clip-store且写入点复查预期属性。源文章正文、五态、用户标签、作者及其他手填字段不由该任务改写。暂停/关闭只阻止下一篇，当前已发送动作可完成；已写不回滚。
@@ -308,6 +317,7 @@ UI 默认 Top8，其余项汇总显示项数和计数之和，可展开查看全
 | 嵌入状态 | `/api/ai/embeddingStat` → `{total, indexed, pending, failed, ignoredByLen, ignoredByConfig, enabled}` |
 | 笔记本/文档 | `notebook/lsNotebooks` `filetree/createDocWithMd`（支持 `tags` 参数，落根块 IAL） `export/exportMdContent {id, yfm?, addTitle?, refMode?} → {hPath, content}`；排版整理固定 `yfm:false, addTitle:false, refMode:2`（隔离实证见 §3.4） |
 | 插件装载 | `/api/petal/loadPetals`；隔离内核测试前需 `/api/setting/setBazaar {trust:true}`（桌面集市信任门槛） |
+| 插件检查点只读 | `/api/file/getFile {path:"/data/storage/petal/<pluginName>/<filename>"}`：HTTP 200 直接返回文件正文；仅 HTTP 202 + JSON `code:404,data:null` 确认为文件缺失。禁止按统一 `code=0` 信封解析正文，详见 §5.1 专用适配边界 |
 | 收集箱（后置） | `/api/inbox/getShorthands|getShorthand|removeShorthands`；事件 `open-menu-inbox` |
 | 智能体 | `plugin.addAgentCapability`（注册为 `plugin/frontend/siyuan-glean/<tool>`） |
 | 挂库（M2） | `/api/av/addAttributeViewBlocks` `renderAttributeView` 等（官方剪藏同款路径） |
@@ -318,7 +328,11 @@ UI 默认 Top8，其余项汇总显示项数和计数之和，可展开查看全
 
 ### 5.1 宿主传输与外部失败响应（D-0061）
 
-所有 JSON 与 multipart 请求都通过统一 `kernelPost` 校验思源响应；只有明确的数字 `code=0` 才算端点成功，缺响应、缺 code 或非零 code 必须拒绝。传输使用 SDK 的异步 Promise 接口 `fetchSyncPost`：`fetchPost` 经宿主 `processMessage` 处理非零响应时可能不调用成功回调，不能用成功回调包 Promise 等待失败。multipart 保留 FormData 原样，不设置 JSON Content-Type。已按思源 `v3.8.6` 的 `app/src/util/fetch.ts` 与 `kernel/apicontract/inbox.go` 核实，不新增端点。
+返回 `code` 信封的 JSON 与 multipart 请求都通过统一 `kernelPost` 校验思源响应；只有明确的数字 `code=0` 才算端点成功，缺响应、缺 code 或非零 code 必须拒绝。传输使用 SDK 的异步 Promise 接口 `fetchSyncPost`：`fetchPost` 经宿主 `processMessage` 处理非零响应时可能不调用成功回调，不能用成功回调包 Promise 等待失败。multipart 保留 FormData 原样，不设置 JSON Content-Type。已按思源 `v3.8.6` 的 `app/src/util/fetch.ts` 与 `kernel/apicontract/inbox.go` 核实，不新增端点。
+
+原始私有 JSON 文件读取是专用只读例外：`api/plugin-storage.ts` 的 `readPluginJsonFile(pluginName, filename)` 使用同源 `fetch` POST，固定定位 `/data/storage/petal/` 下的两个安全路径片段，拒绝斜线、反斜线、`..`、百分号编码等穿越形式，禁用缓存并限制为 10 秒。只把 HTTP 202 且 JSON `code===404`、`data===null` 映射为缺失 `null`；HTTP 200 正文必须是合法 JSON，原值交调用方 schema 校验（JSON `null` 保持无任务含义，JSON 字符串空串不是缺失）。HTTP 200 空文件/坏 JSON、其他 HTTP 状态、权限、网络与超时均抛安全分类错误，不泄露原始响应/私有路径，不从 SDK 缓存或空串猜测状态，也不自动重试或改写文件。通用 `kernelPost` 不为该端点放宽响应校验。
+
+专用实证为 `scripts/spike/checkpoint-read-spike.mjs`（2026-10-16，隔离内核 `3.8.8-alpha.1`，回环端口 30061）：缺失返回 HTTP 202 + `code:404,data:null`；正常 JSON、坏 JSON、零字节文件及 JSON `null` 都返回 HTTP 200 原始正文；仅本次请求携带无效 Authorization 时返回 HTTP 401 + `code:-1`（未改宿主登录/权限设置）。`--adapter` 模式也已用生产适配器逐一通过这六种真实响应，Node 仅补全隔离宿主 origin，保留生产请求选项。报告存于隔离工作区 `checkpoint-read-report.json`。探针只在核对 E2E 标记后的临时工作区创建独立文件夹样本，清理时仅删除自身样本，不触碰真实插件检查点。此实证不声称覆盖所有权限错误；其他拒绝形态由适配器边界测试确认不能变为空任务。
 
 统一传输对内核请求提供默认 60 秒/长任务 180 秒超时和 `network`、`timeout`、`permission`、`protocol`、`kernel`、`aborted`、`superseded` 分类。只读调用可显式声明 `requestKey` 合并同资源并发请求，声明 `latestKey` 时更早一代只读响应必须以 `superseded` 结束，不能交付给调用者。`AbortSignal` 会阻止或停止向调用方交付结果并忽略迟到响应；思源 SDK 没有 `AbortSignal` 参数，因此不承诺中止内核正在执行的底层请求。只有明确标为幂等只读且同时配置有限次数的 `retryable + retry` 才会对网络/超时重试（最多 4 次）；所有写请求默认不重试，未知写入结果须由服务按确切对象 ID 读回确认，不能靠重试推断。
 

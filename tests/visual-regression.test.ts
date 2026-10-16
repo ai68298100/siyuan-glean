@@ -145,8 +145,11 @@ test("历史增量稿中的交互动作均已迁入 canonical 原型", () => {
     const additions = readFileSync(resolve(root, "design/prototype-v2-additions.html"), "utf8");
     const historicalActions = [...additions.matchAll(/data-action="([a-z-]+)"/g)].map((match) => match[1]);
     const uniqueActions = [...new Set(historicalActions)];
+    const replacements: Record<string, string[]> = { "reading-expand": ["bookmark-save", "bookmark-restore"] };
     for (const action of uniqueActions) {
-        assert.match(prototype, new RegExp(`data-action="${action}"`), `missing migrated action: ${action}`);
+        for (const current of replacements[action] ?? [action]) {
+            assert.match(prototype, new RegExp(`data-action="${current}"`), `missing migrated action: ${action} -> ${current}`);
+        }
     }
     assert.match(additions, /历史参考/);
     assert.match(additions, /canonical 主原型/);

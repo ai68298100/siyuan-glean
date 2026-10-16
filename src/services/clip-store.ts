@@ -866,11 +866,15 @@ export async function scanDocScopes(settings: GleanSettings, pageSize = SCAN_PAG
  * 然后才传入这里；因此缺页、查询失败或属性读取失败都不会把旧索引误清空。
  */
 async function indexFromScopes(scopes: ScanDocScopes): Promise<GleanIndex> {
-    const index = emptyIndex();
     const ids = scopes.all.map((row) => row.id);
     const attrPairs = await batchGetClipAttrsForIndex(ids);
+    return indexFromRows(scopes.all, attrPairs);
+}
+
+async function indexFromRows(rows: DocRow[], attrPairs: Awaited<ReturnType<typeof batchReadClipAttrs>>): Promise<GleanIndex> {
+    const index = emptyIndex();
     const attrsById = new Map(attrPairs.map((pair) => [pair.id, pair.attrs]));
-    const projected = await mapWithConcurrency(scopes.all, async (row) => {
+    const projected = await mapWithConcurrency(rows, async (row) => {
         const ial = attrsById.get(row.id);
         if (!ial) return null;
         const exactTags = row.tag || ial.tags || "";
@@ -976,6 +980,63 @@ function isCurrentReconcile(plugin: Plugin, generation: number): boolean {
     return reconcileGenerations.get(plugin) === generation;
 }
 
+/**
+ * SQL IAL 可能晚于属性端点更新。旧索引只提供确切 ID；锁内读取最新集合，
+ * 再用当前元数据和 IAL 核验范围及资格，不把缓存事实复制进新索引。
+ */
+async function supplementKnownIndexDocs(plugin: Plugin, settings: GleanSettings, scopes: ScanDocScopes, index: GleanIndex): Promise<void> {
+    // 缓存损坏仍可由完整范围扫描修复；不可读缓存仅无法提供额外的 ID 提示。
+    const latest = await loadIndex(plugin);
+    const scannedIds = new Set(scopes.all.map((row) => row.id));
+    const knownIds = [...new Set([...Object.keys(latest.clips), ...Object.keys(latest.candidates)])]
+        .filter((id) => /^\d{14}-[0-9a-z]{7}$/.test(id) && !scannedIds.has(id));
+    if (knownIds.length === 0) return;
+
+    const rows = await listDocsByIds(knownIds);
+    const attrPairs = await batchReadClipAttrs(rows.map((row) => row.id));
+    const attrsById = new Map(attrPairs.map((pair) => [pair.id, pair.attrs]));
+    const missingAttrs = rows.filter((row) => !attrsById.has(row.id));
+    if (missingAttrs.length > 0) {
+        // batchGetBlockAttrs 会省略已删除 ID；不能把仍存在文档的漏响应当作删除。
+        const stillPresent = await listDocsByIds(missingAttrs.map((row) => row.id));
+        if (stillPresent.length > 0) throw new Error(`无法读取文档 ${stillPresent[0].id} 的属性，索引未更新`);
+    }
+
+    const anchors = new Set(settings.anchorNotebooks);
+    const extraRows: DocRow[] = [];
+    for (const row of rows) {
+        const ial = attrsById.get(row.id);
+        if (!ial) continue;
+        // SQL tag 也可能延迟；补查资格和投影均以实时根块 tags 为准。
+        const liveRow = { ...row, tag: ial.tags ?? "" };
+        const inAnchor = anchors.has(row.box);
+        const inClip = Object.hasOwn(ial, ATTR.status) || Object.hasOwn(ial, ATTR.url);
+        const inTagged = inspectCandidate({ ial, title: row.content || "", hpath: row.hpath || "", tags: liveRow.tag }).evidence.includes("clip-tag");
+        if (!inAnchor && !inClip && !inTagged) continue;
+        extraRows.push(liveRow);
+        if (inAnchor) scopes.anchor.push(liveRow);
+        if (inClip) scopes.clip.push(liveRow);
+        if (inTagged) scopes.tagged.push(liveRow);
+    }
+    const extraIndex = await indexFromRows(extraRows, attrPairs);
+    Object.assign(index.clips, extraIndex.clips);
+    Object.assign(index.candidates, extraIndex.candidates);
+    scopes.all.push(...extraRows);
+    scopes.all.sort((a, b) => String(b.updated || "").localeCompare(String(a.updated || "")) || String(b.id).localeCompare(String(a.id)));
+}
+
+/** 三个完整扫描入口共用同一锁内补查与保存路径。 */
+async function saveScannedIndex(plugin: Plugin, settings: GleanSettings, scopes: ScanDocScopes, index: GleanIndex, generation: number): Promise<GleanIndex> {
+    return withIndexLock(async () => {
+        if (!isCurrentReconcile(plugin, generation)) throw new Error("Index scan superseded");
+        await supplementKnownIndexDocs(plugin, settings, scopes, index);
+        if (!isCurrentReconcile(plugin, generation)) throw new Error("Index scan superseded");
+        const result = await saveIndex(plugin, index, { repair: true });
+        confirmIndexRebuilt();
+        return result;
+    });
+}
+
 export async function reconcileIndex(plugin: Plugin, settings: GleanSettings): Promise<GleanIndex> {
     const key = JSON.stringify(settings.anchorNotebooks);
     const running = reconcileFlights.get(plugin);
@@ -985,15 +1046,7 @@ export async function reconcileIndex(plugin: Plugin, settings: GleanSettings): P
         const scopes = await scanDocScopes(settings);
         const index = await indexFromScopes(scopes);
         if (!isCurrentReconcile(plugin, generation)) throw new Error("Index reconcile superseded");
-        // 保存与损坏解除入锁：消除 save-save 交错；扫描期间若已有更新的
-        // 对账请求，旧快照在进入锁前即丢弃，不能覆盖增量写入后的索引。
-        const saved = await withIndexLock(async () => {
-            if (!isCurrentReconcile(plugin, generation)) throw new Error("Index reconcile superseded");
-            const result = await saveIndex(plugin, index, { repair: true });
-            confirmIndexRebuilt();
-            return result;
-        });
-        return saved;
+        return saveScannedIndex(plugin, settings, scopes, index, generation);
     })();
     reconcileFlights.set(plugin, { key, promise });
     try {
@@ -1009,11 +1062,7 @@ export async function scanPreview(plugin: Plugin, settings: GleanSettings): Prom
     const scopes = await scanDocScopes(settings);
     const index = await indexFromScopes(scopes);
     if (!isCurrentReconcile(plugin, generation)) throw new Error("Index scan superseded");
-    await withIndexLock(async () => {
-        if (!isCurrentReconcile(plugin, generation)) throw new Error("Index scan superseded");
-        await saveIndex(plugin, index, { repair: true });
-        confirmIndexRebuilt();
-    });
+    await saveScannedIndex(plugin, settings, scopes, index, generation);
     return buildScanPreview(scopes, index);
 }
 
@@ -1027,11 +1076,5 @@ export async function rebuildIndex(plugin: Plugin, settings: GleanSettings): Pro
     const scopes = await scanDocScopes(settings);
     const index = await indexFromScopes(scopes);
     if (!isCurrentReconcile(plugin, generation)) throw new Error("Index rebuild superseded");
-    const saved = await withIndexLock(async () => {
-        if (!isCurrentReconcile(plugin, generation)) throw new Error("Index rebuild superseded");
-        const result = await saveIndex(plugin, index, { repair: true });
-        confirmIndexRebuilt();
-        return result;
-    });
-    return saved;
+    return saveScannedIndex(plugin, settings, scopes, index, generation);
 }

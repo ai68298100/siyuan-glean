@@ -140,6 +140,8 @@ export class ImportExecutionError extends ImportProgressError {
     constructor(reason: ImportProgressError["reason"], summary: ImportSummary) { super(reason); this.summary = summary; }
 }
 
+const CREATED_DOCUMENT_INDEX_DELAYS_MS = [100, 200, 400, 800, 1500, 2000] as const;
+
 /** 执行导入：建文档 → 收录（写 URL/时间/站点）→ 外部标签写入 tags → 状态映射。 */
 export async function runImport(
     plugin: Plugin,
@@ -191,6 +193,7 @@ export async function runImport(
                 entry.reason = "";
                 summary.skippedDuplicate += 1;
             } else {
+                let createdNow = false;
                 if (!entry.docId) {
                     entry.state = "creating";
                     await checkpoint();
@@ -209,9 +212,12 @@ export async function runImport(
                     entry.docId = returnedId;
                     entry.state = "created";
                     await checkpoint();
+                    createdNow = true;
                 }
                 try {
-                    const snapshot = await requireImportDocument(entry.docId, progress, entry.hpath, row.url);
+                    const snapshot = createdNow
+                        ? await awaitCreatedImportDocument(entry.docId, progress, entry.hpath, row.url)
+                        : await requireImportDocument(entry.docId, progress, entry.hpath, row.url);
                     const attrs = parseClipAttrs(snapshot.attrs);
                     const expectedLocation = { box: snapshot.meta.box, hpath: snapshot.meta.hpath };
                     const expectedAttrs = Object.fromEntries(Object.values(ATTR).map((key) => [key, snapshot.attrs[key] ?? null]));
@@ -252,6 +258,17 @@ export async function runImport(
 class ImportRowError extends Error {
     readonly reason: ImportFailureReason;
     constructor(reason: ImportFailureReason) { super(reason); this.reason = reason; }
+}
+
+/** A returned creation ID can precede SQL visibility; only that fresh ID may wait. */
+async function awaitCreatedImportDocument(docId: string, progress: ImportProgress, hpath: string, url: string) {
+    for (let attempt = 0; ; attempt += 1) {
+        try { return await requireImportDocument(docId, progress, hpath, url); }
+        catch (error) {
+            if (!(error instanceof ImportRowError) || error.reason !== "missing" || attempt >= CREATED_DOCUMENT_INDEX_DELAYS_MS.length) throw error;
+            await new Promise<void>((resolve) => setTimeout(resolve, CREATED_DOCUMENT_INDEX_DELAYS_MS[attempt]));
+        }
+    }
 }
 
 async function requireImportDocument(docId: string, progress: ImportProgress, hpath: string, url: string, requireStatus = false) {

@@ -2,6 +2,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { registerHooks } from "node:module";
+import { readFileSync } from "node:fs";
+import { createContext, runInContext } from "node:vm";
+import ts from "typescript";
 
 registerHooks({
     resolve(specifier, context, nextResolve) {
@@ -23,9 +26,9 @@ registerHooks({
     },
 });
 
-const { previewImport, runImport, summarizeImportStatuses } = await import("../src/services/import-service.ts");
+const { previewImport, runImport, summarizeImportStatuses, ImportExecutionError } = await import("../src/services/import-service.ts");
 const { discardImportProgress, fingerprintImportSource, loadImportProgress, readImportProgress, saveImportProgress } = await import("../src/services/import-progress.ts");
-const { IMPORT_PROGRESS_FILE } = await import("../src/domain/import-progress.ts");
+const { IMPORT_PROGRESS_FILE, ImportProgressError, summarizeImportProgress } = await import("../src/domain/import-progress.ts");
 const notebookId = "20261004110000-nnnnnnn";
 const documentId = (index) => `20261004120000-${String(index).padStart(7, "0")}`;
 const importOptions = { fingerprint: "a".repeat(64), notebookId, folder: "导入", format: "pocket-csv" };
@@ -36,10 +39,11 @@ function harness({ createEmpty = false, cacheFallback = false } = {}) {
     const files = new Map();
     const calls = [];
     const journalSaves = [];
-    const failures = { writeIds: new Set(), saveIndex: false, query: false, loadProgress: false, saveProgressAt: 0, saveProgressCodeAt: 0, dropProgressAt: 0, loseCreateResponse: false, createReply: undefined, beforeReadAttrs: null, holdCreate: null };
+    const failures = { writeIds: new Set(), saveIndex: false, query: false, loadProgress: false, saveProgressAt: 0, saveProgressCodeAt: 0, dropProgressAt: 0, loseCreateResponse: false, createReply: undefined, beforeReadAttrs: null, readMeta: null, holdCreate: null };
     let journalSaveCount = 0;
     let createCount = 0;
     const plugin = {
+        name: "siyuan-glean",
         data: {},
         async loadData(name) {
             if (name === IMPORT_PROGRESS_FILE && failures.loadProgress) {
@@ -71,6 +75,15 @@ function harness({ createEmpty = false, cacheFallback = false } = {}) {
             delete plugin.data[name];
             return { code: 0 };
         },
+    };
+    globalThis.fetch = async (route, options) => {
+        assert.equal(route, "/api/file/getFile");
+        const filePath = JSON.parse(options.body).path;
+        assert.equal(filePath, `/data/storage/petal/${plugin.name}/${IMPORT_PROGRESS_FILE}`);
+        if (failures.loadProgress) throw new Error("progress read failed");
+        return files.has(IMPORT_PROGRESS_FILE)
+            ? new Response(JSON.stringify(files.get(IMPORT_PROGRESS_FILE)), { status: 200 })
+            : new Response(JSON.stringify({ code: 404, data: null }), { status: 202 });
     };
     globalThis.__gleanImportFetchPost = (route, body, callback) => {
         calls.push({ route, body });
@@ -108,6 +121,10 @@ function harness({ createEmpty = false, cacheFallback = false } = {}) {
                     return;
                 }
                 const docId = /WHERE id = '([^']+)'/.exec(body.stmt)?.[1];
+                if (docId && failures.readMeta) {
+                    const response = failures.readMeta(docId);
+                    if (response !== undefined) { callback(response); return; }
+                }
                 const limit = Number(/LIMIT\s+(\d+)/i.exec(body.stmt)?.[1] ?? attrs.size);
                 const offset = Number(/OFFSET\s+(\d+)/i.exec(body.stmt)?.[1] ?? 0);
                 const clipIds = [...attrs.keys()].filter((id) => attrs.get(id)["custom-clip-url"] || attrs.get(id)["custom-clip-status"]);
@@ -233,6 +250,129 @@ test("建文档返回空 ID 时保留真实创建为未知并推进进度", asyn
 const importRow = (suffix) => ({
     title: suffix, url: `https://example.com/${suffix}`, site: "example.com",
     time: "20200102030405", doneTime: "20200103030405", tags: ["技术"], status: "done", duplicate: false,
+});
+
+function fastIndexWaits(context) {
+    const nativeSetTimeout = globalThis.setTimeout;
+    const delays = [];
+    context.mock.method(globalThis, "setTimeout", (callback, delay, ...args) => {
+        if (delay > 0 && delay <= 2000) {
+            delays.push(delay);
+            return nativeSetTimeout(callback, 0, ...args);
+        }
+        return nativeSetTimeout(callback, delay, ...args);
+    });
+    return delays;
+}
+
+test("新建确切ID先落检查点，SQL延迟可见时有限等候后仅收录原文档", async (testContext) => {
+    const delays = fastIndexWaits(testContext);
+    const context = harness();
+    let reads = 0;
+    context.failures.readMeta = (id) => {
+        assert.equal(context.files.get(IMPORT_PROGRESS_FILE).rows[0].docId, id);
+        if (++reads <= 2) return { code: 0, data: [] };
+    };
+    const result = await runImport(context.plugin, [importRow("delayed")], importOptions);
+    assert.equal(result.imported, 1);
+    assert.equal(result.failed, 0);
+    assert.deepEqual(result.docIds, [documentId(1)]);
+    assert.equal(delays.length, 2);
+    assert.equal(context.calls.filter((call) => call.route === "/api/filetree/createDocWithMd").length, 1);
+    assert.equal(context.attrs.get(documentId(1))["custom-clip-status"], "done");
+});
+
+test("新建SQL始终不可见在有限等候后保留ID；恢复缺失不再等待或重建", async (testContext) => {
+    const delays = fastIndexWaits(testContext);
+    const context = harness();
+    const row = importRow("missing-index");
+    let reads = 0;
+    context.failures.readMeta = () => { reads += 1; return { code: 0, data: [] }; };
+    const first = await runImport(context.plugin, [row], importOptions);
+    assert.equal(first.failed, 1);
+    assert.equal(reads, 7);
+    assert.equal(delays.length, 6);
+    assert.equal(delays.reduce((sum, value) => sum + value, 0), 5000);
+    assert.equal(context.files.get(IMPORT_PROGRESS_FILE).rows[0].reason, "missing");
+    assert.deepEqual(first.failedItems, [{ url: row.url, docId: documentId(1) }]);
+    const second = await runImport(context.plugin, [row], { ...importOptions, resumeTaskId: first.taskId, retryFailures: first.failedItems });
+    assert.equal(second.failed, 1);
+    assert.equal(reads, 8);
+    assert.equal(delays.length, 6);
+    assert.equal(context.calls.filter((call) => call.route === "/api/filetree/createDocWithMd").length, 1);
+    assert.equal(context.calls.some((call) => call.route === "/api/attr/setBlockAttrs"), false);
+    context.failures.readMeta = null;
+    const third = await runImport(context.plugin, [row], { ...importOptions, resumeTaskId: first.taskId, retryFailures: second.failedItems });
+    assert.equal(third.imported, 1);
+    assert.deepEqual(third.docIds, [documentId(1)]);
+    assert.equal(context.calls.filter((call) => call.route === "/api/filetree/createDocWithMd").length, 1);
+});
+
+test("新建等候期间读取失败或可见后的资格变化立即停止，不重试掩盖", async (testContext) => {
+    const delays = fastIndexWaits(testContext);
+    for (const change of ["read", "move", "source", "internal", "excluded"]) {
+        const context = harness();
+        let reads = 0;
+        context.failures.readMeta = (id) => {
+            reads += 1;
+            if (reads === 1) return { code: 0, data: [] };
+            if (change === "read") return { code: -1, msg: "read failed" };
+            if (change === "move") context.documents.get(id).hpath = "/用户移动";
+            if (change === "source") context.attrs.get(id)["custom-clip-url"] = "https://example.com/changed";
+            if (change === "internal") context.attrs.get(id)["custom-clip-internal"] = "true";
+            if (change === "excluded") context.attrs.get(id)["custom-clip-excluded"] = "true";
+        };
+        const waitsBefore = delays.length;
+        const result = await runImport(context.plugin, [importRow(change)], importOptions);
+        assert.equal(result.failed, 1, change);
+        assert.equal(reads, 2, change);
+        assert.equal(delays.length - waitsBefore, 1, change);
+        assert.equal(context.files.get(IMPORT_PROGRESS_FILE).rows[0].reason, change === "read" ? "read" : change === "internal" ? "internal" : "changed", change);
+        assert.equal(context.calls.filter((call) => call.route === "/api/filetree/createDocWithMd").length, 1, change);
+        assert.equal(context.calls.some((call) => call.route === "/api/attr/setBlockAttrs"), false, change);
+    }
+});
+
+test("新建等候后已存在有效状态只修索引，保留等待期间用户手填及暂停语义", async (testContext) => {
+    const delays = fastIndexWaits(testContext);
+    const context = harness();
+    const row = importRow("user-edited-during-indexing");
+    const signal = { aborted: false };
+    let reads = 0;
+    context.failures.readMeta = (id) => {
+        if (++reads === 1) {
+            signal.aborted = true;
+            return { code: 0, data: [] };
+        }
+        Object.assign(context.attrs.get(id), { "custom-clip-url": row.url, "custom-clip-status": "later", "custom-clip-priority": "5", "custom-clip-rating": "4", tags: "用户标签" });
+    };
+    const result = await runImport(context.plugin, [row, importRow("not-started")], { ...importOptions, signal });
+    assert.equal(result.imported, 1);
+    assert.equal(result.stopped, true);
+    assert.equal(delays.length, 1);
+    assert.equal(context.attrs.get(documentId(1))["custom-clip-status"], "later");
+    assert.equal(context.attrs.get(documentId(1))["custom-clip-priority"], "5");
+    assert.equal(context.attrs.get(documentId(1))["custom-clip-rating"], "4");
+    assert.equal(context.attrs.get(documentId(1)).tags, "用户标签");
+    assert.equal(context.calls.some((call) => call.route === "/api/attr/setBlockAttrs"), false);
+    assert.equal(context.calls.filter((call) => call.route === "/api/filetree/createDocWithMd").length, 1);
+    assert.deepEqual(context.files.get(IMPORT_PROGRESS_FILE).rows.map((entry) => entry.state), ["applied", "pending"]);
+});
+
+test("新建属性写后文档不可见保留失败与已写事实，不套用首建等候或重发写入", async (testContext) => {
+    const delays = fastIndexWaits(testContext);
+    const context = harness();
+    context.failures.readMeta = () => {
+        if (context.calls.some((call) => call.route === "/api/attr/setBlockAttrs")) return { code: 0, data: [] };
+    };
+    const result = await runImport(context.plugin, [importRow("disappeared-after-write")], importOptions);
+    assert.equal(result.failed, 1);
+    assert.equal(result.imported, 0);
+    assert.equal(delays.length, 0);
+    assert.equal(context.attrs.get(documentId(1))["custom-clip-status"], "done");
+    assert.equal(context.calls.filter((call) => call.route === "/api/filetree/createDocWithMd").length, 1);
+    assert.equal(context.calls.filter((call) => call.route === "/api/attr/setBlockAttrs").length, 1);
+    assert.equal(context.files.get(IMPORT_PROGRESS_FILE).rows[0].reason, "missing");
 });
 
 test("收录属性失败后只重试失败行并复用已建文档", async () => {
@@ -442,6 +582,41 @@ test("日志读取失败、缓存回退空串及未知版本都拒绝继续，�
     }
 });
 
+test("首次缺失检查点通过原始响应确认为空，SDK空串缓存不阻断导入和清理", async () => {
+    const context = harness();
+    context.plugin.data[IMPORT_PROGRESS_FILE] = "";
+    const loadData = context.plugin.loadData;
+    context.plugin.loadData = async (name) => {
+        assert.notEqual(name, IMPORT_PROGRESS_FILE, "checkpoint reads must not use SDK cache fallback");
+        return loadData(name);
+    };
+    assert.equal(await readImportProgress(context.plugin), null);
+    const result = await runImport(context.plugin, [importRow("fresh-install")], importOptions);
+    assert.equal(result.imported, 1);
+    assert.equal((await readImportProgress(context.plugin)).taskId, result.taskId);
+    await discardImportProgress(context.plugin, result.taskId, true);
+    assert.equal(await readImportProgress(context.plugin), null);
+});
+
+test("存在但内容为空串的JSON检查点仍是损坏记录，不能当首次缺失覆盖", async () => {
+    const context = harness();
+    context.files.set(IMPORT_PROGRESS_FILE, "");
+    await assert.rejects(readImportProgress(context.plugin), { reason: "invalid" });
+    await assert.rejects(runImport(context.plugin, [importRow("invalid-string")], importOptions), { reason: "invalid" });
+    assert.equal(context.files.get(IMPORT_PROGRESS_FILE), "");
+    assert.equal(context.attrs.size, 0);
+});
+
+test("实际读取到JSON null沿用无任务语义，允许新导入且不预写空检查点", async () => {
+    const context = harness();
+    context.files.set(IMPORT_PROGRESS_FILE, null);
+    assert.equal(await readImportProgress(context.plugin), null);
+    const result = await runImport(context.plugin, [importRow("cleared-task")], importOptions);
+    assert.equal(result.imported, 1);
+    assert.equal((await readImportProgress(context.plugin)).taskId, result.taskId);
+    assert.equal(context.files.get(IMPORT_PROGRESS_FILE).version, 1);
+});
+
 test("替换源文件、格式、行内容、目标或截断预览均拒绝恢复；只有明确放弃才能新建", async () => {
     const context = harness();
     const rows = [importRow("first"), importRow("second")];
@@ -535,4 +710,193 @@ test("有效状态文章即使与内部宿主同名，精确ID恢复仍仅修索
     const resumed = await runImport(context.plugin, [row], { ...importOptions, resumeTaskId: initial.taskId });
     assert.equal(resumed.imported, 1);
     assert.deepEqual(context.attrs.get(documentId(1)), before);
+});
+
+// 执行真实弹窗的收尾函数，并接上上面的真实导入服务/检查点替身；不复制回执合并逻辑。
+const dialogScript = readFileSync(new URL("../src/ui/ImportDialog.svelte", import.meta.url), "utf8").match(/<script lang="ts">([\s\S]*?)<\/script>/)[1];
+const dialogAst = ts.createSourceFile("ImportDialog.ts", dialogScript, ts.ScriptTarget.ESNext, true, ts.ScriptKind.TS);
+const dialogFunctions = new Set(["progressFailure", "refreshProgress", "mergeSummaries", "progressEntryTitle", "startImport"]);
+const dialogDerived = new Set(["unfinished", "resumable", "targetAvailable"]);
+const dialogFlow = [];
+for (const statement of dialogAst.statements) {
+    if (ts.isFunctionDeclaration(statement) && dialogFunctions.has(statement.name?.text)) dialogFlow.push(statement.getText(dialogAst));
+    if (!ts.isVariableStatement(statement)) continue;
+    for (const declaration of statement.declarationList.declarations) {
+        if (!dialogDerived.has(declaration.name.getText(dialogAst))) continue;
+        const expression = declaration.initializer.arguments[0].getText(dialogAst);
+        dialogFlow.push(`Object.defineProperty(globalThis, ${JSON.stringify(declaration.name.getText(dialogAst))}, { get() { return ${expression}; } });`);
+    }
+}
+const dialogFlowSource = ts.transpileModule(dialogFlow.join("\n"), { compilerOptions: { target: ts.ScriptTarget.ESNext } }).outputText;
+
+function dialogPreview(rows, fingerprint = importOptions.fingerprint) {
+    return { rows, fingerprint, format: importOptions.format, duplicateCount: rows.filter((row) => row.duplicate).length };
+}
+
+async function dialogHarness(context, rows, { fingerprint = importOptions.fingerprint, afterRun } = {}) {
+    const results = [];
+    const notifications = [];
+    const state = createContext({
+        facade: { pluginInstance: context.plugin, notifyDataChanged: () => notifications.push("changed") },
+        i18n: {}, t: (_i18n, key) => key, showMessage: () => {},
+        loadImportProgress, summarizeImportProgress, ImportExecutionError, ImportProgressError, AbortController,
+        runImport: async (...args) => {
+            const result = await runImport(...args);
+            results.push(result);
+            await afterRun?.(result);
+            return result;
+        },
+        preview: dialogPreview(rows, fingerprint),
+        progressRecord: await loadImportProgress(context.plugin),
+        notebooks: [{ id: notebookId, name: "读库" }], notebookId, folder: "/导入", format: importOptions.format,
+        mounted: true, busy: false, notebookLoading: false, notebookError: false,
+        progressLoaded: true, progressReadFailed: false, progressLoading: false, progressError: "",
+        importConfirmed: true, resumeConfirmed: true, forceResetConfirmed: false,
+        phase: "preview", progress: 0, stopping: false, controller: null, summary: null, retryRows: [],
+    });
+    runInContext(dialogFlowSource, state);
+    return { state, results, notifications };
+}
+
+test("导入弹窗首次完成后先读回检查点，再显示本任务真实回执", async () => {
+    const context = harness();
+    const dialog = await dialogHarness(context, [importRow("first-a"), importRow("first-b")]);
+    await dialog.state.startImport();
+    assert.equal(dialog.state.phase, "done");
+    assert.equal(dialog.state.summary.imported, 2);
+    assert.equal(dialog.state.summary.failed, 0);
+    assert.equal(dialog.state.summary.taskId, dialog.state.progressRecord.taskId);
+    assert.equal(dialog.state.progressRecord.state, "finished");
+    assert.equal(dialog.state.progressError, "");
+    assert.equal(dialog.state.busy, false);
+});
+
+test("导入弹窗恢复后显示包含先前成功行的最新累计结果", async () => {
+    const context = harness();
+    const rows = [importRow("resume-a"), importRow("resume-b"), importRow("resume-c")];
+    const controller = new AbortController();
+    await runImport(context.plugin, rows, { ...importOptions, signal: controller.signal, onProgress: () => controller.abort() });
+    const dialog = await dialogHarness(context, rows);
+    assert.equal(summarizeImportProgress(dialog.state.progressRecord).applied, 1);
+    await dialog.state.startImport();
+    assert.equal(dialog.results[0].imported, 2);
+    assert.equal(dialog.state.summary.imported, 3);
+    assert.equal(dialog.state.summary.failed, 0);
+    assert.equal(dialog.state.progressRecord.state, "finished");
+    assert.equal(context.attrs.size, 3);
+});
+
+test("导入弹窗失败重试使用本轮失败ID，完成后移除旧失败反馈", async () => {
+    const context = harness();
+    const rows = [importRow("retry-a"), importRow("retry-b")];
+    context.failures.writeIds.add(documentId(2));
+    const dialog = await dialogHarness(context, rows);
+    await dialog.state.startImport();
+    assert.equal(dialog.state.summary.imported, 1);
+    assert.equal(dialog.state.summary.failed, 1);
+    assert.equal(dialog.state.retryRows[0].url, rows[1].url);
+    context.failures.writeIds.clear();
+    dialog.state.resumeConfirmed = true;
+    await dialog.state.startImport(dialog.state.retryRows);
+    assert.equal(dialog.results[1].imported, 1);
+    assert.equal(dialog.state.summary.imported, 2);
+    assert.equal(dialog.state.summary.failed, 0);
+    assert.equal(dialog.state.summary.failedItems.length, 0);
+    assert.equal(dialog.state.retryRows.length, 0);
+    assert.equal(context.attrs.size, 2);
+});
+
+test("导入弹窗连续导入两个文件时不会显示上一任务计数", async () => {
+    const context = harness();
+    const dialog = await dialogHarness(context, [importRow("file-a1"), importRow("file-a2")]);
+    await dialog.state.startImport();
+    const firstTaskId = dialog.state.summary.taskId;
+    dialog.state.preview = dialogPreview([importRow("file-b")], "b".repeat(64));
+    dialog.state.importConfirmed = true;
+    dialog.state.phase = "preview";
+    await dialog.state.startImport();
+    assert.notEqual(dialog.state.summary.taskId, firstTaskId);
+    assert.equal(dialog.state.summary.imported, 1);
+    assert.equal(dialog.state.summary.docIds.length, 1);
+    assert.equal(dialog.state.summary.taskId, dialog.state.progressRecord.taskId);
+    assert.equal(context.attrs.size, 3);
+});
+
+test("导入弹窗执行后检查点读回失败保留本轮回执，并明确阻止继续", async () => {
+    const context = harness();
+    await runImport(context.plugin, [importRow("previous-a"), importRow("previous-b")], importOptions);
+    context.failures.writeIds.add(documentId(4));
+    const rows = [importRow("readback-a"), importRow("readback-b")];
+    const dialog = await dialogHarness(context, rows, {
+        fingerprint: "b".repeat(64), afterRun: () => { context.failures.loadProgress = true; },
+    });
+    await dialog.state.startImport();
+    assert.equal(dialog.state.phase, "done");
+    assert.equal(dialog.state.summary.imported, 1);
+    assert.equal(dialog.state.summary.failed, 1);
+    assert.equal(dialog.state.summary.failedItems[0].docId, documentId(4));
+    assert.equal(dialog.state.retryRows[0].url, rows[1].url);
+    assert.equal(dialog.state.summary.taskId, dialog.results[0].taskId);
+    assert.equal(dialog.state.progressReadFailed, true);
+    assert.equal(dialog.state.progressLoaded, false);
+    assert.equal(dialog.state.progressError, "import.progress.error.read");
+    assert.equal(dialog.state.busy, false);
+    const calls = context.calls.length;
+    await dialog.state.startImport();
+    assert.equal(context.calls.length, calls);
+});
+
+test("导入弹窗检查点被另一任务替换时不混入其结果，也不重试另一任务", async () => {
+    const context = harness();
+    context.failures.writeIds.add(documentId(2));
+    const dialog = await dialogHarness(context, [importRow("changed-a"), importRow("changed-b")], {
+        afterRun: () => {
+            const replacement = structuredClone(context.files.get(IMPORT_PROGRESS_FILE));
+            replacement.taskId = "20261016120000-zzzzzzz";
+            replacement.fingerprint = "b".repeat(64);
+            replacement.rows = replacement.rows.slice(0, 1);
+            replacement.rows[0].hpath = "/导入/另一文件";
+            replacement.state = "finished";
+            context.files.set(IMPORT_PROGRESS_FILE, replacement);
+        },
+    });
+    await dialog.state.startImport();
+    assert.notEqual(dialog.state.summary.taskId, dialog.state.progressRecord.taskId);
+    assert.equal(dialog.state.summary.failed, 1);
+    assert.equal(dialog.state.retryRows.length, 1);
+    assert.equal(dialog.state.progressError, "import.progress.error.changed");
+    assert.equal(dialog.state.progressEntryTitle(dialog.state.progressRecord.rows[0], 0), "/导入/另一文件");
+    dialog.state.importConfirmed = true;
+    dialog.state.resumeConfirmed = true;
+    const calls = context.calls.length;
+    await dialog.state.startImport(dialog.state.retryRows);
+    assert.equal(context.calls.length, calls);
+});
+
+test("导入检查点行只在指纹与格式都匹配时使用当前文件标题", async () => {
+    const context = harness();
+    const rows = [importRow("preview-title")];
+    await runImport(context.plugin, rows, importOptions);
+    const dialog = await dialogHarness(context, rows);
+    const entry = dialog.state.progressRecord.rows[0];
+    entry.hpath = "/导入/检查点路径";
+    assert.equal(dialog.state.progressEntryTitle(entry, 0), "preview-title");
+    dialog.state.preview.fingerprint = "b".repeat(64);
+    assert.equal(dialog.state.progressEntryTitle(entry, 0), entry.hpath);
+    dialog.state.preview.fingerprint = importOptions.fingerprint;
+    dialog.state.preview.format = "wallabag-json";
+    assert.equal(dialog.state.progressEntryTitle(entry, 0), entry.hpath);
+    dialog.state.preview = null;
+    assert.equal(dialog.state.progressEntryTitle(entry, 0), entry.hpath);
+});
+
+test("导入弹窗保存阶段失败时保留服务确认结果与错误，不被滞后检查点覆盖", async () => {
+    const context = harness();
+    context.failures.saveProgressAt = 4;
+    const dialog = await dialogHarness(context, [importRow("save-failed")]);
+    await dialog.state.startImport();
+    assert.equal(dialog.state.phase, "done");
+    assert.equal(dialog.state.summary.imported, 1);
+    assert.equal(dialog.state.progressRecord.rows[0].state, "created");
+    assert.equal(dialog.state.progressError, "import.progress.error.save");
 });

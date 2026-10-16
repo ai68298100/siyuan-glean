@@ -352,6 +352,7 @@
   "resurface.dismissReplacement": "关闭换篇提示",
   "resurface.continueReading": "继续阅读",
   "resurface.startedToday": "今天已开始",
+  "resurface.openFailed": "已标记为阅读中，但未能打开文章。可在“今天已开始”重试打开，或撤销。",
   "resurface.noAnchor": "先选择读库笔记本",
   "resurface.allDone": "今天没有待拾的",
   "resurface.allDoneHint": "明天再见，没有负担",

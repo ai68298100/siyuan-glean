@@ -65,6 +65,7 @@ function loadMigrateService(mocks: {
     scanDocScopes?: (settings: MigrateSettings) => Promise<{ all: unknown[]; tagged: unknown[] }>;
     batchGetBlockAttrs: (ids: string[]) => Promise<{ id: string; attrs: Record<string, string> }[]>;
     exportMdContent: (id: string) => Promise<{ content: string }>;
+    readPluginJsonFile?: (pluginName: string, filename: string) => Promise<unknown | null>;
     listDocsByIds?: (ids: string[]) => Promise<unknown[]>;
     newNodeId?: () => string;
     writeClip: (plugin: unknown, id: string, patch: unknown) => Promise<{ attrs: Record<string, unknown>; skippedKeys: string[] }>;
@@ -80,6 +81,13 @@ function loadMigrateService(mocks: {
         "../api/client": {
             newNodeId: mocks.newNodeId ?? (() => "20261014000000-abcdefg"),
             exportMdContent: mocks.exportMdContent,
+        },
+        "../api/plugin-storage": {
+            readPluginJsonFile: mocks.readPluginJsonFile ?? (async (pluginName: string, filename: string) => {
+                const plugin = storagePlugins.get(pluginName);
+                assert.ok(plugin, `未注册的插件存储替身：${pluginName}`);
+                return (await plugin.loadData(filename)) ?? null;
+            }),
         },
         "../domain/candidate-policy": candidatePolicy,
         "../domain/content": content,
@@ -103,15 +111,23 @@ function loadMigrateService(mocks: {
     return serviceModule.exports as MigrateService;
 }
 
+const storagePlugins = new Map<string, { loadData(name: string): Promise<unknown> }>();
+
+function namedStoragePlugin<Storage extends { loadData(name: string): Promise<unknown> }>(plugin: Storage): Storage & { name: string } {
+    const named = Object.assign(plugin, { name: `siyuan-glean-migrate-test-${storagePlugins.size}` });
+    storagePlugins.set(named.name, named);
+    return named;
+}
+
 function memoryPlugin() {
     const files = new Map<string, unknown>();
-    return {
+    return namedStoragePlugin({
         async loadData(name: string) { return structuredClone(files.get(name)); },
         async saveData(name: string, value: unknown) { files.set(name, structuredClone(value)); },
         async removeData(name: string) { files.delete(name); },
         saved(name: string) { return structuredClone(files.get(name)); },
         seed(name: string, value: unknown) { files.set(name, structuredClone(value)); },
-    };
+    });
 }
 
 const testDocId = (label: string): string => `20261013000000-${label.padEnd(7, "0").slice(0, 7)}`;
@@ -132,13 +148,75 @@ function validProgressFixture(overrides: Record<string, unknown> = {}): Record<s
     };
 }
 
+test("首次缺失迁移检查点以原始文件结果为准，不误读 SDK 空串", async () => {
+    const plugin = memoryPlugin();
+    let sdkReads = 0;
+    plugin.loadData = async () => { sdkReads += 1; return ""; };
+    const service = loadMigrateService({
+        listAnchorDocs: async () => [], batchGetBlockAttrs: async () => [],
+        exportMdContent: async () => ({ content: "" }), writeClip: async () => ({ attrs: {}, skippedKeys: [] }),
+        readPluginJsonFile: async (pluginName, filename) => {
+            assert.equal(pluginName, plugin.name);
+            assert.equal(filename, "migrate-progress.json");
+            return plugin.saved(filename) ?? null;
+        },
+    });
+    assert.equal(await service.loadMigrateProgress(plugin as never), null);
+    assert.equal(await service.hydrateMigrateProgress(plugin as never), null);
+    await assert.rejects(service.clearInvalidMigrateProgress(plugin as never), { reason: "changed" });
+    const task = await service.startMigrateProgress(plugin as never, [{
+        id: testDocId("first"), title: "first", hpath: "/first", box: "box", url: "https://example.com/first", site: "example.com",
+        words: 1, minutes: 1, state: "pending",
+    }]);
+    assert.equal((await service.loadMigrateProgress(plugin as never))?.taskId, task.taskId);
+    await service.clearMigrateProgress(plugin as never, task.taskId);
+    assert.equal(await service.loadMigrateProgress(plugin as never), null);
+    assert.equal(sdkReads, 0, "持久化读取不能回退到会吞掉缺失/错误状态的 SDK");
+});
+
+test("原始文件中的 JSON 空字符串仍是损坏检查点，不能作为缺失覆盖", async () => {
+    const plugin = memoryPlugin();
+    plugin.seed("migrate-progress.json", "");
+    const service = loadMigrateService({
+        listAnchorDocs: async () => [], batchGetBlockAttrs: async () => [],
+        exportMdContent: async () => ({ content: "" }), writeClip: async () => ({ attrs: {}, skippedKeys: [] }),
+        readPluginJsonFile: async () => "",
+    });
+    await assert.rejects(service.loadMigrateProgress(plugin as never), { reason: "invalid" });
+    await assert.rejects(service.startMigrateProgress(plugin as never, []), { reason: "invalid" });
+    assert.equal(plugin.saved("migrate-progress.json"), "");
+});
+
+test("原始检查点读取失败时不使用 SDK 回退，也不能新建或清理任务", async () => {
+    let sdkReads = 0;
+    let writes = 0;
+    let removals = 0;
+    const plugin = namedStoragePlugin({
+        async loadData() { sdkReads += 1; return null; },
+        async saveData() { writes += 1; },
+        async removeData() { removals += 1; },
+    });
+    const service = loadMigrateService({
+        listAnchorDocs: async () => [], batchGetBlockAttrs: async () => [],
+        exportMdContent: async () => ({ content: "" }), writeClip: async () => ({ attrs: {}, skippedKeys: [] }),
+        readPluginJsonFile: async () => { throw new Error("raw read failed"); },
+    });
+    await assert.rejects(service.loadMigrateProgress(plugin as never), { reason: "readFailed" });
+    await assert.rejects(service.hydrateMigrateProgress(plugin as never), { reason: "readFailed" });
+    await assert.rejects(service.startMigrateProgress(plugin as never, []), { reason: "readFailed" });
+    await assert.rejects(service.clearInvalidMigrateProgress(plugin as never), { reason: "readFailed" });
+    assert.equal(sdkReads, 0);
+    assert.equal(writes, 0);
+    assert.equal(removals, 0);
+});
+
 test("迁移检查点读取异常向上抛出并阻止新任务覆盖", async () => {
     let writes = 0;
-    const plugin = {
+    const plugin = namedStoragePlugin({
         async loadData() { throw new Error("storage unavailable"); },
         async saveData() { writes += 1; },
         async removeData() {},
-    };
+    });
     const service = loadMigrateService({ listAnchorDocs: async () => [], batchGetBlockAttrs: async () => [], exportMdContent: async () => ({ content: "" }), writeClip: async () => ({ attrs: {}, skippedKeys: [] }) });
     await assert.rejects(service.loadMigrateProgress(plugin as never), (error: { reason?: string }) => error.reason === "readFailed");
     await assert.rejects(service.startMigrateProgress(plugin as never, []), (error: { reason?: string }) => error.reason === "readFailed");
@@ -147,11 +225,11 @@ test("迁移检查点读取异常向上抛出并阻止新任务覆盖", async ()
 
 test("迁移检查点损坏时不被当成空任务，也不会覆盖原记录", async () => {
     let writes = 0;
-    const plugin = {
+    const plugin = namedStoragePlugin({
         async loadData() { return validProgressFixture({ rows: [null] }); },
         async saveData() { writes += 1; },
         async removeData() {},
-    };
+    });
     const service = loadMigrateService({ listAnchorDocs: async () => [], batchGetBlockAttrs: async () => [], exportMdContent: async () => ({ content: "" }), writeClip: async () => ({ attrs: {}, skippedKeys: [] }) });
     await assert.rejects(service.loadMigrateProgress(plugin as never), (error: { reason?: string }) => error.reason === "invalid");
     await assert.rejects(service.startMigrateProgress(plugin as never, []), (error: { reason?: string }) => error.reason === "invalid");
@@ -161,7 +239,7 @@ test("迁移检查点损坏时不被当成空任务，也不会覆盖原记录",
 test("迁移检查点游标和行状态必须有效", async () => {
     const service = loadMigrateService({ listAnchorDocs: async () => [], batchGetBlockAttrs: async () => [], exportMdContent: async () => ({ content: "" }), writeClip: async () => ({ attrs: {}, skippedKeys: [] }) });
     for (const value of [validProgressFixture({ cursor: -1 }), validProgressFixture({ cursor: 2 }), validProgressFixture({ rows: [{ ...validProgressFixture().rows[0] as Record<string, unknown>, state: "unknown" }] })]) {
-        const plugin = { async loadData() { return value; }, async saveData() {}, async removeData() {} };
+        const plugin = namedStoragePlugin({ async loadData() { return value; }, async saveData() {}, async removeData() {} });
         await assert.rejects(service.loadMigrateProgress(plugin as never), (error: { reason?: string }) => error.reason === "invalid");
     }
 });
@@ -169,7 +247,7 @@ test("迁移检查点游标和行状态必须有效", async () => {
 test("迁移检查点的非空来源必须是 http(s) URL", async () => {
     const service = loadMigrateService({ listAnchorDocs: async () => [], batchGetBlockAttrs: async () => [], exportMdContent: async () => ({ content: "" }), writeClip: async () => ({ attrs: {}, skippedKeys: [] }) });
     for (const url of ["javascript:alert(1)", "not a url", "ftp://example.com/file"]) {
-        const plugin = { async loadData() { return validProgressFixture({ rows: [{ ...validProgressFixture().rows[0] as Record<string, unknown>, url }] }); }, async saveData() {}, async removeData() {} };
+        const plugin = namedStoragePlugin({ async loadData() { return validProgressFixture({ rows: [{ ...validProgressFixture().rows[0] as Record<string, unknown>, url }] }); }, async saveData() {}, async removeData() {} });
         await assert.rejects(service.loadMigrateProgress(plugin as never), (error: { reason?: string }) => error.reason === "invalid");
     }
 });
@@ -204,11 +282,11 @@ test("同一插件实例的并发新任务串行检查，只有一个 dry-run �
     const readGate = new Promise<void>((resolve) => { releaseRead = resolve; });
     const firstRead = new Promise<void>((resolve) => { announceRead = resolve; });
     let writes = 0;
-    const plugin = {
+    const plugin = namedStoragePlugin({
         async loadData() { announceRead(); await readGate; return structuredClone(stored); },
         async saveData(_name: string, value: unknown) { writes += 1; stored = structuredClone(value); },
         async removeData() { stored = undefined; },
-    };
+    });
     const service = loadMigrateService({ listAnchorDocs: async () => [], batchGetBlockAttrs: async () => [], exportMdContent: async () => ({ content: "" }), writeClip: async () => ({ attrs: {}, skippedKeys: [] }) });
     const row = {
         id: testDocId("parallel"), title: "parallel", hpath: "/parallel", box: "box", url: "https://example.com/parallel", site: "example.com",
@@ -257,11 +335,11 @@ test("清理损坏检查点会重新读取；读取失败或已恢复时不删�
     let raw: unknown = validProgressFixture({ rows: [null] });
     let removals = 0;
     let readFails = false;
-    const plugin = {
+    const plugin = namedStoragePlugin({
         async loadData() { if (readFails) throw new Error("temporarily unavailable"); return raw; },
         async saveData() {},
         async removeData() { removals += 1; raw = undefined; },
-    };
+    });
     const service = loadMigrateService({ listAnchorDocs: async () => [], batchGetBlockAttrs: async () => [], exportMdContent: async () => ({ content: "" }), writeClip: async () => ({ attrs: {}, skippedKeys: [] }) });
     readFails = true;
     await assert.rejects(service.clearInvalidMigrateProgress(plugin as never), (error: { reason?: string }) => error.reason === "readFailed");
@@ -461,7 +539,7 @@ test("已确认的手工来源写入失败后仍可见且可再次确认；重�
 test("写入成功但检查点保存失败时按当前属性展示已处理结果", async () => {
     const files = new Map<string, unknown>();
     let saves = 0;
-    const plugin = {
+    const plugin = namedStoragePlugin({
         async loadData(name: string) { return structuredClone(files.get(name)); },
         async saveData(name: string, value: unknown) {
             saves += 1;
@@ -469,7 +547,7 @@ test("写入成功但检查点保存失败时按当前属性展示已处理结�
             files.set(name, structuredClone(value));
         },
         async removeData(name: string) { files.delete(name); },
-    };
+    });
     const docId = testDocId("acklost");
     const attrs: Record<string, string> = {};
     const service = loadMigrateService({

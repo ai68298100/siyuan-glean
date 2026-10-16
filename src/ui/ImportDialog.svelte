@@ -86,7 +86,7 @@ function progressFailure(error: unknown): string {
     return t(i18n, `import.progress.error.${error instanceof ImportProgressError ? error.reason : "read"}`);
 }
 
-async function refreshProgress(): Promise<void> {
+async function refreshProgress(): Promise<ImportProgress | null | undefined> {
     if (progressLoading) return;
     progressLoading = true;
     try {
@@ -98,6 +98,7 @@ async function refreshProgress(): Promise<void> {
         progressLoaded = true;
         forceResetConfirmed = false;
         if (record && record.state !== "finished") { notebookId = record.notebookId; folder = record.folder; format = record.format; }
+        return record;
     } catch (error) {
         if (mounted) { progressError = progressFailure(error); progressReadFailed = true; progressLoaded = false; }
     } finally { if (mounted) progressLoading = false; }
@@ -191,7 +192,7 @@ async function onFileChosen(event: Event) {
 }
 
 function mergeSummaries(next: ImportSummary, record: ImportProgress | null): ImportSummary {
-    if (!record || !preview) return next;
+    if (!record || record.taskId !== next.taskId || !preview) return next;
     const counts = summarizeImportProgress(record);
     const failedRows = record.rows.map((entry, index) => ({ entry, row: preview!.rows[index] })).filter(({ entry }) => entry.state === "failed");
     return {
@@ -206,9 +207,17 @@ function mergeSummaries(next: ImportSummary, record: ImportProgress | null): Imp
     };
 }
 
+function progressEntryTitle(entry: ImportProgress["rows"][number], index: number): string {
+    if (preview && progressRecord && preview.fingerprint === progressRecord.fingerprint && preview.format === progressRecord.format) {
+        return preview.rows[index]?.title || entry.hpath;
+    }
+    return entry.hpath;
+}
+
 async function startImport(rowsOverride?: ImportPreviewRow[]) {
     if (busy || notebookLoading || notebookError || !preview || !targetAvailable || !progressLoaded || progressReadFailed) return;
     if (unfinished ? !resumable || !resumeConfirmed : !importConfirmed) return;
+    if (rowsOverride && progressRecord?.taskId !== summary?.taskId) return;
     phase = "importing";
     busy = true;
     progress = 0;
@@ -216,6 +225,7 @@ async function startImport(rowsOverride?: ImportPreviewRow[]) {
     progressError = "";
     controller = new AbortController();
     let result: ImportSummary | null = null;
+    let executionError = "";
     try {
         result = await runImport(facade.pluginInstance, preview.rows, {
             fingerprint: preview.fingerprint,
@@ -231,14 +241,23 @@ async function startImport(rowsOverride?: ImportPreviewRow[]) {
         });
     } catch (error) {
         if (error instanceof ImportExecutionError) result = error.summary;
-        if (mounted) progressError = progressFailure(error);
+        executionError = progressFailure(error);
+        if (mounted) progressError = executionError;
     } finally {
         facade.notifyDataChanged();
         if (mounted) {
-            if (result) { summary = mergeSummaries(result, progressRecord); retryRows = preview.rows.filter((row) => summary!.failedUrls.includes(row.url)); phase = "done"; }
-            else phase = "preview";
-            await refreshProgress();
+            // 执行回执只与本次重读的同任务检查点合并；旧窗口快照可能属于上一文件。
+            const refreshed = await refreshProgress();
             if (mounted) {
+                if (result) {
+                    // 保存失败时落盘阶段可能滞后于已完成动作，保留服务已确认的本轮结果。
+                    summary = executionError ? result : mergeSummaries(result, refreshed ?? null);
+                    retryRows = preview.rows.filter((row) => summary!.failedUrls.includes(row.url));
+                    phase = "done";
+                    if (refreshed !== undefined && refreshed?.taskId !== result.taskId) progressError = t(i18n, "import.progress.error.changed");
+                } else phase = "preview";
+                // 重读成功也不能清掉执行期的保存失败；重读失败则保留其明确错误。
+                if (!progressError && executionError) progressError = executionError;
                 busy = false;
                 controller = null;
                 resumeConfirmed = false;
@@ -302,7 +321,7 @@ function openProgressDocument(id: string): void {
                     <!-- 最多渲染前 200 条：5 万行全量建 DOM 会造成数秒级卡顿（T-3316） -->
                     {#each progressRecord.rows.slice(0, 200) as entry, index (entry.key)}
                         <div class="glean-import-progress__row">
-                            <span>{preview?.rows[index]?.title || entry.hpath} · {t(i18n, `import.progress.row.${entry.state}`)}</span>
+                            <span>{progressEntryTitle(entry, index)} · {t(i18n, `import.progress.row.${entry.state}`)}</span>
                             {#if entry.reason}<span>{t(i18n, `import.progress.reason.${entry.reason}`)}</span>{/if}
                             {#if entry.docId}<button class="glean-btn glean-btn--ghost" onclick={() => openProgressDocument(entry.docId)}>{t(i18n, "action.openDoc")}</button>{/if}
                         </div>
@@ -449,13 +468,13 @@ function openProgressDocument(id: string): void {
         {#if retryRows.length > 0}
             <p class="glean-set-row__desc" role="status">{t(i18n, "import.retryHint")}</p>
             <label class="glean-import-progress__check">
-                <input type="checkbox" bind:checked={resumeConfirmed} disabled={busy || progressReadFailed || notebookLoading || notebookError || !targetAvailable} />
+                <input type="checkbox" bind:checked={resumeConfirmed} disabled={busy || progressReadFailed || notebookLoading || notebookError || !targetAvailable || progressRecord?.taskId !== summary.taskId} />
                 {t(i18n, "import.retryConfirm")}
             </label>
         {/if}
         <div class="glean-migrate__ops glean-migrate__ops--footer">
             {#if retryRows.length > 0}
-                <button class="glean-btn glean-btn--ghost" disabled={busy || !resumeConfirmed || progressReadFailed || notebookLoading || notebookError || !targetAvailable} aria-describedby={!targetAvailable ? `${idPrefix}-retry-target-error` : undefined} onclick={() => void startImport(retryRows)}>{t(i18n, "import.retryFailed")}</button>
+                <button class="glean-btn glean-btn--ghost" disabled={busy || !resumeConfirmed || progressReadFailed || notebookLoading || notebookError || !targetAvailable || progressRecord?.taskId !== summary.taskId} aria-describedby={!targetAvailable ? `${idPrefix}-retry-target-error` : undefined} onclick={() => void startImport(retryRows)}>{t(i18n, "import.retryFailed")}</button>
             {/if}
             {#if retryRows.length > 0 && !targetAvailable}<p id={`${idPrefix}-retry-target-error`} class="glean-import-progress__error" role="alert">{t(i18n, "import.progress.error.target")}</p>{/if}
             <button class="glean-btn glean-btn--pri" onclick={() => void onClose()}>{t(i18n, "action.close")}</button>

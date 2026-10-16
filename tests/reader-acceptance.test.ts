@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { runInNewContext } from "node:vm";
-import { ScriptTarget, transpileModule } from "typescript";
+import { createSourceFile, isCallExpression, isClassDeclaration, isMethodDeclaration, ScriptTarget, transpileModule } from "typescript";
 import { compile } from "svelte/compiler";
 import { render } from "svelte/server";
 import * as serverRuntime from "svelte/internal/server";
@@ -241,4 +241,118 @@ test("摘录视图已有内容时刷新不插入占位卡，首次读取仍展�
     assert.equal((initial.match(/glean-highlights__loading-card/g) ?? []).length, 3);
     assert.ok(!background.includes("glean-highlights__loading-card"));
     assert.ok(!ready.includes("glean-highlights__loading-card"));
+});
+
+function readerRoutingHarness() {
+    const ast = createSourceFile("index.ts", entry, ScriptTarget.Latest, true);
+    const declaration = ast.statements.find(isClassDeclaration)!;
+    const member = (name: string) => declaration.members.find((item) => item.name?.getText(ast) === name)!;
+    const onload = member("onload");
+    assert.ok(isMethodDeclaration(onload));
+    const readerRegistration = onload.body!.statements.map((statement: any) => statement.expression).find((expression) =>
+        expression && isCallExpression(expression) && expression.expression.getText(ast) === "this.addTab"
+            && expression.arguments[0].properties.some((property: any) => property.name?.getText(ast) === "type" && property.initializer.getText(ast) === "READER_TAB_TYPE"));
+    assert.ok(readerRegistration);
+    const code = transpileModule(`class RoutingHarness {
+        ${["pendingReaderDocIds", "destroyedReaderTabIds", "readerOpenRequest", "openReaderTab", "consumeReaderFocus", "onunload"].map((name) => member(name).getText(ast)).join("\n")}
+        register() { const plugin = this; ${readerRegistration.getText(ast)}; }
+    }; globalThis.RoutingHarness = RoutingHarness;`, { compilerOptions: { target: ScriptTarget.ESNext } }).outputText;
+    const openRequests: Array<{ resolve: (tab: { id: string }) => void; reject: (error: Error) => void }> = [];
+    const messages: string[] = [];
+    const events = new EventTarget();
+    const instances = new Map<string, any>();
+    const focusSource = reader.slice(reader.indexOf("const onFocus = (event: Event)"), reader.indexOf("const onRecentReading ="));
+    assert.ok(focusSource.includes("consumeReaderFocus(tabId)"));
+    let registration: any;
+    const scope: any = {
+        openTab: () => new Promise((resolve, reject) => openRequests.push({ resolve, reject })),
+        READER_TAB_TYPE: "glean-reader", ReaderTab: {},
+        showMessage: (message: string) => messages.push(message), t: (_i18n: unknown, key: string) => key,
+        CustomEvent: class extends Event { detail: unknown; constructor(type: string, options: { detail: unknown }) { super(type); this.detail = options.detail; } },
+        document: { dispatchEvent: events.dispatchEvent.bind(events), createElement: () => ({ className: "" }) },
+        mount: (_component: unknown, options: { props: { facade: unknown; tabId: string } }) => {
+            const state: any = { ...options.props, docId: "" };
+            const handler = runInNewContext(transpileModule(`${focusSource}; onFocus`, { compilerOptions: { target: ScriptTarget.ESNext } }).outputText, state);
+            events.addEventListener("glean:focus-reader", handler);
+            state.dispose = () => events.removeEventListener("glean:focus-reader", handler);
+            instances.set(options.props.tabId, state);
+            return state;
+        },
+        unmount: (state: any) => state.dispose(),
+    };
+    runInNewContext(code, scope);
+    const plugin = new scope.RoutingHarness();
+    Object.assign(plugin, {
+        loaded: true, app: {}, name: "siyuan-glean", i18n: {}, onboardingTimer: null,
+        eventBus: { off() {} }, addTab: (value: unknown) => { registration = value; },
+    });
+    plugin.register();
+    const mountTab = (id: string) => {
+        const model = { tab: { id }, element: { appendChild() {} } };
+        registration.init.call(model);
+        return { model, state: instances.get(id), destroy: () => registration.destroy.call(model) };
+    };
+    return { plugin, openRequests, messages, mountTab, events, scope };
+}
+
+test("真实阅读页签路由只交付openTab返回目标，隐藏旧页签和同时可见分屏均不抢请求", async () => {
+    const { plugin, openRequests, mountTab } = readerRoutingHarness();
+    const hidden = mountTab("restored-hidden");
+    const split = mountTab("visible-split");
+    const target = mountTab("target-tab");
+    const first = plugin.openReaderTab("long-article");
+    openRequests.shift()!.resolve({ id: "target-tab" });
+    await first;
+    assert.equal(target.state.docId, "long-article");
+    assert.equal(hidden.state.docId, "");
+    assert.equal(split.state.docId, "");
+    const next = plugin.openReaderTab("short-article");
+    openRequests.shift()!.resolve({ id: "target-tab" });
+    await next;
+    assert.equal(target.state.docId, "short-article");
+    assert.equal(hidden.state.docId, "");
+    assert.equal(split.state.docId, "");
+    assert.equal(plugin.consumeReaderFocus("target-tab"), "");
+});
+
+test("较早打开的迟到响应不覆盖新文章，晚挂载目标可读取仅属于本页签的待办", async () => {
+    const { plugin, openRequests, mountTab } = readerRoutingHarness();
+    const target = mountTab("target-tab");
+    const earlier = plugin.openReaderTab("old-click");
+    const later = plugin.openReaderTab("latest-click");
+    openRequests[1].resolve({ id: "target-tab" });
+    await later;
+    openRequests[0].resolve({ id: "target-tab" });
+    await earlier;
+    assert.equal(target.state.docId, "latest-click");
+    const delayed = plugin.openReaderTab("delayed-mount");
+    openRequests[2].resolve({ id: "not-mounted-yet" });
+    await delayed;
+    assert.equal(plugin.consumeReaderFocus("target-tab"), "");
+    assert.equal(plugin.consumeReaderFocus("not-mounted-yet"), "delayed-mount");
+    assert.equal(plugin.consumeReaderFocus("not-mounted-yet"), "");
+});
+
+test("关闭目标和卸载插件都取消待办及未完成打开，打开失败显示反馈且不留下请求", async () => {
+    const { plugin, openRequests, mountTab, messages } = readerRoutingHarness();
+    const target = mountTab("closing-tab");
+    const closing = plugin.openReaderTab("closed-article");
+    target.destroy();
+    openRequests.shift()!.resolve({ id: "closing-tab" });
+    await closing;
+    assert.equal(plugin.consumeReaderFocus("closing-tab"), "");
+    assert.equal(target.state.docId, "");
+    const failed = plugin.openReaderTab("failed-article");
+    openRequests.shift()!.reject(new Error("unavailable"));
+    await failed;
+    assert.deepEqual(messages, ["msg.actionFailed"]);
+    const staged = plugin.openReaderTab("pending-article");
+    openRequests.shift()!.resolve({ id: "delayed-tab" });
+    await staged;
+    const unload = plugin.openReaderTab("unloaded-article");
+    await plugin.onunload();
+    openRequests.shift()!.resolve({ id: "another-tab" });
+    await unload;
+    assert.equal(plugin.consumeReaderFocus("delayed-tab"), "");
+    assert.equal(plugin.consumeReaderFocus("another-tab"), "");
 });

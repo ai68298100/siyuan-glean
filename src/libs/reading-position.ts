@@ -11,31 +11,53 @@ function rendered(element: HTMLElement): boolean {
 
 export function readingViewport(host: HTMLElement | null): HTMLElement | null {
     if (!host?.isConnected) return null;
-    const candidates = Array.from(host.querySelectorAll<HTMLElement>(".protyle-content, .protyle-preview"))
+    const candidates = Array.from(host.querySelectorAll<HTMLElement>(".protyle-content, .protyle-preview, .protyle-preview .b3-typography"))
         .filter((element) => {
+            if (element.matches(".b3-typography")) {
+                const preview = element.closest<HTMLElement>(".protyle-preview");
+                if (!preview || !host.contains(preview)) return false;
+            }
             const overflow = element.ownerDocument.defaultView?.getComputedStyle(element).overflowY ?? "";
             return host.contains(element) && rendered(element) && element.clientHeight > 0
-                && element.scrollHeight > element.clientHeight + 1 && /^(auto|scroll|overlay)$/.test(overflow);
+                && /^(auto|scroll|overlay)$/.test(overflow);
         });
-    return candidates.find((candidate) => !candidates.some((other) => other !== candidate && candidate.contains(other))) ?? null;
+    const overflowing = candidates.filter((element) => element.scrollHeight > element.clientHeight + 1);
+    // A short article still has a real viewport; prefer an overflowing ancestor when one exists.
+    const pool = overflowing.length ? overflowing : candidates;
+    return pool.find((candidate) => !pool.some((other) => other !== candidate && candidate.contains(other))) ?? null;
 }
 
-function readingBlocks(viewport: HTMLElement): HTMLElement[] {
-    return Array.from(viewport.querySelectorAll<HTMLElement>("[data-node-id]"))
-        .filter((element) => BLOCK_ID_PATTERN.test(element.getAttribute("data-node-id") ?? "")
-            && element.getAttribute("data-type") !== "NodeDocument" && rendered(element));
+function readingBlockId(element: HTMLElement): string {
+    return element.getAttribute("data-node-id") ?? element.getAttribute("id") ?? "";
+}
+
+function readingBlocks(host: HTMLElement, viewport: HTMLElement, docId: string): HTMLElement[] {
+    return Array.from(viewport.querySelectorAll<HTMLElement>("[data-node-id], [id]"))
+        .filter((element) => {
+            if (!viewport.contains(element) || !rendered(element) || element.getAttribute("data-type") === "NodeDocument") return false;
+            if (element.getAttribute("data-node-id") === null) {
+                // Native preview exports use id for both blocks and the document h1: never infer the root from heading order.
+                if (!BLOCK_ID_PATTERN.test(docId)) return false;
+                const typography = element.closest<HTMLElement>(".b3-typography");
+                const preview = typography?.closest<HTMLElement>(".protyle-preview");
+                if (!typography || typography === element || !preview || !host.contains(preview) || !viewport.contains(typography)) return false;
+            }
+            const id = readingBlockId(element);
+            return BLOCK_ID_PATTERN.test(id) && id !== docId;
+        });
 }
 
 function viewportTop(viewport: HTMLElement): number {
     return viewport.getBoundingClientRect().top + viewport.clientTop;
 }
 
-export function captureReadingPosition(host: HTMLElement | null, now = new Date()): ReadingPosition | null {
+export function captureReadingPosition(host: HTMLElement | null, now = new Date(), docId = ""): ReadingPosition | null {
     const viewport = readingViewport(host);
     if (!viewport) return null;
     const top = viewportTop(viewport);
     const bottom = top + viewport.clientHeight;
-    const candidates = readingBlocks(viewport).filter((element) => {
+    const blocks = readingBlocks(host!, viewport, docId);
+    const candidates = blocks.filter((element) => {
         const rect = element.getBoundingClientRect();
         return rect.bottom > top && rect.top < bottom;
     });
@@ -50,19 +72,19 @@ export function captureReadingPosition(host: HTMLElement | null, now = new Date(
     });
     const block = pool[0];
     if (!block) return null;
-    const blockId = block.getAttribute("data-node-id")!;
-    if (readingBlocks(viewport).filter((element) => element.getAttribute("data-node-id") === blockId).length !== 1) return null;
+    const blockId = readingBlockId(block);
+    if (blocks.filter((element) => readingBlockId(element) === blockId).length !== 1) return null;
     const rect = block.getBoundingClientRect();
     const offset = Math.min(10000, Math.max(0, Math.min(Math.round(top - rect.top), Math.max(0, Math.floor(rect.height) - 1))));
     if (!Number.isFinite(now.getTime())) return null;
     return parseReadingPosition({ version: 1, blockId, offset, at: now.toISOString() });
 }
 
-export function restoreReadingPosition(host: HTMLElement | null, value: ReadingPosition): boolean {
+export function restoreReadingPosition(host: HTMLElement | null, value: ReadingPosition, docId = ""): boolean {
     const position = parseReadingPosition(value);
     const viewport = readingViewport(host);
     if (!position || !viewport) return false;
-    const targets = readingBlocks(viewport).filter((element) => element.getAttribute("data-node-id") === position.blockId);
+    const targets = readingBlocks(host!, viewport, docId).filter((element) => readingBlockId(element) === position.blockId);
     if (targets.length !== 1) return false;
     const target = targets[0];
     const rect = target.getBoundingClientRect();

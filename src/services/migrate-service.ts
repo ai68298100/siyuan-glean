@@ -5,6 +5,7 @@
  */
 import type { Plugin } from "siyuan";
 import { exportMdContent, newNodeId, type DocRow } from "../api/client";
+import { readPluginJsonFile } from "../api/plugin-storage";
 import { inspectCandidate, hasValidClipStatus, type CandidateEvidence, type CandidateMissing } from "../domain/candidate-policy";
 import { inspectClipMarkdown } from "../domain/content";
 import { ATTR, documentTimeFromId, siteFromUrl, siyuanTimestamp, type ClipContentType, type ClipTimeSource } from "../domain/schema";
@@ -217,8 +218,8 @@ export function parseMigrateProgress(value: unknown): MigrateProgress {
 
 async function loadMigrateProgressUnlocked(plugin: Plugin): Promise<MigrateProgress | null> {
     try {
-        const raw = await plugin.loadData(PROGRESS_FILE);
-        if (raw === undefined || raw === null) return null;
+        const raw = await readPluginJsonFile(plugin.name, PROGRESS_FILE);
+        if (raw === null) return null;
         const progress = parseMigrateProgress(raw);
         if (record(raw) && raw.version === 1) await saveProgress(plugin, progress);
         return progress;

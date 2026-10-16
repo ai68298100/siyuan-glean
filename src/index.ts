@@ -56,7 +56,9 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
     private lastReadingDocId = "";
     private recentReadings: RecentReadingEntry[] = [];
     private pendingLibraryDocId = "";
-    private pendingReaderDocId = "";
+    private readonly pendingReaderDocIds = new Map<string, string>();
+    private readonly destroyedReaderTabIds = new Set<string>();
+    private readerOpenRequest = 0;
     private readonly openWorkbenchPopupSingleton = createDialogSingleton(
         (initialPreviewId: string | undefined, onClose: () => void) => svelteDialog({
             title: t(this.i18n, "workbench.popupTitle"),
@@ -216,13 +218,16 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
         // 阅读页签（D-0029）：内嵌真实 Protyle + 伴生栏；resize 时让实例自适应。
         this.addTab({
             type: READER_TAB_TYPE,
-            init(this: { element: Element; __gleanReaderInstance?: unknown }) {
+            init(this: { element: Element; tab: { id: string }; __gleanReaderInstance?: unknown }) {
+                plugin.destroyedReaderTabIds.delete(this.tab.id);
                 const container = document.createElement("div");
                 container.className = "glean-reader-root fn__flex-1";
                 this.element.appendChild(container);
-                this.__gleanReaderInstance = mount(ReaderTab, { target: container, props: { facade: plugin } });
+                this.__gleanReaderInstance = mount(ReaderTab, { target: container, props: { facade: plugin, tabId: this.tab.id } });
             },
             destroy(this: any) {
+                plugin.pendingReaderDocIds.delete(this.tab.id);
+                plugin.destroyedReaderTabIds.add(this.tab.id);
                 if (this.__gleanReaderInstance) {
                     unmount(this.__gleanReaderInstance as ReturnType<typeof mount>);
                     this.__gleanReaderInstance = null;
@@ -261,6 +266,9 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
 
     async onunload() {
         this.loaded = false;
+        this.readerOpenRequest += 1;
+        this.pendingReaderDocIds.clear();
+        this.destroyedReaderTabIds.clear();
         if (this.onboardingTimer !== null) {
             clearTimeout(this.onboardingTimer);
             this.onboardingTimer = null;
@@ -333,22 +341,29 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
     }
 
     private async openReaderTab(docId: string): Promise<void> {
-        this.pendingReaderDocId = docId;
-        await openTab({
-            app: this.app,
-            custom: {
-                id: `${this.name}${READER_TAB_TYPE}`,
-                icon: "iconGleanWheat",
-                title: t(this.i18n, "reader.title"),
-            },
-            keepCursor: false,
-        });
-        document.dispatchEvent(new CustomEvent("glean:focus-reader"));
+        const request = ++this.readerOpenRequest;
+        try {
+            const tab = await openTab({
+                app: this.app,
+                custom: {
+                    id: `${this.name}${READER_TAB_TYPE}`,
+                    icon: "iconGleanWheat",
+                    title: t(this.i18n, "reader.title"),
+                },
+                keepCursor: false,
+            });
+            if (!this.loaded || request !== this.readerOpenRequest || this.destroyedReaderTabIds.has(tab.id)) return;
+            // openTab 的公开返回值给出确切目标；隐藏页签和其他分屏不能抢走此次打开请求。
+            this.pendingReaderDocIds.set(tab.id, docId);
+            document.dispatchEvent(new CustomEvent("glean:focus-reader", { detail: { tabId: tab.id } }));
+        } catch {
+            if (this.loaded && request === this.readerOpenRequest) showMessage(t(this.i18n, "msg.actionFailed"), 3500);
+        }
     }
 
-    consumeReaderFocus(): string {
-        const id = this.pendingReaderDocId;
-        this.pendingReaderDocId = "";
+    consumeReaderFocus(tabId: string): string {
+        const id = this.pendingReaderDocIds.get(tabId) ?? "";
+        this.pendingReaderDocIds.delete(tabId);
         return id;
     }
 

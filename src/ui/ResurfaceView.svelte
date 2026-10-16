@@ -2,7 +2,7 @@
 /** 今日拾遗视图（T-1400/T-1402/T-1717）：确定性挑选，读了/改天/归档，平静原则文案。
  * 重浮是纯投影：输入是父级刚对账过的索引（T-1710），本组件不再另读缓存。 */
 import { showMessage } from "siyuan";
-import { onDestroy } from "svelte";
+import { onDestroy, tick } from "svelte";
 import type { GleanFacade } from "../types";
 import { t } from "../libs/i18n";
 import { actOnSurface, computeDailyFromIndex, pickSurfaceReplacementFromIndex, setSurfacePinned, undoSurfaceAction, type SurfaceAction, type SurfaceUndoToken } from "../services/resurface-service";
@@ -47,6 +47,8 @@ let observedIndex = $state<GleanIndex | null>(null);
 let actingId = $state("");
 let undoingId = $state("");
 let undoNotice = $state<{ id: string; title: string; action: SurfaceAction; token: SurfaceUndoToken } | null>(null);
+let panelRoot = $state<HTMLDivElement | undefined>(undefined);
+let undoButton = $state<HTMLButtonElement | undefined>(undefined);
 let suppressedClickId = $state("");
 let swipeState = $state<{
     id: string;
@@ -153,35 +155,58 @@ async function togglePin(pick: SurfacePick): Promise<void> {
 
 async function act(pick: SurfacePick, action: SurfaceAction) {
     if (disposed || actingId || undoingId) return;
+    const focusOrigin = document.activeElement;
+    const activeCard = focusOrigin instanceof HTMLElement ? focusOrigin.closest(".glean-surf-card") : null;
+    const moveFocus = action !== "read" && activeCard?.getAttribute("aria-labelledby") === cardTitleId(pick.item.id);
+    let applied = false;
     actingId = pick.item.id;
     try {
-        const result = await actOnSurface(facade.pluginInstance, pick.item.id, action);
+        let result: Awaited<ReturnType<typeof actOnSurface>>;
+        try {
+            result = await actOnSurface(facade.pluginInstance, pick.item.id, action);
+        } catch (error) {
+            console.warn("[glean] 拾遗动作失败:", error);
+            if (!disposed) showMessage(t(i18n, "msg.actionFailed"), 4000);
+            return;
+        }
+        if (disposed) {
+            facade.notifyDataChanged();
+            return;
+        }
         const token = result.token;
         if (result.indexSyncFailed) showMessage(t(i18n, "msg.statusIndexPending"), 4000);
-        if (facade.isMobile) {
-            undoNotice = {
-                id: pick.item.id,
-                title: pick.item.title || t(i18n, "panel.untitled"),
-                action,
-                token,
-            };
-        }
+        undoNotice = {
+            id: pick.item.id,
+            title: pick.item.title || t(i18n, "panel.untitled"),
+            action,
+            token,
+        };
         if (action === "read") {
             startedToday = [
                 ...startedToday.filter((item) => item.id !== pick.item.id),
                 { id: pick.item.id, title: pick.item.title || t(i18n, "panel.untitled") },
             ];
-            openReading(pick);
         }
         sessionPicks = picks.filter((candidate) => candidate.item.id !== pick.item.id);
         replacementExcluded = [...new Set([...replacementExcluded, pick.item.id])];
         facade.notifyDataChanged();
+        if (disposed) return;
         onMutated();
-    } catch (error) {
-        console.warn("[glean] 拾遗动作失败:", error);
-        showMessage(t(i18n, "msg.actionFailed"), 4000);
+        applied = true;
+        if (action === "read" && !disposed) {
+            try {
+                openReading(pick);
+            } catch (error) {
+                console.warn("[glean] 开始阅读后打开文章失败:", error);
+                if (!disposed) showMessage(t(i18n, "resurface.openFailed"), 4000);
+            }
+        }
     } finally {
-        actingId = "";
+        if (!disposed) actingId = "";
+    }
+    if (applied && moveFocus) {
+        await tick();
+        if (!disposed && undoNotice?.id === pick.item.id && canRestoreFocus(focusOrigin)) undoButton?.focus();
     }
 }
 
@@ -286,23 +311,51 @@ function actionLabel(action: SurfaceAction): string {
 
 async function undoLastAction(): Promise<void> {
     const notice = undoNotice;
-    if (!notice || actingId || undoingId) return;
+    if (disposed || !notice || actingId || undoingId) return;
+    const focusOrigin = document.activeElement;
+    const moveFocus = panelRoot?.contains(focusOrigin) ?? false;
+    let undone = false;
     undoingId = notice.id;
     try {
         const result = await undoSurfaceAction(facade.pluginInstance, notice.id, notice.token);
+        if (disposed) {
+            facade.notifyDataChanged();
+            return;
+        }
         undoNotice = null;
         if (result.indexSyncFailed) showMessage(t(i18n, "msg.statusIndexPending"), 4000);
         facade.notifyDataChanged();
+        if (disposed) return;
         onMutated();
+        undone = true;
     } catch {
-        showMessage(t(i18n, "resurface.undoUnavailable"), 4000);
+        if (!disposed) showMessage(t(i18n, "resurface.undoUnavailable"), 4000);
     } finally {
-        undoingId = "";
+        if (!disposed) undoingId = "";
     }
+    if (undone && moveFocus) await focusAvailablePick(focusOrigin);
 }
 
-function dismissUndo(): void {
-    if (!undoingId) undoNotice = null;
+function canRestoreFocus(origin: Element | null): boolean {
+    if (!origin) return false;
+    const active = document.activeElement;
+    return active === origin || (!origin.isConnected && (!active || active === document.body || !active.isConnected));
+}
+
+async function focusAvailablePick(origin: Element | null): Promise<void> {
+    await tick();
+    if (disposed || !canRestoreFocus(origin)) return;
+    const target = panelRoot?.querySelector<HTMLElement>(".glean-surf__title-action")
+        ?? panelRoot?.querySelector<HTMLElement>(".glean-head-actions button, .glean-empty__actions button");
+    (target ?? panelRoot)?.focus();
+}
+
+async function dismissUndo(): Promise<void> {
+    if (undoingId) return;
+    const focusOrigin = document.activeElement;
+    const moveFocus = panelRoot?.contains(focusOrigin) ?? false;
+    undoNotice = null;
+    if (moveFocus) await focusAvailablePick(focusOrigin);
 }
 
 const dateLabel = $derived.by(() => {
@@ -331,7 +384,7 @@ function reasonText(reason: SurfaceReason): string {
 }
 </script>
 
-<div class="glean-panel glean-resurface" class:glean-resurface--embedded={embedded} aria-labelledby={!embedded ? panelTitleId : undefined}>
+<div bind:this={panelRoot} tabindex="-1" class="glean-panel glean-resurface" class:glean-resurface--embedded={embedded} aria-labelledby={!embedded ? panelTitleId : undefined}>
     {#if !embedded}<header class="glean-panel__head glean-resurface__head">
         <div class="glean-brand">
             <div class="glean-brand__mark"><svg><use href="#iconGleanWheat" /></svg></div>
@@ -357,7 +410,7 @@ function reasonText(reason: SurfaceReason): string {
     {#if undoNotice}
         <div class="glean-surf-undo" role="status" aria-live="polite">
             <span class="glean-surf-undo__text">{t(i18n, "resurface.actionApplied", { action: actionLabel(undoNotice.action) })} · {undoNotice.title}</span>
-            <button class="glean-surf-undo__button" aria-busy={undoingId === undoNotice.id} disabled={!!actingId || undoingId === undoNotice.id} onclick={() => void undoLastAction()}>
+            <button bind:this={undoButton} class="glean-surf-undo__button" aria-busy={undoingId === undoNotice.id} disabled={!!actingId || undoingId === undoNotice.id} onclick={() => void undoLastAction()}>
                 {undoingId === undoNotice.id ? t(i18n, "resurface.undoing") : t(i18n, "resurface.undo")}
             </button>
             <button class="glean-surf-undo__dismiss" aria-label={t(i18n, "resurface.dismissUndo")} disabled={undoingId === undoNotice.id} onclick={dismissUndo}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanClose" /></svg></button>

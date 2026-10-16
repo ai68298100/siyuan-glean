@@ -28,7 +28,7 @@ registerHooks({
     },
 });
 
-const { batchSetStatus, batchSetStatusDetailed, captureClip, captureDocument, findClipUrlConflict, listAnchorDocs, listClipDocs, listDocsByIds, measureClipBody, readClipContext, reconcileIndex, scanDocScopes, scanPreview, writeClip } = await import(
+const { batchSetStatus, batchSetStatusDetailed, captureClip, captureDocument, findClipUrlConflict, listAnchorDocs, listClipDocs, listDocsByIds, measureClipBody, readClipContext, rebuildIndex, reconcileIndex, scanDocScopes, scanPreview, writeClip } = await import(
     "../src/services/clip-store.ts"
 );
 const { readClipAuthor, saveClipAuthor } = await import("../src/services/clip-store.ts");
@@ -148,6 +148,20 @@ function harness() {
             return { entered: entered.promise, release: () => released.resolve() };
         },
     };
+}
+
+interface IndexTestApi {
+    querySql: (sql: string) => Promise<FakeDoc[]>;
+    batchGetBlockAttrs: (ids: string[]) => Promise<Array<{ id: string; attrs: Record<string, string> }>>;
+    exportMdContent: (id: string) => Promise<{ content: string }>;
+}
+
+/** 模拟范围 SQL 的 IAL/tag 索引落后于确切 ID 元数据与实时属性。 */
+function delayScopeDiscovery(): IndexTestApi {
+    const api = (globalThis as Record<string, unknown>).__gleanTestApi as IndexTestApi;
+    const query = api.querySql;
+    api.querySql = (sql) => sql.includes("ORDER BY") ? Promise.resolve([]) : query(sql);
+    return api;
 }
 
 test("作者自动写入保护已有值及清空，显式作者编辑只改署名并读回", async () => {
@@ -496,6 +510,172 @@ test("同一插件并发打开读库只执行一次完整对账", async () => {
     ]);
     assert.deepEqual(first, second);
     assert.equal(h.queries.length, 3);
+});
+
+for (const [name, scan] of [["面板对账", reconcileIndex], ["扫描预览", scanPreview], ["完整重建", rebuildIndex]] as const) {
+    test(`${name}在 SQL IAL 延迟时补查已知 ID，完全使用实时属性和元数据`, async () => {
+        const h = harness();
+        const id = "20261016001000-abcdefg";
+        h.add(id, "old-box", { "custom-clip-status": "inbox", "custom-clip-url": "https://old.example/article" });
+        await writeClip(h.plugin as never, id, {});
+        h.docs.get(id)!.content = "实时文章标题";
+        h.docs.get(id)!.hpath = "/新目录/实时文章标题";
+        h.docs.get(id)!.box = "moved-box";
+        h.attrs.set(id, { "custom-clip-status": "reading", "custom-clip-url": "https://live.example/article", "custom-clip-rating": "5" });
+        delayScopeDiscovery();
+        const writesBefore = h.writes.length;
+
+        const result = await scan(h.plugin as never, { anchorNotebooks: [] } as never);
+        const index = h.saved.get("glean-index.json") as { clips: Record<string, { title: string; box: string; hpath: string; status: string; url: string; rating: number }> };
+        assert.deepEqual(
+            { title: index.clips[id].title, hpath: index.clips[id].hpath, box: index.clips[id].box, status: index.clips[id].status, url: index.clips[id].url, rating: index.clips[id].rating },
+            { title: "实时文章标题", hpath: "/新目录/实时文章标题", box: "moved-box", status: "reading", url: "https://live.example/article", rating: 5 },
+        );
+        if (name === "扫描预览") {
+            assert.equal((result as { total: number }).total, 1);
+            assert.equal((result as { confirmed: number }).confirmed, 1);
+        }
+        assert.equal(h.writes.length, writesBefore);
+    });
+}
+
+test("扫描期间已完成的增量写入使用锁内最新 ID 补查，不被旧扫描覆盖", async () => {
+    const h = harness();
+    const api = delayScopeDiscovery();
+    const query = api.querySql;
+    const entered = Promise.withResolvers<void>();
+    const released = Promise.withResolvers<void>();
+    api.querySql = async (sql) => {
+        if (sql.includes("ORDER BY") && sql.includes("custom-clip-status")) {
+            entered.resolve();
+            await released.promise;
+        }
+        return query(sql);
+    };
+    const scanning = reconcileIndex(h.plugin as never, { anchorNotebooks: [] } as never);
+    await entered.promise;
+    const id = "20261016001001-bcdefgh";
+    h.add(id, "outside", { "custom-clip-status": "later", "custom-clip-url": "https://new.example/article" });
+    const written = await writeClip(h.plugin as never, id, {});
+    assert.equal(written.indexSyncFailed, undefined);
+    released.resolve();
+    const index = await scanning;
+    assert.equal(index.clips[id].status, "later");
+    assert.equal(index.clips[id].url, "https://new.example/article");
+});
+
+test("已知 ID 补查清理删除与失效候选，范围由 live IAL 键和标签决定", async () => {
+    const h = harness();
+    const ids = {
+        deleted: "20261016002000-aaaaaaa", bodyMoved: "20261016002001-bbbbbbb", cleared: "20261016002002-ccccccc",
+        staleTag: "20261016002003-ddddddd", liveTag: "20261016002004-eeeeeee", urlOnly: "20261016002005-fffffff",
+        emptyUrlKey: "20261016002006-ggggggg", excluded: "20261016002007-hhhhhhh", internal: "20261016002008-iiiiiii",
+        validInternal: "20261016002009-jjjjjjj",
+    };
+    const source = "https://body.example/source";
+    for (const id of Object.values(ids)) h.add(id, "anchor", {}, source);
+    h.attrs.set(ids.deleted, { "custom-clip-status": "inbox" });
+    h.attrs.set(ids.cleared, { "custom-clip-status": "later" });
+    h.attrs.set(ids.staleTag, { tags: "剪藏" });
+    h.docs.get(ids.staleTag)!.tag = "#剪藏#";
+    h.attrs.set(ids.liveTag, { tags: "剪藏" });
+    h.docs.get(ids.liveTag)!.tag = "#旧标签#";
+    h.attrs.set(ids.urlOnly, { "custom-clip-url": "https://live.example/only" });
+    h.attrs.set(ids.emptyUrlKey, { "custom-clip-url": "" });
+    h.attrs.set(ids.excluded, { "custom-clip-url": "https://live.example/excluded" });
+    h.attrs.set(ids.internal, { "custom-clip-url": "https://live.example/internal" });
+    h.attrs.set(ids.validInternal, { "custom-clip-status": "done" });
+    await reconcileIndex(h.plugin as never, { anchorNotebooks: ["anchor"] } as never);
+
+    h.docs.delete(ids.deleted);
+    for (const doc of h.docs.values()) doc.box = "outside";
+    h.attrs.set(ids.cleared, {});
+    h.attrs.set(ids.staleTag, { tags: "普通标签" });
+    h.attrs.get(ids.excluded)!["custom-clip-excluded"] = "true";
+    h.attrs.get(ids.internal)!["custom-clip-internal"] = "true";
+    h.attrs.get(ids.validInternal)!["custom-clip-internal"] = "true";
+    delayScopeDiscovery();
+    const writesBefore = h.writes.length;
+    const index = await reconcileIndex(h.plugin as never, { anchorNotebooks: ["anchor"] } as never);
+    assert.deepEqual(Object.keys(index.clips), [ids.validInternal]);
+    assert.deepEqual(Object.keys(index.candidates).sort(), [ids.liveTag, ids.urlOnly, ids.emptyUrlKey].sort());
+    assert.ok(index.candidates[ids.liveTag].evidence.includes("clip-tag"));
+    assert.ok(index.candidates[ids.emptyUrlKey].evidence.includes("source-line"));
+    assert.equal(index.clips[ids.validInternal].internal, true);
+    assert.equal(h.writes.length, writesBefore);
+});
+
+for (const failure of ["metadata", "attrs", "omitted-attrs", "body"] as const) {
+    test(`已知 ID 补查 ${failure} 失败保留旧索引，不把不完整结果落盘`, async () => {
+        const h = harness();
+        const id = "20261016003000-abcdefg";
+        h.add(id, "outside", failure === "body" ? { tags: "剪藏" } : { "custom-clip-status": "later" }, "https://body.example/article");
+        await writeClip(h.plugin as never, id, {});
+        const before = structuredClone(h.saved.get("glean-index.json"));
+        const api = delayScopeDiscovery();
+        const query = api.querySql;
+        if (failure === "metadata") api.querySql = (sql) => sql.includes("id IN") ? Promise.reject(new Error("metadata failed")) : query(sql);
+        if (failure === "attrs") api.batchGetBlockAttrs = async () => { throw new Error("attrs failed"); };
+        if (failure === "omitted-attrs") api.batchGetBlockAttrs = async () => [];
+        if (failure === "body") api.exportMdContent = async () => { throw new Error("body failed"); };
+        await assert.rejects(reconcileIndex(h.plugin as never, { anchorNotebooks: [] } as never), failure === "omitted-attrs" ? /无法读取文档/ : /failed/);
+        assert.deepEqual(h.saved.get("glean-index.json"), before);
+    });
+}
+
+test("补查属性响应省略 ID 时复查已删除文档，可安全清理而不冒充读取失败", async () => {
+    const h = harness();
+    const id = "20261016004000-abcdefg";
+    h.add(id, "outside", { "custom-clip-status": "inbox" });
+    await writeClip(h.plugin as never, id, {});
+    const api = delayScopeDiscovery();
+    api.batchGetBlockAttrs = async () => {
+        h.docs.delete(id);
+        return [];
+    };
+    const index = await reconcileIndex(h.plugin as never, { anchorNotebooks: [] } as never);
+    assert.deepEqual(index.clips, {});
+    assert.deepEqual(index.candidates, {});
+});
+
+test("补查期间出现更新一代扫描时旧任务不落盘，新任务可继续补查", async () => {
+    const h = harness();
+    const id = "20261016005000-abcdefg";
+    h.add(id, "outside", { "custom-clip-status": "inbox" });
+    await writeClip(h.plugin as never, id, {});
+    const api = delayScopeDiscovery();
+    const readAttrs = api.batchGetBlockAttrs;
+    const entered = Promise.withResolvers<void>();
+    const released = Promise.withResolvers<void>();
+    let held = false;
+    api.batchGetBlockAttrs = async (ids) => {
+        if (ids.includes(id) && !held) {
+            held = true;
+            entered.resolve();
+            await released.promise;
+        }
+        return readAttrs(ids);
+    };
+    const scanning = reconcileIndex(h.plugin as never, { anchorNotebooks: [] } as never);
+    const rejected = assert.rejects(scanning, /superseded/);
+    await entered.promise;
+    const newer = rebuildIndex(h.plugin as never, { anchorNotebooks: [] } as never);
+    released.resolve();
+    await rejected;
+    assert.equal((await newer).clips[id].status, "inbox");
+});
+
+test("派生缓存读取失败仍允许用完整扫描修复重建，不要求缓存先恢复可读", async () => {
+    const h = harness();
+    const id = "20261016006000-abcdefg";
+    h.add(id, "anchor", { "custom-clip-status": "reading" });
+    h.setFailLoadIndex(true);
+    const index = await rebuildIndex(h.plugin as never, { anchorNotebooks: ["anchor"] } as never);
+    assert.equal(index.clips[id].status, "reading");
+    assert.equal((h.saved.get("glean-index.json") as { clips: Record<string, { status: string }> }).clips[id].status, "reading");
+    h.setFailLoadIndex(false);
+    const written = await writeClip(h.plugin as never, id, { status: "done" }, { forceStatus: true });
+    assert.equal(written.indexSyncFailed, undefined);
 });
 
 test("大量普通笔记模板检查最多并发四篇，不退化为串行导出", async () => {

@@ -352,6 +352,7 @@
   "resurface.dismissReplacement": "Dismiss swap notice",
   "resurface.continueReading": "Continue reading",
   "resurface.startedToday": "Started today",
+  "resurface.openFailed": "Marked as reading, but the article could not be opened. Try opening it from Started today, or undo the action.",
   "resurface.noAnchor": "Choose your library notebooks first",
   "resurface.allDone": "Nothing to glean today",
   "resurface.allDoneHint": "See you tomorrow — no strings attached",

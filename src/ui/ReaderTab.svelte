@@ -48,9 +48,10 @@ import { aiFailureKey } from "../libs/ai-feedback";
 
     interface Props {
         facade: GleanFacade;
+        tabId: string;
     }
 
-    let { facade }: Props = $props();
+    let { facade, tabId }: Props = $props();
     const i18n = $derived(facade.i18n);
     const instanceId = $props.id();
     const idFor = (part: string) => `glean-reader-${instanceId}-${part}`;
@@ -161,7 +162,7 @@ import { aiFailureKey } from "../libs/ai-feedback";
 
     onMount(() => {
         mounted = true;
-        docId = facade.consumeReaderFocus();
+        docId = facade.consumeReaderFocus(tabId);
         refreshRecentReadings();
         mode = facade.settings.reader.defaultMode;
         void loadUiPrefs(facade.pluginInstance).then((prefs) => {
@@ -535,8 +536,9 @@ import { aiFailureKey } from "../libs/ai-feedback";
 
     // 页签聚焦与尺寸事件由壳派发；数据变化后只刷新伴生栏，不动正文实例。
     $effect(() => {
-        const onFocus = () => {
-            const id = facade.consumeReaderFocus();
+        const onFocus = (event: Event) => {
+            if ((event as CustomEvent<{ tabId: string }>).detail?.tabId !== tabId) return;
+            const id = facade.consumeReaderFocus(tabId);
             if (id) docId = id;
         };
         const onRecentReading = () => refreshRecentReadings();
@@ -1101,6 +1103,9 @@ import { aiFailureKey } from "../libs/ai-feedback";
                         onSetStatus={(status) => void writeStatus(status)}
                     />
                 </div>
+                {#if context.id === docId}
+                    <ReadingPositionControls {facade} {docId} host={protyleHost} instanceId={idFor("reading-position")} />
+                {/if}
                 <div class="glean-reader__section glean-reader__section--utility" aria-labelledby={rankTitleId}>
                     <div id={rankTitleId} class="glean-reader__section-title" role="heading" aria-level="3">{t(i18n, "panel.rankTitle")}</div>
                     <ClipRankControls
@@ -1133,7 +1138,6 @@ import { aiFailureKey } from "../libs/ai-feedback";
                         </div>
                     </div>
                     {#if context?.id === docId}<AuthorEditor {facade} {docId} onSaved={() => { if (docId) return loadContext(docId); }} />{/if}
-                    <ReadingPositionControls {facade} {docId} host={protyleHost} instanceId={idFor("reading-position")} />
                     {#if context && speechSupported}
                         <div class="glean-reader__section glean-reader__section--utility glean-reader__speech" aria-labelledby={speechTitleId}>
                             <div id={speechTitleId} class="glean-reader__section-title" role="heading" aria-level="3">{t(i18n, "reader.speechTitle")}</div>

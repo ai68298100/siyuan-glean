@@ -2,6 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { runInNewContext } from "node:vm";
+import { transpileModule } from "typescript";
 
 const root = resolve(import.meta.dirname, "..");
 const read = (file: string) => readFileSync(resolve(root, file), "utf8");
@@ -75,6 +77,135 @@ test("settings tabs use one keyboard stop and close requires resolving unsaved d
     assert.match(dialog, /args\.canClose\?\.\(\) === false/);
     assert.match(dialog, /closeGuard\?\.\(\) \?\? true/);
     assert.match(dialog, /stopImmediatePropagation\(\);/);
+});
+
+test("settings validation activates the field's category before rendering and focusing it", async () => {
+    const source = read("src/ui/SettingsView.svelte");
+    const sectionStart = source.indexOf("function selectSection(");
+    const sectionEnd = source.indexOf("/** ARIA tabs", sectionStart);
+    const validationStart = source.indexOf("function validateDraft(");
+    const validationEnd = source.indexOf("function buildDraftSettings(", validationStart);
+    const saveStart = source.indexOf("async function save()");
+    const saveEnd = source.indexOf("async function dismissNewbieHint", saveStart);
+    assert.ok(sectionStart >= 0 && sectionEnd > sectionStart && validationStart >= 0 && validationEnd > validationStart && saveStart >= 0 && saveEnd > saveStart);
+    const functions = transpileModule([
+        source.slice(sectionStart, sectionEnd),
+        source.slice(validationStart, validationEnd),
+        source.slice(saveStart, saveEnd),
+    ].join("\n"), {}).outputText;
+    const cases = [
+        { field: "aiDailyCap", section: "ai", patch: { aiDailyCap: 501 } },
+        { field: "dailyCount", section: "resurface", patch: { dailyCount: 0 } },
+        { field: "inboxQuota", section: "resurface", patch: { inboxQuota: 4 } },
+        { field: "staleDays", section: "resurface", patch: { staleDays: Number.NaN } },
+        { field: "customBaseUrl", section: "aiChannel", patch: { aiChannel: "custom", customBaseUrl: "" } },
+        { field: "customModel", section: "aiChannel", patch: { aiChannel: "custom", customModel: " " } },
+        { field: "customSecretName", section: "aiChannel", patch: { aiChannel: "custom", customSecretName: " " } },
+    ];
+    for (const scenario of cases) {
+        let renderedSection = "workspace";
+        let focused = false;
+        const state = {
+            activeSection: "workspace", dataVisited: false, maintenanceVisited: false,
+            saveBusy: false, validationField: "", validationError: "",
+            aiDailyCap: 10, dailyCount: 3, inboxQuota: 50, staleDays: 90,
+            aiChannel: "siyuan", customBaseUrl: "https://example.test/v1", customModel: "model", customSecretName: "secret",
+            i18n: {}, t: (_: unknown, key: string) => key,
+            tick: async () => {
+                assert.equal(state.activeSection, scenario.section, "分类必须先切换，再等待字段挂载");
+                assert.equal(focused, false);
+                renderedSection = state.activeSection;
+            },
+            settingsRoot: {
+                querySelector(selector: string) {
+                    assert.equal(selector, '[aria-invalid="true"]');
+                    assert.equal(renderedSection, scenario.section, "隐藏分类的字段尚未挂载，不能提前聚焦");
+                    assert.equal(state.validationField, scenario.field);
+                    return { focus: () => { focused = true; } };
+                },
+            },
+            facade: { updateSettings: () => assert.fail("校验失败不应保存设置") },
+            ...scenario.patch,
+        };
+        const save = runInNewContext(`${functions}; save`, state);
+        await save();
+        assert.equal(focused, true, scenario.field);
+        assert.ok(state.validationError.length > 0);
+        assert.equal(state.saveBusy, false);
+    }
+});
+
+test("settings clears only resolved validation without saving, navigating or replacing the draft", async () => {
+    const source = read("src/ui/SettingsView.svelte");
+    const sectionStart = source.indexOf("function selectSection(");
+    const validationStart = source.indexOf("function clearResolvedValidation(");
+    assert.ok(validationStart >= 0);
+    const functions = transpileModule([
+        source.slice(sectionStart, source.indexOf("/** ARIA tabs", sectionStart)),
+        source.slice(validationStart, source.indexOf("function buildDraftSettings(", validationStart)),
+        source.slice(source.indexOf("async function save()"), source.indexOf("async function dismissNewbieHint")),
+    ].join("\n"), {}).outputText;
+    let refreshValidation: () => void = () => assert.fail("校验清理必须接入草稿响应更新");
+    const focused: string[] = [];
+    const state = {
+        activeSection: "workspace", dataVisited: false, maintenanceVisited: false,
+        saveBusy: false, validationField: "", validationError: "",
+        aiDailyCap: 10, dailyCount: 0, inboxQuota: 50, staleDays: 90,
+        aiChannel: "siyuan", customBaseUrl: "https://example.test/v1", customModel: "model", customSecretName: "secret",
+        readerMode: "edit", i18n: {}, t: (_: unknown, key: string) => key,
+        $effect: (effect: () => void) => { refreshValidation = effect; },
+        tick: async () => {},
+        settingsRoot: { querySelector: () => ({ focus: () => focused.push(state.validationField) }) },
+        facade: { updateSettings: () => assert.fail("纠正字段不能自动保存设置") },
+    };
+    const save = runInNewContext(`${functions}; save`, state);
+    await save();
+    assert.equal(state.validationField, "dailyCount");
+    const originalError = state.validationError;
+    refreshValidation();
+    state.dailyCount = -1;
+    refreshValidation();
+    assert.equal(state.validationError, originalError, "字段仍无效时必须保留错误提示");
+
+    state.aiDailyCap = 501;
+    refreshValidation();
+    assert.equal(state.validationField, "dailyCount", "其他字段变成更早的错误也不能清除仍无效的当前字段");
+    state.activeSection = "reading";
+    state.dailyCount = 3;
+    refreshValidation();
+    assert.equal(state.validationField, "", "纠正后同步清除 aria-invalid 的来源");
+    assert.equal(state.validationError, "");
+    assert.equal(state.activeSection, "reading", "清理提示不能跳分类");
+    assert.equal(state.dailyCount, 3);
+    assert.equal(state.aiDailyCap, 501, "保留其他未保存草稿");
+    assert.equal(state.readerMode, "edit");
+    assert.deepEqual(focused, ["dailyCount"], "纠正字段不能移动焦点");
+
+    await save();
+    assert.equal(state.validationField, "aiDailyCap", "下一次保存再定位其他字段错误");
+    assert.equal(state.activeSection, "ai");
+    assert.deepEqual(focused, ["dailyCount", "aiDailyCap"]);
+
+    state.aiDailyCap = 10;
+    refreshValidation();
+    state.aiChannel = "custom";
+    state.customModel = " ";
+    await save();
+    assert.equal(state.validationField, "customModel");
+    state.customModel = "replacement-model";
+    refreshValidation();
+    assert.equal(state.validationField, "");
+    assert.equal(state.validationError, "");
+    assert.equal(state.customModel, "replacement-model");
+
+    state.customSecretName = " ";
+    await save();
+    assert.equal(state.validationField, "customSecretName");
+    state.aiChannel = "siyuan";
+    refreshValidation();
+    assert.equal(state.validationField, "", "切离自定义通道后不保留已不适用的错误");
+    assert.equal(state.validationError, "");
+    assert.equal(state.customSecretName, " ", "隐藏自定义通道不能改写其草稿");
 });
 
 test("migration checkpoints expose loading, retry, and distinct empty-filter feedback", () => {

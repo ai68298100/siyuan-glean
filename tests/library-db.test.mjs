@@ -124,6 +124,12 @@ function harness() {
                     if (controls.failMeta.has(sourceId)) throw new Error("Metadata unavailable");
                     return { code: 0, data: documents.has(sourceId) ? [structuredClone(documents.get(sourceId))] : [] };
                 }
+                const sourceIdsSql = /\bid IN \(([^)]+)\)/.exec(body.stmt)?.[1];
+                if (sourceIdsSql) {
+                    const sourceIds = [...sourceIdsSql.matchAll(/'([^']+)'/g)].map((match) => match[1]);
+                    if (sourceIds.some((id) => controls.failMeta.has(id))) throw new Error("Metadata unavailable");
+                    return { code: 0, data: sourceIds.filter((id) => documents.has(id)).map((id) => structuredClone(documents.get(id))) };
+                }
                 if (body.stmt.includes("type = 'av'")) {
                     assert.ok(body.stmt.includes(`parent_id = '${hostId}'`));
                     if (controls.avDiscoveryMisses > 0) {
@@ -243,6 +249,7 @@ test("根属性决定状态，陈旧索引和 AV 单元格不能成为文章状�
     assert.equal(fixture.statusCell(firstId).mSelect[0].content, "reading");
     assert.equal(fixture.files.get("glean-index.json").clips[firstId].status, "reading");
     assert.equal(fixture.files.get("glean-index.json").clips[missingId], undefined);
+    assert.ok(fixture.calls.some((call) => call.route === "/api/query/sql" && call.body.stmt.includes(`id IN ('${missingId}')`)));
     assert.equal(fixture.bindingCalls().length, 0);
     assert.ok(fixture.calls.some((call) => call.route === "/api/attr/batchGetBlockAttrs"));
     assertSourcesUnchanged(fixture, before);

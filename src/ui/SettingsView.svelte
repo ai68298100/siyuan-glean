@@ -257,19 +257,27 @@ function loadDraft(settings: GleanSettings) {
     readerMode = settings.reader.defaultMode;
 }
 
-function validateDraft(): { field: string; message: string } | null {
-    const numeric: Array<[string, number, number, number]> = [
-        ["aiDailyCap", aiDailyCap, 0, 500],
-        ["dailyCount", dailyCount, 1, 10],
-        ["inboxQuota", inboxQuota, 5, 1000],
-        ["staleDays", staleDays, 7, 3650],
+function clearResolvedValidation(): void {
+    if (!validationField || validateDraft(validationField)) return;
+    validationField = "";
+    validationError = "";
+}
+
+$effect(clearResolvedValidation);
+
+function validateDraft(field?: string): { field: string; section: SettingsSectionId; message: string } | null {
+    const numeric: Array<[string, SettingsSectionId, number, number, number]> = [
+        ["aiDailyCap", "ai", aiDailyCap, 0, 500],
+        ["dailyCount", "resurface", dailyCount, 1, 10],
+        ["inboxQuota", "resurface", inboxQuota, 5, 1000],
+        ["staleDays", "resurface", staleDays, 7, 3650],
     ];
-    const invalid = numeric.find(([, value, min, max]) => !Number.isFinite(value) || value < min || value > max);
-    if (invalid) return { field: invalid[0], message: t(i18n, "settings.invalidNumber") };
+    const invalid = numeric.find(([key, , value, min, max]) => (!field || field === key) && (!Number.isFinite(value) || value < min || value > max));
+    if (invalid) return { field: invalid[0], section: invalid[1], message: t(i18n, "settings.invalidNumber") };
     if (aiChannel === "custom") {
-        if (!/^https?:\/\//i.test(customBaseUrl.trim())) return { field: "customBaseUrl", message: t(i18n, "settings.customBaseUrlInvalid") };
-        if (!customModel.trim()) return { field: "customModel", message: t(i18n, "settings.customModelRequired") };
-        if (!customSecretName.trim()) return { field: "customSecretName", message: t(i18n, "settings.customSecretRequired") };
+        if ((!field || field === "customBaseUrl") && !/^https?:\/\//i.test(customBaseUrl.trim())) return { field: "customBaseUrl", section: "aiChannel", message: t(i18n, "settings.customBaseUrlInvalid") };
+        if ((!field || field === "customModel") && !customModel.trim()) return { field: "customModel", section: "aiChannel", message: t(i18n, "settings.customModelRequired") };
+        if ((!field || field === "customSecretName") && !customSecretName.trim()) return { field: "customSecretName", section: "aiChannel", message: t(i18n, "settings.customSecretRequired") };
     }
     return null;
 }
@@ -310,6 +318,7 @@ async function save() {
     if (validation) {
         validationField = validation.field;
         validationError = validation.message;
+        selectSection(validation.section);
         await tick();
         settingsRoot?.querySelector<HTMLElement>(`[aria-invalid="true"]`)?.focus();
         return;
