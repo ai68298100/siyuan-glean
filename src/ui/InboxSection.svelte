@@ -189,9 +189,9 @@ async function dismiss(item: Shorthand) {
                     {#each items as item (item.oId)}
                         <div class="glean-inbox__item" aria-busy={busyId === item.oId}>
                             <div class="glean-inbox__body">
-                                <div class="glean-inbox__title">{item.shorthandTitle || item.shorthandURL || t(i18n, "panel.untitled")}</div>
+                                <div class="glean-inbox__title" title={item.shorthandTitle || item.shorthandURL || t(i18n, "panel.untitled")}>{item.shorthandTitle || item.shorthandURL || t(i18n, "panel.untitled")}</div>
                                 {#if item.shorthandURL}
-                                    <div class="glean-inbox__url">{item.shorthandURL}</div>
+                                    <div class="glean-inbox__url" title={item.shorthandURL}>{item.shorthandURL}</div>
                                 {/if}
                             </div>
                             <div class="glean-inbox__ops">

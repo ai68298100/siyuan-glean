@@ -291,6 +291,7 @@ function continueLater(): void {
                 {#each notebooks as notebook (notebook.id)}
                     <button
                         class="glean-nb"
+                        title={notebook.name}
                         class:glean-nb--on={anchorNotebooks.includes(notebook.id)}
                         aria-pressed={anchorNotebooks.includes(notebook.id)}
                         disabled={actionBusy || scanning}

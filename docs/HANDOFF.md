@@ -1,5 +1,12 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-16 跨页面标题与窄容器修复）
+
+- T-3357/D-0231：跨页审查已收口 shell 与正文容器边界。`.glean-panel__body` 注册 `glean-content` 并保留 `glean-workbench` 兼容名；独立 Reader 根注册 `glean-workbench`，阅读上下文注册 `glean-reading-context`。统计页头/日期筛选、批量条、今日拾遗、高亮头部和专注工具栏按自身可用宽度换行。
+- Inbox、导入/迁移、引导笔记本、WorkbenchPreview、ReadingContext 与 canonical 原型补完整标题提示或长词换行；高亮选择区从通用 10px 行列拆出，移动设置弹窗清除继承外边距。
+- 隔离思源 `3.8.8-alpha.1`（`cross-page-audit`）使用 4 篇合成长标题完成 1280/1050/560/390 宽度和今日/读库/统计/高亮/设置/Reader/批量状态回归。统计 1280 与 1050 的内容 scrollWidth 等于 clientWidth；560 高亮范围 434/434，390 高亮卡片 263/263，560 今日动作 419/419，560 设置 441/441，560 批量条 433/433；Reader 专注 1000 宽时工具栏 wrap，标题区 648px。证据在 `output/cross-page-audit/`，日志无 warn/error。
+- 门禁：`pnpm check` 0 错误/0 警告、全量测试 1353/1353、`pnpm build`、`pnpm check:release`、`pnpm perf:check`、`pnpm visual:check` 与任务台账通过；版本保持 1.3.6，未发版/未 push。真实用户主题、真实长标题和窄/移动设备仍待 B-0002。
+
 ## 当前有效交接（2026-10-16 读库标题与密度修复）
 
 - T-3356/D-0230：针对作者截图的标题不可见与行卡过宽过高，已确认根因是旧 flex 行被固定元信息和操作组占满，错误按工作台整体宽度强制不换行，标题缩到 0；标题数据链未丢失。

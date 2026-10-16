@@ -1,5 +1,6 @@
 <script lang="ts">
-// 宽屏布局契约集中在 src/index.scss：@container glean-workbench (min-width: 760px)
+// 宽屏布局按 src/index.scss 的 glean-content 内容容器计算（扣除工作台导航）；
+// @container glean-content (min-width: 760px)
 // 下 .glean-stats__metrics 有四列基础网格；本页首屏覆盖为三张主卡和 30 天趋势，
 // 其余指标、全年热力图与分布收进可展开区，避免统计页一打开就被次要数字淹没。
 // .glean-stats__distributions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }，
@@ -510,33 +511,30 @@ function downloadCsv(): void {
 
     .glean-stats__overview .glean-stats__toolbar--filters label {
         flex: 0 1 160px;
+        min-width: 0;
         color: var(--b3-theme-on-surface);
         font-size: 12px;
         font-weight: 650;
         line-height: 1.35;
-        white-space: nowrap;
+        white-space: normal;
+        overflow-wrap: anywhere;
     }
 
-    .glean-stats__overview .glean-stats__toolbar--filters { gap: var(--glean-space-2); }
-
-    @media (min-width: 641px) {
-        .glean-stats__overview .glean-stats__toolbar--filters {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(136px, 1fr));
-            align-items: start;
-        }
-    }
-
-    @container glean-workbench (min-width: 640px) {
-        .glean-stats__overview .glean-stats__toolbar--filters {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(136px, 1fr));
-            align-items: start;
-        }
+    .glean-stats__overview .glean-stats__toolbar--filters {
+        display: grid;
+        flex: 0 1 320px;
+        width: min(100%, 320px);
+        min-width: 0;
+        max-width: 100%;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 136px), 1fr));
+        gap: var(--glean-space-2);
+        align-items: start;
     }
 
     .glean-stats__overview .glean-stats__field {
-        min-width: 136px;
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
         min-height: 36px;
         margin-top: 4px;
         padding: 7px 10px;
@@ -754,13 +752,23 @@ function downloadCsv(): void {
     }
 
     @media (max-width: 640px) {
+        .glean-stats__overview .glean-stats__toolbar--filters {
+            flex: 0 1 auto;
+            width: 100%;
+        }
+
         .glean-stats__overview .glean-stats__toolbar--filters label {
             flex: 1 1 0;
             white-space: normal;
         }
     }
 
-    @container glean-workbench (max-width: 639px) {
+    @container glean-workbench (max-width: 640px) {
+        .glean-stats__overview .glean-stats__toolbar--filters {
+            flex: 0 1 auto;
+            width: 100%;
+        }
+
         .glean-stats__overview .glean-stats__toolbar--filters label {
             flex: 1 1 0;
             white-space: normal;

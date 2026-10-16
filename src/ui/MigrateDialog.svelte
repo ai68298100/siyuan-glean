@@ -491,7 +491,7 @@ function rowDetail(row: MigrateRow): string {
             {:else}
             {#each visibleRows as row (row.id)}
                 <div class="glean-mrow" aria-busy={rowBusyId === row.id}>
-                    <span class="glean-mrow__ti">{row.title || row.hpath}</span>
+                    <span class="glean-mrow__ti" title={row.title || row.hpath}>{row.title || row.hpath}</span>
                         <span class="glean-mrow__url" title={row.detail || ""}>{row.url || "—"}</span>
                     <span class={rowStateClass(row)} title={row.detail || ""}>{rowStateLabel(row)}</span>
                         {#if row.state === "manual" || !!row.resolution}
@@ -567,7 +567,7 @@ function rowDetail(row: MigrateRow): string {
         <div class="glean-mtable">
             {#each rows as row (row.id)}
                 <div class="glean-mrow" aria-busy={rowBusyId === row.id}>
-                    <span class="glean-mrow__ti" title={row.hpath}>{row.title || row.hpath}</span>
+                    <span class="glean-mrow__ti" title={row.title || row.hpath}>{row.title || row.hpath}</span>
                     <span class="glean-mrow__url">{row.url || "—"}</span>
                     <span class={rowStateClass(row)} title={row.detail || ""}>{rowStateLabel(row)}</span>
                         {#if (row.state === "manual" || (phase === "paused" && !!row.resolution)) && phase !== "running"}
@@ -619,7 +619,7 @@ function rowDetail(row: MigrateRow): string {
             <div class="glean-mtable">
                 {#each rows.filter((row) => row.state === "manual" || row.state === "error") as row (row.id)}
                     <div class="glean-mrow" aria-busy={rowBusyId === row.id}>
-                        <span class="glean-mrow__ti" title={row.hpath}>{row.title || row.hpath}</span>
+                        <span class="glean-mrow__ti" title={row.title || row.hpath}>{row.title || row.hpath}</span>
                         <span class={rowStateClass(row)} title={row.detail || ""}>{rowStateLabel(row)}</span>
                         {#if row.state === "error" || row.detail === "reconfirm-decision" || row.detail === "planned-action-failed"}
                             <span class="glean-mrow__why">{rowDetail(row)}</span>

@@ -140,10 +140,13 @@ test("prototype separates library and highlights data, filtered-empty and empty-
 
 test("wide canvas resurface cards use an adaptive grid while dock stays single column", () => {
     const styles = read("src/index.scss");
-    const wide = styles.slice(styles.indexOf("@container glean-workbench (min-width: 760px)"));
+    const wideStart = styles.indexOf("@container glean-content (min-width: 760px)");
+    const wideEnd = styles.indexOf("@container glean-content (max-width: 560px)", wideStart);
+    assert.ok(wideStart >= 0 && wideEnd > wideStart);
+    const wide = styles.slice(wideStart, wideEnd);
     assert.match(wide, /\.glean-surf\s*\{[\s\S]*display:\s*grid/);
     assert.match(wide, /grid-template-columns:\s*repeat\(auto-fit, minmax\(min\(100%, 310px\), 1fr\)\)/);
-    assert.match(wide, /\.glean-surf__acts\s*\{[\s\S]*flex-wrap:\s*wrap/);
+    assert.match(wide, /\.glean-surf__acts\s*\{[^}]*display:\s*grid[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
     assert.match(wide, /\.glean-surf-foot\s*\{[\s\S]*grid-column:\s*1\s*\/\s*-1/);
     assert.match(wide, /\.glean-surf-swipe\s*\{[\s\S]*display:\s*flex/);
     assert.match(wide, /\.glean-surf-card\s*\{[\s\S]*display:\s*flex[\s\S]*flex-direction:\s*column/);
@@ -155,11 +158,15 @@ test("wide canvas resurface cards use an adaptive grid while dock stays single c
 
 test("narrow workbench containers keep resurface actions readable without entrance animation", () => {
     const styles = read("src/index.scss");
-    const narrow = styles.slice(styles.indexOf("@container glean-workbench (max-width: 560px)"));
+    const wideStart = styles.indexOf("@container glean-content (min-width: 760px)");
+    const narrowStart = styles.indexOf("@container glean-content (max-width: 560px)", wideStart);
+    const narrowEnd = styles.indexOf(".glean-quota {", narrowStart);
+    assert.ok(wideStart >= 0 && narrowStart > wideStart && narrowEnd > narrowStart);
+    const narrow = styles.slice(narrowStart, narrowEnd);
     assert.match(narrow, /\.glean-surf__acts\s*\{[\s\S]*display:\s*grid[\s\S]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
     assert.match(narrow, /\.glean-surf-act--pri\s*\{[\s\S]*grid-column:\s*1 \/ -1/);
     assert.match(narrow, /\.glean-surf-act\s*\{[\s\S]*white-space:\s*normal[\s\S]*overflow-wrap:\s*anywhere/);
-    assert.match(narrow, /\.glean-surf-card\s*\{\s*animation:\s*none/);
+    assert.match(narrow, /\.glean-surf-card\s*\{\s*animation:\s*var\(--glean-motion-none\)/);
 });
 
 test("mobile resurface exposes prototype quick actions through parent navigation callbacks", () => {
@@ -201,7 +208,7 @@ test("stats prioritize three primary metrics and keep the supplemental snapshot 
     const styles = read("src/index.scss");
     assert.match(source, /class="glean-stats__distribution"/);
     assert.match(source, /class="glean-stats__distributions"/);
-    assert.match(source, /@container\s+glean-workbench\s*\(min-width:\s*760px\)/);
+    assert.match(source, /@container\s+glean-content\s*\(min-width:\s*760px\)/);
     assert.match(source, /\.glean-stats__overview\s*>\s*\.glean-stats__metrics\s*\{\s*grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\)/);
     assert.match(source, /\.glean-stats__metrics--supplemental\s*\{\s*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
     assert.match(source, /aria-labelledby=\{idFor\("breakdown-title"\)\}/);
@@ -217,12 +224,12 @@ test("stats prioritize three primary metrics and keep the supplemental snapshot 
     assert.match(source, /role="img"/);
     assert.match(source, /i18n, "review\.heatmapDay"/);
     assert.match(source, /\.glean-stats__intro \{\s*align-items: flex-start;/);
-    assert.match(source, /grid-template-columns: repeat\(2, minmax\(136px, 1fr\)\)/);
+    assert.match(source, /grid-template-columns: repeat\(auto-fit, minmax\(min\(100%, 136px\), 1fr\)\)/);
     assert.match(styles, /\.glean-stats__metrics\s*\{\s*grid-template-columns:\s*repeat\(4, minmax\(0, 1fr\)\)/);
     assert.match(source, /\.glean-stats__distributions\s*\{\s*display:\s*grid;\s*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
     assert.match(source, /\.glean-stats__distribution\s*\{\s*min-width:\s*0/);
     assert.match(styles, /@media \(max-width: 640px\)[\s\S]*\.glean-stats__trend[\s\S]*grid-auto-columns: minmax\(3px, 1fr\)[\s\S]*overflow-x: auto/);
-    assert.match(styles, /@container glean-workbench \(max-width: 640px\)[\s\S]*\.glean-stats__trend-bar \{ min-width: 3px; \}/);
+    assert.match(styles, /@container glean-content \(max-width: 640px\)[\s\S]*\.glean-stats__trend-bar \{ min-width: 3px; \}/);
 });
 
 test("all three canvas roots use the same workbench container contract", () => {

@@ -409,7 +409,7 @@ function openProgressDocument(id: string): void {
         <div class="glean-mtable glean-import__table">
             {#each pagedRows as row (row.url)}
                 <div class="glean-mrow" class:glean-mrow--duplicate={row.duplicate} data-status={row.duplicate ? "duplicate" : row.status}>
-                    <span class="glean-mrow__ti">{row.title || row.url}</span>
+                    <span class="glean-mrow__ti" title={row.title || row.url}>{row.title || row.url}</span>
                     <span class="glean-mrow__url">{row.site || "—"}</span>
                     <span class="glean-mrow__st" class:glean-mrow__st--skip={row.duplicate}>
                         {row.duplicate ? t(i18n, "import.dupLabel") : row.status}

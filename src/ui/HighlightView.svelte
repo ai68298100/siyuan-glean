@@ -448,6 +448,9 @@ function openDoc(id: string) {
     }
 
     .glean-highlights__tools--scope {
+        box-sizing: border-box;
+        min-width: 0;
+        max-width: 100%;
         gap: 4px;
         padding: 4px;
         border: 0;

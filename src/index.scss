@@ -1328,7 +1328,10 @@ body.b3-theme-dark {
 .glean-reader-root {
     display: flex;
     flex-direction: column;
+    min-width: 0;
     min-height: 0;
+    container-name: glean-workbench;
+    container-type: inline-size;
 }
 
 .glean-reader {
@@ -1802,6 +1805,16 @@ body.b3-theme-dark {
     min-width: 0;
     min-height: 0;
     overflow: hidden;
+    /* 含 rail 的 shell 只负责导航；页面按扣除 rail 后的可用宽度响应。
+       保留旧名，让组件内的 scoped queries 同样使用内容区。 */
+    container-name: glean-content glean-workbench;
+    container-type: inline-size;
+}
+
+/* 今日拾遗也可以独立打开，高亮自身带 padding：子项使用各自内容区。 */
+.glean-resurface,
+.glean-highlights {
+    container-name: glean-content glean-workbench;
 }
 
 .glean-panel-host {
@@ -2419,6 +2432,19 @@ body.b3-theme-dark {
 }
 
 @container glean-workbench (max-width: 720px) {
+    .glean-reader--immersive .glean-reader__toolbar {
+        flex-wrap: wrap;
+    }
+
+    .glean-reader--immersive .glean-reader__toolbar-heading {
+        flex-basis: 100%;
+    }
+
+    .glean-reader--immersive :is(.glean-reader__toolbar-native, .glean-reader__toolbar-exit) {
+        flex: 1 1 140px;
+        min-width: 0;
+    }
+
     .glean-reader__body {
         flex-direction: column;
         overflow: auto;
@@ -2997,8 +3023,11 @@ body.b3-theme-dark {
 
 .glean-mrow__ops {
     display: inline-flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: var(--glean-space-1);
+    min-width: 0;
+    max-width: 100%;
 }
 
 /* ============ 空态 / 加载 ============ */
@@ -3170,6 +3199,33 @@ body.b3-theme-dark {
     margin-left: auto;
     display: flex;
     gap: var(--glean-space-1);
+}
+
+@container glean-content (max-width: 720px) {
+    .glean-batchbar {
+        min-width: 0;
+        flex-wrap: wrap;
+        align-items: stretch;
+    }
+
+    .glean-batchbar__ops {
+        width: 100%;
+        min-width: 0;
+        margin-left: var(--glean-space-0);
+        flex-wrap: wrap;
+    }
+
+    .glean-batchbar__ops .glean-bb {
+        flex: 1 1 100px;
+        min-width: 0;
+        max-width: 100%;
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+
+    .glean-batchbar__ops .glean-bb:last-child {
+        flex: 0 0 auto;
+    }
 }
 
 .glean-bb {
@@ -3999,6 +4055,7 @@ body.b3-theme-dark {
 
     .glean-mrow {
         display: flex;
+        flex-wrap: wrap;
         align-items: center;
         gap: var(--glean-space-2-5);
         padding: var(--glean-space-2-25) var(--glean-space-3);
@@ -4014,11 +4071,11 @@ body.b3-theme-dark {
         }
 
         .glean-mrow__ti {
-            flex: 1;
+            flex: 1 1 100%;
+            min-width: 0;
             font-weight: var(--glean-weight-medium);
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+            white-space: normal;
+            overflow-wrap: anywhere;
         }
 
         .glean-mrow__url {
@@ -4032,12 +4089,14 @@ body.b3-theme-dark {
 
         .glean-mrow__why {
             display: inline-flex;
+            flex-wrap: wrap;
             gap: var(--glean-space-1);
-            max-width: 240px;
-            overflow: hidden;
+            min-width: 0;
+            max-width: 100%;
             color: var(--b3-theme-on-surface);
             font-size: var(--glean-text-caption);
-            white-space: nowrap;
+            white-space: normal;
+            overflow-wrap: anywhere;
 
             span {
                 padding: var(--glean-space-0-25) var(--glean-space-1-25);
@@ -4315,6 +4374,7 @@ body.b3-theme-dark {
 
 /* 笔记本 chip */
 .glean-nb {
+    box-sizing: border-box;
     font-size: var(--glean-text-xs);
     padding: var(--glean-space-1) var(--glean-space-2-75);
     border-radius: var(--glean-radius-pill);
@@ -4323,6 +4383,10 @@ body.b3-theme-dark {
     cursor: pointer;
     transition: all var(--glean-duration-base);
     flex-shrink: 0;
+    min-width: 0;
+    max-width: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
 
     &.glean-nb--on {
         background: color-mix(in srgb, var(--glean-accent-b) 10%, transparent);
@@ -5442,6 +5506,21 @@ body.b3-theme-dark {
     margin: var(--glean-space-2-5) var(--glean-space-3) var(--glean-space-0);
 }
 
+@container glean-content (max-width: 560px) {
+    .glean-resurface__quick-actions {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .glean-resurface__quick-action--primary {
+        grid-column: 1 / -1;
+    }
+
+    .glean-resurface__quick-action {
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+}
+
 .glean-resurface__quick-title {
     margin: var(--glean-space-2-5) var(--glean-space-3) var(--glean-space-0);
     color: var(--b3-theme-on-surface);
@@ -5730,7 +5809,7 @@ body.b3-theme-dark {
     justify-content: center;
 }
 
-@container glean-workbench (min-width: 760px) {
+@container glean-content (min-width: 760px) {
     .glean-surf {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(min(100%, 310px), 1fr));
@@ -5790,7 +5869,7 @@ body.b3-theme-dark {
     }
 }
 
-@container glean-workbench (max-width: 560px) {
+@container glean-content (max-width: 560px) {
     .glean-surf__acts {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -6098,6 +6177,8 @@ body.b3-theme-dark {
     position: relative;
     z-index: var(--glean-z-sticky);
     width: 100%;
+    min-width: 0;
+    container: glean-reading-context / inline-size;
 }
 
 .glean-reading-context {
@@ -6298,6 +6379,13 @@ body.b3-theme-dark {
 
 @media (max-width: 640px) {
     .glean-reading-context { align-items: flex-start; flex-direction: column; gap: 6px; }
+    .glean-reading-context__main { width: 100%; }
+    .glean-reading-context__actions { max-width: 100%; width: 100%; }
+}
+
+@container glean-reading-context (max-width: 640px) {
+    .glean-reading-context { align-items: flex-start; flex-direction: column; gap: 6px; }
+    .glean-reading-context__main { width: 100%; }
     .glean-reading-context__actions { max-width: 100%; width: 100%; }
 }
 
@@ -6950,7 +7038,7 @@ body.b3-theme-dark {
     }
 
     .glean-migrate .glean-mrow__ti {
-        flex: 1 1 calc(100% - 40px);
+        flex: 1 1 100%;
     }
 
     .glean-migrate .glean-mrow__url {
@@ -8410,6 +8498,7 @@ body.b3-theme-dark {
 
 .glean-stats__intro {
     display: flex;
+    flex-wrap: wrap;
     align-items: flex-end;
     justify-content: space-between;
     gap: var(--glean-space-4);
@@ -8417,7 +8506,9 @@ body.b3-theme-dark {
 }
 
 .glean-stats__intro > div:first-child {
+    flex: 1 1 280px;
     min-width: 0;
+    max-width: 100%;
 }
 
 .glean-stats__overview h2 {
@@ -8516,7 +8607,7 @@ body.b3-theme-dark {
     .glean-stats__trend-bar { min-width: 3px; }
 }
 
-@container glean-workbench (max-width: 640px) {
+@container glean-content (max-width: 640px) {
     .glean-stats__trend {
         grid-auto-columns: minmax(3px, 1fr);
         gap: var(--glean-space-tight);
@@ -8888,7 +8979,7 @@ body.b3-theme-dark {
     text-align: center;
 }
 
-@container glean-workbench (min-width: 760px) {
+@container glean-content (min-width: 760px) {
     .glean-stats {
         padding: var(--glean-space-4-5) var(--glean-space-5-5);
     }
@@ -9057,6 +9148,11 @@ body.b3-theme-dark {
         gap: var(--glean-space-3);
     }
 
+    .glean-stats__intro > div:first-child {
+        flex: 0 1 auto;
+        width: 100%;
+    }
+
     .glean-stats__toolbar--filters {
         justify-content: stretch;
     }
@@ -9083,11 +9179,16 @@ body.b3-theme-dark {
     }
 }
 
-@container glean-workbench (max-width: 640px) {
+@container glean-content (max-width: 640px) {
     .glean-stats__intro {
         align-items: stretch;
         flex-direction: column;
         gap: var(--glean-space-3);
+    }
+
+    .glean-stats__intro > div:first-child {
+        flex: 0 1 auto;
+        width: 100%;
     }
 
     .glean-stats__toolbar--filters {
@@ -11104,7 +11205,13 @@ body.b3-theme-dark .glean-panel--mobile,
     .glean-highlights__selection-count { justify-self: start; }
 }
 
-@container glean-workbench (max-width: 560px) {
+@container glean-content (max-width: 560px) {
+    .glean-highlights__head {
+        align-items: stretch;
+        flex-direction: column;
+        gap: var(--glean-space-3);
+    }
+
     .glean-highlights__tools--selection {
         display: grid;
         grid-template-columns: minmax(0, 1fr);
@@ -11163,7 +11270,7 @@ body.b3-theme-dark .glean-panel--mobile,
 .glean-panel .glean-primary-btn:hover:not(:disabled) { transform: none; filter: none; }
 
 /* R54 action grid must win over the historical flex fallbacks on wide canvases. */
-@container glean-workbench (min-width: 760px) {
+@container glean-content (min-width: 760px) {
     .glean-panel--shell .glean-surf-card .glean-surf__acts {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -11184,7 +11291,7 @@ body.b3-theme-dark .glean-panel--mobile,
     }
 }
 
-@container glean-workbench (max-width: 759px) {
+@container glean-content (max-width: 759px) {
     .glean-panel--shell:not(.glean-panel--mobile) .glean-surf-card .glean-surf__acts {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -11201,7 +11308,7 @@ body.b3-theme-dark .glean-panel--mobile,
     .glean-panel--shell:not(.glean-panel--mobile) .glean-surf-card .glean-surf-act--pri { grid-column: 1 / -1; }
 }
 
-@container glean-workbench (max-width: 759px) {
+@container glean-content (max-width: 759px) {
     .glean-panel--shell.glean-panel--mobile .glean-surf-card .glean-surf__acts {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));

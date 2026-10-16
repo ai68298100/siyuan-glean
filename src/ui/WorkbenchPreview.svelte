@@ -242,3 +242,12 @@
         </div>
     {/if}
 </section>
+
+<style>
+    .glean-preview__meta,
+    .glean-preview__meta > span,
+    .glean-preview__author {
+        min-width: 0;
+        overflow-wrap: anywhere;
+    }
+</style>
