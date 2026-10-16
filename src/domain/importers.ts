@@ -26,7 +26,30 @@ export interface ParseResult {
     dropped: number;
 }
 
+/** 来源文件诊断；与库内查重、导入执行和恢复检查点分开。 */
+export type ImportSourceIssue = "empty" | "unrecognized" | "invalid" | "no-items";
+
+export interface ImportSourceResult extends Omit<ParseResult, "format"> {
+    format: ImportFormat | null;
+    issue: ImportSourceIssue | null;
+}
+
 /* ---------- 格式探测 ---------- */
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+
+function detectJsonFormat(parsed: unknown): ImportFormat | null {
+    if (Array.isArray(parsed)) {
+        if (parsed.some((row) => isRecord(row) && ("originalArticleUrl" in row || ("url" in row && "state" in row)))) return "omnivore-json";
+    }
+    if (isRecord(parsed) && Array.isArray(parsed.entries)) {
+        // entries 是 wallabag 的明确容器；空数组仍可诊断为未找到有效链接。
+        if (parsed.entries.length === 0 || parsed.entries.some((row) => isRecord(row) && ("url" in row || "is_archived" in row))) return "wallabag-json";
+    }
+    return null;
+}
 
 export function detectFormat(raw: string): ImportFormat | null {
     const text = raw.trim();
@@ -42,18 +65,7 @@ export function detectFormat(raw: string): ImportFormat | null {
         } catch {
             return null;
         }
-        if (Array.isArray(parsed)) {
-            const first = parsed[0] as Record<string, unknown> | undefined;
-            if (first && ("originalArticleUrl" in first || ("url" in first && "state" in first))) return "omnivore-json";
-        }
-        if (parsed && typeof parsed === "object") {
-            const record = parsed as Record<string, unknown>;
-            if (Array.isArray(record.entries)) {
-                const first = record.entries[0] as Record<string, unknown> | undefined;
-                if (first && ("url" in first || "is_archived" in first)) return "wallabag-json";
-            }
-        }
-        return null;
+        return detectJsonFormat(parsed);
     }
     // CSV：首行含 time_added 即 Pocket CSV
     const firstLine = text.split(/\r?\n/)[0]?.toLowerCase() ?? "";
@@ -417,15 +429,52 @@ export function parseWallabagJson(raw: string): ParseResult {
 
 /* ---------- 统一入口 ---------- */
 
-export function parseImport(raw: string, format: ImportFormat | "auto"): ParseResult {
-    const resolved = format === "auto" ? detectFormat(raw) : format;
-    switch (resolved) {
-        case "pocket-html": return parsePocketHtml(raw);
-        case "pocket-csv": return parsePocketCsv(raw);
-        case "omnivore-json": return parseOmnivoreJson(raw);
-        case "wallabag-json": return parseWallabagJson(raw);
-        default: return { format: "pocket-html", items: [], dropped: 0 };
+function importCsvHeader(raw: string): string[] {
+    let inQuotes = false;
+    for (let index = 0; index < raw.length; index += 1) {
+        const char = raw[index];
+        if (char === '"') {
+            if (inQuotes && raw[index + 1] === '"') index += 1;
+            else inQuotes = !inQuotes;
+        } else if (!inQuotes && (char === "\r" || char === "\n")) {
+            return parseCsv(raw.slice(0, index))[0] ?? [];
+        }
     }
+    return parseCsv(raw)[0] ?? [];
+}
+
+export function parseImport(raw: string, format: ImportFormat | "auto"): ImportSourceResult {
+    const text = raw.trim();
+    if (!text) return { format: format === "auto" ? null : format, items: [], dropped: 0, issue: "empty" };
+    // 自动探测与结构检查共用一次 JSON 解码，避免在大导出文件上额外解码一遍。
+    const needsJson = format === "omnivore-json" || format === "wallabag-json" || (format === "auto" && (text.startsWith("[") || text.startsWith("{")));
+    let jsonValue: unknown;
+    let jsonValid = false;
+    if (needsJson) {
+        try { jsonValue = JSON.parse(text); jsonValid = true; } catch { /* 显式格式报 invalid，自动模式报 unrecognized。 */ }
+    }
+    const resolved = format === "auto" ? needsJson ? jsonValid ? detectJsonFormat(jsonValue) : null : detectFormat(text) : format;
+    if (!resolved) return { format: null, items: [], dropped: 0, issue: "unrecognized" };
+
+    let validStructure = true;
+    if (resolved === "omnivore-json") validStructure = jsonValid && Array.isArray(jsonValue);
+    else if (resolved === "wallabag-json") validStructure = jsonValid && (Array.isArray(jsonValue) || (isRecord(jsonValue) && Array.isArray(jsonValue.entries)));
+    else if (resolved === "pocket-csv") {
+        const header = importCsvHeader(text).map((cell) => cell.trim().toLowerCase());
+        validStructure = header.includes("url");
+    } else {
+        validStructure = /<(?:!doctype\s+html|\/?[a-z][a-z0-9:-]*)(?:\s[^<>]*|\/?)>/i.test(text);
+    }
+    if (!validStructure) return { format: resolved, items: [], dropped: 0, issue: "invalid" };
+
+    let parsed: ParseResult;
+    switch (resolved) {
+        case "pocket-html": parsed = parsePocketHtml(text); break;
+        case "pocket-csv": parsed = parsePocketCsv(text); break;
+        case "omnivore-json": parsed = parseOmnivoreJson(text); break;
+        case "wallabag-json": parsed = parseWallabagJson(text); break;
+    }
+    return { ...parsed, issue: parsed.items.length === 0 ? "no-items" : null };
 }
 
 /* ---------- 目标路径（T-1988） ---------- */

@@ -166,6 +166,87 @@ test("parseImport auto + 文件内 URL 去重", () => {
 test("parseImport：全部无效输入返回空而不抛错", () => {
     const result = parseImport("not parseable", "auto");
     assert.equal(result.items.length, 0);
+    assert.equal(result.format, null);
+    assert.equal(result.issue, "unrecognized");
+});
+
+test("parseImport：空白和 BOM 文件单独诊断，不假冒 Pocket 格式", () => {
+    for (const source of ["", " \r\n\t", "\uFEFF", "\uFEFF \n"]) {
+        assert.deepEqual(parseImport(source, "auto"), { format: null, items: [], dropped: 0, issue: "empty" });
+        assert.deepEqual(parseImport(source, "omnivore-json"), { format: "omnivore-json", items: [], dropped: 0, issue: "empty" });
+    }
+});
+
+test("detectFormat：JSON 原始值和非记录首行不抛错，并继续寻找有格式证据的对象", () => {
+    for (const source of ["[null]", "[1]", '["text"]', "[true]", "[[]]", "[{}]", "[]", "{}", "null", "{bad json"]) {
+        assert.equal(detectFormat(source), null, source);
+        assert.equal(parseImport(source, "auto").issue, "unrecognized", source);
+    }
+    assert.equal(detectFormat('[null, 1, [], {}, {"originalArticleUrl":"https://example.com/a"}]'), "omnivore-json");
+    assert.equal(detectFormat('{"entries":[null, 1, [], {}, {"url":"https://example.com/a"}]}'), "wallabag-json");
+    assert.equal(detectFormat('{"entries":[]}'), "wallabag-json");
+});
+
+test("parseImport：手动 JSON 格式区分语法或容器错误与未找到有效链接", () => {
+    for (const source of ["{bad json", "null", "1", '"text"', "{}", '{"entries":[]}']) {
+        assert.equal(parseImport(source, "omnivore-json").issue, "invalid", source);
+    }
+    for (const source of ["{bad json", "null", "1", '"text"', "{}", '{"entries":{}}']) {
+        assert.equal(parseImport(source, "wallabag-json").issue, "invalid", source);
+    }
+    for (const format of ["omnivore-json", "wallabag-json"] as const) {
+        for (const source of ["[]", "[null,1,true,[],{}]"]) {
+            assert.equal(parseImport(source, format).issue, "no-items", `${format}: ${source}`);
+        }
+    }
+    assert.equal(parseImport('{"entries":[]}', "auto").issue, "no-items");
+    assert.equal(parseImport('{"entries":[null,{}, {"url":"javascript:alert(1)"}]}', "wallabag-json").issue, "no-items");
+});
+
+test("parseImport：CSV 必需 URL 表头与其他格式误选单独诊断", () => {
+    for (const source of ["title,time_added\n文章,1484250667", "https://example.com/a", POCKET_HTML, OMNIVORE_JSON, WALLABAG_JSON]) {
+        assert.equal(parseImport(source, "pocket-csv").issue, "invalid", source);
+    }
+    for (const source of ["title,url,time_added", '"title","url","time_added"\r\n', "url"]) {
+        assert.equal(parseImport(source, "pocket-csv").issue, "no-items", source);
+    }
+    assert.equal(parseImport("title,url,time_added\n没有链接,,1484250667", "auto").issue, "no-items");
+    assert.equal(parseImport("title,url,time_added\n无效链接,ftp://example.com/a,1484250667", "auto").issue, "no-items");
+    for (const firstHeader of ["[id]", "{id}", "<id>"]) {
+        const source = `${firstHeader},url,time_added\n1,https://example.com/a,`;
+        assert.deepEqual(parseImport(source, "pocket-csv"), { ...parsePocketCsv(source), issue: null });
+    }
+});
+
+test("parseImport：HTML 标签结构无合法链接与纯文本误选区分，继续兼容片段", () => {
+    assert.equal(parseImport("这是一段普通文字", "pocket-html").issue, "invalid");
+    for (const source of ["<!DOCTYPE html><html><body></body></html>", "<p>没有链接</p>", '<ul><li><a href="javascript:alert(1)">无效链接</a></li></ul>']) {
+        assert.equal(parseImport(source, "pocket-html").issue, "no-items", source);
+    }
+    assert.equal(parseImport('<a href="https://example.com/a">文章</a>', "pocket-html").issue, null);
+});
+
+test("parseImport：四格式有效输出保留原解析顺序、状态与 dropped", () => {
+    const cases = [
+        ["pocket-html", POCKET_HTML, parsePocketHtml],
+        ["pocket-csv", POCKET_CSV, parsePocketCsv],
+        ["omnivore-json", OMNIVORE_JSON, parseOmnivoreJson],
+        ["wallabag-json", WALLABAG_JSON, parseWallabagJson],
+    ] as const;
+    for (const [format, source, parse] of cases) {
+        assert.deepEqual(parseImport(source, format), { ...parse(source), issue: null }, format);
+        assert.deepEqual(parseImport(source, "auto"), { ...parse(source), issue: null }, format);
+    }
+});
+
+test("parseImport：混合无效行与合法条目仍可预览，JSON BOM 不妨碍结构诊断", () => {
+    const source = '[null, 1, [], {}, {"originalArticleUrl":"javascript:alert(1)"}, {"title":"合法文章","originalArticleUrl":"https://example.com/a"}, {"originalArticleUrl":"https://example.com/a#dup"}]';
+    const result = parseImport(`\uFEFF${source}`, "auto");
+    assert.equal(result.format, "omnivore-json");
+    assert.equal(result.issue, null);
+    assert.equal(result.items.length, 1);
+    assert.equal(result.items[0].title, "合法文章");
+    assert.equal(result.dropped, parseOmnivoreJson(source).dropped);
 });
 
 test("normalizeImportFolder：清理斜杠/空段/越级/非法字符（T-1988）", () => {

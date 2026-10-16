@@ -212,6 +212,47 @@ test("导入元数据写入 Markdown 时保持纯文本结构并校验来源 URL
     assert.equal(invalid.calls.some((call) => call.route === "/api/filetree/createDocWithMd"), false);
 });
 
+test("导入预览无有效链接时说明文件原因，不访问内核查重或写入", async () => {
+    const h = harness();
+    h.failures.query = true;
+    for (const [content, format, issue] of [
+        ["\uFEFF \r\n", "auto", "empty"],
+        ["这是说明文件，不是文章导出", "auto", "unrecognized"],
+        ['{"entries":', "wallabag-json", "invalid"],
+        ["[]", "omnivore-json", "no-items"],
+        ['title,url,time_added\n无效,javascript:alert(1),', "pocket-csv", "no-items"],
+    ]) {
+        const result = await previewImport(content, format);
+        assert.equal(result.issue, issue);
+        assert.equal(result.rows.length, 0);
+        assert.equal(result.duplicateCount, 0);
+        if (issue === "unrecognized") assert.equal(result.format, null);
+    }
+    assert.deepEqual(h.calls, []);
+    assert.equal(h.files.size, 0);
+});
+
+test("有效导入预览必须完成查重，不把查重故障伪装成全部重复或文件空态", async () => {
+    const h = harness();
+    h.failures.query = true;
+    await assert.rejects(previewImport("title,url,time_added\n文章,https://example.com/valid,", "pocket-csv"));
+    assert.ok(h.calls.some((call) => call.route === "/api/query/sql"));
+    assert.equal(h.files.size, 0);
+});
+
+test("全部重复预览保留具体条目及真实查重数量，不产生恢复检查点", async () => {
+    const h = harness();
+    h.attrs.set(documentId(1), { "custom-clip-url": "https://example.com/duplicate", "custom-clip-status": "later" });
+    const result = await previewImport("title,url,time_added\n已有文章,https://example.com/duplicate/#section,", "pocket-csv");
+    assert.equal(result.issue, null);
+    assert.equal(result.rows.length, 1);
+    assert.equal(result.rows[0].title, "已有文章");
+    assert.equal(result.rows[0].duplicate, true);
+    assert.equal(result.duplicateCount, 1);
+    assert.equal(h.files.size, 0);
+    assert.equal(h.calls.some((call) => call.route === "/api/filetree/createDocWithMd"), false);
+});
+
 test("导入查重读完 500 条后的下一页，避免创建重复 URL", async () => {
     const h = harness();
     for (let index = 0; index < 501; index += 1) {
@@ -715,7 +756,7 @@ test("有效状态文章即使与内部宿主同名，精确ID恢复仍仅修索
 // 执行真实弹窗的收尾函数，并接上上面的真实导入服务/检查点替身；不复制回执合并逻辑。
 const dialogScript = readFileSync(new URL("../src/ui/ImportDialog.svelte", import.meta.url), "utf8").match(/<script lang="ts">([\s\S]*?)<\/script>/)[1];
 const dialogAst = ts.createSourceFile("ImportDialog.ts", dialogScript, ts.ScriptTarget.ESNext, true, ts.ScriptKind.TS);
-const dialogFunctions = new Set(["progressFailure", "refreshProgress", "mergeSummaries", "progressEntryTitle", "startImport"]);
+const dialogFunctions = new Set(["progressFailure", "refreshProgress", "mergeSummaries", "progressEntryTitle", "startImport", "onFileChosen"]);
 const dialogDerived = new Set(["unfinished", "resumable", "targetAvailable"]);
 const dialogFlow = [];
 for (const statement of dialogAst.statements) {
@@ -740,6 +781,7 @@ async function dialogHarness(context, rows, { fingerprint = importOptions.finger
         facade: { pluginInstance: context.plugin, notifyDataChanged: () => notifications.push("changed") },
         i18n: {}, t: (_i18n, key) => key, showMessage: () => {},
         loadImportProgress, summarizeImportProgress, ImportExecutionError, ImportProgressError, AbortController,
+        previewImport, fingerprintImportSource, TextDecoder, MAX_IMPORT_BYTES: 32 * 1024 * 1024,
         runImport: async (...args) => {
             const result = await runImport(...args);
             results.push(result);
@@ -752,11 +794,61 @@ async function dialogHarness(context, rows, { fingerprint = importOptions.finger
         mounted: true, busy: false, notebookLoading: false, notebookError: false,
         progressLoaded: true, progressReadFailed: false, progressLoading: false, progressError: "",
         importConfirmed: true, resumeConfirmed: true, forceResetConfirmed: false,
+        sourceFileName: "", previewPage: 1,
         phase: "preview", progress: 0, stopping: false, controller: null, summary: null, retryRows: [],
     });
     runInContext(dialogFlowSource, state);
     return { state, results, notifications };
 }
+
+function chosenFileEvent(content, { failRead = false } = {}) {
+    const bytes = new TextEncoder().encode(content);
+    return { target: { value: "selected-file", files: [{ name: "test-export.csv", size: bytes.byteLength, arrayBuffer: async () => {
+        if (failRead) throw new Error("file permission denied");
+        return bytes.buffer;
+    } }] } };
+}
+
+test("导入弹窗空文件可预览原因，读取文件与查重失败分别反馈", async () => {
+    for (const scenario of ["empty", "read", "duplicates", "progress"]) {
+        const h = harness();
+        const dialog = await dialogHarness(h, []);
+        if (scenario === "duplicates") h.failures.query = true;
+        if (scenario === "progress") h.failures.loadProgress = true;
+        const event = chosenFileEvent(scenario === "empty" ? "" : "title,url,time_added\n文章,https://example.com/a,", { failRead: scenario === "read" });
+        await dialog.state.onFileChosen(event);
+        assert.equal(dialog.state.busy, false);
+        assert.equal(event.target.value, "");
+        assert.equal(dialog.state.sourceFileName, "test-export.csv");
+        if (scenario === "empty") {
+            assert.equal(dialog.state.phase, "preview");
+            assert.equal(dialog.state.preview.issue, "empty");
+            assert.equal(dialog.state.progressError, "");
+            assert.equal(h.calls.length, 0);
+        } else {
+            assert.equal(dialog.state.phase, "pick");
+            assert.equal(dialog.state.preview, null);
+            assert.equal(dialog.state.progressError, scenario === "read" ? "import.fileReadFailed" : scenario === "duplicates" ? "import.previewFailed" : "import.progress.error.read");
+            assert.equal(dialog.state.progressReadFailed, scenario === "progress");
+        }
+        assert.equal(h.files.size, 0);
+    }
+});
+
+test("导入弹窗恢复先核对原文件，不能用空文件提示覆盖任务身份不符", async () => {
+    const h = harness();
+    const rows = [importRow("pending-original")];
+    await runImport(h.plugin, rows, { ...importOptions, signal: { aborted: true } });
+    const previous = structuredClone(h.files.get(IMPORT_PROGRESS_FILE));
+    const dialog = await dialogHarness(h, rows);
+    await dialog.state.onFileChosen(chosenFileEvent(""));
+    assert.equal(dialog.state.phase, "pick");
+    assert.equal(dialog.state.progressError, "import.progress.error.file");
+    assert.equal(dialog.state.progressReadFailed, false);
+    assert.equal(dialog.state.preview, null);
+    assert.equal(dialog.state.progressRecord.taskId, previous.taskId);
+    assert.deepEqual(h.files.get(IMPORT_PROGRESS_FILE), previous);
+});
 
 test("导入弹窗首次完成后先读回检查点，再显示本任务真实回执", async () => {
     const context = harness();

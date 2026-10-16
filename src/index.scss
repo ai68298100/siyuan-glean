@@ -3777,6 +3777,15 @@ body.b3-theme-dark {
     text-align: left;
 }
 .glean-import__pick { flex-shrink: 0; }
+.glean-import__filename {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+.glean-import__notice .glean-import-confirm__title { margin: 0; }
+.glean-import__notice .glean-import-confirm__desc {
+    margin-bottom: 0;
+    overflow-wrap: anywhere;
+}
 .glean-import__pagination {
     gap: var(--glean-space-2);
     margin-top: var(--glean-space-2);
@@ -4109,6 +4118,7 @@ body.b3-theme-dark {
         }
 
         .glean-mrow__st {
+            box-sizing: border-box;
             font-size: var(--glean-text-caption);
             padding: var(--glean-space-micro) var(--glean-space-2);
             border-radius: var(--glean-radius-pill);
@@ -6730,11 +6740,13 @@ body.b3-theme-dark {
 .glean-onb-preview__item { min-height: 28px; border-bottom: 1px solid color-mix(in srgb, var(--glean-border-soft) 70%, transparent); }
 .glean-onb-preview__item:last-child { border-bottom: 0; }
 
-.glean-import__head { position: sticky; top: 0; z-index: var(--glean-z-sticky); }
+/* Sticky 表头始终遮住滚动内容，优先于迁移弹窗的透明渐变与忙碌态透明度。 */
+.glean-import .glean-dlg-head.glean-import__head { position: sticky; top: 0; z-index: var(--glean-z-sticky); background: var(--b3-theme-background); opacity: 1; }
 .glean-import[data-phase="importing"] .glean-dlg-head { border-color: color-mix(in srgb, var(--glean-accent-b) 34%, var(--glean-border-soft)); }
 .glean-import__field:focus-within { background: var(--glean-primary-soft); box-shadow: inset 3px 0 0 var(--b3-theme-primary); }
 .glean-import__mapping { box-shadow: var(--glean-shadow-card); }
-.glean-import__table { box-shadow: var(--glean-shadow-card); }
+/* 导入根已负责纵向滚动，恢复卡/说明不能把预览行压缩为零高度。 */
+.glean-import .glean-import__table { flex: 0 0 auto; box-shadow: var(--glean-shadow-card); }
 .glean-import .glean-mrow--duplicate { background: color-mix(in srgb, var(--b3-theme-on-surface) 4%, var(--glean-section-surface)); }
 .glean-import .glean-mrow__st { min-width: 64px; text-align: center; }
 .glean-import[data-phase="done"] .glean-mstats .glean-mstat:first-child .glean-mstat__n { color: var(--glean-st-done); }

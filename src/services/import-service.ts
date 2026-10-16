@@ -8,7 +8,7 @@ import type { Plugin } from "siyuan";
 import { createDocWithMd, newNodeId } from "../api/client";
 import { ATTR, parseClipAttrs, siyuanTimestamp } from "../domain/schema";
 import { siteFromUrl } from "../domain/schema";
-import type { ImportFormat, ImportedItem, ParseResult } from "../domain/importers";
+import type { ImportFormat, ImportedItem, ImportSourceIssue } from "../domain/importers";
 import { parseImport } from "../domain/importers";
 import { normalizeUrl } from "../domain/url";
 import { batchReadClipAttrs, captureClip, ClipRestoreError, findClipUrlConflict, listClipDocs, readClipAttributeSnapshot, writeClip } from "./clip-store";
@@ -32,6 +32,7 @@ export interface ImportPreviewRow {
 export interface ImportPreview {
     fingerprint: string;
     format: ImportFormat | null;
+    issue: ImportSourceIssue | null;
     rows: ImportPreviewRow[];
     duplicateCount: number;
 }
@@ -45,8 +46,9 @@ export interface ImportStatusSummary {
 export async function previewImport(content: string, format: ImportFormat | "auto", fingerprint?: string): Promise<ImportPreview> {
     const sourceFingerprint = fingerprint ?? await fingerprintImportSource(new TextEncoder().encode(content));
     if (!isImportFingerprint(sourceFingerprint)) throw new ImportProgressError("file");
-    const parsed: ParseResult = parseImport(content, format);
-    const existingUrls = await collectExistingUrls();
+    const parsed = parseImport(content, format);
+    // 无有效链接时只反馈文件问题，不让无关的内核查重故障盖住解析诊断。
+    const existingUrls = parsed.items.length > 0 ? await collectExistingUrls() : new Set<string>();
     const rows: ImportPreviewRow[] = parsed.items.map((item) => ({
         title: item.title,
         url: item.url,
@@ -60,6 +62,7 @@ export async function previewImport(content: string, format: ImportFormat | "aut
     return {
         fingerprint: sourceFingerprint,
         format: parsed.format,
+        issue: parsed.issue,
         rows,
         duplicateCount: rows.filter((row) => row.duplicate).length,
     };

@@ -57,6 +57,7 @@ let importConfirmed = $state(false);
 const PREVIEW_PAGE_SIZE = 50;
 let previewPage = $state(1);
 let fileInput = $state<HTMLInputElement | null>(null);
+let sourceFileName = $state("");
 let progressRecord = $state<ImportProgress | null>(null);
 let progressError = $state("");
 let progressLoaded = $state(false);
@@ -144,6 +145,9 @@ async function loadNotebooks() {
 const previewRows = $derived(preview ? preview.rows.filter((row, index) => unfinished && progressRecord ? ["pending", "created", "failed"].includes(progressRecord.rows[index]?.state ?? "") : !row.duplicate) : []);
 const importable = $derived(previewRows.length);
 const statusSummary = $derived(summarizeImportStatuses(previewRows.map((row) => ({ ...row, duplicate: false }))));
+const previewNotice = $derived(preview?.issue ?? (preview && importable === 0
+    ? unfinished ? "review" : preview.rows.length > 0 ? "duplicates" : null
+    : null));
 
 const previewPageCount = $derived(preview ? Math.max(1, Math.ceil(preview.rows.length / PREVIEW_PAGE_SIZE)) : 1);
 const pagedRows = $derived.by(() => {
@@ -162,29 +166,39 @@ async function onFileChosen(event: Event) {
     if (!file || busy) return;
     busy = true;
     preview = null;
+    sourceFileName = file.name;
     resumeConfirmed = false;
     importConfirmed = false;
     progressError = "";
+    let stage: "progress" | "file" | "preview" = "progress";
     try {
         const record = await loadImportProgress(facade.pluginInstance);
-        // 与备份同数量级的读取上限：整文件解码/指纹/解析都在主线程，超大文件会冻结 UI
-        if (file.size > MAX_IMPORT_BYTES) throw new ImportProgressError("size");
-        const bytes = await file.arrayBuffer();
-        const fingerprint = await fingerprintImportSource(bytes);
-        if (record && record.state !== "finished" && fingerprint !== record.fingerprint) throw new ImportProgressError("file");
-        const parsed = await previewImport(new TextDecoder().decode(bytes), record && record.state !== "finished" ? record.format : format, fingerprint);
         if (!mounted) return;
         progressRecord = record;
         progressLoaded = true;
         progressReadFailed = false;
         if (record && record.state !== "finished") { notebookId = record.notebookId; folder = record.folder; format = record.format; }
+        stage = "file";
+        // 与备份同数量级的读取上限：整文件解码/指纹/解析都在主线程，超大文件会冻结 UI
+        if (file.size > MAX_IMPORT_BYTES) throw new ImportProgressError("size");
+        const bytes = await file.arrayBuffer();
+        const fingerprint = await fingerprintImportSource(bytes);
+        if (record && record.state !== "finished" && fingerprint !== record.fingerprint) throw new ImportProgressError("file");
+        stage = "preview";
+        const parsed = await previewImport(new TextDecoder().decode(bytes), record && record.state !== "finished" ? record.format : format, fingerprint);
+        if (!mounted) return;
         preview = parsed;
         summary = null;
         retryRows = [];
         previewPage = 1;
         phase = "preview";
     } catch (error) {
-        if (mounted) { phase = "pick"; progressError = progressFailure(error); }
+        if (mounted) {
+            phase = "pick";
+            if (stage === "progress") { progressReadFailed = true; progressLoaded = false; }
+            progressError = error instanceof ImportProgressError ? progressFailure(error)
+                : t(i18n, stage === "file" ? "import.fileReadFailed" : stage === "preview" ? "import.previewFailed" : "import.progress.error.read");
+        }
     } finally {
         if (mounted) busy = false;
         input.value = "";
@@ -216,6 +230,7 @@ function progressEntryTitle(entry: ImportProgress["rows"][number], index: number
 
 async function startImport(rowsOverride?: ImportPreviewRow[]) {
     if (busy || notebookLoading || notebookError || !preview || !targetAvailable || !progressLoaded || progressReadFailed) return;
+    if (preview.issue || preview.rows.length === 0 || !preview.format) return;
     if (unfinished ? !resumable || !resumeConfirmed : !importConfirmed) return;
     if (rowsOverride && progressRecord?.taskId !== summary?.taskId) return;
     phase = "importing";
@@ -271,6 +286,7 @@ async function startImport(rowsOverride?: ImportPreviewRow[]) {
 function resetToPick() {
     phase = "pick";
     preview = null;
+    sourceFileName = "";
     summary = null;
     retryRows = [];
     importConfirmed = false;
@@ -285,6 +301,8 @@ function openProgressDocument(id: string): void {
 </script>
 
 <div class="glean-migrate glean-import" class:glean-import--busy={busy} data-phase={phase} aria-labelledby={titleId} aria-describedby={descId} aria-busy={busy}>
+    <!-- 保持同一文件控件：导入/完成/暂停切换不能遗留被卸载的绑定或失去下一次选择。 -->
+    <input bind:this={fileInput} type="file" accept=".html,.csv,.json,.txt" style="display:none" disabled={busy} onchange={(event) => void onFileChosen(event)} />
     <div class="glean-dlg-head glean-import__head">
         <div class="glean-brand__mark glean-dlg-head__mark">
             <svg aria-hidden="true"><use href="#iconGleanWheat" /></svg>
@@ -302,7 +320,7 @@ function openProgressDocument(id: string): void {
             <button class="glean-btn glean-btn--ghost" disabled={progressLoading || busy} onclick={() => void refreshProgress()}>{t(i18n, "action.retry")}</button>
         </div>
         {#if progressReadFailed}
-            <label class="glean-import-progress__check"><input type="checkbox" bind:checked={forceResetConfirmed} disabled={busy || progressLoading} />{t(i18n, "import.progress.confirmForceReset")}</label>
+            <label class="glean-import-progress__check"><input type="checkbox" bind:checked={forceResetConfirmed} disabled={busy || progressLoading} /><span>{t(i18n, "import.progress.confirmForceReset")}</span></label>
             <div class="glean-import-progress__actions">
                 <button class="glean-btn glean-btn--ghost" disabled={busy || progressLoading || !forceResetConfirmed} onclick={() => void discardProgress()}>{t(i18n, "import.progress.forceReset")}</button>
             </div>
@@ -332,13 +350,13 @@ function openProgressDocument(id: string): void {
                 </div>
             </details>
             {#if unfinished && !busy}
-                <label class="glean-import-progress__check"><input type="checkbox" bind:checked={resumeConfirmed} disabled={!resumable || !targetAvailable || progressReadFailed} />{t(i18n, "import.progress.confirmResume")}</label>
+                <label class="glean-import-progress__check"><input type="checkbox" bind:checked={resumeConfirmed} disabled={!resumable || !targetAvailable || progressReadFailed} /><span>{t(i18n, "import.progress.confirmResume")}</span></label>
                 <div class="glean-import-progress__actions">
                     <button class="glean-btn glean-btn--pri" disabled={!resumable || !resumeConfirmed || !targetAvailable || importable === 0 || progressReadFailed || notebookLoading || notebookError} onclick={() => void startImport()}>{t(i18n, "import.progress.resume")}</button>
                     <button class="glean-btn glean-btn--ghost" onclick={resetToPick}>{t(i18n, "import.pickFile")}</button>
                 </div>
             {/if}
-            <label class="glean-import-progress__check"><input type="checkbox" bind:checked={discardConfirmed} disabled={busy || progressLoading} />{t(i18n, "import.progress.confirmDiscard")}</label>
+            <label class="glean-import-progress__check"><input type="checkbox" bind:checked={discardConfirmed} disabled={busy || progressLoading} /><span>{t(i18n, "import.progress.confirmDiscard")}</span></label>
             <button class="glean-btn glean-btn--ghost" disabled={busy || progressLoading || !discardConfirmed} onclick={() => void discardProgress()}>{t(i18n, "import.progress.discard")}</button>
         </section>
     {/if}
@@ -347,7 +365,7 @@ function openProgressDocument(id: string): void {
         <div class="glean-set-group">
             <div class="glean-set-row glean-import__field">
                 <label class="glean-set-row__lb" for={formatId}>{t(i18n, "import.format")}</label>
-                <select id={formatId} class="b3-select glean-import__select" disabled={busy || unfinished} bind:value={format} onchange={() => { preview = null; importConfirmed = false; phase = "pick"; }}>
+                <select id={formatId} class="b3-select glean-import__select" disabled={busy || unfinished} bind:value={format} onchange={resetToPick}>
                     <option value="auto">{t(i18n, "import.formatAuto")}</option>
                     <option value="pocket-html">Pocket HTML</option>
                     <option value="pocket-csv">Pocket CSV</option>
@@ -384,14 +402,10 @@ function openProgressDocument(id: string): void {
                 <input id={folderId} class="glean-mini-input glean-import__folder" disabled={busy || unfinished} bind:value={folder} oninput={() => (importConfirmed = false)} />
             </div>
             <div class="glean-set-row glean-import__field glean-import__file-field">
-                <div class="glean-set-row__lb">{t(i18n, "import.file")}</div>
-                <input
-                    bind:this={fileInput}
-                    type="file"
-                    accept=".html,.csv,.json,.txt"
-                    style="display:none"
-                    onchange={(event) => void onFileChosen(event)}
-                />
+                <div class="glean-set-row__lb">
+                    {t(i18n, "import.file")}
+                    {#if sourceFileName}<div class="glean-set-row__desc glean-import__filename" title={sourceFileName}>{sourceFileName}</div>{/if}
+                </div>
                 <button class="glean-btn glean-import__pick" disabled={busy} onclick={() => pickFile()}>
                     {busy ? t(i18n, "panel.loading") : t(i18n, "import.pickFile")}
                 </button>
@@ -400,11 +414,20 @@ function openProgressDocument(id: string): void {
     {/if}
 
     {#if phase === "preview" && preview}
+        {#if previewNotice}
+            <section class="glean-import-confirm glean-import__notice" role="status" aria-live="polite" aria-atomic="true">
+                <h3 class="glean-import-confirm__title">{t(i18n, `import.preview.${previewNotice}.title`)}</h3>
+                <p class="glean-import-confirm__desc">{t(i18n, `import.preview.${previewNotice}.hint`, { n: preview.rows.length })}</p>
+            </section>
+        {/if}
+        {#if preview.rows.length > 0}
         <div class="glean-mstats">
             <div class="glean-mstat"><div class="glean-mstat__n">{importable}</div><div class="glean-mstat__l">{t(i18n, "import.willImport")}</div></div>
             <div class="glean-mstat"><div class="glean-mstat__n">{preview.duplicateCount}</div><div class="glean-mstat__l">{t(i18n, "import.dupCount")}</div></div>
             <div class="glean-mstat"><div class="glean-mstat__n">{preview.rows.length}</div><div class="glean-mstat__l">{t(i18n, "import.parsedCount")}</div></div>
         </div>
+        {/if}
+        {#if importable > 0 && !preview.issue}
         <div class="glean-import-confirm glean-import__mapping">
             <div class="glean-import-confirm__title">{t(i18n, "import.statusMapping")}</div>
             <div class="glean-import-confirm__desc">{t(i18n, "import.statusMappingDesc")}</div>
@@ -425,6 +448,8 @@ function openProgressDocument(id: string): void {
                 <span>{t(i18n, "import.confirm", { n: importable })}</span>
             </label>
         </div>
+        {/if}
+        {#if preview.rows.length > 0}
         <div class="glean-mtable glean-import__table">
             {#each pagedRows as row (row.url)}
                 <div class="glean-mrow" class:glean-mrow--duplicate={row.duplicate} data-status={row.duplicate ? "duplicate" : row.status}>
@@ -434,10 +459,9 @@ function openProgressDocument(id: string): void {
                         {row.duplicate ? t(i18n, "import.dupLabel") : row.status}
                     </span>
                 </div>
-            {:else}
-                <div class="glean-mtable__empty" role="status">{t(i18n, "import.noImportable")}</div>
             {/each}
         </div>
+        {/if}
         {#if previewPageCount > 1}
             <nav class="glean-prog-meta glean-import__pagination" aria-label={t(i18n, "import.pageInfo", { page: previewPage, total: previewPageCount })}>
                 <button class="glean-btn glean-btn--ghost glean-import__page-btn" disabled={previewPage <= 1} onclick={() => (previewPage -= 1)}><svg class="glean-icon glean-icon--xs" aria-hidden="true"><use href="#iconGleanArrowLeft" /></svg>{t(i18n, "import.prevPage")}</button>
@@ -446,10 +470,12 @@ function openProgressDocument(id: string): void {
             </nav>
         {/if}
         <div class="glean-migrate__ops glean-migrate__ops--footer">
-            <button class="glean-btn glean-btn--ghost" onclick={resetToPick}>{t(i18n, "migrate.rescan")}</button>
+            <button class="glean-btn" class:glean-btn--ghost={!previewNotice || unfinished} class:glean-btn--pri={!!previewNotice && !unfinished} onclick={pickFile}>{t(i18n, "import.chooseAnother")}</button>
+            {#if importable > 0 && !preview.issue}
             <button class="glean-btn glean-btn--pri" disabled={busy || unfinished || !progressLoaded || progressReadFailed || importable === 0 || !targetAvailable || !importConfirmed || notebookLoading || notebookError} onclick={() => void startImport()}>
                 {t(i18n, "import.start")}
             </button>
+            {/if}
         </div>
     {:else if phase === "importing"}
         <div role="group" aria-label={t(i18n, "import.importing")}>
@@ -469,7 +495,7 @@ function openProgressDocument(id: string): void {
             <p class="glean-set-row__desc" role="status">{t(i18n, "import.retryHint")}</p>
             <label class="glean-import-progress__check">
                 <input type="checkbox" bind:checked={resumeConfirmed} disabled={busy || progressReadFailed || notebookLoading || notebookError || !targetAvailable || progressRecord?.taskId !== summary.taskId} />
-                {t(i18n, "import.retryConfirm")}
+                <span>{t(i18n, "import.retryConfirm")}</span>
             </label>
         {/if}
         <div class="glean-migrate__ops glean-migrate__ops--footer">
@@ -501,8 +527,10 @@ function openProgressDocument(id: string): void {
         line-height: 1.4;
     }
     .glean-import-progress p { color: var(--b3-theme-on-surface); font-size: var(--glean-text-xs); line-height: 1.5; }
-    .glean-import-progress__actions,
-    .glean-import-progress__check { display: flex; align-items: center; gap: var(--glean-space-2); flex-wrap: wrap; }
+    .glean-import-progress__actions { display: flex; align-items: center; gap: var(--glean-space-2); flex-wrap: wrap; }
+    .glean-import-progress__check { display: flex; align-items: flex-start; gap: var(--glean-space-2); flex-wrap: nowrap; min-width: 0; }
+    .glean-import-progress__check input { flex-shrink: 0; }
+    .glean-import-progress__check span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
     .glean-import-progress__rows { max-height: 260px; overflow: auto; padding-top: 2px; }
     .glean-import-progress__row { display: flex; align-items: center; gap: var(--glean-space-2); padding: 7px 0; border-top: 1px solid var(--glean-border-soft); flex-wrap: wrap; overflow-wrap: anywhere; }
     .glean-import-progress__error {
