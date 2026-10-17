@@ -328,16 +328,12 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
         if (!docId) return;
         this.lastReadingDocId = docId;
         this.recordRecentReading(docId);
-        if (this.isMobile) {
-            openMobileFileById(this.app, docId);
-            return;
-        }
         // D-0029：设置开启且桌面端时，开始阅读进内嵌阅读页签；默认沿用原生页签。
-        if (this.settings.reader.openInTab) {
+        if (!this.isMobile && this.settings.reader.openInTab) {
             void this.openReaderTab(docId);
             return;
         }
-        void openTab({ app: this.app, doc: { id: docId }, keepCursor: false });
+        void this.openNativeReadingDocument(docId);
     }
 
     /** 显式打开内嵌阅读页签（不写五态；移动端回退原生查看器）。 */
@@ -346,10 +342,24 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
         this.lastReadingDocId = docId;
         this.recordRecentReading(docId);
         if (this.isMobile) {
-            openMobileFileById(this.app, docId);
+            void this.openNativeReadingDocument(docId);
             return;
         }
         void this.openReaderTab(docId);
+    }
+
+    private async openNativeReadingDocument(docId: string): Promise<void> {
+        const request = ++this.readerOpenRequest;
+        try {
+            if (this.isMobile) {
+                // SDK 返回 void，只能捕获调用异常，不能把调用返回视作正文已打开。
+                openMobileFileById(this.app, docId);
+                return;
+            }
+            await openTab({ app: this.app, doc: { id: docId }, keepCursor: false });
+        } catch {
+            if (this.loaded && request === this.readerOpenRequest) showMessage(t(this.i18n, "msg.actionFailed"), 3500);
+        }
     }
 
     private async openReaderTab(docId: string): Promise<void> {

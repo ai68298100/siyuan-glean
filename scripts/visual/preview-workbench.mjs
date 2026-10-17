@@ -1,7 +1,8 @@
 /**
  * 真实 Svelte 页面隔离预览。只使用合成 fixture；不连接思源内核或 AI。
  * node scripts/visual/preview-workbench.mjs [--port 4179] [--build]
- * ?view=library|resurface|stats|highlights|settings&state=default|empty|loading|failure
+ * ?view=library|resurface|stats|highlights|settings|context&state=default|empty|loading|failure
+ * context 专用状态还支持 unknown|source-missing，包含长标题/主题和标签刷新按钮。
  * &canvas=tab|dock|mobile&theme=light|dark
  */
 import { readFileSync, mkdirSync, writeFileSync } from "node:fs";

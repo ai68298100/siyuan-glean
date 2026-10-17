@@ -254,7 +254,7 @@ function readerRoutingHarness() {
             && expression.arguments[0].properties.some((property: any) => property.name?.getText(ast) === "type" && property.initializer.getText(ast) === "READER_TAB_TYPE"));
     assert.ok(readerRegistration);
     const code = transpileModule(`class RoutingHarness {
-        ${["pendingReaderDocIds", "destroyedReaderTabIds", "readerOpenRequest", "openReaderTab", "consumeReaderFocus", "onunload"].map((name) => member(name).getText(ast)).join("\n")}
+        ${["pendingReaderDocIds", "destroyedReaderTabIds", "readerOpenRequest", "openReadingDocument", "openReader", "openNativeReadingDocument", "openReaderTab", "consumeReaderFocus", "onunload"].map((name) => member(name).getText(ast)).join("\n")}
         register() { const plugin = this; ${readerRegistration.getText(ast)}; }
     }; globalThis.RoutingHarness = RoutingHarness;`, { compilerOptions: { target: ScriptTarget.ESNext } }).outputText;
     const openRequests: Array<{ resolve: (tab: { id: string }) => void; reject: (error: Error) => void }> = [];
@@ -270,6 +270,7 @@ function readerRoutingHarness() {
             openCalls.push(options);
             return new Promise((resolve, reject) => openRequests.push({ resolve, reject }));
         },
+        openMobileFileById: () => {},
         READER_TAB_TYPE: "glean-reader", ReaderTab: {},
         showMessage: (message: string) => messages.push(message), t: (_i18n: unknown, key: string) => key,
         CustomEvent: class extends Event { detail: unknown; constructor(type: string, options: { detail: unknown }) { super(type); this.detail = options.detail; } },
@@ -288,6 +289,7 @@ function readerRoutingHarness() {
     const plugin = new scope.RoutingHarness();
     Object.assign(plugin, {
         loaded: true, app: {}, name: "siyuan-glean", i18n: {}, onboardingTimer: null,
+        isMobile: false, settings: { reader: { openInTab: false } }, recordRecentReading() {},
         eventBus: { off() {} }, addTab: (value: unknown) => { registration = value; },
     });
     plugin.register();
@@ -304,6 +306,67 @@ function readerRoutingHarness() {
     };
     return { plugin, openRequests, openCalls, messages, mountTab, events, scope, waitForRequests };
 }
+
+test("默认原生阅读打开捕获异步拒绝与同步异常，成功打开不显示失败", async () => {
+    const { plugin, openRequests, openCalls, messages, scope } = readerRoutingHarness();
+    assert.doesNotThrow(() => plugin.openReadingDocument("native-failed"));
+    assert.equal(openCalls[0]?.doc?.id, "native-failed");
+    openRequests.shift()!.reject(new Error("native-unavailable"));
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.deepEqual(messages, ["msg.actionFailed"]);
+
+    plugin.openReadingDocument("native-success");
+    openRequests.shift()!.resolve({ id: "native-tab" });
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.deepEqual(messages, ["msg.actionFailed"]);
+
+    scope.openTab = () => { throw new Error("native-sync-failure"); };
+    assert.doesNotThrow(() => plugin.openReadingDocument("native-sync-failed"));
+    assert.deepEqual(messages, ["msg.actionFailed", "msg.actionFailed"]);
+});
+
+test("移动阅读两个入口捕获 SDK 调用异常并保留原生调用方式", () => {
+    const { plugin, openCalls, messages, scope } = readerRoutingHarness();
+    const mobileCalls: string[] = [];
+    plugin.isMobile = true;
+    plugin.settings.reader.openInTab = true;
+    scope.openMobileFileById = (_app: unknown, id: string) => {
+        mobileCalls.push(id);
+        throw new Error("mobile-unavailable");
+    };
+    assert.doesNotThrow(() => plugin.openReadingDocument("mobile-reading"));
+    assert.doesNotThrow(() => plugin.openReader("mobile-reader"));
+    assert.deepEqual(mobileCalls, ["mobile-reading", "mobile-reader"]);
+    assert.deepEqual(openCalls, []);
+    assert.deepEqual(messages, ["msg.actionFailed", "msg.actionFailed"]);
+
+    scope.openMobileFileById = (_app: unknown, id: string) => mobileCalls.push(id);
+    plugin.openReadingDocument("mobile-opened");
+    assert.equal(mobileCalls.at(-1), "mobile-opened");
+    assert.equal(messages.length, 2);
+});
+
+test("新原生阅读请求使旧自定义页签响应失效，旧失败和卸载后失败不弹出提示", async () => {
+    const { plugin, openRequests, openCalls, messages } = readerRoutingHarness();
+    const custom = plugin.openReaderTab("old-custom");
+    const oldCustom = openRequests.shift()!;
+    plugin.openReadingDocument("latest-native");
+    const native = openRequests.shift()!;
+    oldCustom.resolve({ id: "old-reader-tab" });
+    await custom;
+    assert.equal(plugin.consumeReaderFocus("old-reader-tab"), "");
+    assert.equal(openCalls.at(-1)?.doc?.id, "latest-native");
+
+    plugin.openReadingDocument("newest-native");
+    native.reject(new Error("outdated-native-failure"));
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.deepEqual(messages, []);
+    const latest = openRequests.shift()!;
+    await plugin.onunload();
+    latest.reject(new Error("unloaded-native-failure"));
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.deepEqual(messages, []);
+});
 
 test("真实阅读页签路由只交付openTab返回目标，隐藏旧页签和同时可见分屏均不抢请求", async () => {
     const { plugin, openRequests, mountTab } = readerRoutingHarness();

@@ -44,7 +44,8 @@ const picks = $derived(sessionPicks ?? daily.picks);
 const recentCount = $derived(daily.recentCount);
 const clipCount = $derived(Object.keys(index.clips).length);
 const candidateCount = $derived(Object.keys(index.candidates).length);
-let observedIndex = $state<GleanIndex | null>(null);
+// 仅比较快照引用；深代理会改变裸索引的身份并反复触发此处的刷新 effect。
+let observedIndex = $state.raw<GleanIndex | null>(null);
 let actingId = $state("");
 let undoingId = $state("");
 let undoNotice = $state<{ id: string; title: string; action: SurfaceAction; token: SurfaceUndoToken } | null>(null);

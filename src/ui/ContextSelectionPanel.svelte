@@ -87,6 +87,10 @@
         includeUnknownMinutes = (event.currentTarget as HTMLInputElement).checked;
     }
 
+    function candidateTitleId(itemId: string): string {
+        return `glean-context-selection-item-title-${instanceId}-${itemId}`;
+    }
+
     function reasonText(reason: ContextReason): string {
         switch (reason.kind) {
             case "budget": return reason.value === "unknown"
@@ -127,7 +131,7 @@
     <div class="glean-context-selection__controls" role="group" aria-label={t(i18n, "context.filters")}>
         <label class="glean-context-selection__field">
             <span>{t(i18n, "context.budget")}</span>
-            <select aria-label={t(i18n, "context.budget")} value={String(budget)} onchange={setBudget}>
+            <select aria-label={t(i18n, "context.budget")} value={budget} onchange={setBudget}>
                 {#each CONTEXT_BUDGETS as option}
                     <option value={option}>{t(i18n, "context.budgetOption", { n: option })}</option>
                 {/each}
@@ -140,6 +144,9 @@
                 {#each userTags as tag}
                     <option value={tag}>{tag}</option>
                 {/each}
+                {#if selectedTag && !userTags.includes(selectedTag)}
+                    <option value={selectedTag}>{selectedTag}</option>
+                {/if}
             </select>
         </label>
         <label class="glean-context-selection__check">
@@ -157,7 +164,7 @@
             {#each selection.candidates as candidate (candidate.item.id)}
                 <article class="glean-context-selection__item" role="listitem">
                     <div class="glean-context-selection__item-main">
-                        <h3 class="glean-context-selection__item-title">{candidate.item.title || t(i18n, "panel.untitled")}</h3>
+                        <h3 id={candidateTitleId(candidate.item.id)} class="glean-context-selection__item-title">{candidate.item.title || t(i18n, "panel.untitled")}</h3>
                         <div class="glean-context-selection__meta">
                             {#if Number.isSafeInteger(candidate.item.minutes) && (candidate.item.minutes ?? 0) > 0}
                                 <span>{t(i18n, "context.minutes", { n: candidate.item.minutes ?? 0 })}</span>
@@ -168,12 +175,12 @@
                             {#if !candidate.offlineReadable}<span>{t(i18n, "context.linkOnly")}</span>{/if}
                         </div>
                         <div class="glean-context-selection__reasons" aria-label={t(i18n, "context.reasons")}>
-                            {#each candidate.reasons as reason (reason.kind + String(reason.value ?? ""))}
+                            {#each candidate.reasons.filter((reason) => reason.kind !== "budget" || reason.value !== "unknown") as reason (reason.kind + String(reason.value ?? ""))}
                                 <span class="glean-chip">{reasonText(reason)}</span>
                             {/each}
                         </div>
                     </div>
-                    <button type="button" class="glean-btn glean-btn--ghost glean-context-selection__open" onclick={() => openArticle(candidate)}>
+                    <button type="button" class="glean-btn glean-btn--ghost glean-context-selection__open" aria-describedby={candidateTitleId(candidate.item.id)} onclick={() => openArticle(candidate)}>
                         {t(i18n, "context.open")}
                     </button>
                 </article>
@@ -194,6 +201,11 @@
 <style>
     .glean-context-selection {
         display: grid;
+        flex: 0 0 auto;
+        grid-template-columns: minmax(0, 1fr);
+        min-width: 0;
+        max-width: 100%;
+        box-sizing: border-box;
         gap: var(--glean-space-3);
         margin: var(--glean-space-3) 0;
         padding: var(--glean-space-4);
@@ -205,21 +217,28 @@
     .glean-context-selection__head,
     .glean-context-selection__item {
         display: flex;
+        min-width: 0;
+        max-width: 100%;
+        box-sizing: border-box;
         align-items: flex-start;
         justify-content: space-between;
         gap: var(--glean-space-3);
     }
 
+    .glean-context-selection__head { flex-wrap: wrap; }
+    .glean-context-selection__head > div { flex: 1 1 160px; min-width: 0; }
+
     .glean-context-selection__title,
     .glean-context-selection__item-title {
         margin: 0;
         color: var(--b3-theme-on-background);
+        overflow-wrap: anywhere;
     }
 
     .glean-context-selection__title { font-size: 1.05rem; }
     .glean-context-selection__item-title { font-size: .96rem; }
-    .glean-context-selection__subtitle { margin: var(--glean-space-1) 0 0; color: var(--b3-theme-on-surface); font-size: .82rem; }
-    .glean-context-selection__count { color: var(--b3-theme-primary); font-size: .82rem; white-space: nowrap; }
+    .glean-context-selection__subtitle { margin: var(--glean-space-1) 0 0; color: var(--b3-theme-on-surface); font-size: .82rem; overflow-wrap: anywhere; }
+    .glean-context-selection__count { max-width: 100%; color: var(--b3-theme-primary); font-size: .82rem; overflow-wrap: anywhere; }
 
     .glean-context-selection__controls {
         display: flex;
@@ -228,23 +247,26 @@
         gap: var(--glean-space-2);
     }
 
-    .glean-context-selection__field { display: grid; gap: var(--glean-space-1); min-width: 130px; color: var(--b3-theme-on-surface); font-size: .78rem; }
-    .glean-context-selection__field select { min-height: 36px; padding: 0 var(--glean-space-2); border: 1px solid var(--b3-border-color); border-radius: var(--glean-radius-md); background: var(--b3-theme-surface); color: var(--b3-theme-on-background); }
-    .glean-context-selection__check { display: inline-flex; align-items: center; gap: var(--glean-space-1); min-height: 36px; color: var(--b3-theme-on-surface); font-size: .78rem; }
-    .glean-context-selection__check input { width: 16px; height: 16px; accent-color: var(--b3-theme-primary); }
+    .glean-context-selection__field { display: grid; flex: 0 1 180px; min-width: 0; max-width: 100%; gap: var(--glean-space-1); color: var(--b3-theme-on-surface); font-size: .78rem; overflow-wrap: anywhere; }
+    .glean-context-selection__field select { width: 100%; min-width: 0; max-width: 100%; box-sizing: border-box; min-height: 36px; padding: 0 var(--glean-space-2); border: 1px solid var(--b3-border-color); border-radius: var(--glean-radius-md); background: var(--b3-theme-surface); color: var(--b3-theme-on-background); }
+    .glean-context-selection__check { display: inline-flex; min-width: 0; max-width: 100%; align-items: center; gap: var(--glean-space-1); min-height: 36px; color: var(--b3-theme-on-surface); font-size: .78rem; }
+    .glean-context-selection__check input { flex: 0 0 16px; width: 16px; height: 16px; accent-color: var(--b3-theme-primary); }
+    .glean-context-selection__check span { min-width: 0; white-space: normal; overflow-wrap: anywhere; }
 
-    .glean-context-selection__results { display: grid; gap: var(--glean-space-2); }
+    .glean-context-selection__results { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; gap: var(--glean-space-2); }
     .glean-context-selection__item { align-items: center; padding: var(--glean-space-3); border: 1px solid var(--glean-border-soft); border-radius: var(--glean-radius-md); background: var(--b3-theme-surface); }
-    .glean-context-selection__item-main { min-width: 0; }
+    .glean-context-selection__item-main { flex: 1 1 0; min-width: 0; max-width: 100%; }
     .glean-context-selection__meta,
     .glean-context-selection__reasons { display: flex; flex-wrap: wrap; gap: var(--glean-space-1); margin-top: var(--glean-space-1); color: var(--b3-theme-on-surface); font-size: .76rem; }
+    .glean-context-selection__meta > span,
+    .glean-context-selection__reasons .glean-chip { min-width: 0; max-width: 100%; box-sizing: border-box; white-space: normal; overflow-wrap: anywhere; }
     .glean-context-selection__reasons .glean-chip { padding: 2px 6px; }
-    .glean-context-selection__open { flex: 0 0 auto; min-height: 36px; }
-    .glean-context-selection__empty { color: var(--b3-theme-on-surface); font-size: .84rem; }
+    .glean-context-selection__open { flex: 0 0 auto; min-height: 36px; max-width: 100%; box-sizing: border-box; white-space: normal; overflow-wrap: anywhere; }
+    .glean-context-selection__empty { min-width: 0; color: var(--b3-theme-on-surface); font-size: .84rem; overflow-wrap: anywhere; }
     .glean-context-selection__empty strong { color: var(--b3-theme-on-background); }
     .glean-context-selection__empty ul { margin: var(--glean-space-1) 0 0; padding-inline-start: 1.25rem; }
 
-    @media (max-width: 560px) {
+    @container glean-content (max-width: 560px) {
         .glean-context-selection { padding: var(--glean-space-3); }
         .glean-context-selection__item { align-items: stretch; flex-direction: column; }
         .glean-context-selection__field select,

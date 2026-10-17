@@ -139,7 +139,7 @@ function loadSurfaceControls({ act, undo, tick, openReading } = {}) {
     const context = {
         exports: {}, require: (id) => modules[id],
         $props: Object.assign(() => props, { id: () => "test" }),
-        $state: (value) => value, $derived: Object.assign((value) => value, { by: (value) => value() }), $effect() {},
+        $state: Object.assign((value) => value, { raw: (value) => value }), $derived: Object.assign((value) => value, { by: (value) => value() }), $effect() {},
         HTMLElement: ActiveButton, document: { activeElement: new ActiveButton(), body: { isConnected: true } }, console,
     };
     runInNewContext(compiled, context);

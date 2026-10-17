@@ -103,6 +103,43 @@ test("canonical 原型覆盖用户标签显示别名与原值筛选", () => {
     assert.doesNotMatch(prototype, /标签：精读（原标签：阅读）/);
 });
 
+test("canonical 今日拾遗原型包含可操作的情境选文与合成证据边界", () => {
+    const prototype = readFileSync(resolve(root, "design/prototype-v2.html"), "utf8");
+    const panel = prototype.match(/<section class="panel glean-context-selection"[\s\S]*?<\/section>/)?.[0] ?? "";
+    const budget = panel.match(/<select data-context-budget[\s\S]*?<\/select>/)?.[0] ?? "";
+    assert.deepEqual([...budget.matchAll(/<option value="(\d+)"/g)].map((match) => match[1]), ["5", "15", "30"]);
+    assert.match(budget, /value="15" selected/);
+    for (const control of ["data-context-tag", "data-context-done", "data-context-unknown", "data-context-results", "data-context-empty", "data-context-diagnostics"]) assert.ok(panel.includes(control), `missing ${control}`);
+    assert.match(panel, /不连接思源、不写状态，不代表真实宿主验收/);
+    assert.match(panel, /仅来源链接需要联网打开原文/);
+    assert.ok(prototype.indexOf('data-context-selection aria-labelledby') < prototype.indexOf('<section class="card" aria-labelledby="resurface-card-title"'));
+    assert.match(prototype, /@container glean-content \(max-width:560px\)\{[^\n]*min-height:44px/);
+    assert.match(prototype, /control\.addEventListener\('change',renderContextSelection\)/);
+    assert.match(prototype, /button\.dataset\.action=item\.contentType==='link'\?'open-source':'library-open'/);
+    assert.match(prototype, /button\.setAttribute\('aria-describedby',title\.id\)/);
+});
+
+test("canonical 情境选文演示遵守预算、用户标签与显式放宽契约", () => {
+    const prototype = readFileSync(resolve(root, "design/prototype-v2.html"), "utf8");
+    const selectorSource = prototype.match(/function selectContextDemo\(items,options\)\{[\s\S]*?\n  \}(?=\n  function renderContextSelection)/)?.[0];
+    assert.ok(selectorSource, "missing executable context demo selector");
+    const select = new Function(`return (${selectorSource})`)() as (items: unknown[], options: Record<string, unknown>) => { candidates: Array<{ id: string }>; diagnostics: { unknownMinutes: number; overBudget: number } };
+    const items = [
+        { id: "short", status: "inbox", minutes: 8, priority: 2, waitingDays: 10, tags: ["阅读"] },
+        { id: "unknown", status: "later", minutes: 0, priority: 1, waitingDays: 7, tags: ["AI"], contentType: "link" },
+        { id: "done", status: "done", minutes: 5, priority: 2, waitingDays: 3, tags: ["方法"] },
+        { id: "long", status: "later", minutes: 24, priority: 1, waitingDays: 6, tags: ["阅读"], aiTags: ["AI"] },
+    ];
+    const defaults = select(items, { budget: 15, tag: "", includeDone: false, includeUnknownMinutes: false });
+    assert.deepEqual(defaults.candidates.map((item) => item.id), ["short"]);
+    assert.equal(defaults.diagnostics.unknownMinutes, 1);
+    assert.equal(defaults.diagnostics.overBudget, 1);
+    assert.equal(select(items, { budget: 5 }).candidates.length, 0);
+    assert.deepEqual(select(items, { budget: 5, includeDone: true }).candidates.map((item) => item.id), ["done"]);
+    assert.deepEqual(select(items, { budget: 30, tag: "AI", includeUnknownMinutes: true }).candidates.map((item) => item.id), ["unknown"]);
+    assert.deepEqual(select(items, { budget: 30, tag: "阅读" }).candidates.map((item) => item.id), ["short", "long"]);
+});
+
 test("canonical 原型覆盖窄 Dock 更多筛选和移动筛选抽屉", () => {
     const prototype = readFileSync(resolve(root, "design/prototype-v2.html"), "utf8");
     for (const selector of ["data-action=\"library-more-filters\"", "data-filter-popover", "data-action=\"mobile-filter-open\"", "data-mobile-filter-sheet", "data-action=\"mobile-filter-apply\"", "data-action=\"mobile-filter-clear\""]) {

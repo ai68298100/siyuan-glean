@@ -833,6 +833,7 @@ body.b3-theme-dark {
 
 .glean-panel--mobile .glean-stats,
 .glean-panel--mobile .glean-surf,
+.glean-panel--mobile .glean-resurface,
 .glean-panel--mobile .glean-lib__main {
     scroll-padding-bottom: var(--glean-mobile-nav-space);
 }
@@ -5480,6 +5481,16 @@ body.b3-theme-dark {
 
 /* ============ 今日拾遗（M4，UI-STANDARD §5.7） ============ */
 
+/* 情境选文与今日卡片共用一个滚动根，长内容不能挤掉卡片正文和动作。 */
+.glean-resurface {
+    overflow-y: auto;
+}
+
+.glean-resurface > .glean-surf {
+    flex: 0 0 auto;
+    overflow: visible;
+}
+
 .glean-surf {
     display: flex;
     flex-direction: column;
@@ -9272,6 +9283,7 @@ body.b3-theme-dark {
 .glean-reader__host,
 .glean-reader__side,
 .glean-surf,
+.glean-resurface,
 .glean-highlights__preview pre {
     scrollbar-color: color-mix(in srgb, var(--b3-theme-on-surface) 28%, transparent) transparent;
     scrollbar-width: thin;
