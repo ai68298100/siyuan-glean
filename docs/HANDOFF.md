@@ -2,7 +2,7 @@
 
 ## 当前有效交接（2026-10-18 审计收口）
 
-- T-3360：当前工作树基线为 `6b6101c`，相对公开 Latest `v1.3.6`（`408d92c`）含六个未发布提交，其中五个为功能/审计提交、一个为文档证据对齐；本轮已完成入口失败降级、文档承诺边界与未接线 `QuotesView` 说明，不移动旧 tag/Release，不推送。
+- T-3360：当前工作树包含公开 Latest `v1.3.6`（`408d92c`）之后的功能/审计修复和文档证据校准；本轮已完成入口失败降级、文档承诺边界与未接线 `QuotesView` 说明，不移动旧 tag/Release，不推送。
 - ReaderTab 自定义 `openTab` 失败时，仍属当前请求且插件已加载才回退同一篇原生文档；原生回退也失败才显示既有失败提示；过期请求不回退。工作台 `openLibraryTab` 捕获失败并显示反馈，`openLibraryArticle` 仅在成功打开后派发聚焦事件。`QuotesView` 内部回跳使用所在文档 `rootId`，组件仍未接入生产导航。
 - CAPABILITY/UI 文档已把收集箱错误口径改为显示原因并可重试；能力矩阵明确 `HighlightView` 是当前全库读库摘录入口，`QuotesView` 是独立未接线草案。新增 D-0238 记录入口降级与失败反馈；不新增属性、端点、saveData 或 i18n 键。
 - 定向 `node --test tests/reader-acceptance.test.ts` 22/22、完整 `pnpm test` 1436/1436、`pnpm check` 0 错误/0 警告、`pnpm build`、`pnpm check:release`、`pnpm perf:check`、`pnpm visual:check`、`pnpm task:ledger -- --check` 与 `git diff --check` 均通过；视觉登记仍为 24 项等待真实宿主。测试新增了 T-3360 的入口/账本回归，版本仍为 1.3.6。
