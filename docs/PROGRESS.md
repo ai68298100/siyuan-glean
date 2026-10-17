@@ -2,7 +2,7 @@
 
 ## T-3360 审计收口：入口降级、承诺边界与源码/Release 对齐（2026-10-18）
 
-- [x] 复核当前 `main`（`a960b49`）与公开 `v1.3.6`（`408d92c`）的四个本地未发布实现提交，校准双语 README、CHANGELOG、ROADMAP、FUTURE-DIRECTION、RELEASE-CANDIDATE、CAPABILITY-MATRIX、UI-COMPONENTS 与历史 Agent 清单的口径；明确隔离证据不等于真实宿主、设备、模型或真实导出文件验收。
+- [x] 复核当前 `main`（`18c5184`）与公开 `v1.3.6`（`408d92c`）的五个本地未发布提交（四个功能修复及一项审计收口），校准双语 README、CHANGELOG、ROADMAP、FUTURE-DIRECTION、RELEASE-CANDIDATE、CAPABILITY-MATRIX、UI-COMPONENTS 与历史 Agent 清单的口径；明确隔离证据不等于真实宿主、设备、模型或真实导出文件验收。
 - [x] ReaderTab 自定义页签创建失败时回退同一篇原生页签；仅双重失败显示错误，过期请求不回退旧文章。工作台/读库入口统一捕获 `openTab` 失败，避免错误聚焦事件；`QuotesView` 草案回跳改用所在文档 `rootId`，保持未接线产品边界。
 - [x] 校准收集箱实际行为为“显示具体原因并可重试”，并登记 D-0238；新增 T-3360 当前执行记录，不改变文章属性、端点或持久化格式。
 - [x] 定向 Reader 回归 22/22，完整 `pnpm test` 1436/1436，`pnpm check` 0 错误/0 警告，`pnpm build`、`pnpm check:release`、`pnpm perf:check`、`pnpm visual:check`、`pnpm task:ledger -- --check` 与 `git diff --check` 均通过；视觉登记仍为 24 项等待真实宿主。本轮不发版、不 push，真实 Reader/工作台/收集箱与外部能力仍待 B-0002/B-0007。
