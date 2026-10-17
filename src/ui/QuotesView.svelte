@@ -132,8 +132,9 @@ function colorLabel(name: string): string {
     return t(i18n, `highlight.color.${name}`);
 }
 
-function openRoot(quoteId: string): void {
-    void openTab({ app: facade.pluginInstance.app, doc: { id: quoteId }, keepCursor: false });
+function openRoot(rootId: string): void {
+    // quote.id is the引述块；思源页签需要所在文档 rootId。
+    void openTab({ app: facade.pluginInstance.app, doc: { id: rootId }, keepCursor: false });
 }
 
 /** T-1803 分享卡：复制格式化引用（引述+来源+回链）。 */
@@ -254,7 +255,7 @@ async function doExport(): Promise<void> {
                 <div class="glean-quote" class:glean-hl--yellow={quote.color === "yellow"} class:glean-hl--red={quote.color === "red"} class:glean-hl--blue={quote.color === "blue"} class:glean-hl--green={quote.color === "green"}>
                     <div class="glean-quote__text">{quote.text.slice(0, 160)}{quote.text.length > 160 ? "…" : ""}</div>
                     <div class="glean-quote__meta">
-                        <button class="glean-quote__src" title={quote.title || quote.rootId} onclick={() => openRoot(quote.id)}>
+                        <button class="glean-quote__src" title={quote.title || quote.rootId} onclick={() => openRoot(quote.rootId)}>
                             ↩ {quote.title || t(i18n, "panel.untitled")}{quote.site ? ` · ${quote.site}` : ""}
                         </button>
                         <!-- T-1901 延伸：颜色循环切换 -->

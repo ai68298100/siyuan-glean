@@ -8,6 +8,17 @@ Lv Glean organizes clippings and articles already in SiYuan. It does not crawl t
 
 [中文说明](README.md) · [Latest Release](https://github.com/ai68298100/siyuan-glean/releases/latest) · [Capability matrix](docs/CAPABILITY-MATRIX.md) · [Feedback](https://github.com/ai68298100/siyuan-glean/issues/new/choose)
 
+## In development, unreleased (2026-10-18)
+
+The source version remains `1.3.6`. The public [v1.3.6 download](https://github.com/ai68298100/siyuan-glean/releases/tag/v1.3.6) comes from `408d92c` and does not include the four later local fixes (through `a960b49`) or this maintenance work.
+
+- Improved library titles, row density, and narrow layouts across pages.
+- Added clearer Today's Gleaning receipts/undo, reading-bookmark access and tab targeting, settings error focus, import checkpoint reads, and index-delay protection.
+- Import previews distinguish empty input, format mismatch, missing valid links, and complete duplication, with direct file replacement and original-file task identity checks for pause/resume.
+- This maintenance aligns release evidence, roadmap, and historical task records. Highlights already provides current-document and library-wide excerpts; a separate `QuotesView` draft has no production entry.
+
+These implementations have local or isolated evidence. Real-host, device, and four-format export-file acceptance remains pending under B-0002/B-0005. See the [release candidate record](docs/RELEASE-CANDIDATE.md) for the source/release difference; the version notes below retain published history.
+
 ## v1.3.6 update (2026-10-16)
 
 This hotfix addresses repeated reading-context refresh related to [#16](https://github.com/ai68298100/siyuan-glean/issues/16), with the same lifecycle paths reviewed in native editors, ReaderTab, and Workbench preview.

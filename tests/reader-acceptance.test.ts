@@ -258,6 +258,7 @@ function readerRoutingHarness() {
         register() { const plugin = this; ${readerRegistration.getText(ast)}; }
     }; globalThis.RoutingHarness = RoutingHarness;`, { compilerOptions: { target: ScriptTarget.ESNext } }).outputText;
     const openRequests: Array<{ resolve: (tab: { id: string }) => void; reject: (error: Error) => void }> = [];
+    const openCalls: Array<{ custom?: unknown; doc?: { id: string } }> = [];
     const messages: string[] = [];
     const events = new EventTarget();
     const instances = new Map<string, any>();
@@ -265,7 +266,10 @@ function readerRoutingHarness() {
     assert.ok(focusSource.includes("consumeReaderFocus(tabId)"));
     let registration: any;
     const scope: any = {
-        openTab: () => new Promise((resolve, reject) => openRequests.push({ resolve, reject })),
+        openTab: (options: { custom?: unknown; doc?: { id: string } }) => {
+            openCalls.push(options);
+            return new Promise((resolve, reject) => openRequests.push({ resolve, reject }));
+        },
         READER_TAB_TYPE: "glean-reader", ReaderTab: {},
         showMessage: (message: string) => messages.push(message), t: (_i18n: unknown, key: string) => key,
         CustomEvent: class extends Event { detail: unknown; constructor(type: string, options: { detail: unknown }) { super(type); this.detail = options.detail; } },
@@ -292,7 +296,13 @@ function readerRoutingHarness() {
         registration.init.call(model);
         return { model, state: instances.get(id), destroy: () => registration.destroy.call(model) };
     };
-    return { plugin, openRequests, messages, mountTab, events, scope };
+    const waitForRequests = async (count: number): Promise<void> => {
+        for (let attempt = 0; openRequests.length < count && attempt < 20; attempt += 1) {
+            await new Promise<void>((resolve) => setTimeout(resolve, 0));
+        }
+        assert.ok(openRequests.length >= count, `expected ${count} pending openTab request(s), got ${openRequests.length}`);
+    };
+    return { plugin, openRequests, openCalls, messages, mountTab, events, scope, waitForRequests };
 }
 
 test("真实阅读页签路由只交付openTab返回目标，隐藏旧页签和同时可见分屏均不抢请求", async () => {
@@ -333,8 +343,32 @@ test("较早打开的迟到响应不覆盖新文章，晚挂载目标可读取�
     assert.equal(plugin.consumeReaderFocus("not-mounted-yet"), "");
 });
 
+test("自定义阅读页签创建失败时回退打开同一篇原生页签", async () => {
+    const { plugin, openRequests, openCalls, messages, waitForRequests } = readerRoutingHarness();
+    const opening = plugin.openReaderTab("native-fallback");
+    openRequests.shift()!.reject(new Error("custom-unavailable"));
+    await waitForRequests(1);
+    assert.equal(openCalls.length, 2);
+    assert.equal(openCalls[1]?.doc?.id, "native-fallback");
+    openRequests.shift()!.resolve({ id: "native-tab" });
+    await opening;
+    assert.deepEqual(messages, []);
+});
+
+test("较早请求的自定义页签失败时不再回退打开过时原生文章", async () => {
+    const { plugin, openRequests, openCalls } = readerRoutingHarness();
+    const earlier = plugin.openReaderTab("old-article");
+    const later = plugin.openReaderTab("new-article");
+    openRequests[1].resolve({ id: "reader-tab" });
+    await later;
+    openRequests[0].reject(new Error("stale-custom-unavailable"));
+    await earlier;
+    assert.equal(openCalls.length, 2);
+    assert.equal(openCalls.some((call) => Boolean(call.doc)), false);
+});
+
 test("关闭目标和卸载插件都取消待办及未完成打开，打开失败显示反馈且不留下请求", async () => {
-    const { plugin, openRequests, mountTab, messages } = readerRoutingHarness();
+    const { plugin, openRequests, openCalls, mountTab, messages, waitForRequests } = readerRoutingHarness();
     const target = mountTab("closing-tab");
     const closing = plugin.openReaderTab("closed-article");
     target.destroy();
@@ -344,8 +378,12 @@ test("关闭目标和卸载插件都取消待办及未完成打开，打开失�
     assert.equal(target.state.docId, "");
     const failed = plugin.openReaderTab("failed-article");
     openRequests.shift()!.reject(new Error("unavailable"));
+    await waitForRequests(1);
+    openRequests.shift()!.reject(new Error("native-unavailable"));
     await failed;
     assert.deepEqual(messages, ["msg.actionFailed"]);
+    assert.equal(openCalls.at(-2)?.custom && typeof openCalls.at(-2)?.custom === "object", true);
+    assert.equal(openCalls.at(-1)?.doc?.id, "failed-article");
     const staged = plugin.openReaderTab("pending-article");
     openRequests.shift()!.resolve({ id: "delayed-tab" });
     await staged;

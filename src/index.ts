@@ -357,7 +357,14 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
             this.pendingReaderDocIds.set(tab.id, docId);
             document.dispatchEvent(new CustomEvent("glean:focus-reader", { detail: { tabId: tab.id } }));
         } catch {
-            if (this.loaded && request === this.readerOpenRequest) showMessage(t(this.i18n, "msg.actionFailed"), 3500);
+            // 自定义页签是实验能力；宿主拒绝创建时仍交付同一篇文章的原生页签。
+            // 只允许当前请求回退，避免较早请求在用户已打开另一篇后抢占导航。
+            if (!this.loaded || request !== this.readerOpenRequest) return;
+            try {
+                await openTab({ app: this.app, doc: { id: docId }, keepCursor: false });
+            } catch {
+                if (this.loaded && request === this.readerOpenRequest) showMessage(t(this.i18n, "msg.actionFailed"), 3500);
+            }
         }
     }
 
@@ -379,7 +386,10 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
     async openLibraryArticle(docId: string): Promise<void> {
         if (!docId) return;
         this.pendingLibraryDocId = docId;
-        await this.openLibraryTab();
+        if (!await this.openLibraryTab()) {
+            if (this.pendingLibraryDocId === docId) this.pendingLibraryDocId = "";
+            return;
+        }
         document.dispatchEvent(new CustomEvent("glean:focus-clip", { detail: { id: docId } }));
     }
 
@@ -421,16 +431,23 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
         this.openLibraryTab();
     }
 
-    private async openLibraryTab(): Promise<void> {
-        await openTab({
-            app: this.app,
-            custom: {
-                id: `${this.name}${TAB_TYPE}`,
-                icon: "iconGleanWheat",
-                title: t(this.i18n, "workbench.title"),
-            },
-            keepCursor: false,
-        });
+    private async openLibraryTab(): Promise<boolean> {
+        try {
+            await openTab({
+                app: this.app,
+                custom: {
+                    id: `${this.name}${TAB_TYPE}`,
+                    icon: "iconGleanWheat",
+                    title: t(this.i18n, "workbench.title"),
+                },
+                keepCursor: false,
+            });
+            return true;
+        } catch (error) {
+            console.debug("[glean] 工作台页签打开失败:", error);
+            showMessage(t(this.i18n, "msg.actionFailed"), 3500);
+            return false;
+        }
     }
 
     /* ---------- T-1724 命令面板阅读动作 ---------- */

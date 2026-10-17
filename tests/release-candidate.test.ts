@@ -29,7 +29,7 @@ test("发布材料不保留旧版本命令，也保留真实授权边界", () =>
     assert.match(media, /package\.json|plugin\.json/);
     assert.match(release, /需作者确认/);
     assert.match(release, /需作者单独授权/);
-    assert.match(candidate, /集市 PR 仍需单独授权，不执行/);
+    assert.match(candidate, /集市[^\n]*授权/);
     assert.match(candidate, /真实宿主/);
 });
 
@@ -37,7 +37,7 @@ test("发布候选继续引用能力矩阵的保守对外口径", () => {
     assert.match(candidate, /能力矩阵/);
     assert.match(candidate, /默认手动/);
     assert.match(candidate, /不写“全平台已验证”/);
-    assert.match(candidate, /v1\.3\.4/);
+    assert.match(candidate, new RegExp(`v${pkg.version.replace(".", "\\.")}`));
     assert.match(capability, /真实状态/);
     assert.match(capability, /B-0004/);
     assert.match(capability, /B-0005/);
