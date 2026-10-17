@@ -10,7 +10,7 @@ Lv Glean organizes clippings and articles already in SiYuan. It does not crawl t
 
 ## In development, unreleased (2026-10-18)
 
-The source version remains `1.3.6`. The public [v1.3.6 download](https://github.com/ai68298100/siyuan-glean/releases/tag/v1.3.6) comes from `408d92c` and does not include the five later local commits (four feature-fix commits plus the audit closeout and evidence alignment at `18c5184`).
+The source version remains `1.3.6`. The public [v1.3.6 download](https://github.com/ai68298100/siyuan-glean/releases/tag/v1.3.6) comes from `408d92c` and does not include the six later local commits (five feature/audit commits plus the documentation evidence alignment at `6b6101c`).
 
 - Improved library titles, row density, and narrow layouts across pages.
 - Added clearer Today's Gleaning receipts/undo, reading-bookmark access and tab targeting, settings error focus, import checkpoint reads, and index-delay protection.
