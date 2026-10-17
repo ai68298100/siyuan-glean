@@ -322,6 +322,13 @@ test("新用户可从空库、今日拾遗和设置页重新打开引导，忙�
     }
 });
 
+test("首启引导的自动与手动入口共用单例，并在手动打开时取消延迟计时器", () => {
+    const source = read("src/index.ts");
+    assert.match(source, /private readonly openOnboardingSingleton = createDialogSingleton/);
+    assert.match(source, /if \(this\.onboardingTimer !== null\) \{[\s\S]*?clearTimeout\(this\.onboardingTimer\);[\s\S]*?this\.onboardingTimer = null;/);
+    assert.match(source, /openOnboarding\(\): void \{[\s\S]*?this\.openOnboardingSingleton\(undefined\);/);
+});
+
 test("responsive and visually-hidden UI contracts remain present", () => {
     const source = read("src/index.scss");
     assert.match(source, /@media \(max-width: 560px\)/);

@@ -1,5 +1,11 @@
 # 进度（PROGRESS）
 
+## T-3361 GitHub #16 引导弹窗重入收口（2026-10-18）
+
+- [x] 首启自动引导与空库、今日拾遗、设置入口共用插件级弹窗单例；手动打开时取消尚未触发的 800ms 自动计时器，避免手动弹窗关闭后再次弹出并造成侧栏闪烁。
+- [x] 补充入口静态回归，确认单例与计时器清理契约；真实宿主进入引导、阅读页签和多画布切换仍待 B-0002/Issue #16 作者环境复测，不据此关闭公开 Issue。
+- [x] 完整 `pnpm test` 1437/1437、`pnpm check` 0 错误/0 警告、`pnpm build`、`pnpm check:release`、`pnpm perf:check`、`pnpm visual:check`、`pnpm task:ledger -- --check` 与 `git diff --check` 均通过；版本保持 1.3.6，不推送、不重新发布。
+
 ## T-3360 审计收口：入口降级、承诺边界与源码/Release 对齐（2026-10-18）
 
 - [x] 复核当前 `main` 与公开 `v1.3.6`（`408d92c`）之间的本地功能/审计修复和文档证据校准，校准双语 README、CHANGELOG、ROADMAP、FUTURE-DIRECTION、RELEASE-CANDIDATE、CAPABILITY-MATRIX、UI-COMPONENTS 与历史 Agent 清单的口径；明确隔离证据不等于真实宿主、设备、模型或真实导出文件验收。

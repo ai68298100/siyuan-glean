@@ -50,6 +50,18 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
 
     /** 首启引导延迟弹出的句柄，onunload 时取消 */
     private onboardingTimer: number | null = null;
+    /** 首启引导可从多个空态/设置入口打开；所有入口共用一个弹窗实例。 */
+    private readonly openOnboardingSingleton = createDialogSingleton<undefined, ReturnType<typeof svelteDialog>>(
+        (_args, onClose) => svelteDialog({
+            title: t(this.i18n, "onboarding.title"),
+            closeLabel: t(this.i18n, "action.close"),
+            component: OnboardingDialog,
+            props: { facade: this },
+            width: "680px",
+            height: "560px",
+            callback: onClose,
+        }),
+    );
     private disposeReadingContext: (() => void) | null = null;
     private disposeBridge: (() => void) | null = null;
     private loaded = false;
@@ -902,14 +914,12 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
     }
 
     openOnboarding(): void {
-        svelteDialog({
-            title: t(this.i18n, "onboarding.title"),
-            closeLabel: t(this.i18n, "action.close"),
-            component: OnboardingDialog,
-            props: { facade: this },
-            width: "680px",
-            height: "560px",
-        });
+        // 手动入口可能在首启自动弹出计时器到期前触发；避免关闭手动弹窗后计时器再次打开一份。
+        if (this.onboardingTimer !== null) {
+            clearTimeout(this.onboardingTimer);
+            this.onboardingTimer = null;
+        }
+        this.openOnboardingSingleton(undefined);
     }
 
     /** 工作台弹出为独立浮窗（全宽画布第三形态） */
