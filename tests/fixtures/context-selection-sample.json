@@ -1,0 +1,15 @@
+[
+  {"id":"fulltext-5","title":"五分钟全文","status":"inbox","contentType":"fulltext","minutes":5,"priority":3,"waitingDays":2,"tags":["工作"],"aiTags":["效率"]},
+  {"id":"fulltext-15","title":"十五分钟全文","status":"later","contentType":"fulltext","minutes":15,"priority":5,"waitingDays":1,"tags":["工作"],"aiTags":["效率"]},
+  {"id":"fulltext-30","title":"三十分钟全文","status":"inbox","contentType":"fulltext","minutes":30,"priority":4,"waitingDays":8,"tags":["阅读"],"aiTags":["工作"]},
+  {"id":"over-20","title":"超过预算","status":"inbox","contentType":"fulltext","minutes":20,"priority":5,"waitingDays":20,"tags":["工作"],"aiTags":[]},
+  {"id":"unknown-minutes","title":"未知时长","status":"inbox","contentType":"fulltext","priority":4,"waitingDays":3,"tags":["工作"],"aiTags":[]},
+  {"id":"link-only","title":"只有来源链接","status":"later","contentType":"link","minutes":10,"priority":3,"waitingDays":4,"tags":["工作"],"aiTags":[]},
+  {"id":"done-review","title":"已读回看","status":"done","contentType":"fulltext","minutes":5,"priority":4,"waitingDays":30,"tags":["工作"],"aiTags":[]},
+  {"id":"ai-only-topic","title":"只有 AI 主题","status":"inbox","contentType":"fulltext","minutes":5,"priority":5,"waitingDays":30,"tags":[],"aiTags":["工作"]},
+  {"id":"candidate","title":"待确认候选","kind":"candidate","status":"inbox","contentType":"fulltext","minutes":5,"priority":5,"waitingDays":30,"tags":["工作"],"aiTags":[]},
+  {"id":"internal","title":"内部宿主","status":"inbox","contentType":"fulltext","minutes":5,"priority":5,"waitingDays":30,"tags":["工作"],"internal":true},
+  {"id":"excluded","title":"已排除","status":"inbox","contentType":"fulltext","minutes":5,"priority":5,"waitingDays":30,"tags":["工作"],"excluded":true},
+  {"id":"tie-b","title":"并列 B","status":"inbox","contentType":"fulltext","minutes":5,"priority":3,"waitingDays":1,"tags":["工作"],"aiTags":[]},
+  {"id":"tie-a","title":"并列 A","status":"inbox","contentType":"fulltext","minutes":5,"priority":3,"waitingDays":1,"tags":["工作"],"aiTags":[]}
+]
