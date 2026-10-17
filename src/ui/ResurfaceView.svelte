@@ -10,6 +10,7 @@ import type { GleanIndex } from "../services/index-store";
 import { todayStamp, type SurfacePick, type SurfaceReason } from "../domain/resurface";
 import { hasSourceAction, openTargetForCarrier, resolveCarrier, sourceUrlForCarrier } from "../domain/carrier";
 import { clampSurfaceSwipe, resolveSurfaceSwipe, type SurfaceSwipeAction } from "../domain/surface-swipe";
+import ContextSelectionPanel from "./ContextSelectionPanel.svelte";
 
 interface Props {
     facade: GleanFacade;
@@ -424,6 +425,10 @@ function reasonText(reason: SurfaceReason): string {
                 <svg class="glean-icon" aria-hidden="true"><use href="#iconGleanClose" /></svg>
             </button>
         </div>
+    {/if}
+
+    {#if index.updatedAt}
+        <ContextSelectionPanel {facade} {index} {currentTime} />
     {/if}
 
     {#if loading && !index.updatedAt}
