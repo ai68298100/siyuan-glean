@@ -484,13 +484,18 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
     async openCurrentSource(): Promise<void> {
         const id = this.requireCurrentDoc();
         if (!id) return;
-        const attrs = await readClip(id);
-        const url = sourceUrlForCarrier(attrs.contentType, attrs.url);
-        if (!url) {
-            showMessage(t(this.i18n, "clip.sourceMissing"), 3000);
-            return;
+        try {
+            const attrs = await readClip(id);
+            const url = sourceUrlForCarrier(attrs.contentType, attrs.url);
+            if (!url) {
+                showMessage(t(this.i18n, "clip.sourceMissing"), 3000);
+                return;
+            }
+            window.open(url, "_blank", "noopener,noreferrer");
+        } catch (error) {
+            console.warn("[glean] 打开原文失败:", error);
+            showMessage(t(this.i18n, "reader.actionFailed"), 3000);
         }
-        window.open(url, "_blank", "noopener,noreferrer");
     }
 
     /** 选区摘录为引述块（原生编辑器；定位失败降级为复制文本，不伪造锚点）。 */
@@ -507,19 +512,29 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
             await navigator.clipboard.writeText(picked.text).catch(() => undefined);
             return;
         }
-        await insertQuoteExcerpt(picked.blockId, picked.text);
-        this.notifyDataChanged();
-        showMessage(t(this.i18n, "reader.excerptDone"), 2500);
+        try {
+            await insertQuoteExcerpt(picked.blockId, picked.text);
+            this.notifyDataChanged();
+            showMessage(t(this.i18n, "reader.excerptDone"), 2500);
+        } catch (error) {
+            console.warn("[glean] 摘录引述块失败:", error);
+            showMessage(t(this.i18n, "reader.actionFailed"), 3000);
+        }
     }
 
     /** 打开下一篇待读（显式导航；不写状态）。 */
     async readNextArticle(): Promise<void> {
-        const next = await pickNextUnread(this, "");
-        if (!next) {
-            showMessage(t(this.i18n, "reader.noNext"), 3000);
-            return;
+        try {
+            const next = await pickNextUnread(this, "");
+            if (!next) {
+                showMessage(t(this.i18n, "reader.noNext"), 3000);
+                return;
+            }
+            this.openReadingDocument(next);
+        } catch (error) {
+            console.warn("[glean] 打开下一篇失败:", error);
+            showMessage(t(this.i18n, "reader.actionFailed"), 3000);
         }
-        this.openReadingDocument(next);
     }
 
     /** 归档后处理入口：策略细节由 ArchiveDialog 负责，入口保持与阅读上下文解耦。 */
@@ -772,17 +787,22 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
             return;
         }
         showMessage(t(this.i18n, "ai.enriching"), 3000);
-        const outcome = await enrichClip(this, docId, this.settings);
-        if (outcome.ok) {
-            showMessage(
-                outcome.duplicates.length > 0
-                    ? t(this.i18n, "ai.similarFound", { title: outcome.duplicates[0].title })
-                    : t(this.i18n, "ai.enrichDone"),
-                3500
-            );
-        } else if (outcome.skipped === "cap") {
-            showMessage(t(this.i18n, "ai.capReached", { n: this.settings.ai.enrichDailyCap }), 4000);
-        } else {
+        try {
+            const outcome = await enrichClip(this, docId, this.settings);
+            if (outcome.ok) {
+                showMessage(
+                    outcome.duplicates.length > 0
+                        ? t(this.i18n, "ai.similarFound", { title: outcome.duplicates[0].title })
+                        : t(this.i18n, "ai.enrichDone"),
+                    3500
+                );
+            } else if (outcome.skipped === "cap") {
+                showMessage(t(this.i18n, "ai.capReached", { n: this.settings.ai.enrichDailyCap }), 4000);
+            } else {
+                showMessage(t(this.i18n, "ai.enrichFailed"), 3000);
+            }
+        } catch (error) {
+            console.warn("[glean] 手动富化失败:", error);
             showMessage(t(this.i18n, "ai.enrichFailed"), 3000);
         }
         this.notifyDataChanged();

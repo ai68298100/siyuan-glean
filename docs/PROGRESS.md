@@ -19,6 +19,11 @@
 - [x] 本轮 `import-empty` 隔离会话停止成功（exit 0），原型 HTTP 服务已退出，31805/31806 均无监听；viewport 已恢复、点验页签 7/8 已关闭。完整点验报告在 `output/import-empty/acceptance.md`；主工作区未覆盖或重启。
 - [ ] B-0002 原工作区/主题/设备与 B-0005 真实四格式导出文件继续保留，T-3359 为进行中。版本保持 1.3.6，本轮不发版；本轮 IAB 证据不视为 Chrome 或真实视觉矩阵验收通过。
 
+## T-3351 追加：命令面板异步动作失败反馈（2026-10-18）
+
+- [x] `openCurrentSource`、`readNextArticle`、`excerptQuoteFromSelection` 和 `enrichCurrentDoc` 捕获内核读取、查询、写入和模型异常，沿用现有双语失败提示，不把未处理 Promise 留给宿主；空选择、无来源和无下一篇仍保留解释性提示。
+- [x] 本轮 `pnpm check` 0 错误/0 警告、完整 `pnpm test` 1436/1436、`pnpm build`、`pnpm check:release`、`pnpm perf:check`、`pnpm visual:check`、`pnpm task:ledger -- --check` 与 `git diff --check` 均通过；真实多画布、移动端、读屏和宿主故障注入仍归 B-0002。
+
 ## T-3358 现有操作的反馈、定位与连续阅读（2026-10-16）
 
 - [x] 桌面今日拾遗补成功/撤销回执与文章名；卡片移除后聚焦撤销，撤销/关闭后回到可操作入口。异步期间已移焦不抢回，页面销毁后的迟到动作/撤销只广播成功数据，不操作旧页面或导航；状态写入和导航反馈区分。
