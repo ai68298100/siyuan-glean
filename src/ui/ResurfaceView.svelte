@@ -46,6 +46,7 @@ const clipCount = $derived(Object.keys(index.clips).length);
 const candidateCount = $derived(Object.keys(index.candidates).length);
 // 仅比较快照引用；深代理会改变裸索引的身份并反复触发此处的刷新 effect。
 let observedIndex = $state.raw<GleanIndex | null>(null);
+/** 忙态按钮用 aria-disabled 保持失败后的键盘焦点；各动作入口的 busy guard 负责防重入。 */
 let actingId = $state("");
 let undoingId = $state("");
 let undoNotice = $state<{ id: string; title: string; action: SurfaceAction; token: SurfaceUndoToken } | null>(null);
@@ -140,18 +141,23 @@ function isPinnedToday(pick: SurfacePick): boolean {
 }
 
 async function togglePin(pick: SurfacePick): Promise<void> {
-    if (actingId || undoingId) return;
+    if (disposed || actingId || undoingId) return;
     actingId = pick.item.id;
     try {
         const result = await setSurfacePinned(facade.pluginInstance, pick.item.id, !isPinnedToday(pick));
+        if (disposed) {
+            facade.notifyDataChanged();
+            return;
+        }
         if (result.indexSyncFailed) showMessage(t(i18n, "msg.writeIndexPending"), 4000);
         facade.notifyDataChanged();
+        if (disposed) return;
         onMutated();
     } catch (error) {
         console.warn("[glean] 置顶失败:", error);
-        showMessage(t(i18n, "msg.actionFailed"), 4000);
+        if (!disposed) showMessage(t(i18n, "msg.actionFailed"), 4000);
     } finally {
-        actingId = "";
+        if (!disposed) actingId = "";
     }
 }
 
@@ -212,8 +218,11 @@ async function act(pick: SurfacePick, action: SurfaceAction) {
     }
 }
 
-function replacePick(slot: number, pick: SurfacePick): void {
-    if (actingId || undoingId) return;
+async function replacePick(slot: number, pick: SurfacePick): Promise<void> {
+    if (disposed || actingId || undoingId) return;
+    const focusOrigin = document.activeElement;
+    const activeCard = focusOrigin instanceof HTMLElement ? focusOrigin.closest(".glean-surf-card") : null;
+    const moveFocus = activeCard?.getAttribute("aria-labelledby") === cardTitleId(pick.item.id);
     const currentIds = new Set(picks.map((candidate) => candidate.item.id));
     const excluded = new Set([...currentIds, ...replacementExcluded]);
     const replacement = pickSurfaceReplacementFromIndex(index, facade.settings, excluded);
@@ -229,6 +238,7 @@ function replacePick(slot: number, pick: SurfacePick): void {
         from: pick.item.title || t(i18n, "panel.untitled"),
         to: replacement.item.title || t(i18n, "panel.untitled"),
     };
+    if (moveFocus) await focusAvailablePick(focusOrigin, replacement.item.id);
 }
 
 function refreshDaily(): void {
@@ -325,6 +335,7 @@ async function undoLastAction(): Promise<void> {
             return;
         }
         undoNotice = null;
+        if (notice.action === "read") startedToday = startedToday.filter((item) => item.id !== notice.id);
         if (result.indexSyncFailed) showMessage(t(i18n, "msg.statusIndexPending"), 4000);
         facade.notifyDataChanged();
         if (disposed) return;
@@ -344,10 +355,12 @@ function canRestoreFocus(origin: Element | null): boolean {
     return active === origin || (!origin.isConnected && (!active || active === document.body || !active.isConnected));
 }
 
-async function focusAvailablePick(origin: Element | null): Promise<void> {
+async function focusAvailablePick(origin: Element | null, preferredId = ""): Promise<void> {
     await tick();
     if (disposed || !canRestoreFocus(origin)) return;
-    const target = panelRoot?.querySelector<HTMLElement>(".glean-surf__title-action")
+    const preferred = preferredId ? Array.from(panelRoot?.querySelectorAll<HTMLElement>(".glean-surf__title-action") ?? [])
+        .find((button) => button.id === cardTitleId(preferredId)) : undefined;
+    const target = preferred ?? panelRoot?.querySelector<HTMLElement>(".glean-surf__title-action")
         ?? panelRoot?.querySelector<HTMLElement>(".glean-head-actions button, .glean-empty__actions button");
     (target ?? panelRoot)?.focus();
 }
@@ -412,7 +425,7 @@ function reasonText(reason: SurfaceReason): string {
     {#if undoNotice}
         <div class="glean-surf-undo" role="status" aria-live="polite">
             <span class="glean-surf-undo__text">{t(i18n, "resurface.actionApplied", { action: actionLabel(undoNotice.action) })} · {undoNotice.title}</span>
-            <button bind:this={undoButton} class="glean-surf-undo__button" aria-busy={undoingId === undoNotice.id} disabled={!!actingId || undoingId === undoNotice.id} onclick={() => void undoLastAction()}>
+            <button bind:this={undoButton} class="glean-surf-undo__button" aria-busy={undoingId === undoNotice.id} aria-disabled={!!actingId || undoingId === undoNotice.id} onclick={() => void undoLastAction()}>
                 {undoingId === undoNotice.id ? t(i18n, "resurface.undoing") : t(i18n, "resurface.undo")}
             </button>
             <button class="glean-surf-undo__dismiss" aria-label={t(i18n, "resurface.dismissUndo")} disabled={undoingId === undoNotice.id} onclick={dismissUndo}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanClose" /></svg></button>
@@ -550,7 +563,7 @@ function reasonText(reason: SurfaceReason): string {
                         </div>
                     {/if}
                     <div class="glean-surf__acts">
-                        <button class="glean-surf-act" aria-pressed={isPinnedToday(pick)} aria-busy={actingId === pick.item.id} disabled={!!actingId || !!undoingId} onclick={() => void togglePin(pick)}>
+                        <button class="glean-surf-act" aria-pressed={isPinnedToday(pick)} aria-busy={actingId === pick.item.id} aria-disabled={!!actingId || !!undoingId} onclick={() => void togglePin(pick)}>
                             <svg class="glean-icon glean-icon--sm" aria-hidden="true"><use href="#iconGleanPin" /></svg>{t(i18n, isPinnedToday(pick) ? "resurface.unpinToday" : "resurface.pinToday")}
                         </button>
                         {#if hasSourceAction(pick.item.contentType, pick.item.url)}
@@ -560,16 +573,16 @@ function reasonText(reason: SurfaceReason): string {
                         {:else if pick.item.contentType === "link"}
                             <span class="glean-surf-source-missing">{t(i18n, "clip.sourceMissing")}</span>
                         {/if}
-                        <button class="glean-surf-act" aria-busy={false} disabled={!!actingId || !!undoingId} onclick={() => replacePick(index, pick)}>
+                        <button class="glean-surf-act" aria-busy={false} aria-disabled={!!actingId || !!undoingId} onclick={() => void replacePick(index, pick)}>
                             <svg class="glean-icon glean-icon--sm" aria-hidden="true"><use href="#iconGleanRefresh" /></svg>{t(i18n, "resurface.replace")}
                         </button>
-                        <button class="glean-surf-act" aria-busy={actingId === pick.item.id} disabled={!!actingId || !!undoingId} onclick={() => void act(pick, "later")}>
+                        <button class="glean-surf-act" aria-busy={actingId === pick.item.id} aria-disabled={!!actingId || !!undoingId} onclick={() => void act(pick, "later")}>
                             {t(i18n, "resurface.later")}
                         </button>
-                        <button class="glean-surf-act" aria-busy={actingId === pick.item.id} disabled={!!actingId || !!undoingId} onclick={() => void act(pick, "archive")}>
+                        <button class="glean-surf-act" aria-busy={actingId === pick.item.id} aria-disabled={!!actingId || !!undoingId} onclick={() => void act(pick, "archive")}>
                             {t(i18n, "resurface.archive")}
                         </button>
-                        <button class="glean-surf-act glean-surf-act--pri" aria-busy={actingId === pick.item.id} disabled={!!actingId || !!undoingId} onclick={() => void act(pick, "read")}>
+                        <button class="glean-surf-act glean-surf-act--pri" aria-busy={actingId === pick.item.id} aria-disabled={!!actingId || !!undoingId} onclick={() => void act(pick, "read")}>
                             ✓ {t(i18n, "resurface.read")}
                         </button>
                     </div>

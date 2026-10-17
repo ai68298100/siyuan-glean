@@ -102,10 +102,10 @@ function deferred() {
     return { promise, resolve, reject };
 }
 
-function loadSurfaceControls({ act, undo, tick, openReading } = {}) {
+function loadSurfaceControls({ act, undo, pin, replacement, tick, openReading } = {}) {
     const item = clip("desktop-doc", "inbox", "");
     const pick = { item, reasons: [] };
-    const calls = { act: [], undo: [], opened: [], messages: [], focusedUndo: 0, focusedTitle: 0, notified: 0, mutated: 0, events: [] };
+    const calls = { act: [], undo: [], pin: [], opened: [], messages: [], focusedUndo: 0, focusedTitle: 0, focusedTitleIds: [], notified: 0, mutated: 0, events: [] };
     const destroyCallbacks = [];
     const props = {
         facade: {
@@ -121,7 +121,9 @@ function loadSurfaceControls({ act, undo, tick, openReading } = {}) {
     }
     const services = {
         computeDailyFromIndex: () => ({ picks: [pick], recentCount: 0 }),
+        pickSurfaceReplacementFromIndex: (...args) => replacement ? replacement(...args) : { item: clip("replacement-doc", "inbox", ""), reasons: [] },
         actOnSurface: async (...args) => { calls.act.push(args); return act ? act(...args) : { token: {} }; },
+        setSurfacePinned: async (...args) => { calls.pin.push(args); return pin ? pin(...args) : { pinned: "20261016" }; },
         undoSurfaceAction: async (...args) => { calls.undo.push(args); return undo ? undo(...args) : {}; },
     };
     const modules = {
@@ -134,7 +136,7 @@ function loadSurfaceControls({ act, undo, tick, openReading } = {}) {
         "../domain/surface-swipe": {},
     };
     const source = readFileSync(new URL("../src/ui/ResurfaceView.svelte", import.meta.url), "utf8").match(/<script lang="ts">([\s\S]*?)<\/script>/)[1];
-    const probe = `globalThis.controls = { act, undoLastAction, dismissUndo, bind(panel, button) { panelRoot = panel; undoButton = button; }, inspect() { return { actingId, undoingId, undoNotice, startedToday, sessionPicks }; } };`;
+    const probe = `globalThis.controls = { act, togglePin, replacePick, undoLastAction, dismissUndo, bind(panel, button) { panelRoot = panel; undoButton = button; }, inspect() { return { actingId, undoingId, undoNotice, startedToday, sessionPicks }; } };`;
     const compiled = transpileModule(`${source}\n${probe}`, { compilerOptions: { module: ModuleKind.CommonJS, target: ScriptTarget.ESNext } }).outputText;
     const context = {
         exports: {}, require: (id) => modules[id],
@@ -144,7 +146,14 @@ function loadSurfaceControls({ act, undo, tick, openReading } = {}) {
     };
     runInNewContext(compiled, context);
     context.controls.bind(
-        { contains: () => true, querySelector: () => ({ focus() { calls.focusedTitle += 1; } }) },
+        {
+            contains: () => true,
+            querySelector: () => ({ focus() { calls.focusedTitle += 1; } }),
+            querySelectorAll: () => ["other-doc", "replacement-doc"].map((id) => ({
+                id: `glean-resurface-card-title-test-${id}`,
+                focus() { calls.focusedTitle += 1; calls.focusedTitleIds.push(id); },
+            })),
+        },
         { focus() { calls.focusedUndo += 1; } },
     );
     return { ...context.controls, pick, calls, focusDocument: context.document, destroy: () => destroyCallbacks.forEach((callback) => callback()) };
@@ -303,4 +312,208 @@ test("等待撤销时销毁组件，失败后不弹旧页面错误或触发回�
     assert.equal(controls.inspect().undoingId, "desktop-doc");
     assert.equal(controls.calls.focusedTitle, 0);
     assert.deepEqual(controls.calls.messages, []);
+});
+
+test("换一篇卸载原卡片后将焦点交给确切替补文章", async () => {
+    let controls;
+    controls = loadSurfaceControls({ tick: () => {
+        controls.focusDocument.activeElement.isConnected = false;
+        controls.focusDocument.activeElement = controls.focusDocument.body;
+    } });
+    await controls.replacePick(0, controls.pick);
+    assert.equal(controls.inspect().sessionPicks[0].item.id, "replacement-doc");
+    assert.deepEqual(controls.calls.focusedTitleIds, ["replacement-doc"]);
+    assert.equal(controls.calls.notified, 0, "会话换文不广播文章数据变更");
+});
+
+test("换一篇渲染间隙主动移焦或销毁时不恢复旧页面焦点", async () => {
+    let moved;
+    const otherControl = { isConnected: true };
+    moved = loadSurfaceControls({ tick: () => { moved.focusDocument.activeElement = otherControl; } });
+    await moved.replacePick(0, moved.pick);
+    assert.equal(moved.calls.focusedTitle, 0);
+    assert.equal(moved.focusDocument.activeElement, otherControl);
+
+    let destroyed;
+    destroyed = loadSurfaceControls({ tick: () => destroyed.destroy() });
+    await destroyed.replacePick(0, destroyed.pick);
+    assert.equal(destroyed.calls.focusedTitle, 0);
+    const currentPicks = destroyed.inspect().sessionPicks;
+    await destroyed.replacePick(0, destroyed.pick);
+    assert.equal(destroyed.inspect().sessionPicks, currentPicks, "销毁后不能再替换会话卡片");
+});
+
+test("没有替补文章时保留原卡片及焦点", async () => {
+    const controls = loadSurfaceControls({ replacement: () => null });
+    const focusOrigin = controls.focusDocument.activeElement;
+    await controls.replacePick(0, controls.pick);
+    assert.equal(controls.inspect().sessionPicks, null);
+    assert.equal(controls.calls.focusedTitle, 0);
+    assert.equal(controls.focusDocument.activeElement, focusOrigin);
+    assert.deepEqual(controls.calls.messages, ["resurface.noAlternative"]);
+});
+
+test("慢置顶期间防重复，销毁后成功只广播真实变更", async () => {
+    const pin = deferred();
+    const controls = loadSurfaceControls({ pin: () => pin.promise });
+    const pending = controls.togglePin(controls.pick);
+    await controls.togglePin(controls.pick);
+    await controls.act(controls.pick, "archive");
+    assert.equal(controls.calls.pin.length, 1);
+    assert.equal(controls.calls.act.length, 0);
+    controls.destroy();
+    pin.resolve({ pinned: "20261016", indexSyncFailed: true });
+    await pending;
+    assert.equal(controls.calls.notified, 1);
+    assert.equal(controls.calls.mutated, 0);
+    assert.equal(controls.inspect().actingId, "desktop-doc", "销毁后不回填旧组件忙态");
+    assert.deepEqual(controls.calls.messages, []);
+    await controls.togglePin(controls.pick);
+    assert.equal(controls.calls.pin.length, 1, "销毁后不能再次启动置顶");
+});
+
+test("慢置顶销毁后失败不弹旧页面提示或触发回调", async () => {
+    const pin = deferred();
+    const controls = loadSurfaceControls({ pin: () => pin.promise });
+    const pending = controls.togglePin(controls.pick);
+    controls.destroy();
+    pin.reject(new Error("pin unavailable"));
+    await pending;
+    assert.equal(controls.calls.notified, 0);
+    assert.equal(controls.calls.mutated, 0);
+    assert.equal(controls.inspect().actingId, "desktop-doc");
+    assert.deepEqual(controls.calls.messages, []);
+});
+
+test("撤销开始阅读成功清除对应会话回执，失败则保留", async () => {
+    const controls = loadSurfaceControls();
+    await controls.act(controls.pick, "read");
+    assert.equal(controls.inspect().startedToday.length, 1);
+    await controls.undoLastAction();
+    assert.equal(controls.inspect().startedToday.length, 0);
+    assert.equal(controls.inspect().undoNotice, null);
+
+    const failed = loadSurfaceControls({ undo: () => Promise.reject(new Error("undo unavailable")) });
+    await failed.act(failed.pick, "read");
+    await failed.undoLastAction();
+    assert.equal(failed.inspect().startedToday[0].id, "desktop-doc");
+    assert.equal(failed.inspect().undoNotice.action, "read");
+    assert.deepEqual(failed.calls.messages, ["resurface.undoUnavailable"]);
+});
+
+test("异步拾遗动作使用可聚焦忙态语义，避免原生 disabled 导致失败时丢失触发焦点", () => {
+    const source = readFileSync(new URL("../src/ui/ResurfaceView.svelte", import.meta.url), "utf8");
+    const buttons = source.split(/\r?\n/).filter((line) => line.includes("<button")
+        && /onclick=\{\(\) => void (?:undoLastAction|togglePin|replacePick|act)\(/.test(line));
+    assert.equal(buttons.length, 6, "撤销、置顶、换文和三个状态动作都遵守焦点协议");
+    for (const button of buttons) {
+        assert.match(button, /\saria-disabled=\{/);
+        assert.match(button, /\saria-busy=\{/);
+        assert.doesNotMatch(button, /\sdisabled(?:=|\s|>)/);
+    }
+    const styles = readFileSync(new URL("../src/index.scss", import.meta.url), "utf8");
+    assert.match(styles, /\.glean-surf-undo__button\[aria-disabled="true"\]\s*\{[^}]*cursor:\s*wait/);
+    assert.match(styles, /&\[aria-disabled="true"\]\s*\{[^}]*opacity:\s*0\.5;[^}]*cursor:\s*wait/);
+});
+
+test("改天、归档、开始阅读失败后保留触发控件，忙态阻止重复写入而失败后允许重试", async (context) => {
+    for (const action of ["later", "archive", "read"]) await context.test(action, async () => {
+        const writing = deferred();
+        let attempts = 0;
+        const controls = loadSurfaceControls({ act: () => attempts++ === 0 ? writing.promise : { token: {} } });
+        const focusOrigin = controls.focusDocument.activeElement;
+        const pending = controls.act(controls.pick, action);
+        await controls.act(controls.pick, action);
+        await controls.togglePin(controls.pick);
+        await controls.replacePick(0, controls.pick);
+        assert.equal(controls.calls.act.length, 1);
+        assert.equal(controls.calls.pin.length, 0);
+        assert.equal(controls.inspect().sessionPicks, null);
+        writing.reject(new Error("write conflict"));
+        await pending;
+        assert.equal(controls.focusDocument.activeElement, focusOrigin);
+        assert.equal(controls.inspect().actingId, "");
+        assert.equal(controls.inspect().undoNotice, null);
+        assert.equal(controls.inspect().startedToday.length, 0);
+        assert.equal(controls.calls.focusedUndo, 0);
+        assert.equal(controls.calls.focusedTitle, 0);
+        assert.equal(controls.calls.notified, 0);
+        assert.deepEqual(controls.calls.messages, ["msg.actionFailed"]);
+        await controls.act(controls.pick, action);
+        assert.equal(controls.calls.act.length, 2);
+        assert.equal(controls.inspect().undoNotice.action, action);
+    });
+});
+
+test("置顶失败后保留触发控件，清除忙态后可重试", async () => {
+    const pin = deferred();
+    let attempts = 0;
+    const controls = loadSurfaceControls({ pin: () => attempts++ === 0 ? pin.promise : { pinned: "20261016" } });
+    const focusOrigin = controls.focusDocument.activeElement;
+    const pending = controls.togglePin(controls.pick);
+    await controls.togglePin(controls.pick);
+    assert.equal(controls.calls.pin.length, 1);
+    pin.reject(new Error("pin conflict"));
+    await pending;
+    assert.equal(controls.focusDocument.activeElement, focusOrigin);
+    assert.equal(controls.inspect().actingId, "");
+    assert.equal(controls.calls.focusedUndo, 0);
+    assert.equal(controls.calls.focusedTitle, 0);
+    assert.equal(controls.calls.notified, 0);
+    assert.deepEqual(controls.calls.messages, ["msg.actionFailed"]);
+    await controls.togglePin(controls.pick);
+    assert.equal(controls.calls.pin.length, 2);
+    assert.equal(controls.calls.notified, 1);
+    assert.equal(controls.calls.mutated, 1);
+});
+
+test("撤销冲突保留回执和撤销触发焦点，防重入并允许显式重试", async () => {
+    const undo = deferred();
+    let attempts = 0;
+    const controls = loadSurfaceControls({ undo: () => attempts++ === 0 ? undo.promise : {} });
+    await controls.act(controls.pick, "later");
+    const notice = controls.inspect().undoNotice;
+    const undoTrigger = { isConnected: true };
+    controls.focusDocument.activeElement = undoTrigger;
+    const pending = controls.undoLastAction();
+    await controls.undoLastAction();
+    await controls.act(controls.pick, "archive");
+    await controls.togglePin(controls.pick);
+    await controls.replacePick(0, controls.pick);
+    assert.equal(controls.calls.undo.length, 1);
+    assert.equal(controls.calls.act.length, 1);
+    assert.equal(controls.calls.pin.length, 0);
+    undo.reject(new Error("文章状态已变化，无法撤销"));
+    await pending;
+    assert.equal(controls.focusDocument.activeElement, undoTrigger);
+    assert.equal(controls.inspect().undoNotice, notice);
+    assert.equal(controls.inspect().undoingId, "");
+    assert.equal(controls.calls.focusedTitle, 0);
+    assert.equal(controls.calls.notified, 1, "冲突不能宣称写入成功");
+    assert.deepEqual(controls.calls.messages, ["resurface.undoUnavailable"]);
+    await controls.undoLastAction();
+    assert.equal(controls.calls.undo.length, 2);
+    assert.equal(controls.inspect().undoNotice, null);
+});
+
+test("写入和撤销失败期间主动移焦，错误回执不抢回焦点", async () => {
+    const writing = deferred();
+    const controls = loadSurfaceControls({ act: () => writing.promise });
+    const pending = controls.act(controls.pick, "later");
+    const editor = { isConnected: true };
+    controls.focusDocument.activeElement = editor;
+    writing.reject(new Error("write conflict"));
+    await pending;
+    assert.equal(controls.focusDocument.activeElement, editor);
+    assert.equal(controls.calls.focusedUndo, 0);
+
+    const undo = deferred();
+    const undoControls = loadSurfaceControls({ undo: () => undo.promise });
+    await undoControls.act(undoControls.pick, "later");
+    const pendingUndo = undoControls.undoLastAction();
+    undoControls.focusDocument.activeElement = editor;
+    undo.reject(new Error("undo conflict"));
+    await pendingUndo;
+    assert.equal(undoControls.focusDocument.activeElement, editor);
+    assert.equal(undoControls.calls.focusedTitle, 0);
 });
