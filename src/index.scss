@@ -6775,13 +6775,17 @@ body.b3-theme-dark {
     .glean-card,
     .glean-chip,
     .glean-pill,
-    .glean-btn {
+    .glean-btn,
+    .b3-button,
+    .b3-text-field,
+    .b3-select {
         border: 1px solid var(--b3-theme-on-background);
     }
 
     .glean-tabs__item.is-active,
     .glean-tabs__item[aria-selected="true"],
-    .glean-pill--active {
+    .glean-pill--active,
+    .glean-seg-btn--active {
         outline: 2px solid var(--b3-theme-primary);
         font-weight: 700;
     }
@@ -6789,6 +6793,25 @@ body.b3-theme-dark {
     :where(button, a, input, select, textarea, [tabindex="0"]):focus-visible {
         outline: 3px solid var(--b3-theme-primary);
         outline-offset: 2px;
+    }
+
+    .b3-dialog:has(.b3-dialog__content),
+    .b3-dialog:has(.b3-dialog__action),
+    .b3-dialog {
+        .b3-dialog__container {
+            border: 2px solid var(--b3-theme-on-background);
+            box-shadow: none;
+        }
+        .b3-dialog__header {
+            border-bottom: 1px solid var(--b3-theme-on-background);
+        }
+        .b3-dialog__action {
+            border-top: 1px solid var(--b3-theme-on-background);
+        }
+        .b3-button--primary {
+            outline: 2px solid var(--b3-theme-primary);
+            font-weight: 700;
+        }
     }
 }
 
@@ -7238,6 +7261,7 @@ body.b3-theme-dark {
 }
 
 @media (forced-colors: active) {
+    :root,
     .glean-panel,
     .glean-tab-root,
     .glean-dialog-root,
@@ -7245,11 +7269,15 @@ body.b3-theme-dark {
     .glean-reader {
         --glean-accent-a: Highlight;
         --glean-accent-b: Highlight;
+        --glean-accent-hi: Highlight;
+        --glean-accent-strong: Highlight;
+        --glean-accent-soft: transparent;
         --glean-grad: Highlight;
         --glean-grad-soft: transparent;
         --glean-glass: Canvas;
         --glean-glass-border: CanvasText;
         --glean-border-soft: CanvasText;
+        --glean-border-strong: CanvasText;
         --glean-st-inbox: CanvasText;
         --glean-st-later: CanvasText;
         --glean-st-reading: CanvasText;
@@ -7263,13 +7291,32 @@ body.b3-theme-dark {
         --glean-shadow-float: none;
         --glean-shadow-control: none;
         --glean-shadow-accent: none;
+
+        /* Host bridge variables */
+        --b3-theme-primary: Highlight;
+        --b3-theme-primary-light: transparent;
+        --b3-theme-on-primary: HighlightText;
+        --b3-theme-background: Canvas;
+        --b3-theme-surface: Canvas;
+        --b3-theme-surface-light: Canvas;
+        --b3-theme-on-background: CanvasText;
+        --b3-border-color: CanvasText;
     }
 
     .glean-panel .glean-dot,
     .glean-dot,
     .glean-status-dot,
     .glean-heat-cell,
-    .glean-chip-icon {
+    .glean-chip-icon,
+    .glean-avatar,
+    .glean-icon,
+    .glean-badge,
+    .glean-tag,
+    .glean-sw,
+    .glean-switch,
+    input[type="checkbox"].b3-switch,
+    input[type="checkbox"].b3-switch::after,
+    svg {
         background: currentColor;
         box-shadow: var(--glean-elevation-none, none);
         forced-color-adjust: none;
@@ -7280,6 +7327,14 @@ body.b3-theme-dark {
     .glean-pill,
     .glean-btn,
     .glean-input,
+    .glean-mini-input,
+    .glean-settings__wide-input,
+    .glean-search input,
+    .glean-kcard,
+    .glean-drow,
+    .glean-stat-box,
+    .glean-opt,
+    .glean-tile,
     .glean-panel .glean-st-badge,
     .glean-panel .glean-status-actions__btn,
     .glean-panel .glean-load-error,
@@ -7287,7 +7342,10 @@ body.b3-theme-dark {
     .glean-dialog-root .glean-st-badge,
     .glean-dialog-root .glean-status-actions__btn,
     .glean-dialog-root .glean-load-error,
-    .glean-dialog-root .glean-offline-notice {
+    .glean-dialog-root .glean-offline-notice,
+    .b3-button,
+    .b3-text-field,
+    .b3-select {
         background: Canvas;
         border: 1px solid CanvasText;
         color: CanvasText;
@@ -7298,35 +7356,80 @@ body.b3-theme-dark {
     .glean-modal,
     .glean-sheet,
     .glean-popover,
-    .glean-dialog-root .glean-dialog__panel {
-        border: 2px solid CanvasText;
-        background: Canvas;
+    .glean-dialog-root .glean-dialog__panel,
+    .b3-dialog__container {
+        border: 2px solid CanvasText !important;
+        background: Canvas !important;
     }
 
     .glean-btn--primary,
+    .glean-btn--pri,
     .b3-button--primary {
-        background: Highlight;
-        color: HighlightText;
-        border: 1px solid Highlight;
+        background: Highlight !important;
+        color: HighlightText !important;
+        border: 1px solid Highlight !important;
     }
 
     .glean-tabs__item.is-active,
     .glean-tabs__item[aria-selected="true"],
     .glean-pill--active,
-    .glean-seg-btn--active {
-        outline: 2px solid Highlight;
+    .glean-seg-btn--active,
+    [aria-selected="true"] {
+        outline: 2px solid Highlight !important;
         outline-offset: 1px;
-        background: Highlight;
-        color: HighlightText;
+        background: Highlight !important;
+        color: HighlightText !important;
     }
 
     .glean-panel :where(button, a, input, select, textarea, [tabindex]):focus-visible,
     .glean-tab-root :where(button, a, input, select, textarea, [tabindex]):focus-visible,
     .glean-dialog-root :where(button, a, input, select, textarea, [tabindex]):focus-visible,
-    :where(button, a, input, select, textarea, [tabindex="0"]):focus-visible {
-        outline: 2px solid Highlight;
-        outline-color: Highlight;
+    :where(button, a, input, select, textarea, [tabindex="0"]):focus-visible,
+    :focus-visible {
+        outline: 2px solid Highlight !important;
+        outline-color: Highlight !important;
         outline-offset: 2px;
+    }
+
+    /* Body-level dialog isolation */
+    .b3-dialog:has(.b3-dialog__content),
+    .b3-dialog:has(.b3-dialog__action),
+    .b3-dialog {
+        .b3-dialog__container {
+            border: 2px solid CanvasText !important;
+            background: Canvas !important;
+            color: CanvasText !important;
+            box-shadow: none !important;
+        }
+        .b3-dialog__header {
+            background: Canvas !important;
+            color: CanvasText !important;
+            border-bottom: 1px solid CanvasText !important;
+        }
+        .b3-dialog__content {
+            background: Canvas !important;
+            color: CanvasText !important;
+        }
+        .b3-dialog__action {
+            background: Canvas !important;
+            color: CanvasText !important;
+            border-top: 1px solid CanvasText !important;
+        }
+        .b3-button--primary,
+        #confirmDialogConfirmBtn {
+            background: Highlight !important;
+            color: HighlightText !important;
+            border: 1px solid Highlight !important;
+        }
+        :is(.b3-button, .b3-text-field, .b3-select) {
+            border: 1px solid CanvasText;
+        }
+        :where(button, a, input, select, textarea, [tabindex="0"]):focus-visible,
+        :focus-visible {
+            outline: 2px solid Highlight !important;
+            outline-color: Highlight !important;
+            outline-offset: 2px;
+        }
     }
 }
 
