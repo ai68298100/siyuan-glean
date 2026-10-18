@@ -1254,5 +1254,6 @@
   "prefs.railAccordion": "侧栏手风琴模式",
   "prefs.railAccordionHint": "展开某一分组时自动收起其他分组，保持侧栏紧凑",
   "settings.ai.customHttpWarning": "当前配置为公网明文 HTTP 端点，API 密钥与正文可能在传输中泄漏，建议使用 HTTPS",
-  "reading.position.progress": "已读到约 ${n}%"
+  "reading.position.progress": "已读到约 ${n}%",
+  "library.clearMoreFilters": "清空高级筛选"
 }

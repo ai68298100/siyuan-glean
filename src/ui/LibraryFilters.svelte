@@ -3,6 +3,7 @@
     import type { LibraryFacets, LibrarySortKey, LibrarySortDirection } from "../domain/library-view";
     import ActionPopover from "./ActionPopover.svelte";
     import { displayTagAlias, type TagAlias } from "../domain/ui-prefs";
+    import { countSecondaryActiveFilters } from "../domain/library-filter-chips";
 
     interface Props {
         i18n: I18nBundle;
@@ -24,6 +25,16 @@
         facetLabel: (value: string, kind: "timeSource" | "contentType") => string;
     }
     let { i18n, facets, site = $bindable(""), author = $bindable(""), tag = $bindable(""), tagAliases = [], onManageTagAliases, aiTag = $bindable(""), source = $bindable(""), timeSource = $bindable(""), contentType = $bindable(""), sortBy = $bindable("time"), direction = $bindable("desc"), hasFilters, onClear, sourceLabel, facetLabel }: Props = $props();
+    const secondaryActiveCount = $derived(countSecondaryActiveFilters({ author, aiTag, src: source, timeSource, contentType }));
+    const popoverLabel = $derived(secondaryActiveCount > 0 ? `${t(i18n, "library.moreFilters")} (${secondaryActiveCount})` : t(i18n, "library.moreFilters"));
+
+    function clearSecondaryFilters(): void {
+        author = "";
+        aiTag = "";
+        source = "";
+        timeSource = "";
+        contentType = "";
+    }
 </script>
 
 <div class="glean-filters glean-filters--compact" role="group" aria-label={t(i18n, "library.filters")}>
@@ -46,7 +57,7 @@
         <option value="title">{t(i18n, "library.sortTitle")}</option>
     </select>
     <button type="button" class="glean-filter-dir" class:glean-filter-dir--active={direction === "asc"} aria-label={`${t(i18n, "library.toggleDirection")}: ${t(i18n, direction === "asc" ? "library.directionAscending" : "library.directionDescending")}`} aria-pressed={direction === "asc"} title={`${t(i18n, "library.toggleDirection")}: ${t(i18n, direction === "asc" ? "library.directionAscending" : "library.directionDescending")}`} onclick={() => direction = direction === "desc" ? "asc" : "desc"}><span class="glean-filter-dir__icon" aria-hidden="true"><svg class="glean-icon glean-icon--xs"><use href={direction === "desc" ? "#iconGleanArrowDown" : "#iconGleanArrowUp"} /></svg></span><span class="glean-filter-dir__label">{t(i18n, "library.toggleDirection")}</span></button>
-    <ActionPopover label={t(i18n, "library.moreFilters")}>
+    <ActionPopover label={popoverLabel}>
         {#if onManageTagAliases}
             <button type="button" class="glean-btn glean-btn--ghost" onclick={onManageTagAliases}>{t(i18n, "library.tagAliasManage")}</button>
         {/if}
@@ -85,6 +96,11 @@
                 {#if contentType && !facets.contentTypes.some((facet) => facet.value === contentType)}<option value={contentType}>{facetLabel(contentType, "contentType")}</option>{/if}
             </select>
         </label>
+        {#if secondaryActiveCount > 0}
+            <button type="button" class="glean-btn glean-btn--ghost" onclick={clearSecondaryFilters}>
+                {t(i18n, "library.clearMoreFilters")}
+            </button>
+        {/if}
     </ActionPopover>
     {#if hasFilters}<button type="button" class="glean-filter-clear" onclick={onClear}>{t(i18n, "library.clearFilters")}</button>{/if}
 </div>

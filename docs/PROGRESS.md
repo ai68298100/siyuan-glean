@@ -1,5 +1,12 @@
 # 进度（PROGRESS）
 
+## T-3386 高级筛选浮层激活项计数与就地清空支持（2026-10-19）
+
+- [x] 激活项感知纯函数：`src/domain/library-filter-chips.ts` 新增 `countSecondaryActiveFilters` 纯函数，统计收纳在更多筛选（ActionPopover）内的次级分面条件数量（author, aiTag, src, timeSource, contentType）。
+- [x] 徽标与就地清空：`src/ui/LibraryFilters.svelte` 在更多筛选按钮展示动态激活项计数（如“更多筛选 (2)”），并在展开浮层内部提供“清空高级筛选”快捷按钮，仅重置次级条件，保留外部常用站点、标签、搜索与排序。
+- [x] 双语与单测完备：新增 `library.clearMoreFilters` 双语键；`tests/library-filter-chips.test.ts` 增加次级筛选激活项统计单测（8/8）。
+- [x] 全量门禁闭环：全量分批测试（1537/1537）、`tsc --noEmit`、`svelte-check`（0 错误 0 警告）、生产构建（package.zip 437746B）、发布包检查与任务账本全部通过；真实多维度组合筛选观感仍待 B-0002。
+
 ## T-3385 备份包标准文件命名与元信息摘要纯函数（2026-10-19）
 
 - [x] 标准文件命名：`src/domain/backup.ts` 新增 `generateBackupFilename` 纯函数，生成跨平台友好、易辨识的时间戳文件名（如 `siyuan-glean-backup-YYYYMMDD-HHmmss.json`），替代原有的原始 ISO 杂乱替换串。

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { libraryFilterChips, removeLibraryFilter } from "../src/domain/library-filter-chips.ts";
+import { countSecondaryActiveFilters, libraryFilterChips, removeLibraryFilter } from "../src/domain/library-filter-chips.ts";
 import { filterAndSortLibrary, type LibraryFilter } from "../src/domain/library-view.ts";
 
 test("激活条件：用户/AI标签独立，空白不显示，状态和排序不冒充筛选chip", () => {
@@ -23,4 +23,22 @@ test("移除单个条件保持其他筛选和顺序，不修改原视图或保�
     assert.deepEqual(filterAndSortLibrary(items, filter).map((item) => item.id), ["a"]);
     assert.deepEqual(filterAndSortLibrary(items, next).map((item) => item.id), ["b", "a"]);
     assert.deepEqual(items.map((item) => item.status), ["later", "later", "later"]);
+});
+
+test("countSecondaryActiveFilters：准确统计更多筛选浮层内激活条件的数量（T-1808 / T-3386）", () => {
+    // 1. 无次级筛选条件
+    assert.equal(countSecondaryActiveFilters({}), 0);
+    assert.equal(countSecondaryActiveFilters({ site: "example.com", tag: "reading" }), 0); // 常用筛选不计入
+
+    // 2. 次级筛选激活项统计（author, aiTag, src, timeSource, contentType）
+    assert.equal(countSecondaryActiveFilters({ author: "张三" }), 1);
+    assert.equal(countSecondaryActiveFilters({ author: "张三", aiTag: "AI", contentType: "fulltext" }), 3);
+    assert.equal(countSecondaryActiveFilters({
+        site: "example.com", // 忽略
+        author: "张三",
+        aiTag: "  ", // 空白忽略
+        src: "web-clipper",
+        timeSource: "source",
+        contentType: "link",
+    }), 4);
 });

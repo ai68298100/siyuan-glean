@@ -1371,3 +1371,11 @@ T-3385 承接 T-1780 与 D-0088 数据主权备份链路：
 1. 规范文件命名：在 `src/domain/backup.ts` 增加 `generateBackupFilename` 纯函数，生成跨平台友好、易辨识的时间戳文件名（如 `siyuan-glean-backup-YYYYMMDD-HHmmss.json`），替代原有的原始 ISO 杂乱替换串。
 2. 备份包元信息摘要：在 `src/domain/backup.ts` 增加 `summarizeBackupPackage` 纯函数，提取备份包生成时刻、文章篇数及插件版本元信息；`BackupPanel.svelte` 接入导出命名并在恢复预览区直观展示备份包摘要。
 3. 严格数据主权：纯客户端只读投影与下载命名，不改变备份格式、不增加文章属性、端点或持久化存储。
+
+
+## D-0266（2026-10-19）高级筛选浮层激活项计数与就地清空支持（承接 T-1808/T-1887）
+
+T-3386 承接 T-1808 与 T-1887 读库筛选可用性打磨：
+1. 激活项感知：在 `src/domain/library-filter-chips.ts` 增加 `countSecondaryActiveFilters` 纯函数，统计收纳在更多筛选（ActionPopover）内的次级条件（author, aiTag, src, timeSource, contentType）激活数量。
+2. 徽标与就地清空：在 `src/ui/LibraryFilters.svelte` 中，当存在高级筛选激活项时，更多筛选按钮展示计数徽标（如 `更多筛选 (2)`），浮层内部增加“清空高级筛选”快捷操作，仅重置次级筛选，保留外部站点、标签、搜索与排序。
+3. 严格数据主权：纯视图状态与分面筛选投影，不修改文章属性、端点或持久化存储。

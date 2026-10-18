@@ -16,3 +16,21 @@ export function removeLibraryFilter(filter: LibraryFilter, key: FilterChipKey): 
     delete next[key];
     return next;
 }
+
+export const SECONDARY_FILTER_KEYS = ["author", "aiTag", "src", "timeSource", "contentType"] as const;
+export type SecondaryFilterKey = typeof SECONDARY_FILTER_KEYS[number];
+
+/**
+ * 统计高级筛选（ActionPopover 内部收纳的次级分面）激活条件的数量（T-1808 / T-3386）：
+ * 包括 author, aiTag, src, timeSource, contentType。
+ */
+export function countSecondaryActiveFilters(filter: Partial<Record<string, unknown>>): number {
+    let count = 0;
+    for (const key of SECONDARY_FILTER_KEYS) {
+        const val = filter[key];
+        if (typeof val === "string" && val.trim().length > 0) {
+            count += 1;
+        }
+    }
+    return count;
+}
