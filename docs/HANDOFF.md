@@ -1,5 +1,11 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-19 URL 跟踪参数规范化与变体查重）
+
+- T-3372/D-0252：承接 T-1799 与 FUTURE-DIRECTION 方向一，在 `src/domain/url.ts` 增加 `canonicalUrlKey` 与 `isSimilarUrl` 纯函数，剔除通用与微信/B站追踪参数；`findClipUrlConflict` 查重管线接入规范比较键，准确识别不同渠道分享带来的变体文章冲突；`custom-clip-url` 属性原样保留，数据主权不变。
+- 全量门禁闭环：完整单测（1527/1527）、类型检查与 `svelte-check` 0 错误 0 警告、生产构建与发布包校验（`package.zip` 434438B）、视觉矩阵登记与任务账本检查均通过。真实原工作区、触控与宿主视觉仍归 B-0002，版本保持 1.3.6，不打 tag 或发布。
+- 下一步：将 T-3372 的真实原工作区、触控与宿主视觉继续归 B-0002；版本仍为 1.3.6，本轮不推送、打 tag 或发布。
+
 ## 当前有效交接（2026-10-19 摘录卡片格式化复制与时间线索）
 
 - T-3371/D-0251：承接 FUTURE-DIRECTION 方向四（把摘录用起来）与历史待办 T-1753/T-1803，在 `src/domain/highlights.ts` 增加 `formatHighlightShare` 与 `formatHighlightTime` 纯函数；`HighlightView.svelte` 卡片增加“复制引用”快捷动作（含标题、站点与思源块链接）和块时间戳展示，纯内存/剪贴板投影，不写文章属性与持久化存储。

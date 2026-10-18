@@ -1,5 +1,11 @@
 # 进度（PROGRESS）
 
+## T-3372 URL 跟踪参数规范化与变体查重识别（2026-10-19）
+
+- [x] 规范内容键：`src/domain/url.ts` 增加 `canonicalUrlKey` 与 `isSimilarUrl` 纯函数，清洗通用推广跟踪（`utm_*`、`spm_id_from`、`fbclid` 等）及微信公众号动态分享参数（`chksm`、`mpshare`、`scene` 等），并对保留参数稳定排序。
+- [x] 查重管线增强：`src/services/clip-store.ts` 的 `findClipUrlConflict` 增加规范指纹查重，识别不同渠道分享的同源文章冲突，避免重复剪藏；原始 URL 属性完整保留，守住数据主权。
+- [x] 单测与全量门禁闭环：`tests/content-url.test.ts` 增加参数过滤与变体识别单测；全量分批测试（1527/1527）、`tsc --noEmit`、`svelte-check`（0 错误 0 警告）、构建（package.zip 434438B）、发布包检查与任务账本全部通过；真实宿主剪藏仍归 B-0001/B-0002。
+
 ## T-3371 摘录卡片支持一键复制格式化引用与块时间线索展示（2026-10-19）
 
 - [x] 纯函数格式化：`src/domain/highlights.ts` 新增 `formatHighlightShare` 纯函数，按 Markdown 标准（多行引述逐行 `>` 前缀、`> —— 标题（站点）` 与 `> siyuan://blocks/块ID`）输出格式化引用，并新增 `formatHighlightTime` 解析块时间。

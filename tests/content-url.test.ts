@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { normalizeUrl } from "../src/domain/url.ts";
+import { canonicalUrlKey, isSimilarUrl, normalizeUrl } from "../src/domain/url.ts";
 import { fulltextBodyState, inspectClipMarkdown } from "../src/domain/content.ts";
 import { documentTimeFromId, parseClipAttrs, serializePatch, ATTR } from "../src/domain/schema.ts";
 
@@ -58,4 +58,22 @@ test("done-time 属性可解析与序列化；删除传 null（D-0028）", () =>
     const attrs = parseClipAttrs({ [ATTR.doneTime]: "20260930120000" });
     assert.equal(attrs.doneTime, "20260930120000");
     assert.equal(parseClipAttrs({}).doneTime, undefined);
+});
+
+test("canonicalUrlKey：剥离常见 UTM 和微信/B站/知乎追踪参数（T-1799 / T-3372）", () => {
+    const rawWechat1 = "https://mp.weixin.qq.com/s/article123?chksm=abc&mpshare=1&scene=21";
+    const rawWechat2 = "https://mp.weixin.qq.com/s/article123?chksm=xyz&from=timeline";
+    assert.equal(canonicalUrlKey(rawWechat1), "https://mp.weixin.qq.com/s/article123");
+    assert.equal(canonicalUrlKey(rawWechat2), "https://mp.weixin.qq.com/s/article123");
+    assert.equal(isSimilarUrl(rawWechat1, rawWechat2), true);
+
+    const rawZhihu1 = "https://zhuanlan.zhihu.com/p/99999?utm_source=weibo&utm_medium=social";
+    const rawZhihu2 = "https://zhuanlan.zhihu.com/p/99999/";
+    assert.equal(canonicalUrlKey(rawZhihu1), "https://zhuanlan.zhihu.com/p/99999");
+    assert.equal(canonicalUrlKey(rawZhihu2), "https://zhuanlan.zhihu.com/p/99999");
+    assert.equal(isSimilarUrl(rawZhihu1, rawZhihu2), true);
+
+    // 保留非追踪的合法业务参数并排序
+    const bizUrl = "https://example.com/api?b=2&a=1&utm_source=test";
+    assert.equal(canonicalUrlKey(bizUrl), "https://example.com/api?a=1&b=2");
 });

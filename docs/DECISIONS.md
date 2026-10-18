@@ -1259,3 +1259,11 @@ T-3371 承接 FUTURE-DIRECTION 方向四（把摘录用起来）与历史待办 
 1. 格式化分享卡：在 `src/domain/highlights.ts` 增加 `formatHighlightShare` 纯函数，格式化为 Markdown 引述（`>` 文本 + `> —— 标题（站点）` + `> siyuan://blocks/文档ID`）；`HighlightView.svelte` 卡片增加“复制引用”快捷动作，优先通过浏览器剪贴板 API 复制并提示成功，权限拒绝时优雅降级。
 2. 摘录时间线索：利用思源引述块 ID（`YYYYMMDDHHmmss-xxxxxxx`）前 14 位派生可读时间（如 `YYYY-MM-DD HH:mm`），在摘录卡片元数据区呈现，辅助记忆线索检索与回顾。
 3. 数据主权：纯视图与剪贴板投影，不新增文章属性、端点或持久化存储。
+
+
+## D-0252（2026-10-19）URL 跟踪参数规范化与变体查重识别（承接 T-1799）
+
+T-3372 承接 T-1799 与 FUTURE-DIRECTION 方向一（可信读库主链）：
+1. 变体比较键：在 `src/domain/url.ts` 增加 `canonicalUrlKey(raw: string)` 与 `isSimilarUrl(a, b)` 纯函数，剔除通用跟踪追踪参数（`utm_*`、`spm_id_from`、`fbclid`、`gclid`、微信 `chksm/mpshare/scene` 等），并对保留的查询参数排序，形成稳定的内容指纹。
+2. 保护原始事实：文章属性 `custom-clip-url` 依然持久化存储用户原始输入的 URL，数据主权不变；`canonicalUrlKey` 仅作为查重与相似识别的派生投影。
+3. 冲突与去重增强：`findClipUrlConflict` 优先精确查重，次选基于规范键的变体查重，避免从微信、知乎、B站等不同渠道分享带有动态跟踪参数时造成重复剪藏。

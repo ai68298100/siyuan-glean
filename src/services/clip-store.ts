@@ -33,7 +33,7 @@ import {
     type ClipStatus,
 } from "../domain/schema";
 import { inspectClipMarkdown } from "../domain/content";
-import { normalizeUrl } from "../domain/url";
+import { canonicalUrlKey, normalizeUrl } from "../domain/url";
 import { normalizeAuthor } from "../domain/author";
 import { parseReadingPosition, serializeReadingPosition, type ReadingPosition } from "../domain/reading-position";
 import {
@@ -216,8 +216,10 @@ export async function findClipUrlConflict(url: string, exceptDocId?: string, plu
             const ids = knownIds.slice(offset, offset + 200);
             const attrs = await batchReadClipAttrs(ids);
             ids.forEach((id) => seen.add(id));
+            const canonical = canonicalUrlKey(url);
             for (const pair of attrs) {
-                if (normalizeUrl(pair.attrs[ATTR.url] || "") !== key) continue;
+                const targetUrl = pair.attrs[ATTR.url] || "";
+                if (normalizeUrl(targetUrl) !== key && (!canonical || canonicalUrlKey(targetUrl) !== canonical)) continue;
                 const meta = await fetchDocMeta(pair.id);
                 if (!meta.box || !meta.hpath) throw new Error("URL 冲突文档元数据不可用");
                 return meta;
@@ -236,9 +238,11 @@ export async function findClipUrlConflict(url: string, exceptDocId?: string, plu
         freshSqlIds.forEach((id) => seenSql.add(id));
         ids.forEach((id) => seen.add(id));
         const attrs = await batchReadClipAttrs(ids);
+        const canonical = canonicalUrlKey(url);
         for (const pair of attrs) {
             if (pair.id === exceptDocId) continue;
-            if (normalizeUrl(pair.attrs[ATTR.url] || "") === key) {
+            const targetUrl = pair.attrs[ATTR.url] || "";
+            if (normalizeUrl(targetUrl) === key || (canonical && canonicalUrlKey(targetUrl) === canonical)) {
                 const row = docs.find((item) => item.id === pair.id);
                 if (row) return rowToMeta(row);
             }
