@@ -1,5 +1,11 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-19 自定义 AI 通道明文 HTTP 安全警示）
+
+- T-3378/D-0258：承接 T-1765 与 FUTURE-DIRECTION，在 `src/domain/ai-direct.ts` 增加 `inspectCustomEndpointSecurity` 纯函数，识别公网明文 HTTP 端点并豁免本地及局域网私有地址；`SettingsView.svelte` 接入安全警示提示；纯前端表单提示，不增加持久化字段与文章属性。
+- 全量门禁闭环：完整单测（1531/1531）、类型检查与 `svelte-check` 0 错误 0 警告、生产构建与发布包校验（`package.zip` 436596B）、视觉矩阵登记与任务账本检查均通过。真实原工作区、触控与宿主视觉仍归 B-0002，版本保持 1.3.6，不打 tag 或发布。
+- 下一步：将 T-3378 的真实原工作区、触控与宿主视觉继续归 B-0002；版本仍为 1.3.6，本轮不推送、打 tag 或发布。
+
 ## 当前有效交接（2026-10-19 侧栏手风琴模式纯函数与偏好）
 
 - T-3377/D-0257：承接 T-1810 与 FUTURE-DIRECTION，在 `src/domain/library-rail.ts` 增加 `applyRailGroupToggle` 纯函数，支持展开某组时联动折叠其他组；`ui-prefs.json` 增加 `railAccordion` 偏好，纯视图状态，不增加文章属性与持久化存储。

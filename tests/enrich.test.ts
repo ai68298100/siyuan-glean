@@ -1,3 +1,4 @@
+import { inspectCustomEndpointSecurity } from "../src/domain/ai-direct.ts";
 /** domain/enrich 纯函数单测（T-1300） */
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -132,4 +133,42 @@ test("buildMultiReportPrompt：勾选篇清单与状态标签（T-1902）", () =
     // 超过 20 篇截断
     const many = Array.from({ length: 25 }, (_, i) => ({ title: `t${i}`, site: "", summary: "", status: "inbox" }));
     assert.ok(!buildMultiReportPrompt(many).includes("t20"));
+});
+
+test("inspectCustomEndpointSecurity：准确区分公网明文 HTTP 与本地/局域网豁免（T-1765 / T-3378）", () => {
+    // 1. 公网明文 HTTP：应当标记为 isPlaintextHttp = true
+    assert.deepEqual(inspectCustomEndpointSecurity("http://api.openai-proxy.com/v1"), {
+        isPlaintextHttp: true,
+        isLocal: false,
+    });
+    assert.deepEqual(inspectCustomEndpointSecurity("http://8.8.8.8:8000"), {
+        isPlaintextHttp: true,
+        isLocal: false,
+    });
+
+    // 2. 本地回环与局域网豁免：不报警示
+    assert.deepEqual(inspectCustomEndpointSecurity("http://localhost:11434"), {
+        isPlaintextHttp: false,
+        isLocal: true,
+    });
+    assert.deepEqual(inspectCustomEndpointSecurity("http://127.0.0.1:8000/v1"), {
+        isPlaintextHttp: false,
+        isLocal: true,
+    });
+    assert.deepEqual(inspectCustomEndpointSecurity("http://192.168.1.100:5000"), {
+        isPlaintextHttp: false,
+        isLocal: true,
+    });
+
+    // 3. HTTPS 加密协议：安全
+    assert.deepEqual(inspectCustomEndpointSecurity("https://api.openai.com/v1"), {
+        isPlaintextHttp: false,
+        isLocal: false,
+    });
+
+    // 4. 空输入安全降级
+    assert.deepEqual(inspectCustomEndpointSecurity(""), {
+        isPlaintextHttp: false,
+        isLocal: false,
+    });
 });

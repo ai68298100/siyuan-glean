@@ -1252,5 +1252,6 @@
   "stats.funnel.completionRate": "Completion Rate",
   "stats.funnel.archiveRate": "Archive Rate",
   "prefs.railAccordion": "Sidebar accordion mode",
-  "prefs.railAccordionHint": "Automatically collapse other groups when expanding one to keep sidebar compact"
+  "prefs.railAccordionHint": "Automatically collapse other groups when expanding one to keep sidebar compact",
+  "settings.ai.customHttpWarning": "Configured with an unencrypted public HTTP endpoint; API keys and content may be exposed in transit. HTTPS is strongly recommended."
 }

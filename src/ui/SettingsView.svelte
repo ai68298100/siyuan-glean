@@ -8,6 +8,7 @@ import { bindAllClipsToLibrary } from "../services/library-db";
 import { usageToday, loadAiLog, type AiLogEntry } from "../services/enrich-service";
 import { listCheckinItems, type CheckinItemOption } from "../services/checkin-bridge";
 import { testDirectChannel } from "../api/ai-direct";
+import { inspectCustomEndpointSecurity } from "../domain/ai-direct";
 import { t } from "../libs/i18n";
 import { DEFAULT_SETTINGS, cloneSettings, loadSettings, mergeSettingsDraft, normalizeSettings, SettingsConflictError, settingsEqual, type GleanSettings } from "../services/settings";
 import { loadUiPrefs, saveUiPrefs } from "../services/prefs";
@@ -73,6 +74,7 @@ let rebuildBusy = $state(false);
 let aiChannel = $state<"siyuan" | "custom">(DEFAULT_SETTINGS.ai.channel);
 let customBaseUrl = $state(DEFAULT_SETTINGS.ai.customBaseUrl);
 let customModel = $state(DEFAULT_SETTINGS.ai.customModel);
+const customEndpointSecurity = $derived(inspectCustomEndpointSecurity(customBaseUrl));
 let customSecretName = $state(DEFAULT_SETTINGS.ai.customSecretName);
 let testBusy = $state(false);
 let checkinEnabled = $state(DEFAULT_SETTINGS.integration.checkinEnabled);
@@ -275,7 +277,8 @@ function validateDraft(field?: string): { field: string; section: SettingsSectio
     const invalid = numeric.find(([key, , value, min, max]) => (!field || field === key) && (!Number.isFinite(value) || value < min || value > max));
     if (invalid) return { field: invalid[0], section: invalid[1], message: t(i18n, "settings.invalidNumber") };
     if (aiChannel === "custom") {
-        if ((!field || field === "customBaseUrl") && !/^https?:\/\//i.test(customBaseUrl.trim())) return { field: "customBaseUrl", section: "aiChannel", message: t(i18n, "settings.customBaseUrlInvalid") };
+        const urlLower = customBaseUrl.trim().toLowerCase();
+        if ((!field || field === "customBaseUrl") && (!urlLower.startsWith("http://") && !urlLower.startsWith("https://"))) return { field: "customBaseUrl", section: "aiChannel", message: t(i18n, "settings.customBaseUrlInvalid") };
         if ((!field || field === "customModel") && !customModel.trim()) return { field: "customModel", section: "aiChannel", message: t(i18n, "settings.customModelRequired") };
         if ((!field || field === "customSecretName") && !customSecretName.trim()) return { field: "customSecretName", section: "aiChannel", message: t(i18n, "settings.customSecretRequired") };
     }
@@ -749,7 +752,7 @@ async function doMountBoard() {
                     <div class="glean-set-row__lb">{t(i18n, "settings.customBaseUrl")}</div>
                     <input class="glean-mini-input glean-settings__wide-input" aria-label={t(i18n, "settings.customBaseUrl")} aria-invalid={validationField === "customBaseUrl"} placeholder="https://…/v1" bind:value={customBaseUrl} />
                 </div>
-                {#if /^http:\/\//i.test(customBaseUrl.trim())}
+                {#if customEndpointSecurity.isPlaintextHttp}
                     <div class="glean-set-row" role="alert">
                         <span class="glean-settings__error">{t(i18n, "settings.customBaseUrlInsecure")}</span>
                     </div>

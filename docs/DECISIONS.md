@@ -1307,3 +1307,11 @@ T-3377 承接 T-1810 与 FUTURE-DIRECTION 读库侧栏紧凑浏览：
 1. 交互规则：在 `src/domain/library-rail.ts` 增加 `applyRailGroupToggle` 纯函数；开启手风琴模式（accordion=true）且展开某组（collapsed=false）时，自动将其余各组设为折叠，解决分面条目众多时侧栏过长需反复滚动的痛点。
 2. 偏好持久化：在 `ui-prefs.json` 增加 `railAccordion: boolean`，默认关闭（false），严格类型归一化，不进入文章属性或 saveData 业务数据。
 3. 双语与无障碍：补充中英文案，键盘与读屏焦点保持在触发控件，不抢夺用户焦点。
+
+
+## D-0258（2026-10-19）自定义 AI 通道公网明文 HTTP 地址安全警示（承接 T-1765）
+
+T-3378 承接 T-1765 与 FUTURE-DIRECTION 安全边界：
+1. 风险告知：在 `src/domain/ai-direct.ts` 增加 `inspectCustomEndpointSecurity` 纯函数；当用户在设置页填写公网未加密明文 `http://` 端点（非 localhost、127.0.0.1、::1 或局域网私有地址）时，在输入框下方展示琥珀色安全警示，明确告知密钥与正文在传输中存在被监听截获风险。
+2. 平静原则：安全警示仅作可信告知，不强制阻断用户测试或保存自定义通道，避免误拦截用户合法的内网测试集群。
+3. 严格数据主权：纯前端设置表单校验与提示，不增加持久化字段、端点或文章属性。

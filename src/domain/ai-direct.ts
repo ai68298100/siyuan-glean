@@ -43,3 +43,26 @@ export function isDirectChannelAllowed(frontend: string): boolean {
     // mobile/desktop-window/desktop 为 Electron 容器（无 CORS 限制）；browser-* 直连受限
     return !frontend.startsWith("browser");
 }
+
+/**
+ * 检查自定义 AI 端点的传输安全性（T-1765 / T-3378）：
+ * - 如果使用了明文 http:// 协议且不是本地回环/局域网，标记为 isPlaintextHttp。
+ * - 空输入、https:// 或本地回环不报警示。
+ */
+export function inspectCustomEndpointSecurity(baseUrl: string): { isPlaintextHttp: boolean; isLocal: boolean } {
+    const trimmed = (baseUrl || "").trim();
+    if (!trimmed) return { isPlaintextHttp: false, isLocal: false };
+    try {
+        const hasScheme = trimmed.startsWith("http://") || trimmed.startsWith("https://");
+        const parsed = new URL(hasScheme ? trimmed : "https://" + trimmed);
+        const isHttp = parsed.protocol === "http:";
+        const host = parsed.hostname.toLowerCase();
+        const isLocal = host === "localhost" || host === "127.0.0.1" || host === "::1" || host.startsWith("192.168.") || host.startsWith("10.") || host.endsWith(".local");
+        return {
+            isPlaintextHttp: isHttp && !isLocal,
+            isLocal,
+        };
+    } catch {
+        return { isPlaintextHttp: false, isLocal: false };
+    }
+}

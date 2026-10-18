@@ -1,5 +1,12 @@
 # 进度（PROGRESS）
 
+## T-3378 自定义 AI 通道公网明文 HTTP 地址安全警示（2026-10-19）
+
+- [x] 纯函数端点安全检测：`src/domain/ai-direct.ts` 新增 `inspectCustomEndpointSecurity` 纯函数，准确识别公网未加密明文 `http://` 端点，并豁免本地回环（`localhost`、`127.0.0.1`、`::1`）及私有局域网网段（`192.168.*`、`10.*`、`*.local`）。
+- [x] 设置视图安全提示：`src/ui/SettingsView.svelte` 绑定 `customEndpointSecurity.isPlaintextHttp`，当用户填写公网未加密 HTTP 时给出明确安全提示，不阻塞保存但保障知情权。
+- [x] 双语与单测完备：新增 `settings.ai.customHttpWarning` 双语文案；`tests/enrich.test.ts` 增加公网 HTTP、局域网豁免与 HTTPS 安全单测（14/14）。
+- [x] 全量门禁闭环：全量分批测试（1531/1531）、`tsc --noEmit`、`svelte-check`（0 错误 0 警告）、生产构建（package.zip 436596B）、发布包检查与任务账本全部通过；真实外部 AI 连通仍待 B-0004。
+
 ## T-3377 侧栏 rail 手风琴模式纯函数与偏好支持（2026-10-19）
 
 - [x] 纯函数规则：`src/domain/library-rail.ts` 新增 `applyRailGroupToggle` 纯函数，开启手风琴模式（accordion=true）且展开某组（collapsed=false）时，自动将其余各组设为折叠，保持侧栏紧凑。
