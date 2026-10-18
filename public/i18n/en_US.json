@@ -1231,5 +1231,10 @@
   "aiTagMerge.partial": "Updated ${applied} articles; ${failed} failed. You can retry.",
   "aiTagMerge.confirm": "Confirm merge",
   "resurface.hasBookmark": "Bookmark",
-  "resurface.recentOpened": "Recently opened"
+  "resurface.recentOpened": "Recently opened",
+  "library.match.summary": "Summary match",
+  "library.match.author": "Author: ${author}",
+  "library.match.tag": "Tag: ${tag}",
+  "library.match.aiTag": "AI Tag: ${tag}",
+  "library.match.site": "Site: ${site}"
 }

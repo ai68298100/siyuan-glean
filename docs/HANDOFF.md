@@ -1,5 +1,12 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-19 读库摘要检索与摘录路由统一）
+
+- T-3370/D-0250：承接 FUTURE-DIRECTION 方向四（找回文章，并把摘录用起来），扩展读库检索能力：`LibraryItem` 增加 `summary` 字段，`searchableText` 纳入摘要并提供 `matchLibraryReason` 纯函数，读库卡片与列表显示直观的匹配线索徽章。
+- 摘录墙（`HighlightView.svelte`）整篇跳转由 `facade.openReadingDocument` 统一承载，融入会话最近阅读记录与实验页签路由。
+- 门禁通过：定向单测（70/70）、类型检查与 `svelte-check` 0 错误 0 警告、生产构建与发布包校验（`package.zip` 433627B）、任务账本核验均通过。真实原工作区、触控与宿主视觉仍归 B-0002，版本保持 1.3.6，不打 tag 或发布。
+- 下一步：将 T-3370 的真实原工作区、触控与宿主视觉继续归 B-0002；版本仍为 1.3.6，本轮不推送、打 tag 或发布。
+
 ## 当前有效交接（2026-10-19 会话内“继续阅读”与原生阅读上下文贯通）
 
 - T-3369/D-0249：承接 FUTURE-DIRECTION 方向三（中断之后接着读），打通原生思源编辑器与插件会话的最近阅读记录。`recordRecentReading` 自动回退读库索引补齐标题，原生阅读栏挂载成功时同步向 facade 汇报并派发 `glean:recent-reading-changed`。

@@ -11,7 +11,7 @@ import { batchSetStatusDetailed, captureDocument, findClipUrlConflict, reconcile
 import { autoEnrich, enrichClip } from "../services/enrich-service";
 import { snapshotClip } from "../services/snapshot-service";
 import { exportArticleMarkdown } from "../services/library-export-service";
-import { filterAndSortLibrary, libraryFacets, type LibraryItem, type LibrarySortDirection, type LibrarySortKey } from "../domain/library-view.ts";
+import { filterAndSortLibrary, libraryFacets, matchLibraryReason, type LibraryItem, type LibraryMatchTarget, type LibrarySortDirection, type LibrarySortKey } from "../domain/library-view.ts";
 import { loadIndex, type ClipIndexEntry, type CandidateEntry, type GleanIndex } from "../services/index-store";
 import StatsView from "./StatsView.svelte";
 import HighlightView from "./HighlightView.svelte";
@@ -348,6 +348,7 @@ const libraryItems = $derived.by<LibraryItem[]>(() => [
         kind: "clip" as const,
         id: entry.id,
         title: entry.title,
+        summary: entry.summary,
         hpath: entry.hpath,
         updated: entry.updated,
         status: entry.status || undefined,
@@ -1497,6 +1498,20 @@ async function applySelectedStatus(status: ClipStatus) {
     selection = new Set([...selection].filter((id) => !succeeded.has(id) || batchAddedDuringRun.has(id)));
 }
 
+function matchBadge(item: LibraryMatchTarget): string | null {
+    if (!activeFilter.keyword) return null;
+    const reason = matchLibraryReason(item, activeFilter.keyword);
+    if (!reason || reason.kind === "title") return null;
+    switch (reason.kind) {
+        case "summary": return t(i18n, "library.match.summary");
+        case "tag": return t(i18n, "library.match.tag", { tag: reason.value ?? "" });
+        case "aiTag": return t(i18n, "library.match.aiTag", { tag: reason.value ?? "" });
+        case "author": return t(i18n, "library.match.author", { author: reason.value ?? "" });
+        case "site": return t(i18n, "library.match.site", { site: reason.value ?? "" });
+        default: return null;
+    }
+}
+
 function openDoc(docId: string) {
     facade.openReadingDocument(docId);
 }
@@ -2474,6 +2489,9 @@ function metaLine(entry: Row): string {
                                         <div class="glean-drow__body">
                                             <button type="button" class="glean-drow__ti" aria-label={articleActionLabel(entry.title, true)} title={entry.title || t(i18n, "panel.untitled")} onclick={() => selectPreview(entry.id)}>{entry.title || t(i18n, "panel.untitled")}</button>
                                             <div class="glean-drow__meta">
+                                                {#if matchBadge(entry)}
+                                                    <span class="glean-badge glean-badge--match" title={matchBadge(entry)}>{matchBadge(entry)}</span>
+                                                {/if}
                                                 <span class="glean-drow__site" title={entry.site || sourceFallback(entry)}>{entry.site || sourceFallback(entry)}{#if entry.author}<button class="glean-source-author" onclick={(event) => { event.stopPropagation(); selectAuthor(entry.author!); }}>· {entry.author}</button>{/if}</span>
                                                 <span class={carrierClass(entry)} title={entry.contentType === "link" && !hasSourceAction(entry.contentType, entry.url) ? t(i18n, "clip.sourceMissing") : carrierLabel(entry)}>{carrierLabel(entry)}</span>
                                                 {#if entry.contentType === "link" && !hasSourceAction(entry.contentType, entry.url)}
@@ -2607,6 +2625,9 @@ function metaLine(entry: Row): string {
                                 <div class="glean-card__meta">
                                     {#if entry.kind === "clip"}
                                         <span class={statusDotClass(entry.status)}></span>
+                                    {/if}
+                                    {#if matchBadge(entry)}
+                                        <span class="glean-badge glean-badge--match" title={matchBadge(entry)}>{matchBadge(entry)}</span>
                                     {/if}
                                     {#if entry.kind === "clip" && entry.site}
                                         <span class="glean-card__site">{entry.site}</span>

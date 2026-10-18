@@ -33,6 +33,7 @@ export interface LibraryItem {
     minutes?: number;
     priority?: number;
     rating?: number;
+    summary?: string;
     /** 用户显式收藏标记（T-1755 投影）；候选无此字段 */
     favorite?: boolean;
 }
@@ -116,6 +117,7 @@ function hasAiTag(item: LibraryItem, expected: string): boolean {
 function searchableText(item: LibraryItem): string {
     return [
         item.title,
+        item.summary,
         item.hpath,
         item.site,
         item.author,
@@ -233,3 +235,40 @@ export function libraryFacets(items: readonly LibraryItem[]): LibraryFacets {
     };
 }
 
+export type LibraryMatchKind = "title" | "summary" | "tag" | "aiTag" | "author" | "site" | "url" | "hpath";
+
+export interface LibraryMatchReason {
+    kind: LibraryMatchKind;
+    value?: string;
+}
+
+export interface LibraryMatchTarget {
+    title?: string;
+    summary?: string;
+    tags?: string[];
+    aiTags?: string[];
+    author?: string;
+    site?: string;
+    url?: string;
+    hpath?: string;
+}
+
+/**
+ * 判定关键词命中的具体字段（按优先级：标题 → 摘要 → 用户标签 → AI标签 → 作者 → 站点 → URL → 路径）。
+ * 关键词为空或未命中时返回 null。
+ */
+export function matchLibraryReason(item: LibraryMatchTarget, keyword: string | undefined): LibraryMatchReason | null {
+    const query = key(keyword);
+    if (!query) return null;
+    if (key(item.title).includes(query)) return { kind: "title" };
+    if (key(item.summary).includes(query)) return { kind: "summary" };
+    const hitTag = (item.tags ?? []).find((t) => key(t).includes(query));
+    if (hitTag) return { kind: "tag", value: hitTag };
+    const hitAiTag = (item.aiTags ?? []).find((t) => key(t).includes(query));
+    if (hitAiTag) return { kind: "aiTag", value: hitAiTag };
+    if (key(item.author).includes(query)) return { kind: "author", value: item.author };
+    if (key(item.site).includes(query)) return { kind: "site", value: item.site };
+    if (key(item.url).includes(query)) return { kind: "url" };
+    if (key(item.hpath).includes(query)) return { kind: "hpath" };
+    return null;
+}

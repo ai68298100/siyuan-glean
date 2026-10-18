@@ -1243,3 +1243,11 @@ T-3369 承接 D-0120 与 FUTURE-DIRECTION 方向三（中断之后接着读）�
 2. 贯通原生与工作台阅读记录：`recordRecentReading(docId, title)` 在 title 为空时自动回退匹配当前读库索引（`this.index.clips[docId]?.title`）；原生阅读上下文（`ReadingContext.svelte`）挂载已收录文章时自动向 facade 汇报；变更时统一派发 `glean:recent-reading-changed`。
 3. 今日拾遗（`ResurfaceView.svelte`）与主工作台首屏在存在有效会话阅读时，展示“继续阅读”卡片，显示当前最新一篇的标题、载体、书签标记与“继续阅读”动作，并支持查看最近打开列表（最多 3 条），有效已收录文章才参与投影，失效条目静默跳过。
 4. 本轮不新增文章属性、端点或持久化字段；双语文案与无障碍语义保持完备。真实宿主视觉与切文仍归 B-0002。
+
+
+## D-0250（2026-10-19）读库检索纳入文章摘要与匹配原因，统一摘录跳转路由
+
+T-3370 承接 FUTURE-DIRECTION 方向四（找回文章，并把摘录用起来）：
+1. 检索与可解释性：在 LibraryItem 投影中纳入已有索引的 summary 字段，searchableText 统一包含摘要内容；新增 matchReason 纯函数，按“标题 → 摘要 → 标签 → AI标签 → 作者 → 站点 → 来源”提供结构化命中原因，解决搜索命中非标题属性时的黑盒疑惑。
+2. 统一高亮文章路由：HighlightView 打开文章不再裸调思源 openTab / openMobileFileById，统一走 facade.openReadingDocument(id)；使从摘录跳转阅读与会话最近阅读记录、桌面阅读页签偏好及失败降级完全打通。
+3. 数据与端点契约：不新增、不修改 custom-clip-* 属性，不新增端点或持久化字段，纯属视图投影与路由统一。真实宿主视觉与切文仍归 B-0002。

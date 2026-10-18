@@ -1231,5 +1231,10 @@
   "aiTagMerge.partial": "已更新 ${applied} 篇，另有 ${failed} 篇失败，可再次重试。",
   "aiTagMerge.confirm": "确认合并",
   "resurface.hasBookmark": "有书签",
-  "resurface.recentOpened": "最近打开"
+  "resurface.recentOpened": "最近打开",
+  "library.match.summary": "摘要匹配",
+  "library.match.author": "作者: ${author}",
+  "library.match.tag": "标签: ${tag}",
+  "library.match.aiTag": "AI标签: ${tag}",
+  "library.match.site": "站点: ${site}"
 }

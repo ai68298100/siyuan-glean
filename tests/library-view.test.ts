@@ -1,7 +1,7 @@
 /** 读库时间线筛选/排序纯函数（S3 / T-1715）。 */
 import test from "node:test";
 import assert from "node:assert/strict";
-import { filterAndSortLibrary, libraryFacets, type LibraryItem } from "../src/domain/library-view.ts";
+import { filterAndSortLibrary, libraryFacets, matchLibraryReason, type LibraryItem } from "../src/domain/library-view.ts";
 import { parseUserTags } from "../src/domain/schema.ts";
 import { normalizeRailGroups, projectRailFacets, railFacetSelected } from "../src/domain/library-rail.ts";
 
@@ -187,4 +187,46 @@ test("author：作者筛选与分面（T-1811/T-1812）", () => {
     assert.equal(filtered.length, 2);
     const facets = libraryFacets(items);
     assert.deepEqual(facets.authors, [{ value: "张三", count: 2 }]);
+});
+
+test("keyword：关键词支持检索文章 summary 摘要字段", () => {
+    const items = [
+        clip({ id: "1", title: "普通文章", summary: "这是一篇关于量子计算核心突破的总结" }),
+        clip({ id: "2", title: "量子计算论文", summary: "介绍基本原理" }),
+        clip({ id: "3", title: "无相关内容", summary: "日常工作汇报" }),
+    ];
+    const filtered = filterAndSortLibrary(items, { keyword: "量子计算" });
+    assert.equal(filtered.length, 2);
+    assert.deepEqual(filtered.map((item) => item.id).sort(), ["1", "2"]);
+});
+
+test("matchLibraryReason：按优先级判定关键词命中字段", () => {
+    const item = clip({
+        title: "Rust 异步编程指南",
+        summary: "深入 Tokio 运行时机制与并发原语",
+        tags: ["系统编程", "网络"],
+        aiTags: ["底层技术"],
+        author: "张三",
+        site: "rust-lang.org",
+        url: "https://rust-lang.org/async-book",
+    });
+
+    // 命中标题优先
+    assert.deepEqual(matchLibraryReason(item, "Rust"), { kind: "title" });
+    // 命中摘要
+    assert.deepEqual(matchLibraryReason(item, "Tokio"), { kind: "summary" });
+    // 命中用户标签
+    assert.deepEqual(matchLibraryReason(item, "网络"), { kind: "tag", value: "网络" });
+    // 命中 AI 标签
+    assert.deepEqual(matchLibraryReason(item, "底层技术"), { kind: "aiTag", value: "底层技术" });
+    // 命中作者
+    assert.deepEqual(matchLibraryReason(item, "张三"), { kind: "author", value: "张三" });
+    // 命中站点
+    assert.deepEqual(matchLibraryReason(item, "rust-lang"), { kind: "site", value: "rust-lang.org" });
+    // 命中 URL
+    assert.deepEqual(matchLibraryReason(item, "async-book"), { kind: "url" });
+    // 未命中或空
+    assert.equal(matchLibraryReason(item, "不存在的内容"), null);
+    assert.equal(matchLibraryReason(item, ""), null);
+    assert.equal(matchLibraryReason(item, undefined), null);
 });

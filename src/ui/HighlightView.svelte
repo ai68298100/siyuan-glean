@@ -4,7 +4,7 @@
 // 下 .glean-highlights__items { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr)); }，
 // .glean-highlights__empty { width: min(100%, 720px); align-self: center; }。
 import { untrack } from "svelte";
-import { openMobileFileById, openTab, showMessage } from "siyuan";
+import { showMessage } from "siyuan";
 import type { GleanFacade } from "../types";
 import { t } from "../libs/i18n";
 import { filterHighlights, highlightFacets, pageHighlights, retainHighlightSelection, type HighlightFilter } from "../domain/highlights";
@@ -276,8 +276,7 @@ async function card(item: HighlightItem) {
 }
 
 function openDoc(id: string) {
-    if (facade.isMobile) openMobileFileById(facade.pluginInstance.app, id);
-    else void openTab({ app: facade.pluginInstance.app, doc: { id }, keepCursor: false });
+    facade.openReadingDocument(id);
 }
 </script>
 

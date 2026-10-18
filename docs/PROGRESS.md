@@ -1,5 +1,12 @@
 # 进度（PROGRESS）
 
+## T-3370 读库检索纳入文章摘要与匹配原因，统一摘录跳转路由（2026-10-19）
+
+- [x] 检索支持摘要与匹配原因：`LibraryItem` 增加 `summary` 字段，`searchableText` 纳入摘要实现全文摘要检索；新增 `matchLibraryReason` 纯函数按“标题 → 摘要 → 标签 → AI标签 → 作者 → 站点”提供结构化命中判定。
+- [x] 读库卡片与列表（`DockPanel.svelte`）在关键词命中非标题字段时展示匹配线索徽章（如“摘要匹配”、“标签: xxx”），解除搜索黑盒疑惑。
+- [x] 摘录墙（`HighlightView.svelte`）打开文章统一由 `facade.openReadingDocument(id)` 接管，自动打通会话内最近阅读、桌面阅读页签偏好与异常降级反馈。
+- [x] 定向单测（70/70）、`tsc --noEmit` 与 `svelte-check`（0 错误 0 警告）、构建（package.zip 433627B）、发布包与差异门禁全部通过；真实宿主视觉与切文仍归 B-0002。
+
 ## T-3369 今日拾遗与工作台会话内“继续阅读”入口与原生阅读上下文贯通（2026-10-19）
 
 - [x] 打通原生阅读上下文与工作台阅读记录：`recordRecentReading` 缺标题时回退读库索引，原生阅读上下文（`ReadingContext.svelte`）挂载已收录文章时使用可选链安全向 facade 汇报；变更时统一派发 `glean:recent-reading-changed`。
