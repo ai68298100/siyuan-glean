@@ -11443,3 +11443,89 @@ body.b3-theme-dark .glean-panel--mobile,
     }
     .glean-panel--shell.glean-panel--mobile .glean-surf-card .glean-surf-act--pri { grid-column: 1 / -1; }
 }
+
+.glean-surf-candidate-banner {
+    margin: var(--glean-space-0) var(--glean-space-3) var(--glean-space-2);
+    padding: var(--glean-space-1-5) var(--glean-space-3);
+    background: var(--b3-theme-surface);
+    border: 1px solid var(--b3-theme-surface-lighter);
+    border-radius: var(--glean-radius-m);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--glean-space-2);
+    font-size: var(--glean-text-caption-plus);
+    color: var(--b3-theme-on-surface);
+}
+
+.glean-surf-candidate-banner__label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: var(--glean-weight-medium);
+    color: var(--b3-theme-primary);
+}
+
+.glean-surf-recent-captured {
+    margin: var(--glean-space-3) var(--glean-space-3) var(--glean-space-2);
+    padding-top: var(--glean-space-2);
+    border-top: 1px dashed var(--b3-theme-surface-lighter);
+    display: flex;
+    flex-direction: column;
+    gap: var(--glean-space-1-5);
+}
+
+.glean-surf-recent-captured__title {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: var(--glean-text-caption);
+    font-weight: var(--glean-weight-semibold);
+    color: var(--b3-theme-on-surface);
+    opacity: 0.8;
+}
+
+.glean-surf-recent-captured__list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--glean-space-1);
+}
+
+.glean-surf-recent-captured__item {
+    background: none;
+    border: none;
+    padding: 4px 6px;
+    margin: 0;
+    text-align: left;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border-radius: var(--glean-radius-s);
+    color: var(--b3-theme-on-background);
+    font-size: var(--glean-text-caption-plus);
+    min-width: 0;
+    line-height: var(--glean-leading-normal);
+
+    &:hover {
+        background: var(--b3-theme-surface);
+        color: var(--b3-theme-primary);
+    }
+}
+
+.glean-surf-recent-captured__dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--b3-theme-primary);
+    flex-shrink: 0;
+    opacity: 0.7;
+}
+
+.glean-surf-recent-captured__text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+    flex: 1;
+}

@@ -1,5 +1,12 @@
 # 进度（PROGRESS）
 
+## T-3375 今日拾遗首页信息层级收口：贯通待确认与最近收录（2026-10-19）
+
+- [x] 待确认候选常态提示：`src/ui/ResurfaceView.svelte` 在存在待确认候选（`candidateCount > 0`）且有今日推荐卡片时，展示轻量平静的候选条目直达收件箱（`onQuickCandidates`），避免今日有重浮卡片时待确认候选被完全淹没。
+- [x] 最近收录轻量投影：在今日拾遗底部增加“最近收录”区域，按收录时间（`time`）从当前索引投影最近入库的 3 篇已收录文章，支持点击直接打开阅读。
+- [x] 样式与双语完备：新增 `resurface.recentCaptured`、`resurface.candidatesPending` 键，适配暗色与移动端样式。
+- [x] 全量门禁闭环：全量分批测试（1528/1528）、`tsc --noEmit`、`svelte-check`（0 错误 0 警告）、生产构建（package.zip 435172B）、发布包检查与任务账本全部通过；真实宿主视觉与多端观感仍待 B-0002。
+
 ## T-3374 摘录墙支持选中引述批量导出独立 Markdown 文件（2026-10-19）
 
 - [x] 导出能力增强：`src/ui/HighlightView.svelte` 导出动作区增加直接下载 `.md` 文件的纯前端导出链路，复用 `prepareHighlightExport` 与 `renderHighlightsMarkdown` 结构化格式（含引述纯文本、文章标题、来源站点与思源块回链）。

@@ -1239,5 +1239,7 @@
   "library.match.site": "站点: ${site}",
   "highlight.shareCopied": "已复制格式化引用",
   "highlight.clipboardUnavailable": "无法访问系统剪贴板",
-  "highlight.markdown": "导出 Markdown"
+  "highlight.markdown": "导出 Markdown",
+  "resurface.recentCaptured": "最近收录",
+  "resurface.candidatesPending": "待分拣候选 ${n} 篇"
 }

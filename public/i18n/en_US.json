@@ -1239,5 +1239,7 @@
   "library.match.site": "Site: ${site}",
   "highlight.shareCopied": "Formatted quote copied",
   "highlight.clipboardUnavailable": "Clipboard is unavailable",
-  "highlight.markdown": "Export Markdown"
+  "highlight.markdown": "Export Markdown",
+  "resurface.recentCaptured": "Recently Captured",
+  "resurface.candidatesPending": "${n} candidates pending review"
 }

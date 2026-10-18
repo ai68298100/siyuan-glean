@@ -82,6 +82,12 @@ const activeRecentReadings = $derived(
 );
 const activeContinue = $derived(activeRecentReadings[0] ?? null);
 const secondaryRecent = $derived(activeRecentReadings.slice(1));
+const recentCaptured = $derived.by(() => {
+    return Object.values(index.clips)
+        .filter((item) => Boolean(item.id && item.title && !item.internal))
+        .sort((a, b) => (b.time || "").localeCompare(a.time || ""))
+        .slice(0, 3);
+});
 let disposed = false;
 let swipeGeneration = 0;
 const swipeTimers = new Set<number>();
@@ -519,6 +525,18 @@ function reasonText(reason: SurfaceReason): string {
             <div class="glean-empty__hint">{t(i18n, "resurface.allDoneHint")}</div>
         </div>
     {:else}
+        {#if candidateCount > 0 && picks.length > 0 && onQuickCandidates}
+            <div class="glean-surf-candidate-banner" role="status">
+                <span class="glean-surf-candidate-banner__label">
+                    <svg class="glean-icon" aria-hidden="true"><use href="#iconGleanInbox" /></svg>
+                    {t(i18n, "resurface.candidatesPending", { n: candidateCount })}
+                </span>
+                <button type="button" class="glean-btn glean-btn--ghost glean-btn--sm" onclick={onQuickCandidates}>
+                    {t(i18n, "panel.viewCandidates")}
+                </button>
+            </div>
+        {/if}
+
         {#if activeContinue}
             <section class="glean-surf-continue" aria-labelledby="glean-surf-continue-title-{instanceId}">
                 <div class="glean-surf-continue__header">
@@ -677,6 +695,28 @@ function reasonText(reason: SurfaceReason): string {
                     <svg class="glean-icon" aria-hidden="true"><use href="#iconGleanInbox" /></svg>
                     <span>{t(i18n, "resurface.quickCandidates")}</span>
                 </button>
+            </div>
+        </section>
+    {/if}
+
+    {#if recentCaptured.length > 0}
+        <section class="glean-surf-recent-captured" aria-label={t(i18n, "resurface.recentCaptured")}>
+            <div class="glean-surf-recent-captured__title">
+                <svg class="glean-icon" aria-hidden="true"><use href="#iconGleanWheat" /></svg>
+                <span>{t(i18n, "resurface.recentCaptured")}</span>
+            </div>
+            <div class="glean-surf-recent-captured__list">
+                {#each recentCaptured as item (item.id)}
+                    <button
+                        type="button"
+                        class="glean-surf-recent-captured__item"
+                        onclick={() => openDoc(item.id)}
+                        title={item.title}
+                    >
+                        <span class="glean-surf-recent-captured__dot" aria-hidden="true"></span>
+                        <span class="glean-surf-recent-captured__text">{item.title}</span>
+                    </button>
+                {/each}
             </div>
         </section>
     {/if}
