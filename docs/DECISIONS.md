@@ -1331,3 +1331,11 @@ T-3380 承接 T-3336 与 FUTURE-DIRECTION 方向三（连续阅读打磨）：
 1. 估算口径：在 `src/domain/reading-position.ts` 增加 `estimateReadingPercentage` 纯函数；仅当正文渲染容器存在有效滚动高度（scrollHeight > clientHeight）时，以 `(scrollTop + clientHeight) / scrollHeight` 派生出 0–100 的整数百分比；无溢出短文或未渲染时返回 null，不伪造精确度。
 2. 呈现边界：在 `ReadingPositionControls.svelte` 中作为辅助线索展示，不写入文章属性、不改变 JSON 书签结构（保持 `{version:1, blockId, offset, at}`）、不持久化到 saveData，插件重载后按实际恢复位置重新估算。
 3. 严格数据主权：纯视图派生估算，不引入后台自动保存或视口事件污染。
+
+
+## D-0261（2026-10-19）高频剪藏来源站点友好名称纯函数与展示投影（承接 T-1809）
+
+T-3381 承接 T-1809 与 FUTURE-DIRECTION 来源可读性优化：
+1. 友好名称映射：在 `src/domain/schema.ts` 增加 `displaySiteName` 纯函数；对高频主流内容源（微信公众号 `mp.weixin.qq.com`、知乎 `zhihu.com`、B站 `bilibili.com`、少数派 `sspai.com`、掘金 `juejin.cn`、GitHub 等）提供自然直观的品牌显示名，其余站点优雅回退原始域名。
+2. 保持数据真相：文档属性 `custom-clip-site` 仍持久化存储规范的主机名事实，数据主权不变；`displaySiteName` 仅作为界面元数据与标签呈现的派生投影。
+3. 纯函数单测：单测覆盖主流站点映射、未知域名回退及大小写/空白归一化。

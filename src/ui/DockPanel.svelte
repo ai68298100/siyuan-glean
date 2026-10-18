@@ -5,7 +5,7 @@ import { openTab, showMessage } from "siyuan";
 import type { GleanFacade } from "../types";
 import { t } from "../libs/i18n";
 import { aiFailureKey } from "../libs/ai-feedback";
-import type { ClipStatus } from "../domain/schema";
+import { displaySiteName, type ClipStatus } from "../domain/schema";
 import { normalizeUrl } from "../domain/url";
 import { batchSetStatusDetailed, captureDocument, findClipUrlConflict, reconcileIndex, writeClip, type StatusWriteResult } from "../services/clip-store";
 import { autoEnrich, enrichClip } from "../services/enrich-service";
@@ -1779,6 +1779,10 @@ function sourceFallback(entry: ClipIndexEntry): string {
     return resolveCarrier(entry.contentType) === "local" ? t(i18n, "clip.sourceLocal") : t(i18n, "panel.unknownSite");
 }
 
+function siteDisplayLabel(entry: ClipIndexEntry): string {
+    return entry.site ? displaySiteName(entry.site) : sourceFallback(entry);
+}
+
 function carrierLabel(entry: ClipIndexEntry): string {
     return clipType(entry);
 }
@@ -2492,7 +2496,7 @@ function metaLine(entry: Row): string {
                                                 {#if matchBadge(entry)}
                                                     <span class="glean-badge glean-badge--match" title={matchBadge(entry)}>{matchBadge(entry)}</span>
                                                 {/if}
-                                                <span class="glean-drow__site" title={entry.site || sourceFallback(entry)}>{entry.site || sourceFallback(entry)}{#if entry.author}<button class="glean-source-author" onclick={(event) => { event.stopPropagation(); selectAuthor(entry.author!); }}>· {entry.author}</button>{/if}</span>
+                                                <span class="glean-drow__site" title={entry.site || sourceFallback(entry)}>{siteDisplayLabel(entry)}{#if entry.author}<button class="glean-source-author" onclick={(event) => { event.stopPropagation(); selectAuthor(entry.author!); }}>· {entry.author}</button>{/if}</span>
                                                 <span class={carrierClass(entry)} title={entry.contentType === "link" && !hasSourceAction(entry.contentType, entry.url) ? t(i18n, "clip.sourceMissing") : carrierLabel(entry)}>{carrierLabel(entry)}</span>
                                                 {#if entry.contentType === "link" && !hasSourceAction(entry.contentType, entry.url)}
                                                     <span class="glean-source-missing">{t(i18n, "clip.sourceMissing")}</span>
@@ -2630,7 +2634,7 @@ function metaLine(entry: Row): string {
                                         <span class="glean-badge glean-badge--match" title={matchBadge(entry)}>{matchBadge(entry)}</span>
                                     {/if}
                                     {#if entry.kind === "clip" && entry.site}
-                                        <span class="glean-card__site">{entry.site}</span>
+                                        <span class="glean-card__site">{displaySiteName(entry.site)}</span>
                                     {:else if entry.kind === "candidate"}
                                         <span title={entry.url || entry.hpath}>{entry.site || candidateEvidence(entry)}</span>
                                     {/if}

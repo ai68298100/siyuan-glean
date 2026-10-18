@@ -13,6 +13,7 @@ import {
     isMarkedInternalDoc,
     parseClipAttrs,
     serializePatch,
+    displaySiteName,
     siteFromUrl,
     siyuanDate,
     siyuanTimestamp,
@@ -178,4 +179,22 @@ test("captureDefaults：收录缺省值", () => {
     assert.equal(defaults.priority, 3);
     assert.equal(defaults.time, "20260929080000");
     assert.equal(defaults.src, "manual");
+});
+
+test("displaySiteName：知名站点映射品牌名，未知域名优雅回退（T-1809 / T-3381）", () => {
+    assert.equal(displaySiteName("mp.weixin.qq.com"), "微信公众号");
+    assert.equal(displaySiteName("zhuanlan.zhihu.com"), "知乎专栏");
+    assert.equal(displaySiteName("zhihu.com"), "知乎");
+    assert.equal(displaySiteName("bilibili.com"), "哔哩哔哩");
+    assert.equal(displaySiteName("sspai.com"), "少数派");
+    assert.equal(displaySiteName("github.com"), "GitHub");
+    assert.equal(displaySiteName("www.github.com"), "GitHub");
+
+    // 未知域名去 www 回退
+    assert.equal(displaySiteName("blog.example.com"), "blog.example.com");
+    assert.equal(displaySiteName("www.my-personal-site.org"), "my-personal-site.org");
+
+    // 空边界安全
+    assert.equal(displaySiteName(""), "");
+    assert.equal(displaySiteName(undefined), "");
 });

@@ -1,5 +1,12 @@
 # 进度（PROGRESS）
 
+## T-3381 高频剪藏来源站点友好名称纯函数与展示投影（2026-10-19）
+
+- [x] 友好站点映射纯函数：`src/domain/schema.ts` 新增 `displaySiteName` 纯函数，对高频主流内容源（微信公众号、知乎、B站、少数派、掘金、GitHub 等）提供自然直观的品牌显示名，其余域名优雅去 www 回退。
+- [x] 界面展示投影接入：`src/ui/DockPanel.svelte` 列表行与卡片元数据接入 `displaySiteName` 投影，同时悬停保留原始规范主机名；保护文章属性 `custom-clip-site` 原始事实源。
+- [x] 单测完备：`tests/schema.test.ts` 增加主流站点映射与未知域名回退单测（18/18）。
+- [x] 全量门禁闭环：全量分批测试（1534/1534）、`tsc --noEmit`、`svelte-check`（0 错误 0 警告）、生产构建（package.zip 437227B）、发布包检查与任务账本全部通过；真实多来源站点观感仍待 B-0002。
+
 ## T-3380 书签面板支持视口阅读百分比轻量估算（2026-10-19）
 
 - [x] 视口估算纯函数：`src/domain/reading-position.ts` 新增 `estimateReadingPercentage` 纯函数，仅在真实正文存在有效溢出滚动（scrollHeight > clientHeight）时以 `(scrollTop + clientHeight) / scrollHeight` 派生 0–100 的整数百分比；无滚动短文与未渲染时返回 null，避免伪造虚假进度。

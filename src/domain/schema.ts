@@ -389,3 +389,35 @@ export function captureDefaults(now: Date = new Date()): Partial<ClipAttrs> {
         src: "manual",
     };
 }
+
+const WELL_KNOWN_SITE_NAMES: Record<string, string> = {
+    "mp.weixin.qq.com": "微信公众号",
+    "weixin.qq.com": "微信",
+    "zhihu.com": "知乎",
+    "zhuanlan.zhihu.com": "知乎专栏",
+    "bilibili.com": "哔哩哔哩",
+    "sspai.com": "少数派",
+    "juejin.cn": "掘金",
+    "github.com": "GitHub",
+    "v2ex.com": "V2EX",
+    "medium.com": "Medium",
+    "weibo.com": "微博",
+    "jianshu.com": "简书",
+    "douban.com": "豆瓣",
+    "segmentfault.com": "思否",
+    "cnblogs.com": "博客园",
+    "csdn.net": "CSDN",
+    "infoq.cn": "InfoQ",
+};
+
+/**
+ * 将域名转化为人可读的站点友好名称（T-1809 / T-3381）：
+ * - 高频知名站点返回品牌展示名；
+ * - 其余站点清洗前缀后返回原始主机名；
+ * - 纯视图投影，不修改 custom-clip-site 文档属性。
+ */
+export function displaySiteName(rawSite: string | undefined): string {
+    const site = String(rawSite ?? "").trim().toLowerCase().replace(/^www./, "");
+    if (!site) return "";
+    return WELL_KNOWN_SITE_NAMES[site] || site;
+}
