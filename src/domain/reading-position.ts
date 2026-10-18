@@ -27,3 +27,27 @@ export function serializeReadingPosition(value: unknown): string {
     if (!parsed) throw new RangeError("Invalid reading position");
     return JSON.stringify(parsed);
 }
+
+/**
+ * 根据正文滚动视口高度轻量估算阅读进度百分比（T-3336 / T-3380）：
+ * 1. 只有当正文内容高度大于视口高度（scrollHeight > clientHeight）且 clientHeight > 0 时才计算；
+ * 2. 以已读可视底部 (scrollTop + clientHeight) / scrollHeight 派生 0–100 的整数百分比；
+ * 3. 无滚动短文、未渲染或参数非法时返回 null，避免伪造虚假进度。
+ */
+export function estimateReadingRatio(scrollTop: number, scrollHeight: number, clientHeight: number): number | null {
+    if (!Number.isFinite(scrollTop) || !Number.isFinite(scrollHeight) || !Number.isFinite(clientHeight)) return null;
+    if (clientHeight <= 0 || scrollHeight <= clientHeight) return null;
+    const offset = Math.max(0, scrollTop);
+    const visibleBottom = Math.min(scrollHeight, offset + clientHeight);
+    const ratio = visibleBottom / scrollHeight;
+    return Math.min(100, Math.max(0, Math.round(ratio * 100)));
+}
+
+export function estimateReadingPercentage(scrollTop: number, scrollHeight: number, clientHeight: number): number | null {
+    if (!Number.isFinite(scrollTop) || !Number.isFinite(scrollHeight) || !Number.isFinite(clientHeight)) return null;
+    if (clientHeight <= 0 || scrollHeight <= clientHeight) return null;
+    const offset = Math.max(0, scrollTop);
+    const visibleBottom = Math.min(scrollHeight, offset + clientHeight);
+    const ratio = visibleBottom / scrollHeight;
+    return Math.min(100, Math.max(0, Math.round(ratio * 100)));
+}

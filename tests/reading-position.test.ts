@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { parseReadingPosition, serializeReadingPosition } from "../src/domain/reading-position.ts";
+import { estimateReadingPercentage, estimateReadingRatio, parseReadingPosition, serializeReadingPosition } from "../src/domain/reading-position.ts";
 
 const position = { version: 1, blockId: "20261004120000-aaaaaaa", offset: 125, at: "2026-10-04T04:00:00.000Z" } as const;
 
@@ -33,4 +33,22 @@ test("非法位置不能序列化，不以默认位置掩盖非法旧值", () =>
     assert.throws(() => serializeReadingPosition({ ...position, offset: 10001 }), RangeError);
     assert.throws(() => serializeReadingPosition("legacy bookmark"), RangeError);
     assert.throws(() => serializeReadingPosition(null), RangeError);
+});
+
+test("estimateReadingRatio & estimateReadingPercentage：在真实滚动视口下轻量估算百分比，短文与非法值返回 null（T-3336 / T-3380）", () => {
+    // 1. 正常长文视口（总高 1000px，视口 200px）
+    // 刚打开在顶部：读到 200/1000 = 20%
+    assert.equal(estimateReadingPercentage(0, 1000, 200), 20);
+    // 滚动到 400px：读到 (400+200)/1000 = 60%
+    assert.equal(estimateReadingPercentage(400, 1000, 200), 60);
+    // 滚动到底部 800px：读到 1000/1000 = 100%
+    assert.equal(estimateReadingPercentage(800, 1000, 200), 100);
+
+    // 2. 无溢出短文（内容高度 <= 视口高度）：不伪造百分比，返回 null
+    assert.equal(estimateReadingPercentage(0, 300, 300), null);
+    assert.equal(estimateReadingPercentage(0, 150, 400), null);
+
+    // 3. 非法数值边界：安全返回 null
+    assert.equal(estimateReadingPercentage(0, 0, 0), null);
+    assert.equal(estimateReadingPercentage(Number.NaN, 1000, 200), null);
 });

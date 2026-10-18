@@ -1,5 +1,12 @@
 # 进度（PROGRESS）
 
+## T-3380 书签面板支持视口阅读百分比轻量估算（2026-10-19）
+
+- [x] 视口估算纯函数：`src/domain/reading-position.ts` 新增 `estimateReadingPercentage` 纯函数，仅在真实正文存在有效溢出滚动（scrollHeight > clientHeight）时以 `(scrollTop + clientHeight) / scrollHeight` 派生 0–100 的整数百分比；无滚动短文与未渲染时返回 null，避免伪造虚假进度。
+- [x] 书签面板进度展示：`src/ui/ReadingPositionControls.svelte` 标题栏接入轻量百分比徽章展示，纯视图状态，不写文章属性、不改变 JSON 书签结构（保持 `{version:1, blockId, offset, at}`）、不持久化到 saveData。
+- [x] 双语与单测完备：新增 `reading.position.percentage` 翻译键；新增 `tests/reading-position.test.ts` 视口估算单测（5/5）。
+- [x] 全量门禁闭环：全量分批测试（1532/1532）、`tsc --noEmit`、`svelte-check`（0 错误 0 警告）、生产构建（package.zip 436959B）、发布包检查与任务账本全部通过；真实多长短文滚动视口观感仍待 B-0002。
+
 ## T-3379 继续阅读命令动作增强支持会话历史与阅读中文章回退（2026-10-19）
 
 - [x] 命令双文轮换纯函数：`src/domain/recent-reading.ts` 新增 `pickContinueReadingDocId` 纯函数；用户触发“继续阅读”命令时，若当前正在阅读最近第一篇，自动切换到最近第二篇，实现多篇最近文章间的命令面板快速往返穿梭。

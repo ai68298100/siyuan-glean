@@ -4,6 +4,7 @@
     import { t } from "../libs/i18n";
     import { createLatestRequestGate } from "../libs/latest-request";
     import { captureReadingPosition, restoreReadingPosition } from "../libs/reading-position";
+    import { estimateReadingRatio } from "../domain/reading-position";
     import {
         ClipRestoreError, readReadingPosition, saveReadingPosition, verifyReadingBlock, type ReadingPositionSnapshot,
     } from "../services/clip-store";
@@ -17,6 +18,12 @@
     let busy = $state(false);
     let messageKey = $state("");
     let blockFallback = $state<{ docId: string; blockId: string } | null>(null);
+    let estimatedRatio = $derived((() => {
+        if (!host || !snapshot?.position) return null;
+        const scrollEl = host.querySelector(".b3-typography, .protyle-content, [data-node-id]") as HTMLElement | null;
+        const target = scrollEl ?? host;
+        return estimateReadingRatio(target.scrollTop, target.scrollHeight, target.clientHeight);
+    })());
     let active = false;
 
     $effect(() => {
@@ -147,7 +154,14 @@
 </script>
 
 <section class="glean-reading-position" aria-labelledby={titleId} aria-busy={busy}>
-    <div id={titleId} class="glean-reading-position__title" role="heading" aria-level="3">{t(i18n, "reading.position.title")}</div>
+    <div id={titleId} class="glean-reading-position__title" role="heading" aria-level="3">
+        {t(i18n, "reading.position.title")}
+        {#if estimatedRatio !== null}
+            <span class="glean-badge glean-badge--pri" title={t(i18n, "reading.position.progress", { n: estimatedRatio })}>
+                {t(i18n, "reading.position.progress", { n: estimatedRatio })}
+            </span>
+        {/if}
+    </div>
     <p class="glean-reading-position__hint">{t(i18n, "reading.position.hint")}</p>
     <div class="glean-reading-position__actions" role="group" aria-label={t(i18n, "reading.position.title")}>
         <button class="glean-btn glean-btn--ghost" disabled={busy || !snapshot} onclick={() => void remember()}>{t(i18n, "reading.position.remember")}</button>

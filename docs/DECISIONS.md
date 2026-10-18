@@ -1323,3 +1323,11 @@ T-3379 承接 T-1800 与 FUTURE-DIRECTION 方向三（中断之后接着读）�
 1. 会话多条目与往返切换：在 `src/domain/recent-reading.ts` 增加 `pickContinueReadingDocId` 纯函数；当用户触发“继续阅读”命令时，若当前正在阅读最近第一篇，自动切换到最近第二篇，实现多篇最近文章间的命令面板快速往返穿梭。
 2. 状态兜底回退：当刚启动插件且会话历史为空时，优先从读库索引检索状态为 `reading`（阅读中）的文章直接接续，避免直接抛出“无最近阅读”的冰冷阻断。
 3. 严格数据主权：纯会话内存与索引只读投影，不增加文章属性、端点或持久化存储。
+
+
+## D-0260（2026-10-19）书签面板支持视口阅读百分比轻量估算（承接 T-3336）
+
+T-3380 承接 T-3336 与 FUTURE-DIRECTION 方向三（连续阅读打磨）：
+1. 估算口径：在 `src/domain/reading-position.ts` 增加 `estimateReadingPercentage` 纯函数；仅当正文渲染容器存在有效滚动高度（scrollHeight > clientHeight）时，以 `(scrollTop + clientHeight) / scrollHeight` 派生出 0–100 的整数百分比；无溢出短文或未渲染时返回 null，不伪造精确度。
+2. 呈现边界：在 `ReadingPositionControls.svelte` 中作为辅助线索展示，不写入文章属性、不改变 JSON 书签结构（保持 `{version:1, blockId, offset, at}`）、不持久化到 saveData，插件重载后按实际恢复位置重新估算。
+3. 严格数据主权：纯视图派生估算，不引入后台自动保存或视口事件污染。
