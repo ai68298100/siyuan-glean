@@ -1229,5 +1229,7 @@
   "settings.customModelRequired": "Enter a model name.",
   "settings.customSecretRequired": "Enter the Siyuan secret name.",
   "aiTagMerge.partial": "Updated ${applied} articles; ${failed} failed. You can retry.",
-  "aiTagMerge.confirm": "Confirm merge"
+  "aiTagMerge.confirm": "Confirm merge",
+  "resurface.hasBookmark": "Bookmark",
+  "resurface.recentOpened": "Recently opened"
 }

@@ -112,6 +112,7 @@ function loadSurfaceControls({ act, undo, pin, replacement, tick, openReading } 
             isMobile: false, i18n: {}, settings: {}, pluginInstance: {},
             notifyDataChanged() { calls.notified += 1; calls.events.push("notify"); },
             openReadingDocument(id) { calls.opened.push(id); calls.events.push("open"); openReading?.(id); },
+            recentReadingDocuments() { return []; },
         },
         index: { clips: {}, candidates: {} }, currentTime: new Date(), onMutated() { calls.mutated += 1; calls.events.push("mutated"); },
     };
@@ -134,6 +135,9 @@ function loadSurfaceControls({ act, undo, pin, replacement, tick, openReading } 
         "../domain/resurface": { todayStamp: () => "20261016" },
         "../domain/carrier": { resolveCarrier: () => "local", openTargetForCarrier: () => "document" },
         "../domain/surface-swipe": {},
+        "../domain/recent-reading": {
+            projectActiveRecentReadings: (entries, clips, limit) => [],
+        },
     };
     const source = readFileSync(new URL("../src/ui/ResurfaceView.svelte", import.meta.url), "utf8").match(/<script lang="ts">([\s\S]*?)<\/script>/)[1];
     const probe = `globalThis.controls = { act, togglePin, replacePick, undoLastAction, dismissUndo, bind(panel, button) { panelRoot = panel; undoButton = button; }, inspect() { return { actingId, undoingId, undoNotice, startedToday, sessionPicks }; } };`;
@@ -142,7 +146,7 @@ function loadSurfaceControls({ act, undo, pin, replacement, tick, openReading } 
         exports: {}, require: (id) => modules[id],
         $props: Object.assign(() => props, { id: () => "test" }),
         $state: Object.assign((value) => value, { raw: (value) => value }), $derived: Object.assign((value) => value, { by: (value) => value() }), $effect() {},
-        HTMLElement: ActiveButton, document: { activeElement: new ActiveButton(), body: { isConnected: true } }, console,
+        HTMLElement: ActiveButton, document: { activeElement: new ActiveButton(), body: { isConnected: true }, addEventListener() {}, removeEventListener() {} }, console,
     };
     runInNewContext(compiled, context);
     context.controls.bind(

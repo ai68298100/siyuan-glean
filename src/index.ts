@@ -409,8 +409,15 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
     }
 
     recordRecentReading(docId: string, title = ""): void {
-        this.recentReadings = addRecentReading(this.recentReadings, { id: docId, title });
-        document.dispatchEvent(new CustomEvent("glean:recent-reading-changed"));
+        if (!docId) return;
+        const cleanId = docId.trim();
+        if (!cleanId) return;
+        const cleanTitle = title.trim();
+        const prev = this.recentReadings[0];
+        this.recentReadings = addRecentReading(this.recentReadings, { id: cleanId, title: cleanTitle });
+        if (!prev || prev.id !== cleanId || (cleanTitle && prev.title !== cleanTitle)) {
+            document.dispatchEvent(new CustomEvent("glean:recent-reading-changed", { detail: { docId: cleanId } }));
+        }
     }
 
     async openLibraryArticle(docId: string): Promise<void> {

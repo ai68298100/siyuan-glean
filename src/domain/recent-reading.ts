@@ -41,3 +41,69 @@ export function normalizeRecentReading(entries: readonly RecentReadingEntry[], l
     }
     return result;
 }
+
+export interface ActiveRecentReadingItem {
+    id: string;
+    title: string;
+    status?: string;
+    contentType?: string;
+    minutes?: number;
+    hasBookmark: boolean;
+}
+
+export interface RecentReadingClipSource {
+    title?: string;
+    status?: string;
+    contentType?: string;
+    minutes?: number;
+    readingPosition?: unknown;
+}
+
+/**
+ * 从会话内最近阅读条目中，结合当前读库已收录索引，投影出可用于快速继续阅读的有效条目列表。
+ * - 仅投影存在于 clipsMap 且已收录的文章（排除已删除/非读库条目）；
+ * - 优先从索引补齐缺失标题；
+ * - 识别是否存在版本 1 显式书签（readingPosition）；
+ * - 保持最近打开的时间次序（首项为最新打开的一篇）。
+ */
+export function projectActiveRecentReadings(
+    entries: readonly RecentReadingEntry[],
+    clipsMap: Record<string, RecentReadingClipSource> | null | undefined,
+    limit = 3,
+): ActiveRecentReadingItem[] {
+    if (!clipsMap || typeof clipsMap !== "object") return [];
+    const max = Math.max(0, limit);
+    if (max === 0) return [];
+
+    const result: ActiveRecentReadingItem[] = [];
+    const seen = new Set<string>();
+
+    for (const entry of entries) {
+        const id = clean(entry.id);
+        if (!id || seen.has(id)) continue;
+        seen.add(id);
+
+        const clip = clipsMap[id];
+        // 仅收录存在于读库中的有效条目
+        if (!clip) continue;
+
+        const title = clean(entry.title) || clean(clip.title) || id;
+        const hasBookmark = Boolean(
+            clip.readingPosition &&
+            (typeof clip.readingPosition === "string" ? clip.readingPosition.trim().length > 0 : typeof clip.readingPosition === "object")
+        );
+
+        result.push({
+            id,
+            title,
+            status: typeof clip.status === "string" ? clip.status : undefined,
+            contentType: typeof clip.contentType === "string" ? clip.contentType : undefined,
+            minutes: typeof clip.minutes === "number" && Number.isFinite(clip.minutes) ? clip.minutes : undefined,
+            hasBookmark,
+        });
+
+        if (result.length >= max) break;
+    }
+
+    return result;
+}

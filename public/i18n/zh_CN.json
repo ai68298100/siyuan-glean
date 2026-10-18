@@ -1229,5 +1229,7 @@
   "settings.customModelRequired": "请输入模型名称。",
   "settings.customSecretRequired": "请输入思源密钥名称。",
   "aiTagMerge.partial": "已更新 ${applied} 篇，另有 ${failed} 篇失败，可再次重试。",
-  "aiTagMerge.confirm": "确认合并"
+  "aiTagMerge.confirm": "确认合并",
+  "resurface.hasBookmark": "有书签",
+  "resurface.recentOpened": "最近打开"
 }

@@ -2768,6 +2768,94 @@ body.b3-theme-dark {
     color: var(--b3-theme-on-background);
 }
 
+.glean-surf-continue {
+    margin: var(--glean-space-0) var(--glean-space-3) var(--glean-space-2);
+    padding: var(--glean-space-2) var(--glean-space-3);
+    background: var(--b3-theme-surface);
+    border: 1px solid var(--b3-theme-surface-lighter);
+    border-radius: var(--glean-radius-m);
+    display: flex;
+    flex-direction: column;
+    gap: var(--glean-space-1-5);
+    min-width: 0;
+}
+
+.glean-surf-continue__header {
+    display: flex;
+    align-items: center;
+    gap: var(--glean-space-1-5);
+    font-size: var(--glean-text-caption);
+    color: var(--b3-theme-on-surface);
+}
+
+.glean-surf-continue__label {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-weight: var(--glean-weight-semibold);
+    color: var(--b3-theme-primary);
+}
+
+.glean-surf-continue__body {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--glean-space-2);
+    min-width: 0;
+}
+
+.glean-surf-continue__title-action {
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 0;
+    text-align: left;
+    cursor: pointer;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--glean-text-body);
+    font-weight: var(--glean-weight-semibold);
+    color: var(--b3-theme-on-background);
+    line-height: var(--glean-leading-normal);
+
+    &:hover {
+        color: var(--b3-theme-primary);
+        text-decoration: underline;
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--b3-theme-primary);
+        outline-offset: 2px;
+        border-radius: var(--glean-radius-s);
+    }
+}
+
+.glean-surf-continue__btn {
+    flex-shrink: 0;
+    padding: 4px 10px;
+    font-size: var(--glean-text-caption-plus);
+    min-height: 28px;
+}
+
+.glean-surf-continue__more {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--glean-space-1);
+    font-size: var(--glean-text-caption);
+    color: var(--b3-theme-on-surface);
+    padding-top: var(--glean-space-1);
+    border-top: 1px dashed var(--b3-theme-surface-lighter);
+}
+
+.glean-surf-continue__more-label {
+    opacity: 0.72;
+    flex-shrink: 0;
+}
+
 .glean-card__check {
     position: absolute;
     top: 8px;

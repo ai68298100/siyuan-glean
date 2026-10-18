@@ -58,6 +58,9 @@
             const next = await readClipContext(docId);
             if (token !== reloadToken || !mounted) return;
             context = next;
+            if (next && next.id) {
+                facade.recordRecentReading?.(next.id, next.title);
+            }
             loadError = false;
         } catch (error) {
             // 编辑器切换期间根块可能已经销毁；上下文退出即可，不打扰正文。

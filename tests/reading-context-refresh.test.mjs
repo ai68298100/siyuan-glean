@@ -53,7 +53,7 @@ async function harness(firstResult = article) {
     const calls = [];
     const events = new EventTarget();
     globalThis.document = events;
-    globalThis.__gleanContextRefreshProps = { facade: { i18n: {}, pluginInstance: {} }, docId: article.id };
+    globalThis.__gleanContextRefreshProps = { facade: { i18n: {}, pluginInstance: {}, recordRecentReading: () => {} }, docId: article.id };
     globalThis.__gleanContextRefreshEffects = effects;
     globalThis.__gleanContextRefreshRead = (id) => {
         calls.push(id);

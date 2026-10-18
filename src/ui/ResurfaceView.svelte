@@ -11,6 +11,7 @@ import { todayStamp, type SurfacePick, type SurfaceReason } from "../domain/resu
 import { hasSourceAction, openTargetForCarrier, resolveCarrier, sourceUrlForCarrier } from "../domain/carrier";
 import { clampSurfaceSwipe, resolveSurfaceSwipe, type SurfaceSwipeAction } from "../domain/surface-swipe";
 import ContextSelectionPanel from "./ContextSelectionPanel.svelte";
+import { projectActiveRecentReadings, type RecentReadingEntry } from "../domain/recent-reading";
 
 interface Props {
     facade: GleanFacade;
@@ -63,6 +64,24 @@ let swipeState = $state<{
 } | null>(null);
 /** UX 审计 #10：本会话"开始阅读"过的文章回执（纯视图状态，不写属性）。 */
 let startedToday = $state<Array<{ id: string; title: string }>>([]);
+let recentReadings = $state<RecentReadingEntry[]>([]);
+
+$effect(() => {
+    recentReadings = facade.recentReadingDocuments().map((entry) => ({ ...entry }));
+    const handleRecentChange = () => {
+        recentReadings = facade.recentReadingDocuments().map((entry) => ({ ...entry }));
+    };
+    document.addEventListener("glean:recent-reading-changed", handleRecentChange);
+    return () => {
+        document.removeEventListener("glean:recent-reading-changed", handleRecentChange);
+    };
+});
+
+const activeRecentReadings = $derived(
+    projectActiveRecentReadings(recentReadings, index.clips, 3)
+);
+const activeContinue = $derived(activeRecentReadings[0] ?? null);
+const secondaryRecent = $derived(activeRecentReadings.slice(1));
 let disposed = false;
 let swipeGeneration = 0;
 const swipeTimers = new Set<number>();
@@ -493,13 +512,62 @@ function reasonText(reason: SurfaceReason): string {
                 </button>
             </div>
         </div>
-    {:else if picks.length === 0 && startedToday.length === 0}
+    {:else if picks.length === 0 && startedToday.length === 0 && !activeContinue}
         <div class="glean-empty" role="status">
             <div class="glean-empty__art"><svg aria-hidden="true"><use href="#iconGleanSpark" /></svg></div>
             <div class="glean-empty__title">{t(i18n, "resurface.allDone")}</div>
             <div class="glean-empty__hint">{t(i18n, "resurface.allDoneHint")}</div>
         </div>
     {:else}
+        {#if activeContinue}
+            <section class="glean-surf-continue" aria-labelledby="glean-surf-continue-title-{instanceId}">
+                <div class="glean-surf-continue__header">
+                    <span id="glean-surf-continue-title-{instanceId}" class="glean-surf-continue__label">
+                        <svg class="glean-icon" aria-hidden="true"><use href="#iconGleanWheat" /></svg>
+                        {t(i18n, "resurface.continueReading")}
+                    </span>
+                    {#if activeContinue.hasBookmark}
+                        <span class="glean-badge glean-badge--bookmark">{t(i18n, "resurface.hasBookmark")}</span>
+                    {/if}
+                    {#if activeContinue.minutes}
+                        <span class="glean-badge">{activeContinue.minutes}m</span>
+                    {/if}
+                </div>
+                <div class="glean-surf-continue__body">
+                    <button
+                        type="button"
+                        class="glean-surf-continue__title-action"
+                        onclick={() => openDoc(activeContinue.id)}
+                        title={activeContinue.title}
+                    >
+                        {activeContinue.title}
+                    </button>
+                    <button
+                        type="button"
+                        class="glean-btn glean-btn--pri glean-surf-continue__btn"
+                        onclick={() => openDoc(activeContinue.id)}
+                    >
+                        {t(i18n, "resurface.continueReading")}
+                    </button>
+                </div>
+                {#if secondaryRecent.length > 0}
+                    <div class="glean-surf-continue__more">
+                        <span class="glean-surf-continue__more-label">{t(i18n, "resurface.recentOpened")}:</span>
+                        {#each secondaryRecent as item (item.id)}
+                            <button
+                                type="button"
+                                class="glean-chip glean-chip--ghost"
+                                onclick={() => openDoc(item.id)}
+                                title={item.title}
+                            >
+                                {item.title}
+                            </button>
+                        {/each}
+                    </div>
+                {/if}
+            </section>
+        {/if}
+
         {#if startedToday.length > 0}
             <div class="glean-surf-started">
                 {#each startedToday as item (item.id)}
