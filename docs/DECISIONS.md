@@ -1347,3 +1347,11 @@ T-3382 承接 T-1792 与 T-1869 候选人工补证流程：
 1. 键盘交互：在 `src/ui/WorkbenchPreview.svelte` 候选修改来源 URL（`editingUrl`）输入框支持 Enter 键直接触发保存（`saveUrl`），按 Escape 键取消编辑并收起输入框，提升待确认候选池键盘分拣流的连贯性。
 2. 保护原始事实：URL 校验与防覆盖保护继续走既有 `savePreviewCandidateUrl` 管道，已有手填保护与并发核对机制不变。
 3. 严格数据主权：纯前端键盘交互与焦点治理，不增加文章属性、端点或持久化存储。
+
+
+## D-0263（2026-10-19）TTS 朗读语速偏好记忆与续听支持（承接 T-3337/T-1744）
+
+T-3383 承接 T-3337、T-1744 与 FUTURE-DIRECTION 朗读增强：
+1. 语速偏好持久化：在 `src/domain/ui-prefs.ts` 增加 `speechRate: number`，默认 1.0，严格通过 `clampSpeechRate` 钳制于 0.75–1.5 范围；ReaderTab 调整语速时自动增量保存，下次挂载自动恢复用户习惯的语速。
+2. 续听分块纯函数：在 `src/domain/speech.ts` 增加 `resumeSpeechChunkIndex` 纯函数，保证停止或暂停后可从当前分块索引安全接续，越界或空分块安全重置为 0。
+3. 严格数据主权：纯 UI 偏好与会话内存状态，不写入任何文章属性、端点或 saveData 业务数据。

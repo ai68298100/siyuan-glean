@@ -55,3 +55,13 @@ export function speechLanguage(text: string): "zh-CN" | "en-US" {
     const latinCharacters = (text.match(/[A-Za-z]/g) ?? []).length;
     return chineseCharacters >= latinCharacters ? "zh-CN" : "en-US";
 }
+
+/**
+ * 决定续听分块索引（T-3337 / T-3383）：
+ * 保证当前索引在 chunks 数组合法有效范围内，越界或空分块时重置为 0。
+ */
+export function resumeSpeechChunkIndex(chunks: readonly string[], currentIndex: number): number {
+    if (!Array.isArray(chunks) || chunks.length === 0) return 0;
+    if (!Number.isInteger(currentIndex) || currentIndex < 0) return 0;
+    return currentIndex < chunks.length ? currentIndex : 0;
+}

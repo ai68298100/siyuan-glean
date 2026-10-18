@@ -169,6 +169,7 @@ import { aiFailureKey } from "../libs/ai-feedback";
             if (!mounted) return;
             if (!appearanceTouched) readerAppearance = prefs.readerAppearance;
             if (!sidebarTouched) sidebarCollapsed = prefs.readerSidebarCollapsed;
+            if (!speechRateTouched && prefs.speechRate) speechRate = prefs.speechRate;
         }).catch(() => undefined);
         const root = readerRoot;
         root?.addEventListener("keydown", onReaderKey);
@@ -186,6 +187,7 @@ import { aiFailureKey } from "../libs/ai-feedback";
     let speechState = $state<SpeechState>("idle");
     let speechScope = $state<SpeechScope | null>(null);
     let speechRate = $state(1);
+    let speechRateTouched = false;
     let speechChunks = $state<string[]>([]);
     let speechChunkIndex = $state(0);
     let speechGeneration = 0;
@@ -299,9 +301,11 @@ import { aiFailureKey } from "../libs/ai-feedback";
     }
 
     function setSpeechRate(value: number): void {
+        speechRateTouched = true;
         const next = clampSpeechRate(value);
         if (next === speechRate) return;
         speechRate = next;
+        void saveUiPrefs(facade.pluginInstance, { speechRate: next }).catch(() => undefined);
         if (speechState !== "playing" && speechState !== "paused") return;
         const api = speechSynthesis();
         if (!api) return;

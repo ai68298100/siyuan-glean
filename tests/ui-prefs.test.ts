@@ -1,3 +1,4 @@
+import { normalizeUiPrefs } from "../src/services/prefs.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { applySavedView, createSavedView, deleteSavedView, normalizeReaderAppearance, normalizeSavedViews, normalizeTagAliases, displayTagAlias, setDefaultSavedView } from "../src/domain/ui-prefs.ts";
@@ -55,4 +56,12 @@ test("tag aliases enforce the persisted size limit and clone values", () => {
     const clone = structuredClone(aliases);
     clone[0].name = "changed";
     assert.equal(aliases[0].name, "Alias 0");
+});
+
+test("normalizeUiPrefs：归一化 speechRate 偏好与默认回退（T-3383）", () => {
+    assert.equal(normalizeUiPrefs({ speechRate: 1.25 }).speechRate, 1.25);
+    assert.equal(normalizeUiPrefs({ speechRate: 2 }).speechRate, 1.5); // 超限钳制
+    assert.equal(normalizeUiPrefs({ speechRate: 0.1 }).speechRate, 0.75); // 下限钳制
+    assert.equal(normalizeUiPrefs({}).speechRate, 1); // 缺省回退 1
+    assert.equal(normalizeUiPrefs({ speechRate: "invalid" as any }).speechRate, 1); // 非法回退 1
 });

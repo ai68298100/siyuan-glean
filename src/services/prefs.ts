@@ -1,3 +1,4 @@
+import { clampSpeechRate } from "../domain/speech.ts";
 /**
  * UI 偏好（saveData "ui-prefs.json"）：跨重启记住面板状态。
  * 只存"界面偏好"，绝不存文章数据（数据主权铁律，D-0001）。
@@ -35,6 +36,7 @@ export interface UiPrefs {
     onboardingHintDismissed: boolean;
     readerAppearance: ReaderAppearance;
     readerSidebarCollapsed: boolean;
+    speechRate: number;
     workbenchPreviewEnabled: boolean;
     workbenchPreviewRatio: number;
     libraryRailGroups: RailGroups;
@@ -54,6 +56,7 @@ const DEFAULTS: UiPrefs = {
     onboardingHintDismissed: false,
     readerAppearance: { ...DEFAULT_READER_APPEARANCE },
     readerSidebarCollapsed: false,
+    speechRate: 1,
     workbenchPreviewEnabled: true,
     workbenchPreviewRatio: normalizePreviewRatio(undefined),
     libraryRailGroups: normalizeRailGroups(undefined),
@@ -83,6 +86,7 @@ export function normalizeUiPrefs(raw: unknown): UiPrefs {
         onboardingHintDismissed,
         readerAppearance: normalizeReaderAppearance(partial.readerAppearance),
         readerSidebarCollapsed: partial.readerSidebarCollapsed === true,
+        speechRate: typeof partial.speechRate === "number" && Number.isFinite(partial.speechRate) ? clampSpeechRate(partial.speechRate) : 1,
         workbenchPreviewEnabled: typeof partial.workbenchPreviewEnabled === "boolean" ? partial.workbenchPreviewEnabled : true,
         workbenchPreviewRatio: normalizePreviewRatio(partial.workbenchPreviewRatio),
         libraryRailGroups: normalizeRailGroups(partial.libraryRailGroups),

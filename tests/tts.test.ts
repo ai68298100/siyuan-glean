@@ -3,6 +3,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { chunkTextForSpeech, nextSpeechRate, speechSupported, SPEECH_RATES } from "../src/domain/tts.ts";
+import { clampSpeechRate, resumeSpeechChunkIndex } from "../src/domain/speech.ts";
 
 test("chunkTextForSpeech：按中英句边界切分并合并到上限", () => {
     const chunks = chunkTextForSpeech("第一句话。第二句话！Third sentence? 最后；", 50);
@@ -30,4 +31,25 @@ test("nextSpeechRate：默认档循环 1→1.25→1.5→0.75→1", () => {
     assert.equal(nextSpeechRate(0.75), 1);
     assert.equal(nextSpeechRate(2), 1); // 未知档回默认
     assert.equal(SPEECH_RATES.length, 4);
+});
+
+test("resumeSpeechChunkIndex：在合法分块内接续，越界或空分块安全回退为 0（T-3337 / T-3383）", () => {
+    const chunks = ["第一句", "第二句", "第三句"];
+    assert.equal(resumeSpeechChunkIndex(chunks, 0), 0);
+    assert.equal(resumeSpeechChunkIndex(chunks, 1), 1);
+    assert.equal(resumeSpeechChunkIndex(chunks, 2), 2);
+
+    // 越界或负数回退为 0
+    assert.equal(resumeSpeechChunkIndex(chunks, 3), 0);
+    assert.equal(resumeSpeechChunkIndex(chunks, 99), 0);
+    assert.equal(resumeSpeechChunkIndex(chunks, -1), 0);
+    assert.equal(resumeSpeechChunkIndex([], 0), 0);
+});
+
+test("clampSpeechRate：语速限制在 0.75 到 1.5 范围并四舍五入到 0.25 步长", () => {
+    assert.equal(clampSpeechRate(1), 1);
+    assert.equal(clampSpeechRate(1.23), 1.25);
+    assert.equal(clampSpeechRate(2.5), 1.5);
+    assert.equal(clampSpeechRate(0.2), 0.75);
+    assert.equal(clampSpeechRate(Number.NaN), 1);
 });

@@ -1,5 +1,12 @@
 # 进度（PROGRESS）
 
+## T-3383 TTS 朗读语速偏好记忆与续听支持（2026-10-19）
+
+- [x] 纯函数分块续听：`src/domain/speech.ts` 新增 `resumeSpeechChunkIndex` 纯函数，保证暂停或停止后从当前分块索引安全接续，越界或空分块安全回退为 0。
+- [x] 语速偏好持久化：`src/services/prefs.ts` 在 `UiPrefs` 中接入 `speechRate: number`，默认 1.0 并经 `clampSpeechRate` 钳制于 0.75–1.5 范围；`src/ui/ReaderTab.svelte` 挂载时恢复用户上次语速，调整时静默增量保存。
+- [x] 单测完备：`tests/tts.test.ts` 增加续听索引与语速范围单测；`tests/ui-prefs.test.ts` 增加 `speechRate` 偏好归一化单测。
+- [x] 全量门禁闭环：全量分批测试（1535/1535）、`tsc --noEmit`、`svelte-check`（0 错误 0 警告）、生产构建（package.zip 437345B）、发布包检查与任务账本全部通过；真实桌面系统语音朗读观感仍待 B-0002。
+
 ## T-3382 候选补来源键盘完全可达收口（2026-10-19）
 
 - [x] 键盘交互连贯：`src/ui/WorkbenchPreview.svelte` 候选修改来源 URL（`editingUrl`）输入框接入键盘事件，按 Enter 键直接触发保存（`saveUrl`），按 Escape 键取消编辑并收起输入框。
