@@ -1275,3 +1275,11 @@ T-3373 承接 T-1801 与 FUTURE-DIRECTION 方向一（可信读库主链）：
 1. 候选分面支持：在 `src/domain/library-view.ts` 的 `libraryFacets(items, includeCandidates)` 增加可选参数，在收件池或待分拣视图下允许将未确认候选的来源站点（`item.site`）纳入站点分面统计，解决候选池众多时无法按来源站点过滤的问题。
 2. 来源聚类纯函数：新增 `groupCandidatesBySite` 纯函数，将待分拣候选按来源站点聚合排序，并提供未知/无站点回退；供收件区和批量分拣使用。
 3. 严格数据主权：纯视图与分面投影，不修改文档属性、不写插件持久化存储。
+
+
+## D-0254（2026-10-19）摘录墙支持选中引述批量导出独立 Markdown 文件（承接 T-1752）
+
+T-3374 承接 T-1752 与 FUTURE-DIRECTION 方向四（把摘录用起来）：
+1. 批量 Markdown 导出：在 `HighlightView.svelte` 导出操作区增加“导出 Markdown（.md）”文件下载能力；复用 `prepareHighlightExport` 构造的人可读结构化 Markdown（含引述纯文本、文章标题、来源站点与思源块回链），生成 Blob 触发浏览器直接下载。
+2. 保持与整理稿一致：下载文件与思源内建整理稿共用同一规范化渲染器（`renderHighlightsMarkdown`），确保公式、代码块、链接转义防护规则统一。
+3. 严格数据主权：纯客户端只读导出与文件下载，不修改思源文章属性、不创建无用文档、不写插件持久化存储。

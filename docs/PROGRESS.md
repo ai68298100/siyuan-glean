@@ -1,5 +1,11 @@
 # 进度（PROGRESS）
 
+## T-3374 摘录墙支持选中引述批量导出独立 Markdown 文件（2026-10-19）
+
+- [x] 导出能力增强：`src/ui/HighlightView.svelte` 导出动作区增加直接下载 `.md` 文件的纯前端导出链路，复用 `prepareHighlightExport` 与 `renderHighlightsMarkdown` 结构化格式（含引述纯文本、文章标题、来源站点与思源块回链）。
+- [x] 双语与反馈完备：新增 `highlight.markdown` 键（中英对称），导出成功后提供即时反馈（`highlight.exported`），并与剪贴板复制、CSV 导出和整理稿生成共享忙碌状态。
+- [x] 全量门禁闭环：全量分批测试（1528/1528）、`tsc --noEmit`、`svelte-check`（0 错误 0 警告）、生产构建（package.zip 434570B）、发布包检查与任务账本全部通过；真实多浏览器下载与文件查看仍待 B-0002/B-0005。
+
 ## T-3373 待分拣候选站点分面聚合与来源分组（2026-10-19）
 
 - [x] 候选分面支持：`src/domain/library-view.ts` 的 `libraryFacets(items, includeCandidates)` 增加参数，在收件池或待分拣视图下允许将未确认候选的来源站点（`item.site`）纳入站点分面统计，解决候选池众多时无法按来源站点过滤的问题。

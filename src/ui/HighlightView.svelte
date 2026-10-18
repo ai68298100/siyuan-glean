@@ -47,7 +47,7 @@ let session = $state<HighlightExportSession | null>(null);
 let exportBusy = $state(false);
 let exportError = $state("");
 let exportStatus = $state("");
-let retryAction = $state<"copy" | "csv" | "preview" | "save">("preview");
+let retryAction = $state<"copy" | "csv" | "markdown" | "preview" | "save">("preview");
 let tagAliases = $state<TagAlias[]>([]);
 let generation = 0;
 let relatedGeneration = 0;
@@ -203,7 +203,7 @@ function reasonText(reason: HighlightSaveReason): string {
     return t(i18n, keys[reason]);
 }
 
-async function runExport(action: "copy" | "csv" | "preview") {
+async function runExport(action: "copy" | "csv" | "markdown" | "preview") {
     if (exportBusy || loading) return;
     exportBusy = true;
     exportError = "";
@@ -219,6 +219,18 @@ async function runExport(action: "copy" | "csv" | "preview") {
             const anchor = document.createElement("a");
             anchor.href = url;
             anchor.download = `${labels.title}.csv`;
+            document.body.appendChild(anchor);
+            anchor.click();
+            anchor.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+            exportStatus = t(i18n, "highlight.exported");
+        } else if (action === "markdown") {
+            const prep = await prepareHighlightExport(items, selected, labels);
+            const blob = new Blob([prep.markdown], { type: "text/markdown;charset=utf-8" });
+            const url = URL.createObjectURL(blob);
+            const anchor = document.createElement("a");
+            anchor.href = url;
+            anchor.download = `${labels.title}.md`;
             document.body.appendChild(anchor);
             anchor.click();
             anchor.remove();
@@ -342,6 +354,7 @@ function openDoc(id: string) {
         <div class="glean-highlights__export-actions" role="group" aria-label={t(i18n, "highlight.exportTitle")}>
             <button disabled={loading || exportBusy || !selected.length} onclick={() => void runExport("copy")}>{t(i18n, "highlight.copy")}</button>
             <button disabled={loading || exportBusy || !selected.length} onclick={() => void runExport("csv")}>{t(i18n, "highlight.csv")}</button>
+            <button disabled={loading || exportBusy || !selected.length} onclick={() => void runExport("markdown")}>{t(i18n, "highlight.markdown")}</button>
             <button class="glean-highlights__preview-action" disabled={loading || exportBusy || !selected.length || !!session} onclick={() => void runExport("preview")}>{t(i18n, "highlight.preview")}</button>
         </div>
     </div>

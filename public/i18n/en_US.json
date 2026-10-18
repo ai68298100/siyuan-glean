@@ -1238,5 +1238,6 @@
   "library.match.aiTag": "AI Tag: ${tag}",
   "library.match.site": "Site: ${site}",
   "highlight.shareCopied": "Formatted quote copied",
-  "highlight.clipboardUnavailable": "Clipboard is unavailable"
+  "highlight.clipboardUnavailable": "Clipboard is unavailable",
+  "highlight.markdown": "Export Markdown"
 }
