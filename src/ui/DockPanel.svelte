@@ -43,9 +43,10 @@ import { applySavedView, createSavedView, deleteSavedView, displayTagAlias, gove
 interface Props {
     facade: GleanFacade;
     initialPreviewId?: string;
+    tabId?: string;
 }
 
-let { facade, initialPreviewId = "" }: Props = $props();
+let { facade, initialPreviewId = "", tabId = "" }: Props = $props();
 
 const i18n = $derived(facade.i18n);
 let currentTime = $state(new Date());
@@ -154,11 +155,15 @@ onMount(() => {
     };
     document.addEventListener("glean:tag-aliases-changed", onTagAliasesChanged);
     const cleanup = () => {
+        disposed = true;
+        focusGeneration += 1;
         disposeTagAliasFocus();
         if (dayRefreshTimer !== null) window.clearTimeout(dayRefreshTimer);
         dayRefreshTimer = null;
         if (focusFlashTimer !== null) window.clearTimeout(focusFlashTimer);
         focusFlashTimer = null;
+        focusFlashTarget?.classList.remove("glean-focus-flash");
+        focusFlashTarget = null;
         document.removeEventListener("visibilitychange", onVisibilityChange);
         window.removeEventListener("focus", syncDayClock);
         document.removeEventListener("glean:tag-aliases-changed", onTagAliasesChanged);
@@ -189,7 +194,11 @@ let enrichingId = $state("");
 let statusActionId = $state("");
 let pendingFocusId = $state("");
 let focusRequested = false;
+let focusGeneration = $state(0);
+let disposed = false;
+let focusReturnOrigin: Element | null = null;
 let focusFlashTimer: number | null = null;
+let focusFlashTarget: HTMLElement | null = null;
 let mobileMoreOpen = $state(false);
 let mobileMoreTrigger = $state<HTMLButtonElement | null>(null);
 let mobileMoreMenu = $state<HTMLDivElement | null>(null);
@@ -312,7 +321,16 @@ function selectMobileView(nextView: PanelView): void {
 }
 
 function markPrefsInteraction(): void {
+    if (!applyingPrefs) cancelPendingLibraryFocus();
     if (prefsLoading && !applyingPrefs) prefsUserTouched = true;
+}
+
+function cancelPendingLibraryFocus(): void {
+    if (!pendingFocusId) return;
+    focusGeneration += 1;
+    pendingFocusId = "";
+    focusReturnOrigin = null;
+    // 保留已发生定位的标记，防止迟到偏好恢复重新套用默认保存视图。
 }
 
 type Row =
@@ -574,6 +592,11 @@ function clearFilters(): void {
     keyword = "";
 }
 
+function clearUserFilters(): void {
+    markPrefsInteraction();
+    clearFilters();
+}
+
 const hasFilters = $derived(Boolean(authorTimeline || selectedAuthor || selectedSite || selectedTag || selectedAiTag || selectedSource || selectedTimeSource || selectedContentType || keyword.trim()));
 const filterChips = $derived(libraryFilterChips(activeFilter));
 
@@ -724,6 +747,7 @@ function clearMobileFilterDraft(): void {
 }
 
 function applyMobileFilters(): void {
+    markPrefsInteraction();
     selectedSite = mobileFilterDraft.site;
     selectedAuthor = mobileFilterDraft.author;
     if (!selectedAuthor) authorTimeline = false;
@@ -817,7 +841,7 @@ $effect(() => {
 $effect(() => {
     if (rootEl?.closest(".glean-tab-root")) {
         isTabCanvas = true;
-        const pending = facade.consumeLibraryFocus();
+        const pending = tabId ? facade.consumeLibraryFocus(tabId) : "";
         if (pending && !initialPreviewId) void focusClipById(pending);
     }
 });
@@ -1039,19 +1063,45 @@ $effect(() => {
 });
 
 async function focusClipById(id: string, openPreview = false): Promise<void> {
+    if (disposed || !id) return;
+    const generation = ++focusGeneration;
+    const origin = document.activeElement;
+    focusReturnOrigin = origin;
     focusRequested = true;
     pendingFocusId = id;
     view = "library";
-    clearFilters();
-    if (!index.clips[id] && !index.candidates[id]) await reload();
-    if (pendingFocusId !== id) return;
+    const filter = activeFilterKey;
+    const layout = layoutMode;
+    if (loading || (!index.clips[id] && !index.candidates[id])) await reload();
+    if (disposed || generation !== focusGeneration || pendingFocusId !== id) return;
+    if (view !== "library" || activeFilterKey !== filter || layoutMode !== layout) {
+        cancelPendingLibraryFocus();
+        return;
+    }
+    if (!openPreview && !canRestoreLibraryFocus(origin)) {
+        pendingFocusId = "";
+        focusRequested = false;
+        return;
+    }
     if (!index.clips[id] && !index.candidates[id]) {
         pendingFocusId = "";
         focusRequested = false;
         return;
     }
-    activeQueue = index.clips[id]?.status || "inbox";
-    authorTimeline = false;
+    // 返回仍可见的文章时保留当前筛选、队列和布局；确实被筛掉才放宽定位。
+    if (focusRowIndex(id) < 0) {
+        clearFilters();
+        activeQueue = index.clips[id]?.status || "inbox";
+    }
+    if (!openPreview && previewId && previewSplit) {
+        const list = previewSplit.querySelector<HTMLElement>(".glean-lib__main");
+        const pane = previewSplit.querySelector<HTMLElement>(".glean-preview-pane");
+        // 窄画布用预览替换列表；返回读库必须先显出列表，宽画布仍保留并排预览。
+        if (list && !list.getClientRects().length && pane?.getClientRects().length) {
+            previewRevision += 1;
+            previewId = "";
+        }
+    }
     if (openPreview) {
         layoutMode = "list";
         previewPrefsTouched = true;
@@ -1061,29 +1111,63 @@ async function focusClipById(id: string, openPreview = false): Promise<void> {
     }
 }
 
+function canRestoreLibraryFocus(origin: Element | null): boolean {
+    const active = document.activeElement;
+    return active === origin || Boolean(origin && !origin.isConnected && (!active || active === document.body));
+}
+
+function focusRowIndex(id: string): number {
+    if (isTabCanvas && layoutMode === "kanban") {
+        return Math.max(-1, ...kanbanCols.map((column) => column.items.findIndex((row) => row.id === id)));
+    }
+    return rows.findIndex((row) => row.id === id);
+}
+
 // 工作台可能仍在对账或等待 Svelte 渲染；保留定位请求直到目标行真正出现。
 $effect(() => {
+    if (view !== "library") cancelPendingLibraryFocus();
+});
+
+$effect(() => {
     const id = pendingFocusId;
-    if (!id || !isTabCanvas || loading || view !== "library" || !rootEl) return;
-    const rowIndex = rows.findIndex((row) => row.id === id);
+    const generation = focusGeneration;
+    const root = rootEl;
+    const origin = focusReturnOrigin;
+    const filter = activeFilterKey;
+    const layout = layoutMode;
+    if (disposed || !id || !isTabCanvas || loading || view !== "library" || !root) return;
+    const rowIndex = focusRowIndex(id);
     if (rowIndex < 0) return;
     if (rowIndex >= renderLimit) {
         renderLimit = rowIndex + 1;
         return;
     }
     void tick().then(() => {
-        if (pendingFocusId !== id) return;
-        const target = rootEl?.querySelector<HTMLElement>(`[data-glean-clip-id="${CSS.escape(id)}"]`);
+        if (disposed || generation !== focusGeneration || pendingFocusId !== id || rootEl !== root || !root.isConnected) return;
+        if (view !== "library" || activeFilterKey !== filter || layoutMode !== layout) {
+            cancelPendingLibraryFocus();
+            return;
+        }
+        if (!root.getClientRects().length || !canRestoreLibraryFocus(origin)) {
+            cancelPendingLibraryFocus();
+            return;
+        }
+        const target = root.querySelector<HTMLElement>(`[data-glean-clip-id="${CSS.escape(id)}"]`);
         if (!target) {
             pendingFocusId = "";
             focusRequested = false;
             return;
         }
-        target.scrollIntoView({ block: "center", behavior: "smooth" });
+        if (!target.isConnected) return;
+        target.scrollIntoView({ block: "nearest", behavior: "smooth" });
+        target.querySelector<HTMLElement>(".glean-drow__ti, .glean-kcard__t, .glean-card__title")?.focus({ preventScroll: true });
+        focusFlashTarget?.classList.remove("glean-focus-flash");
         target.classList.add("glean-focus-flash");
+        focusFlashTarget = target;
         if (focusFlashTimer !== null) window.clearTimeout(focusFlashTimer);
         focusFlashTimer = window.setTimeout(() => {
             target.classList.remove("glean-focus-flash");
+            if (focusFlashTarget === target) focusFlashTarget = null;
             focusFlashTimer = null;
         }, 1200);
         pendingFocusId = "";
@@ -1092,11 +1176,9 @@ $effect(() => {
 
 $effect(() => {
     const handler = (event: Event) => {
-        if (!isTabCanvas) return;
-        const id = (event as CustomEvent<{ id?: string }>).detail?.id;
+        if (disposed || !isTabCanvas || !tabId || (event as CustomEvent<{ tabId?: string }>).detail?.tabId !== tabId) return;
+        const id = facade.consumeLibraryFocus(tabId);
         if (id) {
-            // 已存在的工作台由事件处理；同时清掉新建工作台使用的一次性请求。
-            facade.consumeLibraryFocus();
             void focusClipById(id);
         }
     };
@@ -1664,7 +1746,7 @@ function metaLine(entry: Row): string {
 </script>
 
 <div class="glean-panel-host">
-<div class="glean-panel glean-panel--shell" class:glean-panel--mobile={facade.isMobile} bind:this={rootEl} onchange={markPrefsInteraction} aria-busy={loading}>
+<div class="glean-panel glean-panel--shell" class:glean-panel--mobile={facade.isMobile} bind:this={rootEl} oninput={markPrefsInteraction} onchange={markPrefsInteraction} aria-busy={loading}>
     {#if !facade.isMobile}
         <aside class="glean-workbench-rail" aria-label={t(i18n, "view.resurface")}>
             <div class="glean-workbench-rail__brand">
@@ -1857,7 +1939,7 @@ function metaLine(entry: Row): string {
                             class="glean-search__clear"
                             title={t(i18n, "panel.searchClear")}
                             aria-label={t(i18n, "panel.searchClear")}
-                            onclick={() => { keyword = ""; searchInput?.focus(); }}
+                            onclick={() => { markPrefsInteraction(); keyword = ""; searchInput?.focus(); }}
                         ><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanClose" /></svg></button>
                     {/if}
                     {#if !isTabCanvas}
@@ -1951,7 +2033,7 @@ function metaLine(entry: Row): string {
                 <span class="glean-mobile-filter-results" role="status" aria-live="polite">{t(i18n, "library.resultCount", { n: rows.length })}</span>
             </div>
         {:else if !isTabCanvas}
-            <LibraryFilters {i18n} {facets} {tagAliases} onManageTagAliases={openTagAliasManager} bind:site={selectedSite} bind:author={selectedAuthor} bind:tag={selectedTag} bind:aiTag={selectedAiTag} bind:source={selectedSource} bind:timeSource={selectedTimeSource} bind:contentType={selectedContentType} bind:sortBy bind:direction={sortDirection} {hasFilters} onClear={clearFilters} {sourceLabel} {facetLabel} />
+            <LibraryFilters {i18n} {facets} {tagAliases} onManageTagAliases={openTagAliasManager} bind:site={selectedSite} bind:author={selectedAuthor} bind:tag={selectedTag} bind:aiTag={selectedAiTag} bind:source={selectedSource} bind:timeSource={selectedTimeSource} bind:contentType={selectedContentType} bind:sortBy bind:direction={sortDirection} {hasFilters} onClear={clearUserFilters} {sourceLabel} {facetLabel} />
         {/if}
 
         {#if isTabCanvas}
@@ -1972,7 +2054,7 @@ function metaLine(entry: Row): string {
                 </div>
                 <div class="glean-libbar__spacer"></div>
                 <button class="glean-btn glean-btn--ghost" aria-pressed={previewEnabled} onclick={togglePreview}>{t(i18n, "preview.enabled")}</button>
-                <LibraryFilters {i18n} {facets} {tagAliases} onManageTagAliases={openTagAliasManager} bind:site={selectedSite} bind:author={selectedAuthor} bind:tag={selectedTag} bind:aiTag={selectedAiTag} bind:source={selectedSource} bind:timeSource={selectedTimeSource} bind:contentType={selectedContentType} bind:sortBy bind:direction={sortDirection} {hasFilters} onClear={clearFilters} {sourceLabel} {facetLabel} />
+                <LibraryFilters {i18n} {facets} {tagAliases} onManageTagAliases={openTagAliasManager} bind:site={selectedSite} bind:author={selectedAuthor} bind:tag={selectedTag} bind:aiTag={selectedAiTag} bind:source={selectedSource} bind:timeSource={selectedTimeSource} bind:contentType={selectedContentType} bind:sortBy bind:direction={sortDirection} {hasFilters} onClear={clearUserFilters} {sourceLabel} {facetLabel} />
             </div>
         {/if}
 
@@ -2279,13 +2361,13 @@ function metaLine(entry: Row): string {
                         <LibraryRailGroup plugin={facade.pluginInstance} {i18n} group="authors" label={t(i18n, "rail.authors")} items={railStats.authors} selected={selectedAuthor} onSelect={selectAuthor} />
                     {/if}
                     {#if railStats.sites.length > 0 || selectedSite}
-                        <LibraryRailGroup plugin={facade.pluginInstance} {i18n} group="sites" label={t(i18n, "rail.sites")} items={railStats.sites} selected={selectedSite} onSelect={(value) => selectedSite = selectedSite.toLocaleLowerCase() === value.toLocaleLowerCase() ? "" : value} />
+                        <LibraryRailGroup plugin={facade.pluginInstance} {i18n} group="sites" label={t(i18n, "rail.sites")} items={railStats.sites} selected={selectedSite} onSelect={(value) => { markPrefsInteraction(); selectedSite = selectedSite.toLocaleLowerCase() === value.toLocaleLowerCase() ? "" : value; }} />
                     {/if}
                     {#if railStats.tags.length > 0 || selectedTag}
-                        <LibraryRailGroup plugin={facade.pluginInstance} {i18n} group="tags" label={t(i18n, "rail.tags")} prefix="#" items={railStats.tags} selected={selectedTag} itemLabel={aliasForTag} onSelect={(value) => selectedTag = selectedTag.toLocaleLowerCase() === value.toLocaleLowerCase() ? "" : value} />
+                        <LibraryRailGroup plugin={facade.pluginInstance} {i18n} group="tags" label={t(i18n, "rail.tags")} prefix="#" items={railStats.tags} selected={selectedTag} itemLabel={aliasForTag} onSelect={(value) => { markPrefsInteraction(); selectedTag = selectedTag.toLocaleLowerCase() === value.toLocaleLowerCase() ? "" : value; }} />
                     {/if}
                     {#if railStats.aiTags.length > 0 || selectedAiTag}
-                        <LibraryRailGroup plugin={facade.pluginInstance} {i18n} group="aiTags" label={`✨ ${t(i18n, "rail.aiTags")}`} hint={t(i18n, "library.filterAiTagHint")} prefix="✨" items={railStats.aiTags} selected={selectedAiTag} onSelect={(value) => selectedAiTag = selectedAiTag.toLocaleLowerCase() === value.toLocaleLowerCase() ? "" : value} />
+                        <LibraryRailGroup plugin={facade.pluginInstance} {i18n} group="aiTags" label={`✨ ${t(i18n, "rail.aiTags")}`} hint={t(i18n, "library.filterAiTagHint")} prefix="✨" items={railStats.aiTags} selected={selectedAiTag} onSelect={(value) => { markPrefsInteraction(); selectedAiTag = selectedAiTag.toLocaleLowerCase() === value.toLocaleLowerCase() ? "" : value; }} />
                     {/if}
                 </aside>
                 <div class="glean-lib__main" class:glean-lib__main--batch={selection.size > 0}>
@@ -2314,7 +2396,7 @@ function metaLine(entry: Row): string {
                                     </button>
                                 </div>
                             {:else if hasFilters}
-                                <button class="glean-btn glean-btn--ghost" style="margin-top:10px" onclick={clearFilters}>
+                                <button class="glean-btn glean-btn--ghost" style="margin-top:10px" onclick={clearUserFilters}>
                                     {t(i18n, "library.clearFilters")}
                                 </button>
                             {/if}
@@ -2459,7 +2541,7 @@ function metaLine(entry: Row): string {
                                 </button>
                             </div>
                         {:else if hasFilters}
-                            <button class="glean-btn glean-btn--ghost glean-empty__action" onclick={clearFilters}>
+                            <button class="glean-btn glean-btn--ghost glean-empty__action" onclick={clearUserFilters}>
                                 {t(i18n, "library.clearFilters")}
                             </button>
                         {/if}

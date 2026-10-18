@@ -44,6 +44,6 @@ export interface GleanFacade {
     consumeReaderFocus(tabId: string): string;
     /** 从原生正文返回读库并定位到同一篇文章。 */
     openLibraryArticle(docId: string): Promise<void>;
-    /** 新挂载工作台消费返回定位请求，避免 tab 异步初始化时丢失事件。 */
-    consumeLibraryFocus(): string;
+    /** 只有 openTab 返回的确切工作台可消费返回请求；Dock/浮窗不消费。 */
+    consumeLibraryFocus(tabId: string): string;
 }

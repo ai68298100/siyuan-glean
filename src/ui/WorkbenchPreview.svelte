@@ -87,24 +87,28 @@
     }
 
     async function process(action: () => Promise<void | PreviewWriteResult>, successKey: string, advance = true): Promise<void> {
-        if (busy) return;
+        if (!mounted || busy) return;
+        const id = entry.id;
+        const isCurrent = () => mounted && entry.id === id;
         const processed = untrack(() => onProcessed);
         const refresh = untrack(() => onRefresh);
         busy = true;
         try {
             const result = await action();
+            facade.notifyDataChanged();
+            if (!isCurrent()) return;
             showMessage(t(i18n, result?.indexSyncFailed ? "msg.writeIndexPending" : successKey), result?.indexSyncFailed ? 4000 : 2500);
             if (advance) await processed();
             else {
                 await refresh();
-                if (mounted) { editingUrl = false; await load(); }
+                if (isCurrent()) { editingUrl = false; await load(); }
             }
-            facade.notifyDataChanged();
         } catch (error) {
+            if (!isCurrent()) return;
             fail(error);
-            if (mounted) void load();
+            void load();
         } finally {
-            if (mounted) busy = false;
+            if (isCurrent()) busy = false;
         }
     }
 

@@ -25,22 +25,44 @@
     let stage = $state<"loading" | "ready" | "failed">("loading");
     let retryButton = $state<HTMLButtonElement | null>(null);
     let hostHadFocus = false;
+    let hostFocusOrigin: Element | null = null;
     const statusLabelId = `glean-protyle-status-label-${++protyleStatusCounter}`;
 
     $effect(() => {
         const element = host;
+        void docId;
         if (!element) return;
         hostHadFocus = false;
-        const onFocusIn = () => { hostHadFocus = true; };
+        hostFocusOrigin = null;
+        const owner = element.ownerDocument;
+        const onFocusIn = () => { hostHadFocus = true; hostFocusOrigin = owner.activeElement; };
+        const onDocumentFocus = (event: FocusEvent) => {
+            if (event.target instanceof Node && element.contains(event.target)) return;
+            hostHadFocus = false;
+            hostFocusOrigin = null;
+        };
         element.addEventListener("focusin", onFocusIn);
-        return () => element.removeEventListener("focusin", onFocusIn);
+        owner.addEventListener("focusin", onDocumentFocus);
+        return () => {
+            element.removeEventListener("focusin", onFocusIn);
+            owner.removeEventListener("focusin", onDocumentFocus);
+        };
     });
 
     $effect(() => {
         if (stage !== "failed" || !retryButton || !hostHadFocus) return;
+        const element = host;
+        const origin = hostFocusOrigin;
+        const target = retryButton;
+        let active = true;
         void tick().then(() => {
-            if (stage === "failed" && hostHadFocus) retryButton?.focus();
+            if (!active || host !== element || retryButton !== target || !target.isConnected) return;
+            const owner = element?.ownerDocument;
+            const focused = owner?.activeElement;
+            const retainedFocus = origin && (focused === origin || (!origin.isConnected && (!focused || focused === owner?.body || !focused.isConnected)));
+            if (stage === "failed" && hostHadFocus && retainedFocus) target.focus();
         });
+        return () => { active = false; };
     });
 
     $effect(() => {

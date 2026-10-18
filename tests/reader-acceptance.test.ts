@@ -254,7 +254,7 @@ function readerRoutingHarness() {
             && expression.arguments[0].properties.some((property: any) => property.name?.getText(ast) === "type" && property.initializer.getText(ast) === "READER_TAB_TYPE"));
     assert.ok(readerRegistration);
     const code = transpileModule(`class RoutingHarness {
-        ${["pendingReaderDocIds", "destroyedReaderTabIds", "readerOpenRequest", "openReadingDocument", "openReader", "openNativeReadingDocument", "openReaderTab", "consumeReaderFocus", "onunload"].map((name) => member(name).getText(ast)).join("\n")}
+        ${["pendingReaderDocIds", "destroyedReaderTabIds", "readerOpenRequest", "pendingLibraryDocIds", "destroyedLibraryTabIds", "libraryOpenRequest", "openReadingDocument", "openReader", "openNativeReadingDocument", "openReaderTab", "consumeReaderFocus", "onunload"].map((name) => member(name).getText(ast)).join("\n")}
         register() { const plugin = this; ${readerRegistration.getText(ast)}; }
     }; globalThis.RoutingHarness = RoutingHarness;`, { compilerOptions: { target: ScriptTarget.ESNext } }).outputText;
     const openRequests: Array<{ resolve: (tab: { id: string }) => void; reject: (error: Error) => void }> = [];
@@ -306,6 +306,139 @@ function readerRoutingHarness() {
     };
     return { plugin, openRequests, openCalls, messages, mountTab, events, scope, waitForRequests };
 }
+
+function libraryRoutingHarness() {
+    const ast = createSourceFile("index.ts", entry, ScriptTarget.Latest, true);
+    const declaration = ast.statements.find(isClassDeclaration)!;
+    const member = (name: string) => declaration.members.find((item) => item.name?.getText(ast) === name)!;
+    const onload = member("onload");
+    assert.ok(isMethodDeclaration(onload));
+    const registrationSource = onload.body!.statements.map((statement: any) => statement.expression).find((expression) =>
+        expression && isCallExpression(expression) && expression.expression.getText(ast) === "this.addTab"
+            && expression.arguments[0].properties.some((property: any) => property.name?.getText(ast) === "type" && property.initializer.getText(ast) === "TAB_TYPE"));
+    assert.ok(registrationSource);
+    const code = transpileModule(`class RoutingHarness {
+        ${["pendingLibraryDocIds", "destroyedLibraryTabIds", "libraryOpenRequest", "pendingReaderDocIds", "destroyedReaderTabIds", "readerOpenRequest", "openLibraryArticle", "consumeLibraryFocus", "openLibraryTab", "onunload"].map((name) => member(name).getText(ast)).join("\n")}
+        register() { const plugin = this; ${registrationSource.getText(ast)}; }
+    }; globalThis.RoutingHarness = RoutingHarness;`, { compilerOptions: { target: ScriptTarget.ESNext } }).outputText;
+    const dock = readFileSync(resolve(root, "src/ui/DockPanel.svelte"), "utf8");
+    const handlerStart = dock.indexOf("    const handler = (event: Event) => {", dock.indexOf("async function focusClipById"));
+    const handlerSource = dock.slice(handlerStart, dock.indexOf('    document.addEventListener("glean:focus-clip"', handlerStart));
+    assert.ok(handlerSource.includes("consumeLibraryFocus(tabId)"));
+    const handlerCode = transpileModule(`${handlerSource}; handler`, { compilerOptions: { target: ScriptTarget.ESNext } }).outputText;
+    const openRequests: Array<{ resolve: (tab: { id: string }) => void; reject: (error: Error) => void }> = [];
+    const messages: string[] = [];
+    const events = new EventTarget();
+    const details: unknown[] = [];
+    events.addEventListener("glean:focus-clip", (event) => details.push((event as CustomEvent).detail));
+    const instances = new Map<string, any>();
+    let registration: any;
+    const makePanel = (facade: any, tabId = "", isTabCanvas = true) => {
+        const focused: string[] = [];
+        const state: any = { facade, tabId, isTabCanvas, disposed: false, focusClipById: (id: string) => focused.push(id), focused };
+        const handler = runInNewContext(handlerCode, state);
+        events.addEventListener("glean:focus-clip", handler);
+        state.dispose = () => { state.disposed = true; events.removeEventListener("glean:focus-clip", handler); };
+        return state;
+    };
+    const scope: any = {
+        openTab: () => new Promise((resolve, reject) => openRequests.push({ resolve, reject })),
+        TAB_TYPE: "glean-library", DockPanel: {}, console: { debug() {} },
+        showMessage: (message: string) => messages.push(message), t: (_i18n: unknown, key: string) => key,
+        CustomEvent: class extends Event { detail: unknown; constructor(type: string, options: { detail: unknown }) { super(type); this.detail = options.detail; } },
+        document: { dispatchEvent: events.dispatchEvent.bind(events), createElement: () => ({ className: "" }) },
+        mount: (_component: unknown, options: { props: { facade: any; tabId: string } }) => {
+            const state = makePanel(options.props.facade, options.props.tabId);
+            instances.set(options.props.tabId, state);
+            const pending = options.props.facade.consumeLibraryFocus(options.props.tabId);
+            if (pending) state.focusClipById(pending);
+            return state;
+        },
+        unmount: (state: any) => state.dispose(),
+    };
+    runInNewContext(code, scope);
+    const plugin = new scope.RoutingHarness();
+    Object.assign(plugin, { loaded: true, app: {}, name: "siyuan-glean", i18n: {}, onboardingTimer: null, eventBus: { off() {} }, addTab: (value: unknown) => { registration = value; } });
+    plugin.register();
+    const mountTab = (id: string) => {
+        const model = { tab: { id }, element: { appendChild() {} } };
+        registration.init.call(model);
+        return { state: instances.get(id), destroy: () => registration.destroy.call(model) };
+    };
+    return { plugin, openRequests, messages, details, mountTab, makePanel, events };
+}
+
+test("返回读库只路由到 openTab 确切工作台，隐藏工作台、浮窗和 Dock 保持原状态", async () => {
+    const { plugin, openRequests, details, mountTab, makePanel } = libraryRoutingHarness();
+    const target = mountTab("target");
+    const hidden = mountTab("hidden");
+    const popup = makePanel(plugin);
+    const dock = makePanel(plugin, "", false);
+    const pending = plugin.openLibraryArticle("article-A");
+    openRequests.shift()!.resolve({ id: "target" });
+    await pending;
+    assert.deepEqual(target.state.focused, ["article-A"]);
+    assert.deepEqual(hidden.state.focused, []);
+    assert.deepEqual(popup.focused, []);
+    assert.deepEqual(dock.focused, []);
+    assert.equal((details[0] as { tabId: string }).tabId, "target");
+    assert.equal(plugin.consumeLibraryFocus("target"), "");
+});
+
+test("工作台异步挂载仅消费自身一次性定位请求，无关实例不能抢走", async () => {
+    const { plugin, openRequests, mountTab } = libraryRoutingHarness();
+    const pending = plugin.openLibraryArticle("article-A");
+    openRequests.shift()!.resolve({ id: "late-target" });
+    await pending;
+    assert.equal(plugin.consumeLibraryFocus("another-tab"), "");
+    const target = mountTab("late-target");
+    assert.deepEqual(target.state.focused, ["article-A"]);
+    assert.equal(plugin.consumeLibraryFocus("late-target"), "");
+});
+
+test("返回读库逆序完成只保留最新请求，旧请求失败不打断新定位", async () => {
+    const { plugin, openRequests, mountTab, messages } = libraryRoutingHarness();
+    const target = mountTab("target");
+    const older = plugin.openLibraryArticle("article-A");
+    const newer = plugin.openLibraryArticle("article-B");
+    openRequests[1].resolve({ id: "target" });
+    await newer;
+    openRequests[0].resolve({ id: "target" });
+    await older;
+    assert.deepEqual(target.state.focused, ["article-B"]);
+    const stale = plugin.openLibraryArticle("article-C");
+    const current = plugin.openLibraryArticle("article-D");
+    openRequests[3].resolve({ id: "target" });
+    await current;
+    openRequests[2].reject(new Error("stale failure"));
+    await stale;
+    assert.deepEqual(target.state.focused, ["article-B", "article-D"]);
+    assert.deepEqual(messages, []);
+});
+
+test("返回读库的目标已关闭或插件卸载时丢弃迟到响应，当前失败仍反馈", async () => {
+    const { plugin, openRequests, mountTab, details, messages } = libraryRoutingHarness();
+    const target = mountTab("closed-target");
+    const closed = plugin.openLibraryArticle("article-A");
+    target.destroy();
+    openRequests[0].resolve({ id: "closed-target" });
+    await closed;
+    assert.equal(plugin.consumeLibraryFocus("closed-target"), "");
+    assert.deepEqual(details, []);
+    const failed = plugin.openLibraryArticle("failed");
+    openRequests[1].reject(new Error("current failure"));
+    await failed;
+    assert.deepEqual(messages, ["msg.actionFailed"]);
+    const unloading = plugin.openLibraryArticle("late-after-unload");
+    await plugin.onunload();
+    openRequests[2].resolve({ id: "late-target" });
+    await unloading;
+    assert.deepEqual(details, []);
+    assert.equal(plugin.consumeLibraryFocus("late-target"), "");
+    await plugin.openLibraryArticle("rejected-after-unload");
+    assert.equal(openRequests.length, 3);
+    assert.deepEqual(messages, ["msg.actionFailed"]);
+});
 
 test("默认原生阅读打开捕获异步拒绝与同步异常，成功打开不显示失败", async () => {
     const { plugin, openRequests, openCalls, messages, scope } = readerRoutingHarness();

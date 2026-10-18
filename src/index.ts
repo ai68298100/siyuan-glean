@@ -67,7 +67,9 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
     private loaded = false;
     private lastReadingDocId = "";
     private recentReadings: RecentReadingEntry[] = [];
-    private pendingLibraryDocId = "";
+    private readonly pendingLibraryDocIds = new Map<string, string>();
+    private readonly destroyedLibraryTabIds = new Set<string>();
+    private libraryOpenRequest = 0;
     private readonly pendingReaderDocIds = new Map<string, string>();
     private readonly destroyedReaderTabIds = new Set<string>();
     private readerOpenRequest = 0;
@@ -213,13 +215,16 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
         // tab 形态（移动端 / dock 缺席时的回退）：注册 model，openTab 用 custom.id 唤起
         this.addTab({
             type: TAB_TYPE,
-            init(this: { element: Element; __gleanTabInstance?: unknown }) {
+            init(this: { element: Element; tab: { id: string }; __gleanTabInstance?: unknown }) {
+                plugin.destroyedLibraryTabIds.delete(this.tab.id);
                 const container = document.createElement("div");
                 container.className = "glean-tab-root fn__flex-1";
                 this.element.appendChild(container);
-                this.__gleanTabInstance = mount(DockPanel, { target: container, props: { facade: plugin } });
+                this.__gleanTabInstance = mount(DockPanel, { target: container, props: { facade: plugin, tabId: this.tab.id } });
             },
             destroy(this: any) {
+                plugin.pendingLibraryDocIds.delete(this.tab.id);
+                plugin.destroyedLibraryTabIds.add(this.tab.id);
                 if (this.__gleanTabInstance) {
                     unmount(this.__gleanTabInstance as ReturnType<typeof mount>);
                     this.__gleanTabInstance = null;
@@ -279,6 +284,9 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
     async onunload() {
         this.loaded = false;
         this.readerOpenRequest += 1;
+        this.libraryOpenRequest += 1;
+        this.pendingLibraryDocIds.clear();
+        this.destroyedLibraryTabIds.clear();
         this.pendingReaderDocIds.clear();
         this.destroyedReaderTabIds.clear();
         if (this.onboardingTimer !== null) {
@@ -407,17 +415,16 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
 
     async openLibraryArticle(docId: string): Promise<void> {
         if (!docId) return;
-        this.pendingLibraryDocId = docId;
-        if (!await this.openLibraryTab()) {
-            if (this.pendingLibraryDocId === docId) this.pendingLibraryDocId = "";
-            return;
-        }
-        document.dispatchEvent(new CustomEvent("glean:focus-clip", { detail: { id: docId } }));
+        const request = ++this.libraryOpenRequest;
+        const tabId = await this.openLibraryTab(request);
+        if (!tabId || !this.loaded || request !== this.libraryOpenRequest || this.destroyedLibraryTabIds.has(tabId)) return;
+        this.pendingLibraryDocIds.set(tabId, docId);
+        document.dispatchEvent(new CustomEvent("glean:focus-clip", { detail: { tabId } }));
     }
 
-    consumeLibraryFocus(): string {
-        const id = this.pendingLibraryDocId;
-        this.pendingLibraryDocId = "";
+    consumeLibraryFocus(tabId: string): string {
+        const id = this.pendingLibraryDocIds.get(tabId) ?? "";
+        this.pendingLibraryDocIds.delete(tabId);
         return id;
     }
 
@@ -453,9 +460,11 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
         this.openLibraryTab();
     }
 
-    private async openLibraryTab(): Promise<boolean> {
+    private async openLibraryTab(request = ++this.libraryOpenRequest): Promise<string | null> {
+        this.pendingLibraryDocIds.clear();
+        if (!this.loaded) return null;
         try {
-            await openTab({
+            const tab = await openTab({
                 app: this.app,
                 custom: {
                     id: `${this.name}${TAB_TYPE}`,
@@ -464,11 +473,11 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
                 },
                 keepCursor: false,
             });
-            return true;
+            return this.loaded && request === this.libraryOpenRequest && !this.destroyedLibraryTabIds.has(tab.id) ? tab.id : null;
         } catch (error) {
             console.debug("[glean] 工作台页签打开失败:", error);
-            showMessage(t(this.i18n, "msg.actionFailed"), 3500);
-            return false;
+            if (this.loaded && request === this.libraryOpenRequest) showMessage(t(this.i18n, "msg.actionFailed"), 3500);
+            return null;
         }
     }
 
