@@ -1,5 +1,11 @@
 # 进度（PROGRESS）
 
+## T-3382 候选补来源键盘完全可达收口（2026-10-19）
+
+- [x] 键盘交互连贯：`src/ui/WorkbenchPreview.svelte` 候选修改来源 URL（`editingUrl`）输入框接入键盘事件，按 Enter 键直接触发保存（`saveUrl`），按 Escape 键取消编辑并收起输入框。
+- [x] 保护机制不变：URL 校验与防覆盖保护继续走既有 `savePreviewCandidateUrl` 管道，已有手填保护与并发核对机制不变。
+- [x] 全量门禁闭环：全量分批测试（1534/1534）、`tsc --noEmit`、`svelte-check`（0 错误 0 警告）、生产构建（package.zip 437256B）、发布包检查与任务账本全部通过；真实宿主键盘与读屏走查仍待 B-0002。
+
 ## T-3381 高频剪藏来源站点友好名称纯函数与展示投影（2026-10-19）
 
 - [x] 友好站点映射纯函数：`src/domain/schema.ts` 新增 `displaySiteName` 纯函数，对高频主流内容源（微信公众号、知乎、B站、少数派、掘金、GitHub 等）提供自然直观的品牌显示名，其余域名优雅去 www 回退。

@@ -1339,3 +1339,11 @@ T-3381 承接 T-1809 与 FUTURE-DIRECTION 来源可读性优化：
 1. 友好名称映射：在 `src/domain/schema.ts` 增加 `displaySiteName` 纯函数；对高频主流内容源（微信公众号 `mp.weixin.qq.com`、知乎 `zhihu.com`、B站 `bilibili.com`、少数派 `sspai.com`、掘金 `juejin.cn`、GitHub 等）提供自然直观的品牌显示名，其余站点优雅回退原始域名。
 2. 保持数据真相：文档属性 `custom-clip-site` 仍持久化存储规范的主机名事实，数据主权不变；`displaySiteName` 仅作为界面元数据与标签呈现的派生投影。
 3. 纯函数单测：单测覆盖主流站点映射、未知域名回退及大小写/空白归一化。
+
+
+## D-0262（2026-10-19）候选补来源键盘完全可达收口（承接 T-1792/T-1869）
+
+T-3382 承接 T-1792 与 T-1869 候选人工补证流程：
+1. 键盘交互：在 `src/ui/WorkbenchPreview.svelte` 候选修改来源 URL（`editingUrl`）输入框支持 Enter 键直接触发保存（`saveUrl`），按 Escape 键取消编辑并收起输入框，提升待确认候选池键盘分拣流的连贯性。
+2. 保护原始事实：URL 校验与防覆盖保护继续走既有 `savePreviewCandidateUrl` 管道，已有手填保护与并发核对机制不变。
+3. 严格数据主权：纯前端键盘交互与焦点治理，不增加文章属性、端点或持久化存储。

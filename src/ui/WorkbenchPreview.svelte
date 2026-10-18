@@ -228,7 +228,7 @@
     </div>
     {#if editingUrl && candidate}
         <div class="glean-preview__url">
-            <input class="b3-text-field" type="url" bind:value={urlDraft} disabled={busy} aria-label={t(i18n, "candidate.urlPlaceholder")} />
+            <input class="b3-text-field" type="url" bind:value={urlDraft} disabled={busy} aria-label={t(i18n, "candidate.urlPlaceholder")} onkeydown={(event) => { if (event.key === "Enter") saveUrl(); else if (event.key === "Escape") editingUrl = false; }} />
             <button type="button" class="glean-btn" disabled={busy} onclick={saveUrl}>{t(i18n, "action.save")}</button>
             <button type="button" class="glean-btn glean-btn--ghost" disabled={busy} onclick={() => editingUrl = false}>{t(i18n, "action.cancel")}</button>
         </div>
