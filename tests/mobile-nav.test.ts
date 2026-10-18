@@ -67,6 +67,9 @@ test("mobile dock keeps touch-sized, theme-driven bottom navigation styles", () 
     const source = read("src/index.scss");
     assert.match(source, /\.glean-panel--mobile\s*\{/);
     assert.match(source, /\.glean-mobile-nav\s*\{/);
+    assert.match(source, /\.glean-panel--mobile\s*\{[\s\S]*?\.glean-mobile-nav\s*\{/);
+    assert.doesNotMatch(source, /\.glean-panel--mobile\s*>\s*\.glean-mobile-nav/);
+    assert.doesNotMatch(source, /\.glean-panel--mobile\s*>\s*\.glean-panel__head/);
     assert.match(source, /min-height:\s*48px/);
     assert.match(source, /var\(--b3-theme-surface\)/);
     assert.match(source, /env\(safe-area-inset-bottom/);
@@ -249,6 +252,12 @@ test("mobile controls use a 44px hit area across panels and dialogs", () => {
     assert.match(styles, /\.glean-search[\s\S]*min-height: 44px/);
     assert.match(styles, /\.dialog-content \.b3-select,[\s\S]*min-height: 44px/);
     assert.match(styles, /\.glean-panel--mobile \.glean-icon-btn,[\s\S]*min-height: 44px/);
+});
+
+test("mobile batch bar keeps horizontal safe-area insets at tablet and landscape widths", () => {
+    const styles = read("src/index.scss");
+    assert.match(styles, /\.glean-panel--mobile \.glean-batchbar\s*\{[\s\S]*margin-left:\s*calc\([^;]*--glean-safe-left/);
+    assert.match(styles, /\.glean-panel--mobile \.glean-batchbar\s*\{[\s\S]*margin-right:\s*calc\([^;]*--glean-safe-right/);
 });
 
 test("settings switches keep the visual track while exposing a 44px button", () => {

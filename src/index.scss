@@ -808,13 +808,17 @@ body.b3-theme-dark {
     overflow: hidden;
     padding-bottom: var(--glean-mobile-nav-space);
 
-    > .glean-panel__head {
+    /* DockPanel wraps the head and mobile nav in .glean-panel__body. Keep
+       these rules descendant-scoped so the safe-area inset and fixed nav are
+       applied to the rendered mobile controls instead of relying on a stale
+       direct-child structure. */
+    .glean-panel__head {
         padding-top: calc(var(--glean-space-3) + var(--glean-safe-top, var(--glean-space-0)));
         padding-right: calc(var(--glean-space-3) + var(--glean-safe-right, var(--glean-space-0)));
         padding-left: calc(var(--glean-space-3) + var(--glean-safe-left, var(--glean-space-0)));
     }
 
-    > .glean-mobile-nav {
+    .glean-mobile-nav {
         position: absolute;
         left: 0;
         right: 0;
@@ -3276,6 +3280,15 @@ body.b3-theme-dark {
     align-items: center;
     justify-content: center;
     gap: var(--glean-space-1);
+}
+
+/* Mobile batch actions stay in normal flow on every device width, including
+   landscape tablets. Keep the bar clear of left/right cutouts before the
+   narrow-screen control rules below add their tighter spacing. */
+.glean-panel--mobile .glean-batchbar {
+    margin-left: calc(var(--glean-space-2-5) + var(--glean-safe-left, var(--glean-space-0)));
+    margin-right: calc(var(--glean-space-2-5) + var(--glean-safe-right, var(--glean-space-0)));
+    align-items: stretch;
 }
 
 @keyframes glean-rise {
@@ -6601,7 +6614,7 @@ body.b3-theme-dark {
 }
 
 @media (orientation: landscape) and (max-height: 560px) {
-    .glean-panel--mobile > .glean-panel__head {
+    .glean-panel--mobile .glean-panel__head {
         padding-top: calc(var(--glean-space-1) + var(--glean-safe-top, var(--glean-space-0)));
     }
 
