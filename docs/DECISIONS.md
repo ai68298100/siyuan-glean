@@ -1363,3 +1363,11 @@ T-3384 承接 T-1792 与 T-1848 生命周期弹窗可用性打磨：
 1. 键盘完全可达：`ArchiveDialog.svelte` 与 `RestoreDialog.svelte` 根容器监听键盘 `Escape` 事件，未处于二次确认锁定时直接调用 `onClose()` 退出，提升桌面端键盘操作流畅度。
 2. 半成功就地重试：在 `RestoreDialog.svelte` 中，当“移出宿主 + 写状态”两步操作中第一步已成功但第二步写状态失败时，在就地错误反馈区展示“重试”按钮，支持仅重跑第二步状态补丁，避免半成功状态下用户无所适从。
 3. 严格数据主权：所有状态写入仍经 `clip-store.writeClip`，不新增文章属性、端点或 saveData 业务数据。
+
+
+## D-0265（2026-10-19）备份包标准文件命名与元信息摘要纯函数（承接 T-1780/D-0088）
+
+T-3385 承接 T-1780 与 D-0088 数据主权备份链路：
+1. 规范文件命名：在 `src/domain/backup.ts` 增加 `generateBackupFilename` 纯函数，生成跨平台友好、易辨识的时间戳文件名（如 `siyuan-glean-backup-YYYYMMDD-HHmmss.json`），替代原有的原始 ISO 杂乱替换串。
+2. 备份包元信息摘要：在 `src/domain/backup.ts` 增加 `summarizeBackupPackage` 纯函数，提取备份包生成时刻、文章篇数及插件版本元信息；`BackupPanel.svelte` 接入导出命名并在恢复预览区直观展示备份包摘要。
+3. 严格数据主权：纯客户端只读投影与下载命名，不改变备份格式、不增加文章属性、端点或持久化存储。

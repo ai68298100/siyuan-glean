@@ -5,7 +5,9 @@ import {
     MAX_BACKUP_BYTES,
     backupFieldPatch,
     diffBackupAttrs,
+    generateBackupFilename,
     parseBackup,
+    summarizeBackupPackage,
     type BackupPackage,
 } from "../src/domain/backup.ts";
 import { ATTR } from "../src/domain/schema.ts";
@@ -232,4 +234,23 @@ test("不支持的新增、替换和删除全部不选；未知键保留差异�
     ]);
     assert.ok(diffs.every((field) => !field.supported && !field.selected));
     assert.deepEqual(diffBackupAttrs({ [ATTR.author]: "错误\n署名", tags: "新标签" }, { [ATTR.author]: "错误\n署名" }), []);
+});
+
+test("generateBackupFilename：生成标准易读的时间戳文件名（T-1780 / T-3385）", () => {
+    const fixed = new Date(2026, 9, 19, 15, 30, 45); // 2026-10-19 15:30:45
+    assert.equal(generateBackupFilename(fixed), "siyuan-glean-backup-20261019-153045.json");
+    const auto = generateBackupFilename();
+    assert.ok(auto.startsWith("siyuan-glean-backup-"));
+    assert.ok(auto.endsWith(".json"));
+    assert.equal(auto.length, "siyuan-glean-backup-20261019-153045.json".length);
+});
+
+test("summarizeBackupPackage：提取备份包核心摘要元信息（T-1780 / T-3385）", () => {
+    const backup = manifest();
+    const summary = summarizeBackupPackage(backup);
+    assert.deepEqual(summary, {
+        createdAt: "2026-10-04T04:00:00.000Z",
+        docCount: 1,
+        pluginVersion: "1.1.0",
+    });
 });

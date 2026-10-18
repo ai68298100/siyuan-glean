@@ -1,5 +1,12 @@
 # 进度（PROGRESS）
 
+## T-3385 备份包标准文件命名与元信息摘要纯函数（2026-10-19）
+
+- [x] 标准文件命名：`src/domain/backup.ts` 新增 `generateBackupFilename` 纯函数，生成跨平台友好、易辨识的时间戳文件名（如 `siyuan-glean-backup-YYYYMMDD-HHmmss.json`），替代原有的原始 ISO 杂乱替换串。
+- [x] 备份摘要与接入：`src/domain/backup.ts` 新增 `summarizeBackupPackage` 纯函数提取包创建时间与文档数；`src/ui/BackupPanel.svelte` 接入规范导出命名。
+- [x] 单测完备：`tests/backup.test.ts` 增加文件名生成与包摘要单测（29/29）。
+- [x] 全量门禁闭环：全量分批测试（1537/1537）、`tsc --noEmit`、`svelte-check`（0 错误 0 警告）、生产构建（package.zip 437468B）、发布包检查与任务账本全部通过；真实备份导出与宿主恢复验证仍待 B-0002。
+
 ## T-3384 归档与恢复对话框 Escape 快捷关闭与半成功重试（2026-10-19）
 
 - [x] 键盘完全可达：`src/ui/ArchiveDialog.svelte` 与 `src/ui/RestoreDialog.svelte` 接入 `<svelte:window>` 的 Escape 键盘监听，未处于忙碌/二次确认锁定时直接调用 `onClose()` 退出，且 `svelte-check` 保持 0 错误 0 警告。

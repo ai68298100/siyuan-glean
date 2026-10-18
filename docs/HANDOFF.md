@@ -1,5 +1,11 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-19 备份包标准命名与摘要纯函数）
+
+- T-3385/D-0265：承接 T-1780 与 D-0088，在 `src/domain/backup.ts` 增加 `generateBackupFilename` 与 `summarizeBackupPackage` 纯函数，规范导出备份包文件名并提取摘要信息；`BackupPanel.svelte` 接入标准导出命名；纯客户端只读投影与下载命名，不改变备份格式、不增加文章属性、端点或持久化存储。
+- 全量门禁闭环：完整单测（1537/1537）、类型检查与 `svelte-check` 0 错误 0 警告、生产构建与发布包校验（`package.zip` 437468B）、视觉矩阵登记与任务账本检查均通过。真实原工作区、触控与宿主视觉仍归 B-0002，版本保持 1.3.6，不打 tag 或发布。
+- 下一步：将 T-3385 的真实原工作区、触控与宿主视觉继续归 B-0002；版本仍为 1.3.6，本轮不推送、打 tag 或发布。
+
 ## 当前有效交接（2026-10-19 归档与恢复对话框 Escape 快捷关闭与半成功重试）
 
 - T-3384/D-0264：承接 T-1792 与 T-1848，在 `ArchiveDialog.svelte` 与 `RestoreDialog.svelte` 接入 `<svelte:window>` Escape 键盘关闭，提升桌面端操作流畅度；`RestoreDialog.svelte` 针对部分失败（`restore.partialMoved`）重试时仅重试写状态，避免重复调用移出端点；不改变数据契约与文章属性。

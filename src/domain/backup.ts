@@ -101,3 +101,30 @@ export function diffBackupAttrs(current: Record<string, string>, saved: Record<s
         return [{ key, before, after, kind, supported, selected: supported && kind === "add" }];
     });
 }
+
+/**
+ * 生成规范的备份导出文件名（T-1780 / T-3385）：
+ * 格式形如 siyuan-glean-backup-YYYYMMDD-HHmmss.json，易辨识且跨平台文件名合法。
+ */
+export function generateBackupFilename(now: Date = new Date()): string {
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const y = now.getFullYear();
+    const m = pad(now.getMonth() + 1);
+    const d = pad(now.getDate());
+    const hh = pad(now.getHours());
+    const mm = pad(now.getMinutes());
+    const ss = pad(now.getSeconds());
+    return "siyuan-glean-backup-" + y + m + d + "-" + hh + mm + ss + ".json";
+}
+
+/**
+ * 提取备份包核心摘要信息（T-1780 / T-3385）：
+ * 供导入预览区展示生成时间、包含文章数与插件版本。
+ */
+export function summarizeBackupPackage(pkg: BackupPackage): { createdAt: string; docCount: number; pluginVersion: string } {
+    return {
+        createdAt: pkg.createdAt,
+        docCount: Array.isArray(pkg.documents) ? pkg.documents.length : 0,
+        pluginVersion: pkg.pluginVersion || "",
+    };
+}

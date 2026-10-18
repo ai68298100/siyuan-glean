@@ -4,7 +4,7 @@
     import type { GleanFacade } from "../types";
     import { t } from "../libs/i18n";
     import { createLatestRequestGate } from "../libs/latest-request";
-    import { MAX_BACKUP_BYTES } from "../domain/backup";
+    import { MAX_BACKUP_BYTES, generateBackupFilename } from "../domain/backup";
     import { ATTR } from "../domain/schema";
     import { applyBackupRestore, BACKUP_PREVIEW_CANCELLED, exportLibraryBackup, previewBackupRestore, type RestoreReport, type RestoreSession } from "../services/backup-service";
 
@@ -76,7 +76,7 @@
             const url = URL.createObjectURL(new Blob([text], { type: "application/json;charset=utf-8" }));
             const anchor = document.createElement("a");
             anchor.href = url;
-            anchor.download = `siyuan-glean-backup-${new Date().toISOString().replace(/[:.]/g, "-")}.json`;
+            anchor.download = generateBackupFilename();
             document.body.append(anchor);
             anchor.click();
             anchor.remove();
