@@ -1,5 +1,12 @@
 # 进度（PROGRESS）
 
+## T-3373 待分拣候选站点分面聚合与来源分组（2026-10-19）
+
+- [x] 候选分面支持：`src/domain/library-view.ts` 的 `libraryFacets(items, includeCandidates)` 增加参数，在收件池或待分拣视图下允许将未确认候选的来源站点（`item.site`）纳入站点分面统计，解决候选池众多时无法按来源站点过滤的问题。
+- [x] 来源聚类纯函数：新增 `groupCandidatesBySite` 纯函数，将待分拣候选按来源站点聚合排序，并提供未知/无站点回退；供收件区和批量分拣使用。
+- [x] 视图与单测完备：`src/ui/DockPanel.svelte` 收件箱透传候选分面计算；`tests/library-view.test.ts` 增加候选站点聚合与分组单测（17/17）。
+- [x] 全量门禁闭环：全量分批测试（1528/1528）、`tsc --noEmit`、`svelte-check`（0 错误 0 警告）、生产构建（package.zip 434446B）、发布包检查与任务账本全部通过；真实多来源候选分拣仍归 B-0002。
+
 ## T-3372 URL 跟踪参数规范化与变体查重识别（2026-10-19）
 
 - [x] 规范内容键：`src/domain/url.ts` 增加 `canonicalUrlKey` 与 `isSimilarUrl` 纯函数，清洗通用推广跟踪（`utm_*`、`spm_id_from`、`fbclid` 等）及微信公众号动态分享参数（`chksm`、`mpshare`、`scene` 等），并对保留参数稳定排序。

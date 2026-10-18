@@ -1,5 +1,11 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-19 待分拣候选站点分面聚合与来源分组）
+
+- T-3373/D-0253：承接 T-1801 与 FUTURE-DIRECTION 方向一，在 `src/domain/library-view.ts` 的 `libraryFacets` 增加 `includeCandidates` 参数，收件池视图支持将候选来源站点纳入分面过滤；新增 `groupCandidatesBySite` 纯函数聚类未确认候选，纯视图投影，不修改文档属性与持久化存储。
+- 全量门禁闭环：完整单测（1528/1528）、类型检查与 `svelte-check` 0 错误 0 警告、生产构建与发布包校验（`package.zip` 434446B）、视觉矩阵登记与任务账本检查均通过。真实原工作区、触控与宿主视觉仍归 B-0002，版本保持 1.3.6，不打 tag 或发布。
+- 下一步：将 T-3373 的真实原工作区、触控与宿主视觉继续归 B-0002；版本仍为 1.3.6，本轮不推送、打 tag 或发布。
+
 ## 当前有效交接（2026-10-19 URL 跟踪参数规范化与变体查重）
 
 - T-3372/D-0252：承接 T-1799 与 FUTURE-DIRECTION 方向一，在 `src/domain/url.ts` 增加 `canonicalUrlKey` 与 `isSimilarUrl` 纯函数，剔除通用与微信/B站追踪参数；`findClipUrlConflict` 查重管线接入规范比较键，准确识别不同渠道分享带来的变体文章冲突；`custom-clip-url` 属性原样保留，数据主权不变。

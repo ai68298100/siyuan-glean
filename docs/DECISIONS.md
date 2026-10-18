@@ -1267,3 +1267,11 @@ T-3372 承接 T-1799 与 FUTURE-DIRECTION 方向一（可信读库主链）：
 1. 变体比较键：在 `src/domain/url.ts` 增加 `canonicalUrlKey(raw: string)` 与 `isSimilarUrl(a, b)` 纯函数，剔除通用跟踪追踪参数（`utm_*`、`spm_id_from`、`fbclid`、`gclid`、微信 `chksm/mpshare/scene` 等），并对保留的查询参数排序，形成稳定的内容指纹。
 2. 保护原始事实：文章属性 `custom-clip-url` 依然持久化存储用户原始输入的 URL，数据主权不变；`canonicalUrlKey` 仅作为查重与相似识别的派生投影。
 3. 冲突与去重增强：`findClipUrlConflict` 优先精确查重，次选基于规范键的变体查重，避免从微信、知乎、B站等不同渠道分享带有动态跟踪参数时造成重复剪藏。
+
+
+## D-0253（2026-10-19）待分拣候选站点分面聚合与来源分组（承接 T-1801）
+
+T-3373 承接 T-1801 与 FUTURE-DIRECTION 方向一（可信读库主链）：
+1. 候选分面支持：在 `src/domain/library-view.ts` 的 `libraryFacets(items, includeCandidates)` 增加可选参数，在收件池或待分拣视图下允许将未确认候选的来源站点（`item.site`）纳入站点分面统计，解决候选池众多时无法按来源站点过滤的问题。
+2. 来源聚类纯函数：新增 `groupCandidatesBySite` 纯函数，将待分拣候选按来源站点聚合排序，并提供未知/无站点回退；供收件区和批量分拣使用。
+3. 严格数据主权：纯视图与分面投影，不修改文档属性、不写插件持久化存储。

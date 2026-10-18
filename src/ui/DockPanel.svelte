@@ -369,7 +369,7 @@ const libraryItems = $derived.by<LibraryItem[]>(() => [
     ...Object.values(index.candidates).map((entry) => ({ kind: "candidate" as const, ...entry })),
 ]);
 
-const facets = $derived.by(() => libraryFacets(libraryItems));
+const facets = $derived.by(() => libraryFacets(libraryItems, activeQueue === "inbox"));
 
 const activeFilter = $derived({
     status: authorTimeline ? "all" as const : activeQueue,

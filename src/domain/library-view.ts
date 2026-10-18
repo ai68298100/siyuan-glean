@@ -206,7 +206,7 @@ function facetsFromMap(map: Map<string, LibraryFacet>): LibraryFacet[] {
 }
 
 /** 从同一条目集合生成筛选控件的真实分面计数。 */
-export function libraryFacets(items: readonly LibraryItem[]): LibraryFacets {
+export function libraryFacets(items: readonly LibraryItem[], includeCandidates = false): LibraryFacets {
     const sites = new Map<string, LibraryFacet>();
     const authors = new Map<string, LibraryFacet>();
     const tags = new Map<string, LibraryFacet>();
@@ -215,7 +215,10 @@ export function libraryFacets(items: readonly LibraryItem[]): LibraryFacets {
     const timeSources = new Map<string, LibraryFacet>();
     const contentTypes = new Map<string, LibraryFacet>();
     for (const item of items) {
-        if (item.kind !== "clip") continue;
+        if (item.kind === "candidate") {
+            if (includeCandidates) addFacet(sites, item.site);
+            continue;
+        }
         addFacet(sites, item.site);
         addFacet(authors, item.author);
         for (const tag of item.tags ?? []) addFacet(tags, tag);
@@ -271,4 +274,36 @@ export function matchLibraryReason(item: LibraryMatchTarget, keyword: string | u
     if (key(item.url).includes(query)) return { kind: "url" };
     if (key(item.hpath).includes(query)) return { kind: "hpath" };
     return null;
+}
+
+export interface CandidateSiteGroup {
+    site: string;
+    count: number;
+    items: LibraryItem[];
+}
+
+/**
+ * 将待分拣候选按来源站点聚类分组（T-1801 / T-3373）：
+ * 纯视图投影，按数量降序排列，同数量按站点字典序。
+ */
+export function groupCandidatesBySite(items: readonly LibraryItem[]): CandidateSiteGroup[] {
+    const groups = new Map<string, LibraryItem[]>();
+    for (const item of items) {
+        if (item.kind !== "candidate") continue;
+        const siteKey = clean(item.site) || "unknown";
+        const list = groups.get(siteKey) ?? [];
+        list.push(item);
+        groups.set(siteKey, list);
+    }
+
+    const result: CandidateSiteGroup[] = [];
+    for (const [site, groupItems] of groups.entries()) {
+        result.push({
+            site: site === "unknown" ? "" : site,
+            count: groupItems.length,
+            items: groupItems,
+        });
+    }
+
+    return result.sort((a, b) => b.count - a.count || compareText(a.site, b.site));
 }

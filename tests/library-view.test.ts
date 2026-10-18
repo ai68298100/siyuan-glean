@@ -1,7 +1,7 @@
 /** 读库时间线筛选/排序纯函数（S3 / T-1715）。 */
 import test from "node:test";
 import assert from "node:assert/strict";
-import { filterAndSortLibrary, libraryFacets, matchLibraryReason, type LibraryItem } from "../src/domain/library-view.ts";
+import { filterAndSortLibrary, groupCandidatesBySite, libraryFacets, matchLibraryReason, type LibraryItem } from "../src/domain/library-view.ts";
 import { parseUserTags } from "../src/domain/schema.ts";
 import { normalizeRailGroups, projectRailFacets, railFacetSelected } from "../src/domain/library-rail.ts";
 
@@ -229,4 +229,32 @@ test("matchLibraryReason：按优先级判定关键词命中字段", () => {
     assert.equal(matchLibraryReason(item, "不存在的内容"), null);
     assert.equal(matchLibraryReason(item, ""), null);
     assert.equal(matchLibraryReason(item, undefined), null);
+});
+
+test("libraryFacets 与 groupCandidatesBySite：支持未确认候选站点分面与聚类分组（T-1801 / T-3373）", () => {
+    const items: LibraryItem[] = [
+        { kind: "clip", id: "1", title: "已收录文章", hpath: "/a", updated: "20261019010000", site: "zhihu.com" },
+        { kind: "candidate", id: "2", title: "微信候选1", hpath: "/b", updated: "20261019020000", site: "mp.weixin.qq.com" },
+        { kind: "candidate", id: "3", title: "微信候选2", hpath: "/c", updated: "20261019030000", site: "mp.weixin.qq.com" },
+        { kind: "candidate", id: "4", title: "无站点候选", hpath: "/d", updated: "20261019040000", site: "" },
+    ];
+
+    // 默认不包含候选站点
+    const defaultFacets = libraryFacets(items, false);
+    assert.deepEqual(defaultFacets.sites.map((s) => s.value), ["zhihu.com"]);
+
+    // 显式包含候选站点
+    const inboxFacets = libraryFacets(items, true);
+    assert.deepEqual(inboxFacets.sites.map((s) => s.value), ["mp.weixin.qq.com", "zhihu.com"]);
+    assert.equal(inboxFacets.sites.find((s) => s.value === "mp.weixin.qq.com")?.count, 2);
+
+    // 候选站点聚类分组
+    const groups = groupCandidatesBySite(items);
+    assert.equal(groups.length, 2);
+    // 第一组：微信公众号（2条）
+    assert.equal(groups[0].site, "mp.weixin.qq.com");
+    assert.equal(groups[0].count, 2);
+    // 第二组：无站点（1条）
+    assert.equal(groups[1].site, "");
+    assert.equal(groups[1].count, 1);
 });
