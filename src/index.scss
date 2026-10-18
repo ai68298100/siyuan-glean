@@ -6761,11 +6761,34 @@ body.b3-theme-dark {
 }
 
 @media (prefers-contrast: more) {
+    .glean-panel,
+    .glean-tab-root,
+    .glean-dialog-root {
+        --glean-border-soft: var(--b3-theme-on-background);
+        --glean-glass-border: var(--b3-theme-on-background);
+    }
+
     .glean-st-badge,
     .glean-load-error,
     .glean-offline-notice,
-    .glean-status-actions__btn {
-        border: 1px solid currentColor;
+    .glean-status-actions__btn,
+    .glean-card,
+    .glean-chip,
+    .glean-pill,
+    .glean-btn {
+        border: 1px solid var(--b3-theme-on-background);
+    }
+
+    .glean-tabs__item.is-active,
+    .glean-tabs__item[aria-selected="true"],
+    .glean-pill--active {
+        outline: 2px solid var(--b3-theme-primary);
+        font-weight: 700;
+    }
+
+    :where(button, a, input, select, textarea, [tabindex="0"]):focus-visible {
+        outline: 3px solid var(--b3-theme-primary);
+        outline-offset: 2px;
     }
 }
 
@@ -7217,20 +7240,46 @@ body.b3-theme-dark {
 @media (forced-colors: active) {
     .glean-panel,
     .glean-tab-root,
-    .glean-dialog-root {
-        --glean-st-inbox: ButtonText;
-        --glean-st-later: ButtonText;
-        --glean-st-reading: ButtonText;
-        --glean-st-done: ButtonText;
-        --glean-st-arch: ButtonText;
+    .glean-dialog-root,
+    .glean-workbench,
+    .glean-reader {
+        --glean-accent-a: Highlight;
+        --glean-accent-b: Highlight;
+        --glean-grad: Highlight;
+        --glean-grad-soft: transparent;
+        --glean-glass: Canvas;
+        --glean-glass-border: CanvasText;
+        --glean-border-soft: CanvasText;
+        --glean-st-inbox: CanvasText;
+        --glean-st-later: CanvasText;
+        --glean-st-reading: CanvasText;
+        --glean-st-done: CanvasText;
+        --glean-st-arch: CanvasText;
+        --glean-st-inbox-text: CanvasText;
+        --glean-st-later-text: CanvasText;
+        --glean-st-reading-text: CanvasText;
+        --glean-st-done-text: CanvasText;
+        --glean-shadow-card: none;
+        --glean-shadow-float: none;
+        --glean-shadow-control: none;
+        --glean-shadow-accent: none;
     }
 
-    .glean-panel .glean-dot {
+    .glean-panel .glean-dot,
+    .glean-dot,
+    .glean-status-dot,
+    .glean-heat-cell,
+    .glean-chip-icon {
         background: currentColor;
-        box-shadow: var(--glean-elevation-none);
+        box-shadow: var(--glean-elevation-none, none);
         forced-color-adjust: none;
     }
 
+    .glean-card,
+    .glean-chip,
+    .glean-pill,
+    .glean-btn,
+    .glean-input,
     .glean-panel .glean-st-badge,
     .glean-panel .glean-status-actions__btn,
     .glean-panel .glean-load-error,
@@ -7240,14 +7289,44 @@ body.b3-theme-dark {
     .glean-dialog-root .glean-load-error,
     .glean-dialog-root .glean-offline-notice {
         background: Canvas;
-        border: 1px solid ButtonText;
-        color: ButtonText;
+        border: 1px solid CanvasText;
+        color: CanvasText;
+    }
+
+    .glean-dialog,
+    .glean-drawer,
+    .glean-modal,
+    .glean-sheet,
+    .glean-popover,
+    .glean-dialog-root .glean-dialog__panel {
+        border: 2px solid CanvasText;
+        background: Canvas;
+    }
+
+    .glean-btn--primary,
+    .b3-button--primary {
+        background: Highlight;
+        color: HighlightText;
+        border: 1px solid Highlight;
+    }
+
+    .glean-tabs__item.is-active,
+    .glean-tabs__item[aria-selected="true"],
+    .glean-pill--active,
+    .glean-seg-btn--active {
+        outline: 2px solid Highlight;
+        outline-offset: 1px;
+        background: Highlight;
+        color: HighlightText;
     }
 
     .glean-panel :where(button, a, input, select, textarea, [tabindex]):focus-visible,
     .glean-tab-root :where(button, a, input, select, textarea, [tabindex]):focus-visible,
-    .glean-dialog-root :where(button, a, input, select, textarea, [tabindex]):focus-visible {
+    .glean-dialog-root :where(button, a, input, select, textarea, [tabindex]):focus-visible,
+    :where(button, a, input, select, textarea, [tabindex="0"]):focus-visible {
+        outline: 2px solid Highlight;
         outline-color: Highlight;
+        outline-offset: 2px;
     }
 }
 
