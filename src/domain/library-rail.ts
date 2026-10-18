@@ -26,3 +26,33 @@ export function projectRailFacets(items: readonly LibraryFacet[], expanded: bool
     if (active && !visible.includes(active)) return [...visible, active];
     return [...visible];
 }
+
+/**
+ * 应用侧栏分组切换（T-1810 / T-3377）：
+ * 若启用手风琴模式且当前组被展开（collapsed = false），自动将其余各组设为折叠。
+ * 纯函数，返回全新的 RailGroups 副本。
+ */
+export function applyRailGroupToggle(
+    current: RailGroups,
+    targetKey: RailGroupKey,
+    patch: Partial<RailGroupPrefs>,
+    accordion = false
+): RailGroups {
+    const next = normalizeRailGroups(current);
+    const targetCurrent = next[targetKey];
+    const nextTarget: RailGroupPrefs = {
+        collapsed: patch.collapsed ?? targetCurrent.collapsed,
+        expanded: patch.expanded ?? targetCurrent.expanded,
+    };
+    next[targetKey] = nextTarget;
+
+    if (accordion && !nextTarget.collapsed) {
+        for (const key of RAIL_GROUP_KEYS) {
+            if (key !== targetKey) {
+                next[key] = { ...next[key], collapsed: true };
+            }
+        }
+    }
+
+    return next;
+}

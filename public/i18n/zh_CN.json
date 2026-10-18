@@ -1250,5 +1250,7 @@
   "stats.funnel.done": "已读完成",
   "stats.funnel.archived": "归档放下",
   "stats.funnel.completionRate": "完成率",
-  "stats.funnel.archiveRate": "归档率"
+  "stats.funnel.archiveRate": "归档率",
+  "prefs.railAccordion": "侧栏手风琴模式",
+  "prefs.railAccordionHint": "展开某一分组时自动收起其他分组，保持侧栏紧凑"
 }

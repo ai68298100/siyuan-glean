@@ -1,5 +1,11 @@
 # 进度（PROGRESS）
 
+## T-3377 侧栏 rail 手风琴模式纯函数与偏好支持（2026-10-19）
+
+- [x] 纯函数规则：`src/domain/library-rail.ts` 新增 `applyRailGroupToggle` 纯函数，开启手风琴模式（accordion=true）且展开某组（collapsed=false）时，自动将其余各组设为折叠，保持侧栏紧凑。
+- [x] 偏好与文案完备：`src/domain/ui-prefs.ts` 增加 `railAccordion: boolean` 偏好（默认 false），新增中英双语翻译键；`tests/library-view.test.ts` 增加普通模式与手风琴模式切换单测（18/18）。
+- [x] 全量门禁闭环：全量分批测试（1529/1529）、`tsc --noEmit`、`svelte-check`（0 错误 0 警告）、生产构建（package.zip 436346B）、发布包检查与任务账本全部通过；真实宿主侧栏折叠观感仍待 B-0002。
+
 ## T-3376 统计视图接入收录与阅读转化漏斗纯投影（2026-10-19）
 
 - [x] 漏斗转化纯函数：`src/domain/stats.ts` 新增 `computeConversionFunnel` 纯函数，从当前派生索引的 `clips` 与 `candidates` 纯投影出候选池、已收录、待读/阅读中、已读完成与归档放下四阶段数量，以及收录确认率、阅读完成率与归档取舍率。

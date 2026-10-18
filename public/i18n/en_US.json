@@ -1250,5 +1250,7 @@
   "stats.funnel.done": "Finished",
   "stats.funnel.archived": "Archived",
   "stats.funnel.completionRate": "Completion Rate",
-  "stats.funnel.archiveRate": "Archive Rate"
+  "stats.funnel.archiveRate": "Archive Rate",
+  "prefs.railAccordion": "Sidebar accordion mode",
+  "prefs.railAccordionHint": "Automatically collapse other groups when expanding one to keep sidebar compact"
 }

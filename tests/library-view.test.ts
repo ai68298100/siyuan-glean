@@ -3,7 +3,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { filterAndSortLibrary, groupCandidatesBySite, libraryFacets, matchLibraryReason, type LibraryItem } from "../src/domain/library-view.ts";
 import { parseUserTags } from "../src/domain/schema.ts";
-import { normalizeRailGroups, projectRailFacets, railFacetSelected } from "../src/domain/library-rail.ts";
+import { applyRailGroupToggle, normalizeRailGroups, projectRailFacets, railFacetSelected } from "../src/domain/library-rail.ts";
 
 const clip = (part: Partial<LibraryItem>): LibraryItem => ({
     kind: "clip",
@@ -257,4 +257,33 @@ test("libraryFacets 与 groupCandidatesBySite：支持未确认候选站点分�
     // 第二组：无站点（1条）
     assert.equal(groups[1].site, "");
     assert.equal(groups[1].count, 1);
+});
+
+test("applyRailGroupToggle：普通模式保留其他分组，手风琴模式展开时收起其他组（T-1810 / T-3377）", () => {
+    const initial = normalizeRailGroups({
+        queues: { collapsed: false, expanded: false },
+        sites: { collapsed: false, expanded: false },
+        authors: { collapsed: true, expanded: false },
+        tags: { collapsed: true, expanded: false },
+        aiTags: { collapsed: true, expanded: false },
+    });
+
+    // 1. 普通模式（accordion = false）：展开 authors 不影响其他组
+    const normalNext = applyRailGroupToggle(initial, "authors", { collapsed: false }, false);
+    assert.equal(normalNext.authors.collapsed, false);
+    assert.equal(normalNext.queues.collapsed, false);
+    assert.equal(normalNext.sites.collapsed, false);
+
+    // 2. 手风琴模式（accordion = true）：展开 authors 自动收起其余所有组
+    const accordionNext = applyRailGroupToggle(initial, "authors", { collapsed: false }, true);
+    assert.equal(accordionNext.authors.collapsed, false);
+    assert.equal(accordionNext.queues.collapsed, true);
+    assert.equal(accordionNext.sites.collapsed, true);
+    assert.equal(accordionNext.tags.collapsed, true);
+    assert.equal(accordionNext.aiTags.collapsed, true);
+
+    // 3. 手风琴模式折叠某组时，不改变其他组的状态
+    const foldNext = applyRailGroupToggle(accordionNext, "authors", { collapsed: true }, true);
+    assert.equal(foldNext.authors.collapsed, true);
+    assert.equal(foldNext.queues.collapsed, true);
 });

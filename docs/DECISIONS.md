@@ -1299,3 +1299,11 @@ T-3376 承接 T-1773 与 FUTURE-DIRECTION 读库消化全生命周期：
 1. 漏斗转化指标：在 `src/domain/stats.ts` 增加 `computeConversionFunnel` 纯函数，从当前派生索引的 `clips` 与 `candidates` 纯投影出候选池、已收录、待读/阅读中、已读完成与归档放下四阶段数量，以及收录确认率、阅读完成率与归档取舍率。
 2. 平静展示：在 `StatsView.svelte` 统计总览呈现收录转化漏斗卡片，明确归档与读完同属健康的阅读消化行为，不使用“拖延/落后”等有压力的负面用语。
 3. 严格数据主权：纯派生统计投影，不新增文章属性、端点或持久化存储。
+
+
+## D-0257（2026-10-19）侧栏 rail 手风琴模式纯函数与偏好支持（承接 T-1810）
+
+T-3377 承接 T-1810 与 FUTURE-DIRECTION 读库侧栏紧凑浏览：
+1. 交互规则：在 `src/domain/library-rail.ts` 增加 `applyRailGroupToggle` 纯函数；开启手风琴模式（accordion=true）且展开某组（collapsed=false）时，自动将其余各组设为折叠，解决分面条目众多时侧栏过长需反复滚动的痛点。
+2. 偏好持久化：在 `ui-prefs.json` 增加 `railAccordion: boolean`，默认关闭（false），严格类型归一化，不进入文章属性或 saveData 业务数据。
+3. 双语与无障碍：补充中英文案，键盘与读屏焦点保持在触发控件，不抢夺用户焦点。
