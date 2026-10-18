@@ -1,5 +1,12 @@
 # 进度（PROGRESS）
 
+## T-3379 继续阅读命令动作增强支持会话历史与阅读中文章回退（2026-10-19）
+
+- [x] 命令双文轮换纯函数：`src/domain/recent-reading.ts` 新增 `pickContinueReadingDocId` 纯函数；用户触发“继续阅读”命令时，若当前正在阅读最近第一篇，自动切换到最近第二篇，实现多篇最近文章间的命令面板快速往返穿梭。
+- [x] 状态兜底回退：`src/index.ts` 增强 `cmd.continueReading` 回调；当刚启动插件且会话历史为空时，优先从读库索引检索状态为 `reading`（阅读中）的文章直接接续，避免直接阻断关闭。
+- [x] 单测完备：`tests/recent-reading.test.ts` 增加命令轮换与回退单测（4/4）。
+- [x] 全量门禁闭环：全量分批测试（1531/1531）、`tsc --noEmit`、`svelte-check`（0 错误 0 警告）、生产构建（package.zip 436753B）、发布包检查与任务账本全部通过；真实宿主快捷键操作仍待 B-0002。
+
 ## T-3378 自定义 AI 通道公网明文 HTTP 地址安全警示（2026-10-19）
 
 - [x] 纯函数端点安全检测：`src/domain/ai-direct.ts` 新增 `inspectCustomEndpointSecurity` 纯函数，准确识别公网未加密明文 `http://` 端点，并豁免本地回环（`localhost`、`127.0.0.1`、`::1`）及私有局域网网段（`192.168.*`、`10.*`、`*.local`）。

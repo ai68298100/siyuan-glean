@@ -3,6 +3,7 @@ import test from "node:test";
 import {
     addRecentReading,
     normalizeRecentReading,
+    pickContinueReadingDocId,
     projectActiveRecentReadings,
     type RecentReadingClipSource,
     type RecentReadingEntry,
@@ -92,4 +93,25 @@ test("projectActiveRecentReadings：结合读库索引投影有效最近阅读�
     assert.deepEqual(projectActiveRecentReadings([], clipsMap), []);
     assert.deepEqual(projectActiveRecentReadings(entries, null), []);
     assert.deepEqual(projectActiveRecentReadings(entries, clipsMap, 1).length, 1);
+});
+
+test("pickContinueReadingDocId：多条会话历史往返轮换与回退（T-1800 / T-3379）", () => {
+    const history = [
+        { id: "doc-1", title: "第一篇" },
+        { id: "doc-2", title: "第二篇" },
+    ];
+
+    // 1. 未在阅读当前第一篇时，继续阅读返回第一篇
+    assert.equal(pickContinueReadingDocId(history, "doc-other"), "doc-1");
+    assert.equal(pickContinueReadingDocId(history, ""), "doc-1");
+
+    // 2. 当前正在读第一篇，继续阅读自动轮换到第二篇（双文往返穿梭）
+    assert.equal(pickContinueReadingDocId(history, "doc-1"), "doc-2");
+
+    // 3. 只有单篇且正在读它，仍返回第一篇
+    assert.equal(pickContinueReadingDocId([{ id: "doc-1", title: "独一篇" }], "doc-1"), "doc-1");
+
+    // 4. 会话历史为空时，回退到 fallbackDocId
+    assert.equal(pickContinueReadingDocId([], "", "fallback-reading-doc"), "fallback-reading-doc");
+    assert.equal(pickContinueReadingDocId([], "", ""), "");
 });

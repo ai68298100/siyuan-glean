@@ -34,7 +34,7 @@ import { DEFAULT_SETTINGS, loadSettings, saveSettings, type GleanSettings } from
 import { installBridge } from "./services/bridge";
 import pluginManifest from "../plugin.json";
 import type { GleanFacade } from "./types";
-import { addRecentReading, type RecentReadingEntry } from "./domain/recent-reading";
+import { addRecentReading, pickContinueReadingDocId, type RecentReadingEntry } from "./domain/recent-reading";
 import { docUnderHostKind } from "./services/lifecycle-service";
 
 const DOCK_TYPE = "glean-dock";
@@ -169,8 +169,25 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
         this.addCommand({
             langKey: "cmd.continueReading",
             callback: () => {
-                if (this.lastReadingDocId) this.openReadingDocument(this.lastReadingDocId);
-                else showMessage(t(this.i18n, "reading.noRecent"), 3000);
+                const cur = this.currentDocId();
+                const targetId = pickContinueReadingDocId(this.recentReadings, cur, this.lastReadingDocId);
+                if (targetId) {
+                    this.openReadingDocument(targetId);
+                    return;
+                }
+                // 会话历史为空时，尝试从当前索引查找第一篇 reading 状态的文章进行接续
+                void (async () => {
+                    try {
+                        const { loadIndex } = await import("./services/index-store");
+                        const index = await loadIndex(this);
+                        const readingDoc = Object.values(index.clips).find((c) => c.status === "reading" && !c.internal);
+                        if (readingDoc?.id) {
+                            this.openReadingDocument(readingDoc.id);
+                            return;
+                        }
+                    } catch {}
+                    showMessage(t(this.i18n, "reading.noRecent"), 3000);
+                })();
             },
         });
 

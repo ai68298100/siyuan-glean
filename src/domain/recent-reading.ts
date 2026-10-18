@@ -107,3 +107,29 @@ export function projectActiveRecentReadings(
 
     return result;
 }
+
+/**
+ * 决定“继续阅读”命令的目标文档 ID（T-1800 / T-3379）：
+ * 1. 优先在会话历史 entries 中寻找：
+ *    - 若传入了当前正打开的文档 ID（currentDocId），且首项即为当前文档，则轮换到第二项（实现两篇间的往返穿梭）；
+ *    - 否则返回第一项。
+ * 2. 若会话历史没有条目，尝试回退使用 fallbackDocId；
+ * 3. 都没有时返回空串。
+ */
+export function pickContinueReadingDocId(
+    entries: readonly RecentReadingEntry[],
+    currentDocId?: string,
+    fallbackDocId?: string
+): string {
+    const cur = (currentDocId || "").trim();
+    const validEntries = entries.map((e) => (e.id || "").trim()).filter(Boolean);
+
+    if (validEntries.length > 0) {
+        if (cur && validEntries[0] === cur && validEntries.length > 1) {
+            return validEntries[1];
+        }
+        return validEntries[0];
+    }
+
+    return (fallbackDocId || "").trim();
+}
