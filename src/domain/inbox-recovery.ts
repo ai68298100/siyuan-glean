@@ -112,3 +112,15 @@ export function advanceInboxRecovery(recovery: InboxRecovery, phase: InboxRecove
     const updatedAt = new Date(Math.max(now.getTime(), Date.parse(recovery.updatedAt))).toISOString();
     return parseInboxRecovery({ ...recovery, phase, docId, updatedAt })!;
 }
+
+/**
+ * 判断条目当前是否处于可操作状态（T-1500 / T-3388）：
+ * 当处于 unknown 恢复失败阻塞态时为不可操作，避免重复盲目发起迁移。
+ */
+export function isShorthandActionable(
+    shorthandId: string,
+    unknownRecoveryMap?: Record<string, boolean>
+): boolean {
+    if (!shorthandId) return false;
+    return !Boolean(unknownRecoveryMap?.[shorthandId]);
+}

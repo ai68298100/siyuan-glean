@@ -1,5 +1,12 @@
 # 进度（PROGRESS）
 
+## T-3388 收集箱已有文章打开统一走阅读门面路由（2026-10-19）
+
+- [x] 统一阅读路由：`src/ui/InboxSection.svelte` 中三处打开已有文章（包括云端删除失败已建文档、待收录文档与 URL 冲突已有文档）由裸调思源 `openTab` 重构为统一调用 `facade.openReadingDocument(docId)`，完整融入会话最近阅读记录、桌面内嵌阅读页签偏好及移动端原生回退。
+- [x] 纯函数状态判定：`src/domain/inbox-recovery.ts` 新增 `isShorthandActionable` 纯函数，识别条目当前是否处于未知恢复阻塞态，避免盲目重复发起迁入。
+- [x] 单测完备：`tests/inbox-recovery.test.ts` 增加条目可操作性判定单测（4/4）。
+- [x] 全量门禁闭环：全量分批测试（1538/1538）、`tsc --noEmit`、`svelte-check`（0 错误 0 警告）、生产构建（package.zip 437998B）、发布包检查与任务账本全部通过；真实云收集箱联调仍待 B-0007。
+
 ## T-3387 统计热力图与按日明细点击日期联动过滤完成文章列表（2026-10-19）
 
 - [x] 日期联动过滤纯函数：`src/domain/stats.ts` 新增 `filterCompletedItemsByDate` 纯函数，按日历日期对可信完成文章清单（`review.completedItems`）进行只读投影过滤，空日期返回全部清单。

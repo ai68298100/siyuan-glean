@@ -1387,3 +1387,11 @@ T-3387 承接 T-1770、T-1946 与 FUTURE-DIRECTION 阅读回顾体验：
 1. 联动过滤纯函数：在 `src/domain/stats.ts` 增加 `filterCompletedItemsByDate` 纯函数，按本地日历日期对可信完成文章清单（`review.completedItems`）进行只读投影过滤，空日期返回全部清单。
 2. 交互与无障碍：`StatsView.svelte` 热力图方格与按日明细行支持点击切换选中日期（再次点击清空），完成文章列表自动联动过滤并展示“已筛选：YYYY-MM-DD”提示与清除按钮；热力图方格保持无障碍名称与按压状态播报。
 3. 严格数据主权：纯组件内存状态与视图投影，不修改文章属性、端点或持久化存储。
+
+
+## D-0268（2026-10-19）收集箱已有文章打开统一走阅读门面路由（承接 T-1500/D-0250）
+
+T-3388 承接 T-1500 与 D-0250 统一阅读路由纪律：
+1. 统一导航门面：`InboxSection.svelte` 中三处查看已有文章（`inbox.openExisting`：包括云端删除失败已建文档、待收录文档、URL冲突已有文档）由裸调思源 `openTab` 重构为统一调用 `facade.openReadingDocument(docId)`，完整融入会话最近阅读记录、桌面内嵌阅读页签偏好及移动端原生回退。
+2. 条目资格纯函数：在 `src/domain/inbox-recovery.ts` 增加 `isShorthandActionable` 纯函数，识别条目是否处于可迁入/可移除/未知恢复受阻状态，保证状态判定逻辑可单测。
+3. 严格数据主权：纯客户端 UI 交互路由重构，不修改思源文章属性、端点或持久化存储。

@@ -1,6 +1,6 @@
 <script lang="ts">
 /** 收集箱区（T-1500）：云端收集箱条目列表 → 一键迁入读库。不可用时保留原因和重试入口。 */
-import { openTab, showMessage } from "siyuan";
+import { showMessage } from "siyuan";
 import type { GleanFacade } from "../types";
 import { t } from "../libs/i18n";
 import { removeShorthands, type Shorthand } from "../api/inbox";
@@ -204,13 +204,13 @@ async function dismiss(item: Shorthand) {
                         {#if pendingRemoval[item.oId]}
                             <div class="glean-inbox__duplicate" role="group" aria-label={t(i18n, "inbox.cloudRemoveFailed")}>
                                 <span role="alert">{t(i18n, "inbox.cloudRemoveFailed")}</span>
-                                <button type="button" class="glean-op-btn" onclick={() => void openTab({ app: facade.pluginInstance.app, doc: { id: pendingRemoval[item.oId] }, keepCursor: false })}>{t(i18n, "inbox.openExisting")}</button>
+                                <button type="button" class="glean-op-btn" onclick={() => facade.openReadingDocument(pendingRemoval[item.oId])}>{t(i18n, "inbox.openExisting")}</button>
                             </div>
                         {/if}
                         {#if pendingCapture[item.oId]}
                             <div class="glean-inbox__duplicate" role="group" aria-label={t(i18n, "inbox.recoveryCaptureFailed")}>
                                 <span role="alert">{t(i18n, "inbox.recoveryCaptureFailed")}</span>
-                                <button type="button" class="glean-op-btn" onclick={() => void openTab({ app: facade.pluginInstance.app, doc: { id: pendingCapture[item.oId] }, keepCursor: false })}>{t(i18n, "inbox.openExisting")}</button>
+                                <button type="button" class="glean-op-btn" onclick={() => facade.openReadingDocument(pendingCapture[item.oId])}>{t(i18n, "inbox.openExisting")}</button>
                             </div>
                         {/if}
                         {#if unknownRecovery[item.oId]}
@@ -221,7 +221,7 @@ async function dismiss(item: Shorthand) {
                         {#if duplicate?.item.oId === item.oId}
                             <div class="glean-inbox__duplicate" role="group" aria-label={t(i18n, "inbox.duplicate")}>
                                 <span role="status">{t(i18n, "inbox.duplicate")}</span>
-                                <button type="button" class="glean-op-btn" onclick={() => duplicate && void openTab({ app: facade.pluginInstance.app, doc: { id: duplicate.existingId }, keepCursor: false })}>{t(i18n, "inbox.openExisting")}</button>
+                                <button type="button" class="glean-op-btn" onclick={() => duplicate && facade.openReadingDocument(duplicate.existingId)}>{t(i18n, "inbox.openExisting")}</button>
                                 <button type="button" class="glean-op-btn" disabled={Boolean(busyId)} onclick={() => void migrate(item, true)}>{t(i18n, "inbox.keepDuplicate")}</button>
                                 <button type="button" class="glean-op-btn" onclick={() => (duplicate = null)}>{t(i18n, "action.cancel")}</button>
                             </div>

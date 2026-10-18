@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-    advanceInboxRecovery, createInboxRecovery, normalizeInboxFolder, parseInboxRecovery,
+    advanceInboxRecovery, createInboxRecovery, isShorthandActionable, normalizeInboxFolder, parseInboxRecovery,
 } from "../src/domain/inbox-recovery.ts";
 
 const now = new Date("2026-10-07T15:00:00.000Z");
@@ -32,4 +32,12 @@ test("收集箱目录规范化拒绝路径逃逸和危险字符", () => {
         assert.throws(() => normalizeInboxFolder(folder));
     }
     assert.throws(() => createInboxRecovery("cloud-1", "box", "../收集箱", false, now));
+});
+
+test("isShorthandActionable：判断条目是否可迁入并识别未知恢复阻塞（T-1500 / T-3388）", () => {
+    assert.equal(isShorthandActionable("item-1", {}), true);
+    assert.equal(isShorthandActionable("item-1", { "item-1": false }), true);
+    assert.equal(isShorthandActionable("item-1", { "item-1": true }), false);
+    assert.equal(isShorthandActionable("item-2", { "item-1": true }), true);
+    assert.equal(isShorthandActionable("", {}), false);
 });
