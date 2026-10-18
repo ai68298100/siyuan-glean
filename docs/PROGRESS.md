@@ -1,5 +1,11 @@
 # 进度（PROGRESS）
 
+## T-3384 归档与恢复对话框 Escape 快捷关闭与半成功重试（2026-10-19）
+
+- [x] 键盘完全可达：`src/ui/ArchiveDialog.svelte` 与 `src/ui/RestoreDialog.svelte` 接入 `<svelte:window>` 的 Escape 键盘监听，未处于忙碌/二次确认锁定时直接调用 `onClose()` 退出，且 `svelte-check` 保持 0 错误 0 警告。
+- [x] 半成功安全重试：`src/ui/RestoreDialog.svelte` 在“移出宿主 + 写状态”两步操作部分失败后（`restore.partialMoved`），错误反馈区重试按钮仅重跑第二步状态补丁（`moveOut: false`），避免重复移动已移出宿主的文档。
+- [x] 全量门禁闭环：全量分批测试（1535/1535）、`tsc --noEmit`、`svelte-check`（0 错误 0 警告）、生产构建（package.zip 437379B）、发布包检查与任务账本全部通过；真实宿主弹层焦点与按键仍待 B-0002。
+
 ## T-3383 TTS 朗读语速偏好记忆与续听支持（2026-10-19）
 
 - [x] 纯函数分块续听：`src/domain/speech.ts` 新增 `resumeSpeechChunkIndex` 纯函数，保证暂停或停止后从当前分块索引安全接续，越界或空分块安全回退为 0。

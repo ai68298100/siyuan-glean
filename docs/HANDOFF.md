@@ -1,5 +1,11 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-19 归档与恢复对话框 Escape 快捷关闭与半成功重试）
+
+- T-3384/D-0264：承接 T-1792 与 T-1848，在 `ArchiveDialog.svelte` 与 `RestoreDialog.svelte` 接入 `<svelte:window>` Escape 键盘关闭，提升桌面端操作流畅度；`RestoreDialog.svelte` 针对部分失败（`restore.partialMoved`）重试时仅重试写状态，避免重复调用移出端点；不改变数据契约与文章属性。
+- 全量门禁闭环：完整单测（1535/1535）、类型检查与 `svelte-check` 0 错误 0 警告、生产构建与发布包校验（`package.zip` 437379B）、视觉矩阵登记与任务账本检查均通过。真实原工作区、触控与宿主视觉仍归 B-0002，版本保持 1.3.6，不打 tag 或发布。
+- 下一步：将 T-3384 的真实原工作区、触控与宿主视觉继续归 B-0002；版本仍为 1.3.6，本轮不推送、打 tag 或发布。
+
 ## 当前有效交接（2026-10-19 TTS 朗读语速偏好记忆与续听支持）
 
 - T-3383/D-0263：承接 T-3337 与 T-1744，在 `src/domain/speech.ts` 增加 `resumeSpeechChunkIndex` 纯函数支持从当前分句接续朗读；`src/services/prefs.ts` 接入 `speechRate` 偏好，ReaderTab 自动恢复与增量保存语速；纯 UI 偏好与会话内存状态，不写入任何文章属性、端点或 saveData 业务数据。

@@ -68,11 +68,13 @@
     }
 </script>
 
+<svelte:window onkeydown={(e) => { if (e.key === "Escape" && !pending) onClose(); }} />
+
 <div class="glean-archive-dlg" aria-busy={pending || contextLoading}>
     <div class="glean-archive-dlg__hint">{t(i18n, "restore.hint")}</div>
     {#if contextLoading}<p class="glean-load-error" role="status" aria-live="polite">{t(i18n, "panel.loading")}</p>{/if}
     {#if contextError}<div class="glean-load-error" role="alert" aria-live="assertive"><span>{t(i18n, "msg.actionFailed")}</span><button class="glean-btn" disabled={contextLoading} onclick={() => void loadContext()}>{t(i18n, "action.retry")}</button></div>{/if}
-    {#if actionError}<div class="glean-load-error" role="alert" aria-live="assertive"><span>{t(i18n, actionError)}</span><button class="glean-btn" disabled={pending} onclick={() => void settle(lastMoveOut ? "restore.doneMoved" : "restore.done", lastMoveOut)}>{t(i18n, "action.retry")}</button></div>{/if}
+    {#if actionError}<div class="glean-load-error" role="alert" aria-live="assertive"><span>{t(i18n, actionError)}</span><button class="glean-btn" disabled={pending} onclick={() => void settle(lastMoveOut ? "restore.doneMoved" : "restore.done", actionError === "restore.partialMoved" ? false : lastMoveOut)}>{t(i18n, "action.retry")}</button></div>{/if}
     <button class="glean-archive-dlg__opt" disabled={pending || contextLoading || contextError} aria-busy={pending} onclick={() => void settle("restore.done", false)}>
         <span class="glean-archive-dlg__icon" aria-hidden="true">↩</span>
         <span class="glean-archive-dlg__body">

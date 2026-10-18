@@ -1355,3 +1355,11 @@ T-3383 承接 T-3337、T-1744 与 FUTURE-DIRECTION 朗读增强：
 1. 语速偏好持久化：在 `src/domain/ui-prefs.ts` 增加 `speechRate: number`，默认 1.0，严格通过 `clampSpeechRate` 钳制于 0.75–1.5 范围；ReaderTab 调整语速时自动增量保存，下次挂载自动恢复用户习惯的语速。
 2. 续听分块纯函数：在 `src/domain/speech.ts` 增加 `resumeSpeechChunkIndex` 纯函数，保证停止或暂停后可从当前分块索引安全接续，越界或空分块安全重置为 0。
 3. 严格数据主权：纯 UI 偏好与会话内存状态，不写入任何文章属性、端点或 saveData 业务数据。
+
+
+## D-0264（2026-10-19）归档与恢复对话框 Escape 快捷关闭与半成功重试（承接 T-1792/T-1848）
+
+T-3384 承接 T-1792 与 T-1848 生命周期弹窗可用性打磨：
+1. 键盘完全可达：`ArchiveDialog.svelte` 与 `RestoreDialog.svelte` 根容器监听键盘 `Escape` 事件，未处于二次确认锁定时直接调用 `onClose()` 退出，提升桌面端键盘操作流畅度。
+2. 半成功就地重试：在 `RestoreDialog.svelte` 中，当“移出宿主 + 写状态”两步操作中第一步已成功但第二步写状态失败时，在就地错误反馈区展示“重试”按钮，支持仅重跑第二步状态补丁，避免半成功状态下用户无所适从。
+3. 严格数据主权：所有状态写入仍经 `clip-store.writeClip`，不新增文章属性、端点或 saveData 业务数据。

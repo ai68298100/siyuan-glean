@@ -106,6 +106,8 @@
     }
 </script>
 
+<svelte:window onkeydown={(e) => { if (e.key === "Escape" && !pending && !purgeConfirmOpen) onClose(); }} />
+
 <div class="glean-archive-dlg">
     <div class="glean-archive-dlg__hint">
         {t(i18n, "archive.hint")}
