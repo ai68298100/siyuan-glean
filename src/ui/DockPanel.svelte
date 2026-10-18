@@ -807,11 +807,18 @@ function selectDisplayedArticles(): void {
     selection = addDisplayedSelection(selection, displayedSelectionIds);
 }
 
+function restoreLibrarySelectionFocus(): void {
+    // Mobile Dock keeps search collapsed until it is needed. When the batch bar
+    // disappears after clearing the last selection, return focus to the visible
+    // search entry instead of leaving keyboard users on document.body.
+    (searchInput ?? searchToggle)?.focus({ preventScroll: true });
+}
+
 function keepFilteredArticles(origin: Element | null = document.activeElement): void {
     if (batchBusy) return;
     selection = retainFilteredSelection(selection, filteredSelectionIds);
     void tick().then(() => {
-        if (!disposed && rootEl?.getClientRects().length && canRestoreLibraryFocus(origin)) searchInput?.focus();
+        if (!disposed && rootEl?.getClientRects().length && canRestoreLibraryFocus(origin)) restoreLibrarySelectionFocus();
     });
 }
 
@@ -820,7 +827,7 @@ function clearSelection(): void {
     const origin = document.activeElement;
     selection = new Set();
     void tick().then(() => {
-        if (!disposed && rootEl?.getClientRects().length && canRestoreLibraryFocus(origin)) searchInput?.focus();
+        if (!disposed && rootEl?.getClientRects().length && canRestoreLibraryFocus(origin)) restoreLibrarySelectionFocus();
     });
 }
 
@@ -1433,6 +1440,7 @@ function toggleSelect(id: string, event: Event) {
 
 async function batchApply(status: ClipStatus) {
     if (batchBusy || selection.size === 0) return;
+    const origin = document.activeElement;
     batchAddedDuringRun.clear();
     batchBusy = true;
     try {
@@ -1440,6 +1448,14 @@ async function batchApply(status: ClipStatus) {
     } finally {
         batchBusy = false;
         batchAddedDuringRun.clear();
+        // A successful operation can remove the last selected item and unmount
+        // this bar. Keep keyboard users in the library instead of letting focus
+        // fall back to document.body after the action disappears.
+        if (selection.size === 0) {
+            void tick().then(() => {
+                if (!disposed && rootEl?.getClientRects().length && canRestoreLibraryFocus(origin)) restoreLibrarySelectionFocus();
+            });
+        }
     }
 }
 
@@ -2692,10 +2708,11 @@ function metaLine(entry: Row): string {
                                 />
                             {/if}
                             {#if entry.kind === "clip"}
-                                <label class="glean-card__check">
+                                <label class="glean-card__check" title={t(i18n, "library.selectArticle")}>
                                     <input
                                         type="checkbox"
                                         checked={selection.has(entry.id)}
+                                        aria-label={t(i18n, "library.selectArticle")}
                                         onclick={(event) => event.stopPropagation()}
                                         onchange={(e) => toggleSelect(entry.id, e)}
                                     />

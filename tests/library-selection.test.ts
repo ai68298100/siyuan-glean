@@ -121,6 +121,14 @@ function batchHarness(initial = ["a", "b"]) {
     const state = {
         selection: new Set(initial), batchBusy: false, offline: false,
         batchAddedDuringRun: new Set<string>(),
+        tick: async () => {},
+        document: { activeElement: null },
+        disposed: false,
+        rootEl: null,
+        searchInput: null as { focus(options?: { preventScroll?: boolean }): void } | null,
+        searchToggle: null,
+        canRestoreLibraryFocus: (origin: unknown) => state.document.activeElement === origin,
+        restoreLibrarySelectionFocus: () => state.searchInput?.focus({ preventScroll: true }),
         facade: { pluginInstance: {}, settings: { integration: { checkinEnabled: false } }, notifyDataChanged() {} },
         batchSetStatusDetailed: (_plugin: unknown, selectedIds: string[], status: string) => {
             writes.push({ ids: [...selectedIds], status });
@@ -211,6 +219,30 @@ test("实际批量状态：忙态与空选择阻止第二次提交", async () =>
     assert.equal(current.writes.length, 1);
 });
 
+test("实际批量状态：成功清空后等待渲染再回到搜索入口，部分失败不抢焦点", async () => {
+    const current = batchHarness();
+    const trigger = {};
+    const focusCalls: Array<{ preventScroll?: boolean } | undefined> = [];
+    current.state.document.activeElement = trigger;
+    current.state.rootEl = { getClientRects: () => [{}] };
+    current.state.searchInput = { focus: (options) => focusCalls.push(options) };
+    const first = current.controls.batchApply("archived");
+    current.pending[0].resolve(writeResult(["a", "b"]));
+    await first;
+    await Promise.resolve();
+    await Promise.resolve();
+    assert.deepEqual(focusCalls, [{ preventScroll: true }]);
+
+    focusCalls.length = 0;
+    current.state.selection = new Set(["a", "b"]);
+    const retry = current.controls.batchApply("archived");
+    current.pending[1].resolve(writeResult(["a"], ["b"]));
+    await retry;
+    await Promise.resolve();
+    assert.deepEqual(focusCalls, []);
+    assert.deepEqual([...current.state.selection], ["b"]);
+});
+
 test("批量范围说明与操作接线：隐藏项有提示，显示选择/显式清理与 AI 共用会话集合", () => {
     assert.match(bar, /library\.selectionSummary/);
     assert.match(bar, /library\.selectionHidden/);
@@ -234,4 +266,25 @@ test("批量范围说明与操作接线：隐藏项有提示，显示选择/显�
     state.aiBatchOpen = false;
     open();
     assert.equal(state.aiBatchOpen, false);
+});
+
+test("批量操作焦点：移动 Dock 搜索折叠时，清理/保留后回到可见搜索入口", () => {
+    assert.match(dock, /function restoreLibrarySelectionFocus\(\): void/);
+    assert.match(dock, /\(searchInput \?\? searchToggle\)\?\.focus\(\{ preventScroll: true \}\)/);
+    assert.match(dock, /canRestoreLibraryFocus\(origin\)\) restoreLibrarySelectionFocus\(\)/);
+    assert.doesNotMatch(dock, /canRestoreLibraryFocus\(origin\)\) searchInput\?\.focus\(\)/);
+    const batchStart = dock.indexOf("async function batchApply(status: ClipStatus)");
+    const batchEnd = dock.indexOf("async function applySelectedStatus", batchStart);
+    assert.ok(batchStart >= 0 && batchEnd > batchStart);
+    const batch = dock.slice(batchStart, batchEnd);
+    assert.match(batch, /const origin = document\.activeElement/);
+    assert.match(batch, /selection\.size === 0/);
+    assert.match(batch, /restoreLibrarySelectionFocus\(\)/);
+});
+
+test("列表、看板与移动卡片的选择控件都提供可见提示和可编程名称", () => {
+    assert.match(dock, /class="glean-kcard__select" title=\{t\(i18n, "library\.selectArticle"\)\}/);
+    assert.match(dock, /class="glean-drow__select" title=\{t\(i18n, "library\.selectArticle"\)\}/);
+    const mobileCard = /<label class="glean-card__check" title=\{t\(i18n, "library\.selectArticle"\)\}>[\s\S]*?<input[\s\S]*?aria-label=\{t\(i18n, "library\.selectArticle"\)\}[\s\S]*?onclick=\{\(event\) => event\.stopPropagation\(\)\}/;
+    assert.match(dock, mobileCard);
 });
