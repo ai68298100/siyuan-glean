@@ -1241,5 +1241,14 @@
   "highlight.clipboardUnavailable": "无法访问系统剪贴板",
   "highlight.markdown": "导出 Markdown",
   "resurface.recentCaptured": "最近收录",
-  "resurface.candidatesPending": "待分拣候选 ${n} 篇"
+  "resurface.candidatesPending": "待分拣候选 ${n} 篇",
+  "stats.funnel.title": "收录与阅读漏斗",
+  "stats.funnel.desc": "从收集候选到消化完成的全生命周期转化",
+  "stats.funnel.candidate": "候选池",
+  "stats.funnel.captured": "已收录",
+  "stats.funnel.inProgress": "阅读中/待读",
+  "stats.funnel.done": "已读完成",
+  "stats.funnel.archived": "归档放下",
+  "stats.funnel.completionRate": "完成率",
+  "stats.funnel.archiveRate": "归档率"
 }

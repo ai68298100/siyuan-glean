@@ -1241,5 +1241,14 @@
   "highlight.clipboardUnavailable": "Clipboard is unavailable",
   "highlight.markdown": "Export Markdown",
   "resurface.recentCaptured": "Recently Captured",
-  "resurface.candidatesPending": "${n} candidates pending review"
+  "resurface.candidatesPending": "${n} candidates pending review",
+  "stats.funnel.title": "Reading Pipeline Funnel",
+  "stats.funnel.desc": "Full lifecycle conversion from discovery to digestion",
+  "stats.funnel.candidate": "Candidates",
+  "stats.funnel.captured": "Captured",
+  "stats.funnel.inProgress": "In Progress",
+  "stats.funnel.done": "Finished",
+  "stats.funnel.archived": "Archived",
+  "stats.funnel.completionRate": "Completion Rate",
+  "stats.funnel.archiveRate": "Archive Rate"
 }

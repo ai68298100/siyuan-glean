@@ -12,7 +12,7 @@ import DistributionList from "./DistributionList.svelte";
 import { t } from "../libs/i18n";
 import type { GleanIndex } from "../services/index-store";
 import { buildReadingReview, previewReadingReview, resolveUnknownReadingReview, saveReadingReviewReport, type ReadingReviewSession } from "../services/stats-service";
-import { parseReviewDate, reviewDateInput, type ReadingReviewLabels, type ReviewPeriodKind } from "../domain/stats";
+import { computeConversionFunnel, parseReviewDate, reviewDateInput, type ReadingReviewLabels, type ReviewPeriodKind } from "../domain/stats";
 
 interface Props {
     facade: GleanFacade;
@@ -48,6 +48,7 @@ const stats = $derived(review.stats);
 const maxHeat = $derived(Math.max(1, ...stats.heatmap.map((day) => day.count)));
 const heatmapPadding = $derived((new Date(`${stats.heatmap[0].date}T12:00:00`).getDay() + 6) % 7);
 const recentDays = $derived(stats.recentCompletionTrend);
+const funnel = $derived(computeConversionFunnel(index.clips, index.candidates));
 const maxRecent = $derived(Math.max(1, ...recentDays.map((day) => day.count)));
 const distributions = $derived([
     { key: "review.bySite", counts: stats.periodBySite },
@@ -258,6 +259,34 @@ function downloadCsv(): void {
                 <div class="glean-stats__metric"><dt>{t(i18n, metric.key)}</dt><dd>{metric.count}</dd><dd class="glean-stats__metric-hint">{t(i18n, metric.hint)}</dd></div>
             {/each}
         </dl>
+        <div class="glean-stats__funnel" role="region" aria-label={t(i18n, "stats.funnel.title")}>
+            <div class="glean-stats__funnel-head">
+                <span class="glean-stats__funnel-title">{t(i18n, "stats.funnel.title")}</span>
+                <span class="glean-stats__funnel-desc">{t(i18n, "stats.funnel.desc")}</span>
+            </div>
+            <div class="glean-stats__funnel-stages">
+                <div class="glean-stats__funnel-stage">
+                    <span class="glean-stats__funnel-label">{t(i18n, "stats.funnel.candidate")}</span>
+                    <span class="glean-stats__funnel-count">{funnel.candidateCount}</span>
+                </div>
+                <div class="glean-stats__funnel-arrow" aria-hidden="true">→</div>
+                <div class="glean-stats__funnel-stage">
+                    <span class="glean-stats__funnel-label">{t(i18n, "stats.funnel.captured")}</span>
+                    <span class="glean-stats__funnel-count">{funnel.capturedCount}</span>
+                </div>
+                <div class="glean-stats__funnel-arrow" aria-hidden="true">→</div>
+                <div class="glean-stats__funnel-stage">
+                    <span class="glean-stats__funnel-label">{t(i18n, "stats.funnel.done")}</span>
+                    <span class="glean-stats__funnel-count">{funnel.doneCount}</span>
+                    <span class="glean-badge glean-badge--pri" title={t(i18n, "stats.funnel.completionRate")}>{(funnel.completionRate * 100).toFixed(1)}%</span>
+                </div>
+                <div class="glean-stats__funnel-stage glean-stats__funnel-stage--archived">
+                    <span class="glean-stats__funnel-label">{t(i18n, "stats.funnel.archived")}</span>
+                    <span class="glean-stats__funnel-count">{funnel.archivedCount}</span>
+                    <span class="glean-badge" title={t(i18n, "stats.funnel.archiveRate")}>{(funnel.archiveRate * 100).toFixed(1)}%</span>
+                </div>
+            </div>
+        </div>
         <details class="glean-stats__supplement">
             <summary>{t(i18n, "review.moreMetrics")}</summary>
             <dl class="glean-stats__metrics glean-stats__metrics--supplemental">

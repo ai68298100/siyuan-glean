@@ -488,3 +488,55 @@ export function buildReadingReviewCsv(review: ReadingReview, labels: ReadingRevi
     rows.push(["candidate-snapshot", "unconfirmed", review.candidateCount]);
     return rows.map((row) => Array.from({ length: 13 }, (_, index) => csvCell(row[index] ?? "")).join(",")).join("\r\n");
 }
+
+export interface ConversionFunnelStats {
+    totalArticles: number;
+    candidateCount: number;
+    capturedCount: number;
+    inProgressCount: number;
+    doneCount: number;
+    archivedCount: number;
+    captureRate: number;
+    completionRate: number;
+    archiveRate: number;
+}
+
+/**
+ * 计算收录与阅读转化漏斗（T-1773 / T-3376）：
+ * 纯视图投影，从当前 clips 与 candidates 计算转化各环节数量与比例。
+ */
+export function computeConversionFunnel(
+    clips: Record<string, { status?: string; internal?: boolean }>,
+    candidates: Record<string, unknown>
+): ConversionFunnelStats {
+    const validClips = Object.values(clips || {}).filter((c) => !c.internal && Boolean(c.status));
+    const candidateCount = Object.keys(candidates || {}).length;
+    const capturedCount = validClips.length;
+    const totalArticles = capturedCount + candidateCount;
+
+    let inProgressCount = 0;
+    let doneCount = 0;
+    let archivedCount = 0;
+
+    for (const clip of validClips) {
+        if (clip.status === "done") doneCount += 1;
+        else if (clip.status === "archived") archivedCount += 1;
+        else inProgressCount += 1;
+    }
+
+    const captureRate = totalArticles > 0 ? Number((capturedCount / totalArticles).toFixed(3)) : 0;
+    const completionRate = capturedCount > 0 ? Number((doneCount / capturedCount).toFixed(3)) : 0;
+    const archiveRate = capturedCount > 0 ? Number((archivedCount / capturedCount).toFixed(3)) : 0;
+
+    return {
+        totalArticles,
+        candidateCount,
+        capturedCount,
+        inProgressCount,
+        doneCount,
+        archivedCount,
+        captureRate,
+        completionRate,
+        archiveRate,
+    };
+}

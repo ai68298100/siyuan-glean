@@ -6,7 +6,7 @@ import { summarizeDistribution } from "../src/domain/distribution.ts";
 
 import {
     aggregateStats, aggregateReadingReview, buildReadingReviewCsv, buildReadingReviewMarkdown,
-    completedReviewItems, currentCompletionStreak, csvCell, parseLocalTimestamp, parseReviewDate, reviewPeriod, withinWeek,
+    completedReviewItems, computeConversionFunnel, currentCompletionStreak, csvCell, parseLocalTimestamp, parseReviewDate, reviewPeriod, withinWeek,
     type ReadingReview, type StatsInput,
 } from "../src/domain/stats.ts";
 
@@ -353,4 +353,46 @@ test("CSV 所有字符串列防公式注入，按 RFC 引号转义，保留快�
     assert.ok(csv.includes('"candidate-snapshot","unconfirmed","4"'));
     assert.ok(csv.includes('"metadata","snapshot_at"'));
     assert.equal(csv.split("\r\n").filter((row) => row.startsWith('"heatmap"')).length, 365);
+});
+
+test("computeConversionFunnel：计算候选→收录→完成漏斗转化率（T-1773 / T-3376）", () => {
+    const clips = {
+        "1": { status: "done" },
+        "2": { status: "done" },
+        "3": { status: "reading" },
+        "4": { status: "later" },
+        "5": { status: "archived" },
+        "internal-1": { status: "done", internal: true }, // internal 排除
+    };
+    const candidates = {
+        "c1": {},
+        "c2": {},
+        "c3": {},
+    };
+
+    const funnel = computeConversionFunnel(clips, candidates);
+    assert.equal(funnel.candidateCount, 3);
+    assert.equal(funnel.capturedCount, 5);
+    assert.equal(funnel.totalArticles, 8);
+    assert.equal(funnel.inProgressCount, 2); // reading + later
+    assert.equal(funnel.doneCount, 2);
+    assert.equal(funnel.archivedCount, 1);
+
+    // 转化率计算
+    assert.equal(funnel.captureRate, 0.625); // 5/8
+    assert.equal(funnel.completionRate, 0.4); // 2/5
+    assert.equal(funnel.archiveRate, 0.2); // 1/5
+
+    // 空边界安全
+    assert.deepEqual(computeConversionFunnel({}, {}), {
+        totalArticles: 0,
+        candidateCount: 0,
+        capturedCount: 0,
+        inProgressCount: 0,
+        doneCount: 0,
+        archivedCount: 0,
+        captureRate: 0,
+        completionRate: 0,
+        archiveRate: 0,
+    });
 });
