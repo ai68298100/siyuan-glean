@@ -1,5 +1,12 @@
 # 进度（PROGRESS）
 
+## T-3387 统计热力图与按日明细点击日期联动过滤完成文章列表（2026-10-19）
+
+- [x] 日期联动过滤纯函数：`src/domain/stats.ts` 新增 `filterCompletedItemsByDate` 纯函数，按日历日期对可信完成文章清单（`review.completedItems`）进行只读投影过滤，空日期返回全部清单。
+- [x] 统计视图按日交互：`src/ui/StatsView.svelte` 按日表格支持点击切换选中日期，完成文章列表自动联动过滤并展示“已筛选：YYYY-MM-DD 完成文章”提示与“查看全部完成文章”清除按钮；热力图方格保持无障碍名称并高亮显示选中日。
+- [x] 双语与单测完备：新增 `review.filterDay` 与 `review.clearDayFilter` 翻译键；`tests/stats.test.ts` 增加按日过滤单测（26/26）。
+- [x] 全量门禁闭环：全量分批测试（1537/1537）、`tsc --noEmit`、`svelte-check`（0 错误 0 警告）、生产构建（package.zip 438059B）、发布包检查与任务账本全部通过；真实多日期完成回顾交互仍待 B-0002。
+
 ## T-3386 高级筛选浮层激活项计数与就地清空支持（2026-10-19）
 
 - [x] 激活项感知纯函数：`src/domain/library-filter-chips.ts` 新增 `countSecondaryActiveFilters` 纯函数，统计收纳在更多筛选（ActionPopover）内的次级分面条件数量（author, aiTag, src, timeSource, contentType）。

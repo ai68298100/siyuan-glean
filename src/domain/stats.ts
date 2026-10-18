@@ -540,3 +540,17 @@ export function computeConversionFunnel(
         archiveRate,
     };
 }
+
+/**
+ * 按本地日历日期对完成文章进行纯投影过滤（T-1770 / T-1946 / T-3387）：
+ * 若 dateStamp（形如 "YYYY-MM-DD" 或 "YYYYMMDD"）为空，返回原列表；
+ * 否则返回 doneTime 以该日期开头的文章子集。
+ */
+export function filterCompletedItemsByDate<T extends { doneTime: string }>(
+    items: readonly T[],
+    dateStamp: string | undefined
+): T[] {
+    const clean = (dateStamp || "").replaceAll("-", "").trim();
+    if (!clean) return [...items];
+    return items.filter((item) => item.doneTime.startsWith(clean));
+}

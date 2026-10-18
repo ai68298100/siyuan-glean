@@ -1255,5 +1255,7 @@
   "prefs.railAccordionHint": "Automatically collapse other groups when expanding one to keep sidebar compact",
   "settings.ai.customHttpWarning": "Configured with an unencrypted public HTTP endpoint; API keys and content may be exposed in transit. HTTPS is strongly recommended.",
   "reading.position.progress": "Read approx. ${n}%",
-  "library.clearMoreFilters": "Clear advanced filters"
+  "library.clearMoreFilters": "Clear advanced filters",
+  "review.filterDay": "Filtered by completed date ${date}",
+  "review.clearDayFilter": "Show all completed articles"
 }

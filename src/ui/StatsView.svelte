@@ -12,7 +12,7 @@ import DistributionList from "./DistributionList.svelte";
 import { t } from "../libs/i18n";
 import type { GleanIndex } from "../services/index-store";
 import { buildReadingReview, previewReadingReview, resolveUnknownReadingReview, saveReadingReviewReport, type ReadingReviewSession } from "../services/stats-service";
-import { computeConversionFunnel, parseReviewDate, reviewDateInput, type ReadingReviewLabels, type ReviewPeriodKind } from "../domain/stats";
+import { computeConversionFunnel, filterCompletedItemsByDate, parseReviewDate, reviewDateInput, type ReadingReviewLabels, type ReviewPeriodKind } from "../domain/stats";
 
 interface Props {
     facade: GleanFacade;
@@ -36,6 +36,7 @@ const freshnessStamp = $derived(Number.isFinite(Date.parse(index.updatedAt))
 
 let period = $state<ReviewPeriodKind>("week");
 let referenceDate = $state(reviewDateInput());
+let selectedDayDate = $state("");
 let session = $state.raw<ReadingReviewSession | null>(null);
 let saveState = $state<ReadingReviewSession["state"]>("ready");
 let busy = $state(false);
@@ -48,6 +49,7 @@ const stats = $derived(review.stats);
 const maxHeat = $derived(Math.max(1, ...stats.heatmap.map((day) => day.count)));
 const heatmapPadding = $derived((new Date(`${stats.heatmap[0].date}T12:00:00`).getDay() + 6) % 7);
 const recentDays = $derived(stats.recentCompletionTrend);
+const visibleCompletedItems = $derived(filterCompletedItemsByDate(review.completedItems, selectedDayDate));
 const funnel = $derived(computeConversionFunnel(index.clips, index.candidates));
 const maxRecent = $derived(Math.max(1, ...recentDays.map((day) => day.count)));
 const distributions = $derived([
@@ -313,7 +315,7 @@ function downloadCsv(): void {
                 <div class="glean-stats__heatmap">
                     {#each Array.from({ length: heatmapPadding }, (_, index) => index) as padding (padding)}<span></span>{/each}
                     {#each stats.heatmap as day (day.date)}
-                        <span class="glean-stats__day" role="img" aria-label={t(i18n, "review.heatmapDay", { date: day.date, n: day.count })} title={`${day.date}: ${day.count}`} style={`background:${day.count ? "var(--b3-theme-primary)" : "var(--b3-theme-surface)"};opacity:${day.count ? 0.25 + 0.75 * day.count / maxHeat : 1}`}></span>
+                        <span class="glean-stats__day" role="img" aria-label={t(i18n, "review.heatmapDay", { date: day.date, n: day.count })} class:glean-stats__day--selected={selectedDayDate === day.date} title={`${day.date}: ${day.count}`} style={`background:${day.count ? "var(--b3-theme-primary)" : "var(--b3-theme-surface)"};opacity:${day.count ? 0.25 + 0.75 * day.count / maxHeat : 1}`}></span>
                     {/each}
                 </div>
                 <div class="glean-stats__heatmap-legend" aria-hidden="true">
@@ -331,7 +333,7 @@ function downloadCsv(): void {
                     <table>
                         <caption>{t(i18n, "review.heatmap", { year: reference?.getFullYear() ?? new Date().getFullYear() })}</caption>
                         <thead><tr><th scope="col">{t(i18n, "review.date")}</th><th scope="col">{t(i18n, "review.completed")}</th></tr></thead>
-                        <tbody>{#each stats.heatmap as day (day.date)}<tr><th scope="row">{day.date}</th><td>{day.count}</td></tr>{/each}</tbody>
+                        <tbody>{#each stats.heatmap as day (day.date)}<tr class:glean-stats__day-row--selected={selectedDayDate === day.date}><th scope="row"><button type="button" class="glean-stats__link" onclick={() => selectedDayDate = selectedDayDate === day.date ? "" : day.date}>{day.date}</button></th><td>{day.count}</td></tr>{/each}</tbody>
                     </table>
                 </div>
             </details>
@@ -368,8 +370,14 @@ function downloadCsv(): void {
         <summary>{t(i18n, "review.completedList")}</summary>
         <section class="glean-stats__completed-section" aria-labelledby={idFor("completed-title")}>
             <h3 id={idFor("completed-title")} class="glean-sr-only">{t(i18n, "review.completedList")}</h3>
+            {#if selectedDayDate}
+                <div class="glean-stats__completed-filter-banner" role="status">
+                    <span>{t(i18n, "review.filterDay", { date: selectedDayDate })} ({visibleCompletedItems.length})</span>
+                    <button type="button" class="glean-btn glean-btn--ghost glean-btn--sm" onclick={() => selectedDayDate = ""}>{t(i18n, "review.clearDayFilter")}</button>
+                </div>
+            {/if}
             <ul class="glean-stats__completed">
-                {#each review.completedItems as item (item.id)}
+                {#each visibleCompletedItems as item (item.id)}
                     <li>
                         <button class="glean-stats__link" title={item.title || t(i18n, "review.untitled")} onclick={() => facade.openReadingDocument(item.id)}>{item.title || t(i18n, "review.untitled")}</button>
                         <span>{item.doneTime.slice(0, 4)}-{item.doneTime.slice(4, 6)}-{item.doneTime.slice(6, 8)}</span>

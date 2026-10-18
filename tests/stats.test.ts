@@ -6,7 +6,7 @@ import { summarizeDistribution } from "../src/domain/distribution.ts";
 
 import {
     aggregateStats, aggregateReadingReview, buildReadingReviewCsv, buildReadingReviewMarkdown,
-    completedReviewItems, computeConversionFunnel, currentCompletionStreak, csvCell, parseLocalTimestamp, parseReviewDate, reviewPeriod, withinWeek,
+    completedReviewItems, computeConversionFunnel, currentCompletionStreak, filterCompletedItemsByDate, csvCell, parseLocalTimestamp, parseReviewDate, reviewPeriod, withinWeek,
     type ReadingReview, type StatsInput,
 } from "../src/domain/stats.ts";
 
@@ -395,4 +395,30 @@ test("computeConversionFunnel：计算候选→收录→完成漏斗转化率（
         completionRate: 0,
         archiveRate: 0,
     });
+});
+
+test("filterCompletedItemsByDate：按日历日期过滤完成文章清单（T-1770 / T-1946 / T-3387）", () => {
+    const items = [
+        { id: "1", title: "文章1", doneTime: "20261019100000" },
+        { id: "2", title: "文章2", doneTime: "20261019120000" },
+        { id: "3", title: "文章3", doneTime: "20261018090000" },
+        { id: "4", title: "文章4", doneTime: "20260901000000" },
+    ];
+
+    // 1. 按 YYYY-MM-DD 格式过滤当天完成文章
+    const day19 = filterCompletedItemsByDate(items, "2026-10-19");
+    assert.equal(day19.length, 2);
+    assert.deepEqual(day19.map((i) => i.id), ["1", "2"]);
+
+    // 2. 按 YYYYMMDD 格式过滤当天完成文章
+    const day18 = filterCompletedItemsByDate(items, "20261018");
+    assert.equal(day18.length, 1);
+    assert.equal(day18[0].id, "3");
+
+    // 3. 空日期返回全部清单
+    assert.equal(filterCompletedItemsByDate(items, "").length, 4);
+    assert.equal(filterCompletedItemsByDate(items, undefined).length, 4);
+
+    // 4. 未命中日期返回空数组
+    assert.equal(filterCompletedItemsByDate(items, "2026-10-01").length, 0);
 });

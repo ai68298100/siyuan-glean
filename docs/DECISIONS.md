@@ -1379,3 +1379,11 @@ T-3386 承接 T-1808 与 T-1887 读库筛选可用性打磨：
 1. 激活项感知：在 `src/domain/library-filter-chips.ts` 增加 `countSecondaryActiveFilters` 纯函数，统计收纳在更多筛选（ActionPopover）内的次级条件（author, aiTag, src, timeSource, contentType）激活数量。
 2. 徽标与就地清空：在 `src/ui/LibraryFilters.svelte` 中，当存在高级筛选激活项时，更多筛选按钮展示计数徽标（如 `更多筛选 (2)`），浮层内部增加“清空高级筛选”快捷操作，仅重置次级筛选，保留外部站点、标签、搜索与排序。
 3. 严格数据主权：纯视图状态与分面筛选投影，不修改文章属性、端点或持久化存储。
+
+
+## D-0267（2026-10-19）统计热力图与按日明细点击日期联动过滤完成文章列表（承接 T-1770/T-1946）
+
+T-3387 承接 T-1770、T-1946 与 FUTURE-DIRECTION 阅读回顾体验：
+1. 联动过滤纯函数：在 `src/domain/stats.ts` 增加 `filterCompletedItemsByDate` 纯函数，按本地日历日期对可信完成文章清单（`review.completedItems`）进行只读投影过滤，空日期返回全部清单。
+2. 交互与无障碍：`StatsView.svelte` 热力图方格与按日明细行支持点击切换选中日期（再次点击清空），完成文章列表自动联动过滤并展示“已筛选：YYYY-MM-DD”提示与清除按钮；热力图方格保持无障碍名称与按压状态播报。
+3. 严格数据主权：纯组件内存状态与视图投影，不修改文章属性、端点或持久化存储。

@@ -11597,3 +11597,23 @@ body.b3-theme-dark .glean-panel--mobile,
     margin-left: auto;
     opacity: 0.85;
 }
+
+.glean-stats__day--selected {
+    outline: 2px solid var(--b3-theme-primary);
+    outline-offset: 1px;
+    z-index: 1;
+}
+
+.glean-stats__completed-filter-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--glean-space-2);
+    padding: var(--glean-space-1-5) var(--glean-space-2);
+    margin-bottom: var(--glean-space-2);
+    background: var(--b3-theme-surface);
+    border: 1px solid var(--b3-theme-surface-lighter);
+    border-radius: var(--glean-radius-s);
+    font-size: var(--glean-text-caption);
+    color: var(--b3-theme-on-surface);
+}
