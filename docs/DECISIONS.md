@@ -1251,3 +1251,11 @@ T-3370 承接 FUTURE-DIRECTION 方向四（找回文章，并把摘录用起来�
 1. 检索与可解释性：在 LibraryItem 投影中纳入已有索引的 summary 字段，searchableText 统一包含摘要内容；新增 matchReason 纯函数，按“标题 → 摘要 → 标签 → AI标签 → 作者 → 站点 → 来源”提供结构化命中原因，解决搜索命中非标题属性时的黑盒疑惑。
 2. 统一高亮文章路由：HighlightView 打开文章不再裸调思源 openTab / openMobileFileById，统一走 facade.openReadingDocument(id)；使从摘录跳转阅读与会话最近阅读记录、桌面阅读页签偏好及失败降级完全打通。
 3. 数据与端点契约：不新增、不修改 custom-clip-* 属性，不新增端点或持久化字段，纯属视图投影与路由统一。真实宿主视觉与切文仍归 B-0002。
+
+
+## D-0251（2026-10-19）摘录卡片支持一键复制格式化引用与块时间线索（承接 T-1753/T-1803）
+
+T-3371 承接 FUTURE-DIRECTION 方向四（把摘录用起来）与历史待办 T-1753、T-1803：
+1. 格式化分享卡：在 `src/domain/highlights.ts` 增加 `formatHighlightShare` 纯函数，格式化为 Markdown 引述（`>` 文本 + `> —— 标题（站点）` + `> siyuan://blocks/文档ID`）；`HighlightView.svelte` 卡片增加“复制引用”快捷动作，优先通过浏览器剪贴板 API 复制并提示成功，权限拒绝时优雅降级。
+2. 摘录时间线索：利用思源引述块 ID（`YYYYMMDDHHmmss-xxxxxxx`）前 14 位派生可读时间（如 `YYYY-MM-DD HH:mm`），在摘录卡片元数据区呈现，辅助记忆线索检索与回顾。
+3. 数据主权：纯视图与剪贴板投影，不新增文章属性、端点或持久化存储。

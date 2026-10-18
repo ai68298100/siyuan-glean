@@ -7,7 +7,7 @@ import { untrack } from "svelte";
 import { showMessage } from "siyuan";
 import type { GleanFacade } from "../types";
 import { t } from "../libs/i18n";
-import { filterHighlights, highlightFacets, pageHighlights, retainHighlightSelection, type HighlightFilter } from "../domain/highlights";
+import { filterHighlights, formatHighlightShare, formatHighlightTime, highlightFacets, pageHighlights, retainHighlightSelection, type HighlightFilter } from "../domain/highlights";
 import {
     copyHighlights, exportHighlightsCsv, HighlightExportError, highlightDocumentTitle, listDocHighlights, listLibraryHighlights,
     prepareHighlightExport, saveHighlightDraft, type HighlightExportSession, type HighlightItem, type HighlightSaveReason,
@@ -275,6 +275,26 @@ async function card(item: HighlightItem) {
     }
 }
 
+let copyingId = $state("");
+
+async function copyQuote(item: HighlightItem): Promise<void> {
+    if (copyingId) return;
+    copyingId = item.id;
+    try {
+        const text = formatHighlightShare(item);
+        if (navigator?.clipboard?.writeText) {
+            await navigator.clipboard.writeText(text);
+            showMessage(t(i18n, "highlight.shareCopied"), 2500);
+        } else {
+            showMessage(t(i18n, "highlight.clipboardUnavailable"), 3000);
+        }
+    } catch {
+        showMessage(t(i18n, "highlight.clipboardUnavailable"), 3000);
+    } finally {
+        copyingId = "";
+    }
+}
+
 function openDoc(id: string) {
     facade.openReadingDocument(id);
 }
@@ -363,13 +383,20 @@ function openDoc(id: string) {
                     <span class="glean-highlights__item-index">{(visible.page - 1) * highlightPageSize + visible.items.indexOf(item) + 1}</span>
                 </div>
                 <label class="glean-highlights__quote"><input type="checkbox" checked={selected.includes(item.id)} disabled={exportBusy} onchange={() => toggle(item.id)} aria-label={`${t(i18n, "highlight.quoteTag")} ${(visible.page - 1) * highlightPageSize + visible.items.indexOf(item) + 1}: ${item.text.slice(0, 120)}`} /><span>{item.text}</span></label>
-                <p class="glean-highlights__meta" title={item.title || t(i18n, "panel.untitled")}>{item.title || t(i18n, "panel.untitled")} {item.site ? ` · ${item.site}` : ""}</p>
+                <p class="glean-highlights__meta" title={item.title || t(i18n, "panel.untitled")}>
+                    {item.title || t(i18n, "panel.untitled")} {item.site ? ` · ${item.site}` : ""}
+                    {#if formatHighlightTime(item.id)}<span class="glean-highlights__time"> · {formatHighlightTime(item.id)}</span>{/if}
+                </p>
                 {#if item.tags.length}<p class="glean-highlights__meta glean-highlights__tags"><span>{t(i18n, "library.filterTag")}</span>{#each item.tags as value}<span class="glean-highlights__tag">{value}</span>{/each}</p>{/if}
                 {#if item.aiTags.length}<p class="glean-highlights__meta glean-highlights__tags glean-highlights__tags--ai"><span>{t(i18n, "library.filterAiTag")}</span>{#each item.aiTags as value}<span class="glean-highlights__tag">{value}</span>{/each}</p>{/if}
                 <div class="glean-highlights__tools glean-highlights__tools--card">
-                    <button onclick={() => openDoc(item.id)}>{t(i18n, "highlight.original")}</button>
-                    <button onclick={() => openDoc(item.rootId)}>{t(i18n, "action.openDoc")}</button>
-                    {#if scope === "current"}<button aria-busy={cardingKey === item.id} disabled={!!cardingKey} onclick={() => void card(item)}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanCard" /></svg>{t(i18n, "flashcard.make")}</button>{/if}
+                    <button type="button" onclick={() => openDoc(item.id)}>{t(i18n, "highlight.original")}</button>
+                    <button type="button" onclick={() => openDoc(item.rootId)}>{t(i18n, "action.openDoc")}</button>
+                    <button type="button" aria-busy={copyingId === item.id} disabled={Boolean(copyingId)} onclick={() => void copyQuote(item)} title={t(i18n, "highlight.copyShare")}>
+                        <svg class="glean-icon" aria-hidden="true"><use href="#iconGleanCopy" /></svg>
+                        {t(i18n, "highlight.copyShare")}
+                    </button>
+                    {#if scope === "current"}<button type="button" aria-busy={cardingKey === item.id} disabled={Boolean(cardingKey)} onclick={() => void card(item)}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanCard" /></svg>{t(i18n, "flashcard.make")}</button>{/if}
                 </div>
             </article>
         {/each}

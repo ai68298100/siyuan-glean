@@ -1,9 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-    cleanHighlightText, escapeHighlightText, filterHighlights, highlightBlockLink, highlightFacets, highlightMarker,
-    pageHighlights, renderHighlightsCsv, renderHighlightsMarkdown, retainHighlightSelection, safeHighlightCsvCell,
-    selectHighlights, type HighlightItem,
+    cleanHighlightText, escapeHighlightText, filterHighlights, formatHighlightShare, formatHighlightTime,
+    highlightBlockLink, highlightFacets, highlightMarker, pageHighlights, renderHighlightsCsv, renderHighlightsMarkdown,
+    retainHighlightSelection, safeHighlightCsvCell, selectHighlights, type HighlightItem,
 } from "../src/domain/highlights.ts";
 
 const rootId = "20261004100000-aaaaaaa";
@@ -96,4 +96,34 @@ test("CSV 每个字段防公式注入，保留引号、逗号、多行与独立�
     assert.ok(csv.includes('"两行\n第二行,""引用"""'));
     assert.ok(csv.endsWith("\r\n"));
     assert.ok(csv.includes(`siyuan://blocks/${item(1).id}`));
+});
+
+test("formatHighlightShare：格式化单条引述、来源与确切块链接（T-1803）", () => {
+    const single = item(1, {
+        id: "20261019153000-block01",
+        title: "设计之美",
+        site: "design.test",
+        text: ["设计不仅是外观，更是事物运作的方式。", "细节决定成败。"].join(String.fromCharCode(10)),
+    });
+
+    const share = formatHighlightShare(single);
+    assert.ok(share.includes("> 设计不仅是外观，更是事物运作的方式。"));
+    assert.ok(share.includes("> 细节决定成败。"));
+    assert.ok(share.includes("> —— 设计之美（design.test）"));
+    assert.ok(share.includes("> siyuan://blocks/20261019153000-block01"));
+
+    const noSite = item(2, {
+        id: "20261019153000-block02",
+        title: "无站点文章",
+        site: "",
+        text: "简单至上",
+    });
+    assert.ok(formatHighlightShare(noSite).includes("> —— 无站点文章"));
+});
+
+test("formatHighlightTime：从思源块 ID 解析时间线索（T-1753）", () => {
+    assert.equal(formatHighlightTime("20261019153000-abcdefg"), "2026-10-19 15:30");
+    assert.equal(formatHighlightTime("20250101090500-1234567"), "2025-01-01 09:05");
+    assert.equal(formatHighlightTime("invalid-id"), "");
+    assert.equal(formatHighlightTime(""), "");
 });

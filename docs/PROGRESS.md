@@ -1,5 +1,12 @@
 # 进度（PROGRESS）
 
+## T-3371 摘录卡片支持一键复制格式化引用与块时间线索展示（2026-10-19）
+
+- [x] 纯函数格式化：`src/domain/highlights.ts` 新增 `formatHighlightShare` 纯函数，按 Markdown 标准（多行引述逐行 `>` 前缀、`> —— 标题（站点）` 与 `> siyuan://blocks/块ID`）输出格式化引用，并新增 `formatHighlightTime` 解析块时间。
+- [x] 摘录墙（`HighlightView.svelte`）卡片增设“复制引用”操作按钮，调用浏览器剪贴板 API 并提供即时反馈（`highlight.shareCopied`），元数据区展示块创建时间线索（如 `YYYY-MM-DD HH:mm`）。
+- [x] 双语文案与单测完备：新增 `highlight.copyShare`、`highlight.shareCopied`、`highlight.clipboardUnavailable` 键；新增 `tests/highlights.test.ts` 单测（10/10）。
+- [x] 全量门禁闭环：定向与全量测试（1526/1526）、`tsc --noEmit`、`svelte-check`（0 错误 0 警告）、生产构建（package.zip 434114B）、发布包检查与任务账本全部通过；真实宿主视觉与复制仍归 B-0002。
+
 ## T-3370 读库检索纳入文章摘要与匹配原因，统一摘录跳转路由（2026-10-19）
 
 - [x] 检索支持摘要与匹配原因：`LibraryItem` 增加 `summary` 字段，`searchableText` 纳入摘要实现全文摘要检索；新增 `matchLibraryReason` 纯函数按“标题 → 摘要 → 标签 → AI标签 → 作者 → 站点”提供结构化命中判定。

@@ -1236,5 +1236,7 @@
   "library.match.author": "作者: ${author}",
   "library.match.tag": "标签: ${tag}",
   "library.match.aiTag": "AI标签: ${tag}",
-  "library.match.site": "站点: ${site}"
+  "library.match.site": "站点: ${site}",
+  "highlight.shareCopied": "已复制格式化引用",
+  "highlight.clipboardUnavailable": "无法访问系统剪贴板"
 }

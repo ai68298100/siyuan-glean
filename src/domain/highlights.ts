@@ -132,3 +132,37 @@ export function renderHighlightsCsv(items: readonly HighlightItem[]): string {
     const rows = items.map((item) => [item.id, item.rootId, item.title, item.text, item.site, item.tags.join(", "), item.aiTags.join(", "), item.url, highlightBlockLink(item.id)]);
     return [headers, ...rows].map((row) => row.map(safeHighlightCsvCell).join(",")).join("\r\n") + "\r\n";
 }
+
+/**
+ * 格式化单条摘录分享卡（T-1803）：
+ * - 引述纯文本前缀 `> `；
+ * - 来源行前缀 `> —— `，注明标题与站点；
+ * - 思源确切引述块链接 `> siyuan://blocks/${item.id}`。
+ */
+export function formatHighlightShare(item: HighlightItem): string {
+    const title = item.title || "未命名文档";
+    const source = item.site ? (title + "（" + item.site + "）") : title;
+    const quoteLines = item.text.split(String.fromCharCode(10))
+        .map((line) => line.replaceAll(String.fromCharCode(13), "").trim())
+        .filter(Boolean)
+        .map((line) => "> " + line);
+    return [
+        ...(quoteLines.length ? quoteLines : ["> " + item.text.trim()]),
+        "> —— " + source,
+        "> " + highlightBlockLink(item.id),
+    ].join(String.fromCharCode(10));
+}
+
+/**
+ * 从思源块 ID（YYYYMMDDHHmmss-xxxxxxx）解析时间线索（T-1753）。
+ * 非法 ID 返回空串。
+ */
+export function formatHighlightTime(blockId: string): string {
+    if (!isHighlightId(blockId)) return "";
+    const y = blockId.slice(0, 4);
+    const m = blockId.slice(4, 6);
+    const d = blockId.slice(6, 8);
+    const hh = blockId.slice(8, 10);
+    const mm = blockId.slice(10, 12);
+    return y + "-" + m + "-" + d + " " + hh + ":" + mm;
+}
