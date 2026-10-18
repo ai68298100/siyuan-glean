@@ -3,7 +3,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
-    buildFlashcardDom, buildQuoteCard, buildQuestionCardPrompt, escapeDomText, parseQuestionCard, validateFlashcard,
+    buildFlashcardDom, buildQuoteCard, buildQuestionCardPrompt, countFlashcardCharacters, escapeDomText, parseQuestionCard, validateFlashcard,
     FLASHCARD_AI_QUOTE_LIMIT, FLASHCARD_AI_TITLE_LIMIT, FLASHCARD_BACK_LIMIT, FLASHCARD_FRONT_LIMIT,
 } from "../src/domain/flashcard.ts";
 
@@ -90,4 +90,13 @@ test("长 emoji 引文不拆分代理对", () => {
     const card = buildQuoteCard("测试", "😀".repeat(61));
     assert.match(card.front, /😀…/u);
     assert.equal(card.front.isWellFormed(), true);
+});
+
+test("countFlashcardCharacters：按 Unicode 码点准确统计字符数，避免代理对偏差（T-3243 / T-3389）", () => {
+    assert.equal(countFlashcardCharacters("Hello World"), 11);
+    assert.equal(countFlashcardCharacters("你好世界"), 4);
+    // 带有代理对的表情符号：长度为 1 个 Unicode 字符，而不是 UTF-16 伪长 2
+    assert.equal(countFlashcardCharacters("😀"), 1);
+    assert.equal(countFlashcardCharacters("卡片😀✨"), 4);
+    assert.equal(countFlashcardCharacters(""), 0);
 });

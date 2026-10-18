@@ -90,6 +90,8 @@
     }
 </script>
 
+<svelte:window onkeydown={(e) => { if (e.key === "Escape" && !busy) onClose?.(); }} />
+
 <div class="glean-flashcard" aria-labelledby="glean-flashcard-title" aria-describedby="glean-flashcard-desc" aria-busy={busy}>
     <header class="glean-flashcard__head">
         <div>
@@ -111,11 +113,11 @@
     <div class="glean-flashcard__sides">
         <label>
             <span>{t(i18n, "flashcard.front")} ({[...front].length}/{FLASHCARD_FRONT_LIMIT})</span>
-            <textarea class="b3-text-field" bind:value={front} disabled={busy || locked} rows="7" aria-invalid={validation === "emptyFront" || validation === "frontTooLong"} aria-describedby={validation && !locked ? "glean-flashcard-error" : undefined}></textarea>
+            <textarea class="b3-text-field" bind:value={front} disabled={busy || locked} rows="7" aria-invalid={validation === "emptyFront" || validation === "frontTooLong"} aria-describedby={validation && !locked ? "glean-flashcard-error" : undefined} onkeydown={(e) => { if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); void confirm(); } }}></textarea>
         </label>
         <label>
             <span>{t(i18n, "flashcard.back")} ({[...back].length}/{FLASHCARD_BACK_LIMIT})</span>
-            <textarea class="b3-text-field" bind:value={back} disabled={busy || locked} rows="10" aria-invalid={validation === "emptyBack" || validation === "backTooLong"} aria-describedby={validation && !locked ? "glean-flashcard-error" : undefined}></textarea>
+            <textarea class="b3-text-field" bind:value={back} disabled={busy || locked} rows="10" aria-invalid={validation === "emptyBack" || validation === "backTooLong"} aria-describedby={validation && !locked ? "glean-flashcard-error" : undefined} onkeydown={(e) => { if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); void confirm(); } }}></textarea>
         </label>
     </div>
     {#if validation && !locked}

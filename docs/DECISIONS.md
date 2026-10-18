@@ -1395,3 +1395,11 @@ T-3388 承接 T-1500 与 D-0250 统一阅读路由纪律：
 1. 统一导航门面：`InboxSection.svelte` 中三处查看已有文章（`inbox.openExisting`：包括云端删除失败已建文档、待收录文档、URL冲突已有文档）由裸调思源 `openTab` 重构为统一调用 `facade.openReadingDocument(docId)`，完整融入会话最近阅读记录、桌面内嵌阅读页签偏好及移动端原生回退。
 2. 条目资格纯函数：在 `src/domain/inbox-recovery.ts` 增加 `isShorthandActionable` 纯函数，识别条目是否处于可迁入/可移除/未知恢复受阻状态，保证状态判定逻辑可单测。
 3. 严格数据主权：纯客户端 UI 交互路由重构，不修改思源文章属性、端点或持久化存储。
+
+
+## D-0269（2026-10-19）制卡弹窗键盘快捷提交与字符计数纯函数（承接 T-1792/T-3243）
+
+T-3389 承接 T-1792 与 T-3243 摘录制卡交互可用性收口：
+1. 字符计数纯函数：在 `src/domain/flashcard.ts` 增加 `countFlashcardCharacters` 纯函数，按 Unicode 字符码点统计正背面字数，避免代理对等非 ASCII 字符计数漂移。
+2. 键盘完全可达：在 `FlashcardDialog.svelte` 接入 `<svelte:window>` 的 Escape 快捷取消关闭，并在正背面输入框支持 `Ctrl+Enter` / `Cmd+Enter` 快捷确认制卡。
+3. 严格数据主权：纯前端键盘交互与字符校验，不改变 riff 制卡端点、不增加文章属性、端点或持久化存储。

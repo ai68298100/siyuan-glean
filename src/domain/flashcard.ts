@@ -95,3 +95,10 @@ export function buildFlashcardDom(front: string, back: string, listItemId?: stri
         + `</div></div></div></div>`
     );
 }
+
+/**
+ * 统计卡面字符数（按 Unicode 码点计算，避免表情符号代理对偏差）（T-3243 / T-3389）。
+ */
+export function countFlashcardCharacters(text: string): number {
+    return [...(text || "")].length;
+}
