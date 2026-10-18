@@ -326,15 +326,20 @@ test("library cards and rows expose today pin through the shared resurface servi
     assert.match(source, /resurface\.unpinToday/);
 });
 
-test("workbench list and kanban expose the shared batch selection surface", () => {
+test("list, kanban and dock share one batch footer outside their layout branches", () => {
     const source = read("src/ui/DockPanel.svelte");
     const additions = read("design/prototype-v2-additions.html");
+    const styles = read("src/index.scss");
     assert.match(source, /import LibraryBatchBar from "\.\/LibraryBatchBar\.svelte"/);
-    assert.equal((source.match(/<LibraryBatchBar/g) ?? []).length, 3);
+    assert.equal((source.match(/<LibraryBatchBar/g) ?? []).length, 1);
+    assert.match(source, /\{\/if\}\s*<LibraryBatchBar[\s\S]*?\{\.\.\.selectionScope\}[\s\S]*?\/>\s*\{:else if view === "resurface"\}/);
     assert.match(source, /class="glean-kcard__select"/);
     assert.match(source, /class="glean-drow__select"/);
-    assert.match(source, /class:glean-kanban--batch={selection\.size > 0}/);
-    assert.match(source, /class:glean-lib__main--batch={selection\.size > 0}/);
+    assert.doesNotMatch(source, /class:glean-(?:kanban|lib__main|list)--batch/);
+    const batchRules = styles.match(/\.glean-batchbar\s*\{[^}]*\}/g) ?? [];
+    assert.ok(batchRules.length > 0);
+    for (const rule of batchRules) assert.doesNotMatch(rule, /position:\s*(?:fixed|absolute)/);
+    assert.doesNotMatch(styles, /\.glean-(?:kanban|lib__main|list)--batch\s*\{/);
     assert.match(additions, /列表 \/ 看板、预览侧栏和批量操作保持同一上下文/);
     assert.match(additions, /data-action="batch-start"/);
     assert.match(additions, /data-action="batch-failed"/);

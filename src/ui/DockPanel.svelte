@@ -18,6 +18,7 @@ import HighlightView from "./HighlightView.svelte";
 import LibraryRailGroup from "./LibraryRailGroup.svelte";
 import WorkbenchPreview from "./WorkbenchPreview.svelte";
 import LibraryBatchBar from "./LibraryBatchBar.svelte";
+import { librarySelectionScope, addDisplayedSelection, retainFilteredSelection } from "../domain/library-selection";
 import LibraryFilters from "./LibraryFilters.svelte";
 import ActionPopover from "./ActionPopover.svelte";
 import AuthorEditor from "./AuthorEditor.svelte";
@@ -128,6 +129,8 @@ type MobileFilterBackgroundState = {
 };
 let mobileFilterBackgroundState: MobileFilterBackgroundState | null = null;
 let selection = $state<ReadonlySet<string>>(new Set());
+/** IDs added again while a batch write is in flight remain selected after the result lands. */
+let batchAddedDuringRun = new Set<string>();
 let batchBusy = $state(false);
 let aiBatchOpen = $state(false);
 let aiBatchIds = $state<string[]>([]);
@@ -791,6 +794,43 @@ const renderedKanbanCount = $derived(visibleKanbanCols.reduce((total, column) =>
 const totalKanbanCount = $derived(kanbanCols.reduce((total, column) => total + column.items.length, 0));
 const hasMoreKanban = $derived(renderedKanbanCount < totalKanbanCount);
 
+const filteredSelectionIds = $derived(isTabCanvas && layoutMode === "kanban"
+    ? kanbanCols.flatMap((column) => column.items.map((entry) => entry.id))
+    : rows.filter((entry) => entry.kind === "clip").map((entry) => entry.id));
+const displayedSelectionIds = $derived(isTabCanvas && layoutMode === "kanban"
+    ? visibleKanbanCols.flatMap((column) => column.items.map((entry) => entry.id))
+    : visibleRows.filter((entry) => entry.kind === "clip").map((entry) => entry.id));
+const selectionScope = $derived(librarySelectionScope(selection, filteredSelectionIds, displayedSelectionIds));
+
+function selectDisplayedArticles(): void {
+    if (batchBusy) return;
+    selection = addDisplayedSelection(selection, displayedSelectionIds);
+}
+
+function keepFilteredArticles(origin: Element | null = document.activeElement): void {
+    if (batchBusy) return;
+    selection = retainFilteredSelection(selection, filteredSelectionIds);
+    void tick().then(() => {
+        if (!disposed && rootEl?.getClientRects().length && canRestoreLibraryFocus(origin)) searchInput?.focus();
+    });
+}
+
+function clearSelection(): void {
+    if (batchBusy) return;
+    const origin = document.activeElement;
+    selection = new Set();
+    void tick().then(() => {
+        if (!disposed && rootEl?.getClientRects().length && canRestoreLibraryFocus(origin)) searchInput?.focus();
+    });
+}
+
+function openSelectedAi(): void {
+    if (batchBusy || selection.size === 0) return;
+    aiBatchIds = [...selection];
+    aiBatchOpen = true;
+}
+
+
 async function moveTo(entry: ClipIndexEntry, status: ClipStatus) {
     if (entry.status === status) return;
     dragId = "";
@@ -1381,27 +1421,35 @@ async function startReading(entry: ClipIndexEntry) {
 function toggleSelect(id: string, event: Event) {
     event.stopPropagation();
     const next = new Set(selection);
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
+    if (next.has(id)) {
+        next.delete(id);
+        if (batchBusy) batchAddedDuringRun.delete(id);
+    } else {
+        next.add(id);
+        if (batchBusy) batchAddedDuringRun.add(id);
+    }
     selection = next;
 }
 
 async function batchApply(status: ClipStatus) {
     if (batchBusy || selection.size === 0) return;
+    batchAddedDuringRun.clear();
     batchBusy = true;
     try {
         await applySelectedStatus(status);
     } finally {
         batchBusy = false;
+        batchAddedDuringRun.clear();
     }
 }
 
 async function applySelectedStatus(status: ClipStatus) {
     if (selection.size === 0) return;
-    const total = selection.size;
+    const ids = [...selection];
+    const total = ids.length;
     let result: StatusWriteResult;
     try {
-        result = await batchSetStatusDetailed(facade.pluginInstance, [...selection], status);
+        result = await batchSetStatusDetailed(facade.pluginInstance, ids, status);
         if (result.ok > 0) facade.notifyDataChanged();
         await reload();
     } catch (error) {
@@ -1430,7 +1478,7 @@ async function applySelectedStatus(status: ClipStatus) {
         4500,
     );
     const succeeded = new Set(result.succeeded);
-    selection = new Set([...selection].filter((id) => !succeeded.has(id)));
+    selection = new Set([...selection].filter((id) => !succeeded.has(id) || batchAddedDuringRun.has(id)));
 }
 
 function openDoc(docId: string) {
@@ -2266,7 +2314,7 @@ function metaLine(entry: Row): string {
                 <span>{t(i18n, "panel.loading")}</span>
             </div>
         {:else if isTabCanvas && layoutMode === "kanban"}
-            <div class="glean-kanban" class:glean-kanban--batch={selection.size > 0}>
+            <div class="glean-kanban">
                 {#each visibleKanbanCols as col (col.status)}
                     <div
                         class="glean-kcol"
@@ -2338,14 +2386,6 @@ function metaLine(entry: Row): string {
                         {/each}
                     </div>
                 {/each}
-                <LibraryBatchBar
-                    {i18n}
-                    selectedCount={selection.size}
-                    busy={batchBusy}
-                    onApply={(status) => void batchApply(status)}
-                    onOpenAi={() => { aiBatchIds = [...selection]; aiBatchOpen = true; }}
-                    onClear={() => (selection = new Set())}
-                />
             </div>
             {#if hasMoreKanban}
                 <div class="glean-list-more" role="status">
@@ -2370,7 +2410,7 @@ function metaLine(entry: Row): string {
                         <LibraryRailGroup plugin={facade.pluginInstance} {i18n} group="aiTags" label={`✨ ${t(i18n, "rail.aiTags")}`} hint={t(i18n, "library.filterAiTagHint")} prefix="✨" items={railStats.aiTags} selected={selectedAiTag} onSelect={(value) => { markPrefsInteraction(); selectedAiTag = selectedAiTag.toLocaleLowerCase() === value.toLocaleLowerCase() ? "" : value; }} />
                     {/if}
                 </aside>
-                <div class="glean-lib__main" class:glean-lib__main--batch={selection.size > 0}>
+                <div class="glean-lib__main">
                     {#if rows.length === 0}
                         <div class="glean-empty" role="status">
                             <div class="glean-empty__art"><svg aria-hidden="true"><use href="#iconGleanWheat" /></svg></div>
@@ -2496,14 +2536,6 @@ function metaLine(entry: Row): string {
                             </div>
                         {/if}
                     {/if}
-                    <LibraryBatchBar
-                        {i18n}
-                        selectedCount={selection.size}
-                        busy={batchBusy}
-                        onApply={(status) => void batchApply(status)}
-                        onOpenAi={() => { aiBatchIds = [...selection]; aiBatchOpen = true; }}
-                        onClear={() => (selection = new Set())}
-                    />
                 </div>
                 {#if previewEntry && !facade.isMobile}
                     <input type="range" class="glean-preview-separator" min="25" max="65" step="1" value={Math.round(previewRatio * 100)} aria-label={t(i18n, "preview.resize")} oninput={(event) => { previewRatio = normalizePreviewRatio(Number(event.currentTarget.value) / 100); void savePreviewPrefs({ workbenchPreviewRatio: previewRatio }); }} onpointerdown={startPreviewResize} onpointermove={resizePreview} onpointerup={(event) => finishPreviewResize(event)} onpointercancel={(event) => finishPreviewResize(event, true)} onlostpointercapture={(event) => finishPreviewResize(event)} onkeydown={previewResizeKey} />
@@ -2681,15 +2713,17 @@ function metaLine(entry: Row): string {
                 </div>
             {/if}
 
-            <LibraryBatchBar
-                {i18n}
-                selectedCount={selection.size}
-                busy={batchBusy}
-                onApply={(status) => void batchApply(status)}
-                onOpenAi={() => { aiBatchIds = [...selection]; aiBatchOpen = true; }}
-                onClear={() => (selection = new Set())}
-            />
         {/if}
+        <LibraryBatchBar
+            {i18n}
+            {...selectionScope}
+            busy={batchBusy}
+            onApply={(status) => void batchApply(status)}
+            onOpenAi={openSelectedAi}
+            onSelectDisplayed={selectDisplayedArticles}
+            onKeepFiltered={keepFilteredArticles}
+            onClear={clearSelection}
+        />
     {:else if view === "resurface"}
         <ResurfaceView
             {facade}

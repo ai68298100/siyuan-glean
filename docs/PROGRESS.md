@@ -1,5 +1,14 @@
 # 进度（PROGRESS）
 
+## T-3367 批量选择范围与底部操作可达性（2026-10-18）
+
+- [x] 新增 `src/domain/library-selection.ts`，锁定会话选择集合、完整筛选结果与当前挂载窗口的投影语义；候选不会被“选择已显示”纳入，看板按所有匹配状态列计算，筛选/队列/排序/布局/挂载窗口变化不裁剪选择。
+- [x] 工作台列表、看板和 Dock 共用一个正常流 `LibraryBatchBar`；显示总数与筛选外数量，提供显式“仅保留当前筛选”“选择已显示”“清空选择”，批量执行冻结 ID 快照并仅移除真实成功项。双语文案、canonical 原型和 D-0247/DATA-CONTRACT 已同步。
+- [x] 定向 `node --test tests/library-selection.test.ts tests/library-selection-prototype.test.ts tests/header-actions.test.ts tests/i18n.test.ts` **51/51**；`pnpm check` 0 错误/0 警告。测试已登记至 `package.json`。
+- [x] 稳定工作树后完整 `pnpm test` **1517/1517** 通过，包含任务账本与新增批量回归；测试运行期间不得并行修改源码/测试文件。
+- [x] `pnpm build`、`pnpm check:release`（432186B）、`pnpm perf:check`、`pnpm visual:check`、`pnpm task:ledger -- --check` 与 `git diff --check` 通过；Chrome 原型点验宽/窄 Dock、筛选外提示、显式保留和清空，窄布局批量区 `738px` 宽、`142px` 高且无横溢出。
+- [ ] 原工作区、触控、系统读屏及真实视觉矩阵继续归 B-0002；原型和隔离测试不替代真实宿主验收，视觉登记仍为 24 项待真实宿主。
+
 ## T-3366 工作台返回与正文/预览生命周期（2026-10-18）
 
 - [x] 以 SDK 返回的确切 `tab.id` 路由一次性文章定位请求；逆序请求、关闭/卸载、隐藏工作台、Dock 与浮窗均受保护，当前失败沿用既有反馈。

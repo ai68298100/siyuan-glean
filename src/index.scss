@@ -3162,26 +3162,46 @@ body.b3-theme-dark {
     color: var(--b3-theme-on-surface);
 }
 
-/* ============ 批量操作条（浮动玻璃） ============ */
+/* ============ 批量操作区：正常流占位，长文案按实际可用宽度换行 ============ */
 
 .glean-batchbar {
-    position: absolute;
-    left: 16px;
-    right: 16px;
-    bottom: 14px;
+    flex: 0 0 auto;
+    min-width: 0;
+    max-height: min(35%, 240px);
+    box-sizing: border-box;
+    margin: var(--glean-space-2) var(--glean-space-4) var(--glean-space-3-5);
     padding: var(--glean-space-2) var(--glean-space-2-5) var(--glean-space-2) var(--glean-space-3-5);
     border-radius: var(--glean-radius-18);
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: var(--glean-space-2);
-    background: var(--glean-glass);
-    border: 1px solid var(--glean-glass-border);
-    backdrop-filter: blur(20px) saturate(1.5);
-    -webkit-backdrop-filter: blur(20px) saturate(1.5);
-    box-shadow: var(--glean-shadow-float);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    background: var(--b3-theme-surface);
+    border: 1px solid var(--b3-border-color);
     font-size: var(--glean-text-xs-plus);
-    z-index: var(--glean-z-overlay);
-    animation: glean-rise var(--glean-duration-enter) var(--glean-ease-spring);
+    animation: var(--glean-motion-none);
+}
+
+.glean-batchbar__summary {
+    flex: 1 1 100%;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--glean-space-1);
+    overflow-wrap: anywhere;
+}
+
+.glean-batchbar__summary:focus-visible {
+    outline: 2px solid var(--b3-theme-primary);
+    outline-offset: 2px;
+}
+
+.glean-batchbar__hidden {
+    color: var(--b3-theme-on-surface);
+    font-size: var(--glean-text-xs);
 }
 
 .glean-list-more {
@@ -3199,40 +3219,22 @@ body.b3-theme-dark {
     min-height: 32px;
 }
 
+.glean-batchbar__scope,
 .glean-batchbar__ops {
-    margin-left: auto;
+    flex: 1 1 260px;
+    min-width: 0;
     display: flex;
-    gap: var(--glean-space-1);
-}
-
-@container glean-content (max-width: 720px) {
-    .glean-batchbar {
-        min-width: 0;
-        flex-wrap: wrap;
-        align-items: stretch;
-    }
-
-    .glean-batchbar__ops {
-        width: 100%;
-        min-width: 0;
-        margin-left: var(--glean-space-0);
-        flex-wrap: wrap;
-    }
-
-    .glean-batchbar__ops .glean-bb {
-        flex: 1 1 100px;
-        min-width: 0;
-        max-width: 100%;
-        white-space: normal;
-        overflow-wrap: anywhere;
-    }
-
-    .glean-batchbar__ops .glean-bb:last-child {
-        flex: 0 0 auto;
-    }
+    flex-wrap: wrap;
+    gap: var(--glean-space-1-5);
 }
 
 .glean-bb {
+    flex: 1 1 96px;
+    min-width: 0;
+    max-width: 100%;
+    min-height: 44px;
+    white-space: normal;
+    overflow-wrap: anywhere;
     border: none;
     font-size: var(--glean-text-xs);
     padding: var(--glean-space-1-25) var(--glean-space-2-5);
@@ -3241,6 +3243,16 @@ body.b3-theme-dark {
     background: color-mix(in srgb, var(--b3-theme-on-surface) 12%, transparent);
     color: var(--b3-theme-on-background);
     transition: all var(--glean-duration-base);
+
+    &:focus-visible {
+        outline: 2px solid var(--b3-theme-primary);
+        outline-offset: 2px;
+    }
+
+    &:disabled {
+        opacity: .48;
+        cursor: default;
+    }
 
     &:hover {
         background: var(--b3-theme-background-light);
@@ -3843,33 +3855,18 @@ body.b3-theme-dark {
         box-sizing: border-box;
     }
 
-    /* 批量操作条会悬浮在移动底栏之上，操作按钮保持触控命中区并允许横向换行。 */
+    /* 移动 shell 已为底栏/键盘预留空间；批量区随正常流占位，仅补两侧安全区。 */
     .glean-panel--mobile .glean-batchbar {
-        left: calc(10px + var(--glean-safe-left, 0px));
-        right: calc(10px + var(--glean-safe-right, 0px));
-        bottom: calc(var(--glean-mobile-nav-space) + 8px);
-        flex-wrap: wrap;
+        margin-left: calc(10px + var(--glean-safe-left, 0px));
+        margin-right: calc(10px + var(--glean-safe-right, 0px));
         align-items: stretch;
         gap: var(--glean-space-1-5);
         padding: var(--glean-space-2);
     }
 
-    .glean-panel--mobile .glean-batchbar__ops {
-        width: 100%;
-        margin-left: var(--glean-space-0);
-        flex-wrap: wrap;
-        gap: var(--glean-space-1-25);
-    }
-
     .glean-panel--mobile .glean-bb {
         min-height: 44px;
-        flex: 1 1 auto;
         padding-inline: var(--glean-space-2-5);
-    }
-
-    .glean-panel--mobile .glean-bb:last-child {
-        flex: 0 0 44px;
-        padding-inline: var(--glean-space-0);
     }
 
     .glean-btn,
@@ -9831,14 +9828,14 @@ body.b3-theme-dark .glean-panel--mobile,
 .glean-batchbar__ops { gap: var(--glean-space-1); }
 
 .glean-bb {
-    min-height: 30px;
+    min-height: 44px;
     border: 1px solid transparent;
     font-size: var(--glean-text-xs);
-    transition: background-color var(--glean-duration-fast) var(--glean-ease-out), border-color var(--glean-duration-fast) var(--glean-ease-out), color var(--glean-duration-fast) var(--glean-ease-out), transform var(--glean-duration-fast) var(--glean-ease-out);
+    transition: background-color var(--glean-duration-fast) var(--glean-ease-out), border-color var(--glean-duration-fast) var(--glean-ease-out), color var(--glean-duration-fast) var(--glean-ease-out);
 }
 
-.glean-bb:hover:not(:disabled) { transform: translateY(-1px); }
-.glean-bb:active:not(:disabled) { transform: translateY(1px) scale(.985); }
+.glean-bb:hover:not(:disabled),
+.glean-bb:active:not(:disabled) { transform: none; }
 
 .glean-bb.glean-bb--ai {
     border-color: var(--glean-border-soft);
@@ -10668,18 +10665,10 @@ body.b3-theme-dark .glean-panel--mobile,
     }
 }
 
-/* 工作台批量选择：列表与看板保持同一可发现的选择入口，并为浮动批量条预留内容空间。 */
+/* 工作台批量选择：操作区统一放在滚动布局之后，无需固定高度补偿。 */
 .glean-lib__main,
 .glean-kanban {
     position: relative;
-}
-
-.glean-lib__main--batch {
-    padding-bottom: var(--glean-space-22);
-}
-
-.glean-kanban--batch {
-    padding-bottom: var(--glean-space-19);
 }
 
 .glean-drow__select,

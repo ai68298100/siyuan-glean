@@ -23,7 +23,7 @@
 | --- | --- | --- | --- |
 | `LibraryFilters.svelte` | 队列、站点、作者、用户标签、AI 标签、来源、时间来源、载体和排序；`facets`、双向筛选字段、可选 `tagAliases`/管理回调、清除与标签格式化回调。 | 空闲、已应用筛选 chip、无匹配结果；标签别名只改选项显示，筛选值与 chip 仍为原标签；筛选不写属性。 | 原生 select/popover 可键盘操作；排序方向名称含当前升序/降序；窄容器使用可横滚 chips 和顶层 popover。别名管理由 DockPanel 提供对话框，保存失败保留表单，删除需二次点击确认。 |
 | `LibraryRailGroup.svelte` | 桌面 rail 分组；`group`、`items`、`selected`、`onSelect`，可选前缀、提示、标签和状态点回调。 | 有数据、无匹配项（明确“没有匹配”）；选择后由父级刷新。 | 每项为可聚焦按钮；rail 仅宽桌面显示，移动端改用筛选入口。 |
-| `LibraryBatchBar.svelte` | 已选文章的批量状态、AI 批量入口和清除选择；`selectedCount`、`busy`、`onApply`、`onOpenAi`、`onClear`。 | 空闲、执行中禁用重复提交、成功后由父级刷新、失败由父级提示。 | 操作按钮可键盘触发；移动端仍提供可见操作，不依赖拖放。 |
+| `LibraryBatchBar.svelte` | 列表/看板内容之后的正常流批量操作区；`selectedCount`、`hiddenCount`、`displayedCount`、`displayedSelectedCount`、`busy`，以及 `onApply`、`onOpenAi`、`onSelectDisplayed`、`onKeepFiltered`、`onClear`。 | 有选择时播报总数与当前筛选内数量；筛选外选择给出继续参与提示；执行中禁用重复提交；范围调整、状态/归档/AI 批量动作成功后由父级刷新，失败由父级提示并保留可重试选择。 | 操作区按可用宽度换行，短画布允许内部滚动；按钮可键盘触发并保持触控热区，清空/范围操作在组件卸载后按焦点归属安全回焦，不依赖拖放。 |
 | `ActionPopover.svelte` | 通用低频操作浮层；`label`、`children`、可选 `compact`。 | 打开/关闭；子内容负责加载和错误。 | 使用原生 popover；Esc 关闭并把焦点还给触发按钮，外部聚焦时关闭，定位避免被滚动容器裁切。 |
 | `WorkbenchPreview.svelte` | 读库条目预览与处理；`entry`、关闭/刷新/处理完成回调。 | 属性读取中、读取失败可重试；候选确认/补 URL/本地收录/排除、状态写入、导出和编辑均有忙碌锁及失败提示。 | 标题和动作是按钮；移动端预览为可关闭 sheet，保持筛选上下文。 |
 | `ClipStatusActions.svelte` | 跨 Dock、行表、看板和阅读页签的五态动作；`status`、`onStartReading`、`onSetStatus`，可选归档/恢复回调、`showDone`、`disabled`。 | 空闲、单动作 pending 锁定、成功由父级刷新、失败由父级反馈。 | 状态语义一致；开始阅读先写 `reading` 再打开，打开标题不改变状态。 |

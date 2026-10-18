@@ -130,7 +130,7 @@ test("后台对账保留列表和收集箱 DOM，部分成功只移除成功选�
     assert.match(dock, /createRefreshQueue/);
     assert.match(dock, /\{#if loading && !index\.updatedAt\}/);
     assert.doesNotMatch(dock, /\{#if view === "library" && !loading\}/);
-    assert.match(dock, /selection = new Set\(\[\.\.\.selection\]\.filter\(\(id\) => !succeeded\.has\(id\)\)\)/);
+    assert.match(dock, /selection = new Set\(\[\.\.\.selection\]\.filter\(\(id\) => !succeeded\.has\(id\) \|\| batchAddedDuringRun\.has\(id\)\)\)/);
     assert.match(dock, /if \(batchBusy \|\| selection\.size === 0\) return/);
     assert.match(batchBar, /disabled=\{busy\}/);
 });
