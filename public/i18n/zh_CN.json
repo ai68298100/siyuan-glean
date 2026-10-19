@@ -1269,6 +1269,11 @@
   "library.keyboardSelect": "选择",
   "library.keyboardExit": "退出",
   "library.keyboardCursor": "键盘光标：${title}",
+  "library.smartPresets": "智能预设",
+  "library.smartPresetQuickReads": "短文速读",
+  "library.smartPresetDeepReads": "深度长文",
+  "library.smartPresetStarred": "星标收藏",
+  "library.smartPresetWaitingTriage": "最久待办",
   "review.filterDay": "已筛选 ${date} 完成的文章",
   "review.clearDayFilter": "查看全部完成文章"
 }

@@ -40,7 +40,7 @@ import { installMobileViewportVars } from "../libs/mobile-viewport";
 import { installEscapeHandler, installModalFocus } from "../libs/modal-focus";
 import { createRefreshQueue } from "../libs/refresh-queue";
 import { kernelErrorKind } from "../api/client";
-import { applySavedView, createSavedView, deleteSavedView, displayTagAlias, governanceCueMuted, localDateStamp, setDefaultSavedView, normalizeTagAliases, type GovernanceCueKey, type GovernanceMuted, type SavedView, type TagAlias } from "../domain/ui-prefs";
+import { applySavedView, createSavedView, deleteSavedView, displayTagAlias, governanceCueMuted, localDateStamp, setDefaultSavedView, normalizeTagAliases, SMART_VIEW_PRESETS, instantiateSmartViewPreset, type GovernanceCueKey, type GovernanceMuted, type SavedView, type TagAlias } from "../domain/ui-prefs";
 
 interface Props {
     facade: GleanFacade;
@@ -955,6 +955,7 @@ function currentSavedFilter() {
         src: selectedSource || undefined,
         timeSource: selectedTimeSource || undefined,
         contentType: selectedContentType || undefined,
+        readingTimeTier: selectedReadingTimeTier !== "all" ? selectedReadingTimeTier : undefined,
         keyword: keyword.trim() || undefined,
         sortBy,
         direction: sortDirection,
@@ -976,11 +977,30 @@ function applySavedViewState(id: string, source = savedViews): void {
     selectedSource = filter.src ?? "";
     selectedTimeSource = filter.timeSource ?? "";
     selectedContentType = filter.contentType ?? "";
+    selectedReadingTimeTier = filter.readingTimeTier ?? "all";
     keyword = filter.keyword ?? "";
     sortBy = filter.sortBy ?? "time";
     sortDirection = filter.direction ?? (sortBy === "title" ? "asc" : "desc");
     savedViewId = selected.id;
     applyingPrefs = false;
+}
+
+async function createSmartPresetView(presetKey: string): Promise<void> {
+    if (savedViews.length >= 20) return;
+    const preset = SMART_VIEW_PRESETS.find((p) => p.key === presetKey);
+    if (!preset) return;
+    const localizedName = t(i18n, preset.nameKey);
+    const created = instantiateSmartViewPreset(presetKey, savedViews, localizedName);
+    if (!created) {
+        showMessage(t(i18n, "library.viewNameDuplicate"), 3500);
+        return;
+    }
+    savedViews = [...savedViews, created];
+    savedViewId = created.id;
+    applySavedViewState(created.id, savedViews);
+    void upsertSavedViewPref(facade.pluginInstance, created).catch(() => {
+        showMessage(t(i18n, "settings.saveFailed"), 3000);
+    });
 }
 
 function saveCurrentView(): void {
@@ -2311,6 +2331,12 @@ function metaLine(entry: Row): string {
                 <button class="glean-btn" disabled={!savedViewName.trim() || savedViews.length >= 20} onclick={saveCurrentView}>{t(i18n, "library.savedViewSave")}</button>
                 <button class="glean-btn glean-btn--ghost" disabled={!savedViewId} onclick={makeDefaultSavedView}>{t(i18n, "library.savedViewDefault")}</button>
                 <button class="glean-btn glean-btn--ghost" disabled={!savedViewId} onclick={removeSavedView}>{t(i18n, "library.savedViewDelete")}</button>
+                <select class="b3-select glean-saved-views__smart" aria-label={t(i18n, "library.smartPresets")} value="" disabled={savedViews.length >= 20} onchange={(event) => { const key = (event.currentTarget as HTMLSelectElement).value; if (key) void createSmartPresetView(key); (event.currentTarget as HTMLSelectElement).value = ""; }}>
+                    <option value="" disabled selected>{t(i18n, "library.smartPresets")}</option>
+                    {#each SMART_VIEW_PRESETS as preset (preset.key)}
+                        <option value={preset.key}>+ {t(i18n, preset.nameKey)}</option>
+                    {/each}
+                </select>
             </div>
         {/if}
 

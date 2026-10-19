@@ -29,7 +29,7 @@
 
 - [◐] **T-3392**（P2，2026-10-19）读库全键盘操作流导航与快捷状态分拣（参考 Readwise Reader）：`domain/library-keyboard.ts` 新增 `resolveLibraryShortcut` 与 `moveLibraryCursor` 纯函数，仲裁 J/K、Enter、O、R、A、E、X、Esc，并让出 IME 组合、修饰键、Shift 组合、文本输入、按钮原生语义与浮层打开场景；`DockPanel.svelte` 在读库列表行/卡片与看板卡片接入键盘光标、行内快捷键提示条与 SR 播报，移动端不注册；纯会话状态与视图投影，不新增属性、端点或持久化。代码状态：完成；隔离验证：定向 `tests/library-keyboard.test.ts` 9/9、完整 `pnpm test` 1564/1564、`pnpm check` 0 错误/0 警告、`pnpm build`、`pnpm check:release`、`pnpm perf:check`、`pnpm visual:check` 与任务账本门禁通过；真实验收：待 B-0002 真实宿主键盘、读屏与窄 Dock；延后原因：真实宿主按键冲突与视觉矩阵仍归 B-0002。
 
-- [☐] **T-3393**（P2，2026-10-19）智能聚合视图与动态规则过滤器（参考 Cubox）：研究与实现多维度组合条件（如未读且短文）保存为一键快捷智能标签页，丰富读库个性化管理能力。代码状态：待办；隔离验证：待运行；真实验收：待 B-0002；延后原因：需先确定持久化存储格式与跨设备同步方案。
+- [◐] **T-3393**（P2，2026-10-19）智能聚合视图与动态规则过滤器（参考 Cubox）：`domain/ui-prefs.ts` 扩充 `SavedViewFilter` 纳入 `readingTimeTier` 与 `favoriteOnly`，`normalizeFilter` 补充时长分档与收藏合法性归一；新增 `SMART_VIEW_PRESETS`（短文速读、深度长文、星标收藏、最久待办）与 `instantiateSmartViewPreset` 纯函数，支持去重命名与 20 个视图容量约束；`DockPanel.svelte` 接线保存与恢复时长分档，并在保存视图栏提供智能预设一键创建；双语文案与单测完备，不改文章属性与端点。代码状态：完成；隔离验证：`tests/ui-prefs.test.ts` 8/8、完整 `pnpm test` 1566/1566、`pnpm check` 0 错误/0 警告、构建与发布包校验通过；真实验收：待 B-0002 真实多组合视图与跨设备同步；延后原因：真实宿主多视图观感与数据持久仍归 B-0002。
 
 - [◐] **T-3367**（P1，2026-10-18）批量选择范围与底部操作可达性：保留跨筛选选择，显示总数及筛选外数量，提供仅保留当前筛选、追加已显示文章和清空入口；三画布共用正常流批量条，避免窄屏换行遮挡内容。代码状态：实现完成，契约见 D-0247，不新增属性、端点或持久化；隔离验证：定向 51/51、完整 `pnpm test` 1517/1517、`pnpm check` 0 错误/0 警告、`pnpm build`、`pnpm check:release`、`pnpm perf:check`、`pnpm visual:check`、`pnpm task:ledger -- --check` 与 `git diff --check` 通过；Chrome 原型已点验宽/窄 Dock、筛选外提示、显式保留和清空，窄布局批量区 `738px` 宽、`142px` 高且无横溢出。真实验收：待 B-0002 原工作区、触控和系统读屏；延后原因：Chrome 原型与隔离样本不替代真实设备与视觉矩阵，视觉登记仍为 24 项待真实宿主。
 

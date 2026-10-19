@@ -1,7 +1,7 @@
 import { normalizeUiPrefs } from "../src/services/prefs.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
-import { applySavedView, createSavedView, deleteSavedView, normalizeReaderAppearance, normalizeSavedViews, normalizeTagAliases, displayTagAlias, setDefaultSavedView } from "../src/domain/ui-prefs.ts";
+import { applySavedView, createSavedView, deleteSavedView, normalizeReaderAppearance, normalizeSavedViews, normalizeTagAliases, displayTagAlias, setDefaultSavedView, SMART_VIEW_PRESETS, instantiateSmartViewPreset } from "../src/domain/ui-prefs.ts";
 
 test("ui prefs normalizes reader appearance and drops invalid saved views", () => {
     assert.deepEqual(normalizeReaderAppearance({ fontSize: "huge", theme: "eye" }), {
@@ -64,4 +64,62 @@ test("normalizeUiPrefs：归一化 speechRate 偏好与默认回退（T-3383）"
     assert.equal(normalizeUiPrefs({ speechRate: 0.1 }).speechRate, 0.75); // 下限钳制
     assert.equal(normalizeUiPrefs({}).speechRate, 1); // 缺省回退 1
     assert.equal(normalizeUiPrefs({ speechRate: "invalid" as any }).speechRate, 1); // 非法回退 1
+});
+
+test("saved views preserve readingTimeTier and favoriteOnly in filter (T-3393)", () => {
+    const views = normalizeSavedViews([
+        {
+            id: "view-quick",
+            name: "短文速读",
+            layout: "list",
+            filter: { status: "inbox", readingTimeTier: "short", favoriteOnly: true, sortBy: "time", direction: "desc" },
+        },
+        {
+            id: "view-invalid-tier",
+            name: "无效分档",
+            layout: "list",
+            filter: { readingTimeTier: "all", favoriteOnly: false },
+        },
+    ]);
+    assert.equal(views.length, 2);
+    assert.deepEqual(views[0].filter, {
+        status: "inbox",
+        readingTimeTier: "short",
+        favoriteOnly: true,
+        sortBy: "time",
+        direction: "desc",
+    });
+    // readingTimeTier="all" 和 favoriteOnly=false 被安全归一忽略
+    assert.deepEqual(views[1].filter, {});
+});
+
+test("smart view presets instantiate with unique names and respect capacity (T-3393)", () => {
+    assert.ok(SMART_VIEW_PRESETS.length >= 4);
+    const first = instantiateSmartViewPreset("quick-reads", [], undefined, "smart-1");
+    assert.ok(first);
+    assert.equal(first.name, "短文速读");
+    assert.equal(first.layout, "list");
+    assert.deepEqual(first.filter, {
+        status: "inbox",
+        readingTimeTier: "short",
+        sortBy: "time",
+        direction: "desc",
+    });
+
+    // 重名时自动追加序号
+    const second = instantiateSmartViewPreset("quick-reads", [first], undefined, "smart-2");
+    assert.ok(second);
+    assert.equal(second.name, "短文速读 2");
+
+    // 不存在的预设返回 null
+    assert.equal(instantiateSmartViewPreset("non-existent", []), null);
+
+    // 达到 20 个上限时拒绝创建
+    const maxViews = Array.from({ length: 20 }, (_, index) => ({
+        id: `v-${index}`,
+        name: `View ${index}`,
+        layout: "list" as const,
+        filter: {},
+    }));
+    assert.equal(instantiateSmartViewPreset("deep-reads", maxViews), null);
 });

@@ -1269,6 +1269,11 @@
   "library.keyboardSelect": "Select",
   "library.keyboardExit": "Exit",
   "library.keyboardCursor": "Keyboard cursor: ${title}",
+  "library.smartPresets": "Smart presets",
+  "library.smartPresetQuickReads": "Quick reads",
+  "library.smartPresetDeepReads": "Deep reads",
+  "library.smartPresetStarred": "Starred",
+  "library.smartPresetWaitingTriage": "Oldest inbox",
   "review.filterDay": "Filtered by completed date ${date}",
   "review.clearDayFilter": "Show all completed articles"
 }

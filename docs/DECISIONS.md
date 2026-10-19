@@ -1420,3 +1420,11 @@ T-3392 承接 Readwise Reader 调研与既有键盘可达性主线，为读库�
 3. 光标与边界：`moveLibraryCursor(ids, currentId, delta)` 在首次进入时按方向取端点，到达两端不回绕，空列表返回空串；UI 只遍历当前已挂载窗口（`visibleRows` / `visibleKanbanCols`），避免 J 跳到尚未渲染的第 80 条之外。
 4. 落点与语义：`DockPanel.svelte` 只在桌面端且 `view === "library"` 时注册根级 keydown；光标仅存会话状态（不写 ui-prefs、不写文章属性、不新增端点），切换队列/筛选/布局或条目不可见即清除；A/E 沿用既有 `setStatus` 与 `openArchiveDialog`，候选只允许查看与勾选。
 5. 可发现性与无障碍：`glean-kbdhint` 行内提示条（移动端不渲染）、`aria-current` 标记当前行、`glean-sr-only` 状态区播报光标标题；光标描边使用 `--glean-accent-b`，并在 `forced-colors` 下回退为系统 `Highlight`。
+
+## D-0272（2026-10-19）智能聚合视图与动态规则过滤器（T-3393）
+
+T-3393 承接 Cubox / Readwise Reader 调研与保存视图契约演进：
+1. 偏好契约对齐：在 `src/domain/ui-prefs.ts` 中扩充 `SavedViewFilter` 类型，纳入 `readingTimeTier`（预计时长分档短/中/长篇）与 `favoriteOnly`（星标收藏）两个高频动态维度，使保存视图完整覆盖分面筛选器的所有条件。
+2. 规范化与防御：`normalizeFilter` 补充对 `readingTimeTier`（仅保留 short/medium/long，其余或 all 丢弃）与 `favoriteOnly`（仅保留布尔 true，其余丢弃）的安全清洗；深拷贝过滤条件，防止内存引用泄露。
+3. 智能视图模版与实例化：提供 `SMART_VIEW_PRESETS`（短文速读、深度长文、星标收藏、最久待办）预设配置；提供纯函数 `instantiateSmartViewPreset`，自动处理重复命名（追加序号规避冲突）并受最多 20 个视图的持久化容量上限保护。
+4. UI 联动与持久化：`DockPanel.svelte` 中的 `currentSavedFilter` 与 `applySavedViewState` 贯通 `readingTimeTier` 的保存与恢复；在保存视图栏增设“智能预设”一键创建选择器，创建后即刻切换并异步落盘 `ui-prefs.json`；纯视图状态投影，不增加文章属性、端点或破坏性数据写入。

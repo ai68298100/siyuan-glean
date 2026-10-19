@@ -14,7 +14,10 @@ export type ReaderAppearance = {
 };
 
 export type SavedViewLayout = "list" | "kanban";
-export type SavedViewFilter = Pick<LibraryFilter, "status" | "site" | "author" | "tag" | "aiTag" | "src" | "timeSource" | "contentType" | "keyword" | "sortBy" | "direction">;
+export type SavedViewFilter = Pick<
+    LibraryFilter,
+    "status" | "site" | "author" | "tag" | "aiTag" | "src" | "timeSource" | "contentType" | "keyword" | "readingTimeTier" | "favoriteOnly" | "sortBy" | "direction"
+>;
 export interface TagAlias { id: string; name: string; tag: string; }
 export const MAX_TAG_ALIASES = 20;
 export const GOVERNANCE_CUE_KEYS = ["quota", "stale", "candidates"] as const;
@@ -27,6 +30,46 @@ export interface SavedView {
     filter: SavedViewFilter;
     layout: SavedViewLayout;
 }
+
+export interface SmartViewPreset {
+    key: string;
+    nameKey: string;
+    defaultName: string;
+    filter: SavedViewFilter;
+    layout: SavedViewLayout;
+}
+
+/** 智能动态视图模版（T-3393）：参考 Cubox / Readwise 常见多维聚合场景 */
+export const SMART_VIEW_PRESETS: readonly SmartViewPreset[] = [
+    {
+        key: "quick-reads",
+        nameKey: "library.smartPresetQuickReads",
+        defaultName: "短文速读",
+        filter: { status: "inbox", readingTimeTier: "short", sortBy: "time", direction: "desc" },
+        layout: "list",
+    },
+    {
+        key: "deep-reads",
+        nameKey: "library.smartPresetDeepReads",
+        defaultName: "深度长文",
+        filter: { readingTimeTier: "long", sortBy: "words", direction: "desc" },
+        layout: "list",
+    },
+    {
+        key: "starred",
+        nameKey: "library.smartPresetStarred",
+        defaultName: "星标收藏",
+        filter: { favoriteOnly: true, sortBy: "time", direction: "desc" },
+        layout: "list",
+    },
+    {
+        key: "waiting-triage",
+        nameKey: "library.smartPresetWaitingTriage",
+        defaultName: "最久待办",
+        filter: { status: "inbox", sortBy: "time", direction: "asc" },
+        layout: "list",
+    },
+] as const;
 
 export const DEFAULT_READER_APPEARANCE: ReaderAppearance = {
     fontSize: "normal",
@@ -100,6 +143,12 @@ function normalizeFilter(raw: unknown): SavedViewFilter {
     for (const key of ["site", "author", "tag", "aiTag", "src", "timeSource", "contentType", "keyword"] as const) {
         const text = optionalString(value[key]);
         if (text) filter[key] = text;
+    }
+    if (value.readingTimeTier === "short" || value.readingTimeTier === "medium" || value.readingTimeTier === "long") {
+        filter.readingTimeTier = value.readingTimeTier;
+    }
+    if (value.favoriteOnly === true) {
+        filter.favoriteOnly = true;
     }
     if (isOneOf(["time", "updated", "words", "priority", "rating", "title"] as const, value.sortBy)) filter.sortBy = value.sortBy as LibrarySortKey;
     if (isOneOf(["asc", "desc"] as const, value.direction)) filter.direction = value.direction as LibrarySortDirection;
@@ -193,4 +242,29 @@ export function deleteSavedView(views: readonly SavedView[], id: string, default
 
 export function summarizeSavedViewFilter(filter: SavedViewFilter): SavedViewFilter {
     return { ...normalizeFilter(filter) };
+}
+
+/**
+ * 从预设创建智能聚合视图（T-3393）：
+ * 自动根据已有视图分配不重复的展示名（如 "短文速读" 或 "短文速读 2"），
+ * 并生成稳定 ID。如果已有视图达到 20 个上限或预设不存在，返回 null。
+ */
+export function instantiateSmartViewPreset(
+    presetKey: string,
+    existing: readonly SavedView[],
+    fallbackName?: string,
+    id = `smart-${presetKey}-${Date.now()}`
+): SavedView | null {
+    const preset = SMART_VIEW_PRESETS.find((p) => p.key === presetKey);
+    if (!preset) return null;
+    if (existing.length >= 20) return null;
+    const baseName = fallbackName?.trim() || preset.defaultName;
+    const existingNames = new Set(existing.map((v) => v.name.toLocaleLowerCase()));
+    let targetName = baseName;
+    let counter = 2;
+    while (existingNames.has(targetName.toLocaleLowerCase())) {
+        targetName = `${baseName} ${counter}`;
+        counter += 1;
+    }
+    return createSavedView(targetName, preset.filter, preset.layout, existing, id);
 }
