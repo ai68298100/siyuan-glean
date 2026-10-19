@@ -1,5 +1,11 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-19 读库键盘流补齐批量选择收尾键位）
+
+- T-3398/D-0277：接续 T-3392 的键盘光标与 T-3367 的跨筛选批量选择。`src/domain/library-keyboard.ts` 新增 `selectDisplayed`（S，需光标）、`keepFiltered`（F）与 `clearSelection`（C）动作，后两者只要求 `hasSelection`，因此 Esc 退出光标后仍能收尾；三者均纳入 `REPEAT_SENSITIVE`。`src/ui/DockPanel.svelte` 只做路由，复用既有 `selectDisplayedArticles` / `keepFilteredArticles` / `clearSelection`，D-0247 的跨筛选会话集合与焦点回退语义不变；行内提示条补 S/F/C，批量条既有 `aria-live` 范围摘要继续播报。
+- 全量门禁闭环：`tests/library-keyboard.test.ts` 9/9、`tests/library-selection.test.ts` 16/16、完整 `pnpm test` 1570/1570、`tsc` 与 `svelte-check` 0 错误 0 警告、`pnpm build`、`pnpm check:release`、`pnpm perf:check`、`pnpm visual:check`（24 项仍待真实宿主）与任务账本检查均通过。真实按键冲突、读屏播报节奏与窄 Dock 观感仍归 B-0002。
+- 下一步：沿 T-3392 / T-3367 主线可继续收口剩余视图（如摘录墙行级导航），或按作者点单推进执行板其他任务。版本保持 1.3.7，本轮不打 tag、不发布、不推送。
+
 ## 当前有效交接（2026-10-19 情境选文标签别名贯通与 Escape 快捷清空）
 
 - T-3397/D-0276：承接 T-3346 与全插件键盘无障碍走查。在 `src/ui/ContextSelectionPanel.svelte` 中接入 `tagAliases` 偏好观察与 `glean:tag-aliases-changed` 事件，下拉选项与理由卡片（`reasonText`）通过 `displayTagAlias` 展示用户友好的标签别名；在控件区监听 Escape 按键，支持一键清空已选主题标签；保持会话纯投影与数据主权不变，不改写底层属性或持久化。

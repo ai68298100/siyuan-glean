@@ -846,6 +846,11 @@ function openSelectedAi(): void {
     aiBatchOpen = true;
 }
 
+/** 键盘收尾：保留当前筛选内的勾选，焦点仍按批量条的原焦点规则回落。 */
+function retainSelectionToFilter(): void {
+    keepFilteredArticles();
+}
+
 
 async function moveTo(entry: ClipIndexEntry, status: ClipStatus) {
     if (entry.status === status) return;
@@ -1751,6 +1756,7 @@ function keyboardContext(event: KeyboardEvent): LibraryKeyboardContext {
         nativeAction,
         overlay: hasBlockingOverlay(),
         cursorActive: Boolean(keyboardEntry),
+        hasSelection: selection.size > 0,
     };
 }
 
@@ -1794,6 +1800,18 @@ async function runKeyboardAction(action: LibraryKeyboardAction): Promise<void> {
         const id = keyboardCursorId;
         keyboardCursorId = "";
         if (id) focusKeyboardRow(id);
+        return;
+    }
+    if (action.type === "selectDisplayed") {
+        selectDisplayedArticles();
+        return;
+    }
+    if (action.type === "keepFiltered") {
+        retainSelectionToFilter();
+        return;
+    }
+    if (action.type === "clearSelection") {
+        clearSelection();
         return;
     }
     const entry = keyboardEntry;
@@ -2269,6 +2287,9 @@ function metaLine(entry: Row): string {
                     <kbd>A</kbd> {t(i18n, "library.keyboardLater")}
                     <kbd>E</kbd> {t(i18n, "library.keyboardArchive")}
                     <kbd>X</kbd> {t(i18n, "library.keyboardSelect")}
+                    <kbd>S</kbd> {t(i18n, "library.keyboardSelectDisplayed")}
+                    <kbd>F</kbd> {t(i18n, "library.keyboardKeepFiltered")}
+                    <kbd>C</kbd> {t(i18n, "library.keyboardClearSelection")}
                     <kbd>Esc</kbd> {t(i18n, "library.keyboardExit")}
                 </span>
                 <span class="glean-sr-only" role="status" aria-live="polite">

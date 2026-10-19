@@ -17,6 +17,9 @@ export type LibraryKeyboardAction =
     | { type: "later" }
     | { type: "archive" }
     | { type: "toggleSelect" }
+    | { type: "selectDisplayed" }
+    | { type: "keepFiltered" }
+    | { type: "clearSelection" }
     | { type: "clearCursor" };
 
 export interface LibraryKeyboardEventLike {
@@ -39,16 +42,22 @@ export interface LibraryKeyboardContext {
     overlay?: boolean;
     /** 键盘光标是否已经落在某一行；未激活时只允许 J/K 起步。 */
     cursorActive?: boolean;
+    /** 当前是否有勾选集合；决定 S/F/C 选择类键位是否可用。 */
+    hasSelection?: boolean;
 }
 
 /** 长按重复时不重复执行的破坏性动作。 */
-const REPEAT_SENSITIVE = new Set<LibraryKeyboardAction["type"]>(["activate", "openDocument", "startReading", "later", "archive", "toggleSelect"]);
+const REPEAT_SENSITIVE = new Set<LibraryKeyboardAction["type"]>([
+    "activate", "openDocument", "startReading", "later", "archive", "toggleSelect",
+    "selectDisplayed", "keepFiltered", "clearSelection",
+]);
 
 /**
  * 把一次按键解析成读库动作；返回 null 表示应完全交还原生处理。
  *
  * 键位：J / ↓ 下一行，K / ↑ 上一行，Enter 查看，O 打开原文，
- * R 开始阅读，A 稍后读，E 归档，X 切换选择，Escape 退出键盘光标。
+ * R 开始阅读，A 稍后读，E 归档，X 切换选择，Esc 退出键盘光标；
+ * S 选择已显示（需光标），F 仅保留当前筛选、C 清空选择（需已有勾选）。
  */
 export function resolveLibraryShortcut(
     event: LibraryKeyboardEventLike,
@@ -75,8 +84,13 @@ export function resolveLibraryShortcut(
     if (key === "Enter" && !context.nativeAction && cursorActive) {
         return repeatOrNull(event, { type: "activate" });
     }
+
+    // 选择类动作：F/C 只要存在勾选即可用，便于关掉光标后仍能整批收尾。
+    if (lower === "f" && context.hasSelection) return repeatOrNull(event, { type: "keepFiltered" });
+    if (lower === "c" && context.hasSelection) return repeatOrNull(event, { type: "clearSelection" });
     if (!cursorActive) return null;
 
+    if (lower === "s") return repeatOrNull(event, { type: "selectDisplayed" });
     if (lower === "o") return repeatOrNull(event, { type: "openDocument" });
     if (lower === "r") return repeatOrNull(event, { type: "startReading" });
     if (lower === "a") return repeatOrNull(event, { type: "later" });

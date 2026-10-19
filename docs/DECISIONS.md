@@ -1456,3 +1456,11 @@ T-3397 承接 T-3346 与全插件键盘无障碍走查：
 1. 别名无缝贯通：在 `src/ui/ContextSelectionPanel.svelte` 中接入 `tagAliases` 偏好观察与 `glean:tag-aliases-changed` 事件，下拉选项与理由卡片（`reasonText`）通过 `displayTagAlias` 展示用户配置的别名（例如“技术 (tech)”），消除此前仅显示原始标签的体验盲区。
 2. 键盘便捷清空：在情境选文控件区（`glean-context-selection__controls`）监听 `Escape` 按键，当选中具体主题标签时按下 `Escape` 可快捷重置回“全部主题”，避免每次重置都要翻下拉框。
 3. 严格数据主权：纯视图状态投影与偏好读取，不修改文章根块 IAL 标签、文章属性、端点或持久化存储。
+
+## D-0277（2026-10-19）读库键盘流补齐批量选择收尾键位（T-3398，承接 T-3367/T-3392）
+
+T-3398 把 T-3392 的键盘光标与 T-3367 的跨筛选批量选择连成一条完整收尾链路：
+1. 键位与前置条件：`src/domain/library-keyboard.ts` 增加 `selectDisplayed`（S）、`keepFiltered`（F）、`clearSelection`（C）三个动作。S 属于选区扩张，仍要求键盘光标已激活；F/C 是收尾动作，只要求 `hasSelection`，这样用户按 Esc 退出光标后仍能直接收拢或清空选择。
+2. 防误触一致性：三个新动作全部纳入 `REPEAT_SENSITIVE`，长按不重复执行；文本输入、原生按钮语义、浮层打开与修饰键的让出规则沿用既有仲裁，不新增例外。
+3. 语义复用而非重写：`DockPanel.svelte` 只做路由，分别调用既有 `selectDisplayedArticles()`（追加已挂载的已收录文章）、`keepFilteredArticles()`（按当前筛选裁剪）与 `clearSelection()`；D-0247 的跨筛选会话集合、隐藏项提示与焦点回退规则保持不变。
+4. 可发现性：行内 `glean-kbdhint` 提示条补 S/F/C 三条中文与英文说明；批量条的 `role="status" aria-live="polite"` 范围摘要继续承担变化播报，不重复引入第二处 live region。

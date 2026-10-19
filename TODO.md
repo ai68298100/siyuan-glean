@@ -39,6 +39,8 @@
 
 - [◐] **T-3397**（P2，2026-10-19）情境选文标签别名贯通与 Escape 快捷清空（承接 T-3346 与全插件键盘交互收口）：`ContextSelectionPanel.svelte` 接入 `tagAliases` 偏好观察与实时更新，标签下拉选项与理由卡片（`reasonText`）统一投影用户友好的标签别名；控件区域接入 Escape 快捷键清空已选主题标签，保持会话纯投影与数据主权不变。代码状态：完成；隔离验证：`tests/context-selection-ui.test.ts` 6/6、完整 `pnpm test` 1569/1569、`pnpm check` 0 错误/0 警告、构建与发布包校验通过；真实验收：待 B-0002 真实多标签别名与情境选文观感；延后原因：真实宿主标签别名与多端观感仍归 B-0002。
 
+- [◐] **T-3398**（P2，2026-10-19）读库键盘流补齐批量选择收尾键位（承接 T-3367/T-3392）：`domain/library-keyboard.ts` 新增 `selectDisplayed`（S，需键盘光标）、`keepFiltered`（F）与 `clearSelection`（C）动作，选择类动作只需存在勾选即可触发且同样忽略长按重复；`DockPanel.svelte` 接入三条动作路由并复用既有 `selectDisplayedArticles` / `keepFilteredArticles` / `clearSelection`，行内快捷键提示条同步展示 S/F/C，批量条 `aria-live` 范围摘要继续承担播报；不改变 D-0247 的跨筛选选择语义与数据契约。代码状态：完成；隔离验证：`tests/library-keyboard.test.ts` 9/9、`tests/library-selection.test.ts` 16/16、完整 `pnpm test` 1570/1570、`pnpm check` 0 错误/0 警告、构建与发布包校验通过；真实验收：待 B-0002 真实宿主键盘批量分拣与读屏播报；延后原因：真实按键冲突与读屏节奏仍归 B-0002。
+
 - [◐] **T-3367**（P1，2026-10-18）批量选择范围与底部操作可达性：保留跨筛选选择，显示总数及筛选外数量，提供仅保留当前筛选、追加已显示文章和清空入口；三画布共用正常流批量条，避免窄屏换行遮挡内容。代码状态：实现完成，契约见 D-0247，不新增属性、端点或持久化；隔离验证：定向 51/51、完整 `pnpm test` 1517/1517、`pnpm check` 0 错误/0 警告、`pnpm build`、`pnpm check:release`、`pnpm perf:check`、`pnpm visual:check`、`pnpm task:ledger -- --check` 与 `git diff --check` 通过；Chrome 原型已点验宽/窄 Dock、筛选外提示、显式保留和清空，窄布局批量区 `738px` 宽、`142px` 高且无横溢出。真实验收：待 B-0002 原工作区、触控和系统读屏；延后原因：Chrome 原型与隔离样本不替代真实设备与视觉矩阵，视觉登记仍为 24 项待真实宿主。
 
 - [◐] **T-3389**（P3，2026-10-19）制卡弹窗键盘快捷提交与字符计数纯函数（承接 T-1792/T-3243）：`domain/flashcard.ts` 新增 `countFlashcardCharacters` 纯函数；`FlashcardDialog.svelte` 接入 Escape 退出与 Ctrl/Cmd+Enter 快捷提交；单测与门禁完备。代码状态：进行中；隔离验证：待运行；真实验收：待 B-0002/B-0006；延后原因：真实思源 riff 牌组与快捷键实操仍待 B-0002/B-0006，版本保持 1.3.6，本轮不发布。

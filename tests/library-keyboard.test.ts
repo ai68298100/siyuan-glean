@@ -66,6 +66,22 @@ test("O/R/A/E/X 映射到对应动作，Escape 只在光标激活时消费", () 
     assert.equal(resolveLibraryShortcut(key("z"), active), null);
 });
 
+test("批量选择键位：S 需光标，F/C 只需已有勾选（T-3367）", () => {
+    assert.deepEqual(resolveLibraryShortcut(key("s"), active), { type: "selectDisplayed" });
+    assert.equal(resolveLibraryShortcut(key("s"), {}), null);
+    assert.equal(resolveLibraryShortcut(key("s"), { cursorActive: false, hasSelection: true }), null);
+    assert.deepEqual(resolveLibraryShortcut(key("f"), { hasSelection: true }), { type: "keepFiltered" });
+    assert.deepEqual(resolveLibraryShortcut(key("c"), { hasSelection: true }), { type: "clearSelection" });
+    assert.equal(resolveLibraryShortcut(key("f"), {}), null);
+    assert.equal(resolveLibraryShortcut(key("c"), {}), null);
+    // 有勾选但焦点在输入框 / 浮层中仍要让出
+    assert.equal(resolveLibraryShortcut(key("c"), { hasSelection: true, textEntry: true }), null);
+    assert.equal(resolveLibraryShortcut(key("f"), { hasSelection: true, overlay: true }), null);
+    // 长按不重复执行批量动作
+    assert.equal(resolveLibraryShortcut(key("s", { repeat: true }), active), null);
+    assert.equal(resolveLibraryShortcut(key("c", { repeat: true }), { hasSelection: true }), null);
+});
+
 test("光标移动：首次进入按方向取端点，边界不回绕，空列表返回空串", () => {
     const ids = ["a", "b", "c"];
     assert.equal(moveLibraryCursor(ids, "", 1), "a");
@@ -86,6 +102,13 @@ test("DockPanel 接线：键盘光标样式、提示条与动作路由存在", (
     // 窄 Dock 的卡片布局同样参与光标与定位（候选也必须能按 id 找到）。
     assert.match(dock, /class:glean-card--cursor=\{keyboardCursorId === entry\.id\}/);
     assert.match(dock, /class="glean-kbdhint"/);
+    assert.match(dock, /<kbd>S<\/kbd> \{t\(i18n, "library\.keyboardSelectDisplayed"\)\}/);
+    assert.match(dock, /<kbd>F<\/kbd> \{t\(i18n, "library\.keyboardKeepFiltered"\)\}/);
+    assert.match(dock, /<kbd>C<\/kbd> \{t\(i18n, "library\.keyboardClearSelection"\)\}/);
+    assert.match(dock, /if \(action\.type === "selectDisplayed"\) \{[\s\S]*?selectDisplayedArticles\(\);/);
+    assert.match(dock, /if \(action\.type === "keepFiltered"\) \{[\s\S]*?retainSelectionToFilter\(\);/);
+    assert.match(dock, /if \(action\.type === "clearSelection"\) \{[\s\S]*?clearSelection\(\);/);
+    assert.match(dock, /hasSelection: selection\.size > 0/);
     assert.match(dock, /case "later":[\s\S]*?await setStatus\(entry, "later"\)/);
     assert.match(dock, /case "archive":[\s\S]*?facade\.openArchiveDialog\(entry\.id\)/);
     assert.match(dock, /if \(action\.type === "activate" \|\| action\.type === "openDocument"\) selectPreview\(entry\.id\)/);
