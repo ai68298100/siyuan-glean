@@ -1,6 +1,6 @@
 <script lang="ts">
     import { t, type I18nBundle } from "../libs/i18n";
-    import type { LibraryFacets, LibrarySortKey, LibrarySortDirection } from "../domain/library-view";
+    import type { LibraryFacets, LibrarySortKey, LibrarySortDirection, ReadingTimeTier } from "../domain/library-view";
     import ActionPopover from "./ActionPopover.svelte";
     import { displayTagAlias, type TagAlias } from "../domain/ui-prefs";
     import { countSecondaryActiveFilters } from "../domain/library-filter-chips";
@@ -17,6 +17,7 @@
         source?: string;
         timeSource?: string;
         contentType?: string;
+        readingTimeTier?: ReadingTimeTier;
         sortBy?: LibrarySortKey;
         direction?: LibrarySortDirection;
         hasFilters: boolean;
@@ -24,8 +25,8 @@
         sourceLabel: (value: string) => string;
         facetLabel: (value: string, kind: "timeSource" | "contentType") => string;
     }
-    let { i18n, facets, site = $bindable(""), author = $bindable(""), tag = $bindable(""), tagAliases = [], onManageTagAliases, aiTag = $bindable(""), source = $bindable(""), timeSource = $bindable(""), contentType = $bindable(""), sortBy = $bindable("time"), direction = $bindable("desc"), hasFilters, onClear, sourceLabel, facetLabel }: Props = $props();
-    const secondaryActiveCount = $derived(countSecondaryActiveFilters({ author, aiTag, src: source, timeSource, contentType }));
+    let { i18n, facets, site = $bindable(""), author = $bindable(""), tag = $bindable(""), tagAliases = [], onManageTagAliases, aiTag = $bindable(""), source = $bindable(""), timeSource = $bindable(""), contentType = $bindable(""), readingTimeTier = $bindable("all"), sortBy = $bindable("time"), direction = $bindable("desc"), hasFilters, onClear, sourceLabel, facetLabel }: Props = $props();
+    const secondaryActiveCount = $derived(countSecondaryActiveFilters({ author, aiTag, src: source, timeSource, contentType, readingTimeTier }));
     const popoverLabel = $derived(secondaryActiveCount > 0 ? `${t(i18n, "library.moreFilters")} (${secondaryActiveCount})` : t(i18n, "library.moreFilters"));
 
     function clearSecondaryFilters(): void {
@@ -34,6 +35,7 @@
         source = "";
         timeSource = "";
         contentType = "";
+        readingTimeTier = "all";
     }
 </script>
 
@@ -94,6 +96,14 @@
                 <option value="">{t(i18n, "action.filterAll")}</option>
                 {#each facets.contentTypes as facet (facet.value)}<option value={facet.value}>{facetLabel(facet.value, "contentType")} · {facet.count}</option>{/each}
                 {#if contentType && !facets.contentTypes.some((facet) => facet.value === contentType)}<option value={contentType}>{facetLabel(contentType, "contentType")}</option>{/if}
+            </select>
+        </label>
+        <label class="glean-action-popover__field">{t(i18n, "library.filterReadingTime")}
+            <select class="b3-select glean-filter" bind:value={readingTimeTier}>
+                <option value="all">{t(i18n, "action.filterAll")}</option>
+                <option value="short">{t(i18n, "library.readingTimeShort")}</option>
+                <option value="medium">{t(i18n, "library.readingTimeMedium")}</option>
+                <option value="long">{t(i18n, "library.readingTimeLong")}</option>
             </select>
         </label>
         {#if secondaryActiveCount > 0}

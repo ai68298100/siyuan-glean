@@ -11,7 +11,7 @@ import { batchSetStatusDetailed, captureDocument, findClipUrlConflict, reconcile
 import { autoEnrich, enrichClip } from "../services/enrich-service";
 import { snapshotClip } from "../services/snapshot-service";
 import { exportArticleMarkdown } from "../services/library-export-service";
-import { filterAndSortLibrary, libraryFacets, matchLibraryReason, type LibraryItem, type LibraryMatchTarget, type LibrarySortDirection, type LibrarySortKey } from "../domain/library-view.ts";
+import { filterAndSortLibrary, libraryFacets, matchLibraryReason, type LibraryItem, type LibraryMatchTarget, type LibrarySortDirection, type LibrarySortKey, type ReadingTimeTier } from "../domain/library-view.ts";
 import { loadIndex, type ClipIndexEntry, type CandidateEntry, type GleanIndex } from "../services/index-store";
 import StatsView from "./StatsView.svelte";
 import HighlightView from "./HighlightView.svelte";
@@ -94,6 +94,7 @@ let searchToggle = $state<HTMLButtonElement | null>(null);
 let selectedSource = $state("");
 let selectedTimeSource = $state("");
 let selectedContentType = $state("");
+let selectedReadingTimeTier = $state<ReadingTimeTier>("all");
 let mobileFilterOpen = $state(false);
 
 type MobileFilterDraft = {
@@ -380,6 +381,7 @@ const activeFilter = $derived({
     src: selectedSource,
     timeSource: selectedTimeSource,
     contentType: selectedContentType,
+    readingTimeTier: selectedReadingTimeTier !== "all" ? selectedReadingTimeTier : undefined,
     keyword,
     sortBy,
     direction: sortDirection,
@@ -556,6 +558,7 @@ function selectQueue(queue: QueueKey): void {
     selectedSource = "";
     selectedTimeSource = "";
     selectedContentType = "";
+    selectedReadingTimeTier = "all";
     keyword = "";
 }
 
@@ -571,6 +574,7 @@ function openCandidateQueue(): void {
     selectedSource = "";
     selectedTimeSource = "";
     selectedContentType = "";
+    selectedReadingTimeTier = "all";
     keyword = "";
     searchOpen = false;
     if (isTabCanvas) layoutMode = "list";
@@ -593,6 +597,7 @@ function clearFilters(): void {
     selectedSource = "";
     selectedTimeSource = "";
     selectedContentType = "";
+    selectedReadingTimeTier = "all";
     keyword = "";
 }
 
@@ -601,7 +606,7 @@ function clearUserFilters(): void {
     clearFilters();
 }
 
-const hasFilters = $derived(Boolean(authorTimeline || selectedAuthor || selectedSite || selectedTag || selectedAiTag || selectedSource || selectedTimeSource || selectedContentType || keyword.trim()));
+const hasFilters = $derived(Boolean(authorTimeline || selectedAuthor || selectedSite || selectedTag || selectedAiTag || selectedSource || selectedTimeSource || selectedContentType || selectedReadingTimeTier !== "all" || keyword.trim()));
 const filterChips = $derived(libraryFilterChips(activeFilter));
 
 function selectAuthor(value: string): void {
@@ -634,7 +639,7 @@ function removeFilterChip(key: FilterChipKey): void {
     selectedContentType = next.contentType ?? "";
     keyword = next.keyword ?? "";
 }
-const activeFilterCount = $derived([selectedAuthor, selectedSite, selectedTag, selectedAiTag, selectedSource, selectedTimeSource, selectedContentType, keyword.trim()].filter(Boolean).length);
+const activeFilterCount = $derived([selectedAuthor, selectedSite, selectedTag, selectedAiTag, selectedSource, selectedTimeSource, selectedContentType, selectedReadingTimeTier !== "all" ? selectedReadingTimeTier : "", keyword.trim()].filter(Boolean).length);
 const headerSubtitle = $derived.by(() => {
     const viewLabel = t(i18n, views.find((item) => item.key === view)?.labelKey ?? "view.resurface");
     if (view === "resurface") {
@@ -2116,7 +2121,7 @@ function metaLine(entry: Row): string {
                 <span class="glean-mobile-filter-results" role="status" aria-live="polite">{t(i18n, "library.resultCount", { n: rows.length })}</span>
             </div>
         {:else if !isTabCanvas}
-            <LibraryFilters {i18n} {facets} {tagAliases} onManageTagAliases={openTagAliasManager} bind:site={selectedSite} bind:author={selectedAuthor} bind:tag={selectedTag} bind:aiTag={selectedAiTag} bind:source={selectedSource} bind:timeSource={selectedTimeSource} bind:contentType={selectedContentType} bind:sortBy bind:direction={sortDirection} {hasFilters} onClear={clearUserFilters} {sourceLabel} {facetLabel} />
+            <LibraryFilters {i18n} {facets} {tagAliases} onManageTagAliases={openTagAliasManager} bind:site={selectedSite} bind:author={selectedAuthor} bind:tag={selectedTag} bind:aiTag={selectedAiTag} bind:source={selectedSource} bind:timeSource={selectedTimeSource} bind:contentType={selectedContentType} bind:readingTimeTier={selectedReadingTimeTier} bind:sortBy bind:direction={sortDirection} {hasFilters} onClear={clearUserFilters} {sourceLabel} {facetLabel} />
         {/if}
 
         {#if isTabCanvas}
@@ -2137,7 +2142,7 @@ function metaLine(entry: Row): string {
                 </div>
                 <div class="glean-libbar__spacer"></div>
                 <button class="glean-btn glean-btn--ghost" aria-pressed={previewEnabled} onclick={togglePreview}>{t(i18n, "preview.enabled")}</button>
-                <LibraryFilters {i18n} {facets} {tagAliases} onManageTagAliases={openTagAliasManager} bind:site={selectedSite} bind:author={selectedAuthor} bind:tag={selectedTag} bind:aiTag={selectedAiTag} bind:source={selectedSource} bind:timeSource={selectedTimeSource} bind:contentType={selectedContentType} bind:sortBy bind:direction={sortDirection} {hasFilters} onClear={clearUserFilters} {sourceLabel} {facetLabel} />
+                <LibraryFilters {i18n} {facets} {tagAliases} onManageTagAliases={openTagAliasManager} bind:site={selectedSite} bind:author={selectedAuthor} bind:tag={selectedTag} bind:aiTag={selectedAiTag} bind:source={selectedSource} bind:timeSource={selectedTimeSource} bind:contentType={selectedContentType} bind:readingTimeTier={selectedReadingTimeTier} bind:sortBy bind:direction={sortDirection} {hasFilters} onClear={clearUserFilters} {sourceLabel} {facetLabel} />
             </div>
         {/if}
 

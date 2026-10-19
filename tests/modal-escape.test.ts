@@ -151,3 +151,10 @@ test("工作台各入口共用插件级单例且Dock不再用固定延迟解锁"
     assert.match(index, /openWorkbenchPopup\(initialPreviewId\?: string\): void\s*\{\s*this\.openWorkbenchPopupSingleton\(initialPreviewId\)/);
     assert.doesNotMatch(dock, /popupOpen|setTimeout\(\(\) => \(popupOpen = false\)/);
 });
+
+test("FormattingDialog支持window级别Escape关闭与快捷键支持（T-3390）", () => {
+    const src = read("src/ui/FormattingDialog.svelte");
+    assert.match(src, /<svelte:window\s+onkeydown=\{handleKeydown\}\s*\/>/);
+    assert.match(src, /event\.key === "Escape" && !busy/);
+    assert.match(src, /event\.ctrlKey \|\| event\.metaKey/);
+});

@@ -13,6 +13,24 @@ export type LibraryItemKind = "clip" | "candidate";
 export type LibrarySortKey = "time" | "updated" | "words" | "priority" | "rating" | "title" | "session";
 export type LibrarySortDirection = "asc" | "desc";
 
+/** 预计阅读时长分档：短文 (≤5m)、中篇 (6-15m)、长篇 (>15m) */
+export type ReadingTimeTier = "all" | "short" | "medium" | "long";
+
+/**
+ * 判定文章预计阅读时长是否符合指定分档（T-3391）：
+ * 短文 ≤ 5 分钟、中篇 6-15 分钟、长篇 > 15 分钟。
+ * 缺失分钟数的条目在指定具体分档时不匹配。
+ */
+export function matchReadingTimeTier(tier: ReadingTimeTier | undefined, minutes: number | undefined): boolean {
+    if (!tier || tier === "all") return true;
+    const mins = Number.isFinite(minutes) && (minutes as number) > 0 ? (minutes as number) : 0;
+    if (mins <= 0) return false;
+    if (tier === "short") return mins <= 5;
+    if (tier === "medium") return mins > 5 && mins <= 15;
+    if (tier === "long") return mins > 15;
+    return true;
+}
+
 export interface LibraryItem {
     kind: LibraryItemKind;
     id: string;
@@ -52,6 +70,8 @@ export interface LibraryFilter {
     keyword?: string;
     /** 仅看收藏（T-1755）；true 时只保留 favorite 条目 */
     favoriteOnly?: boolean;
+    /** 预计阅读时间分档（T-3391） */
+    readingTimeTier?: ReadingTimeTier;
     sortBy?: LibrarySortKey;
     direction?: LibrarySortDirection;
     /** Candidates are only shown when the inbox view explicitly opts in. */
@@ -149,6 +169,7 @@ export function matchesLibraryFilter(item: LibraryItem, filter: LibraryFilter = 
     if (!matchesExact(item.src, filter.src)) return false;
     if (!matchesExact(item.timeSource, filter.timeSource)) return false;
     if (!matchesExact(item.contentType, filter.contentType)) return false;
+    if (filter.readingTimeTier && !matchReadingTimeTier(filter.readingTimeTier, item.minutes)) return false;
     // T-1755：仅看收藏（候选不参与收藏）
     if (filter.favoriteOnly && !(item.kind === "clip" && item.favorite === true)) return false;
     const query = key(filter.keyword);

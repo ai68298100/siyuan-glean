@@ -119,7 +119,20 @@
         if (busy || locked) return;
         selected = selected.includes(id) ? selected.filter((value) => value !== id) : [...selected, id];
     }
+
+    function handleKeydown(event: KeyboardEvent): void {
+        if (event.key === "Escape" && !busy) {
+            onClose?.();
+        } else if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+            if (session && saveState !== "saved" && saveState !== "unknown" && !busy && preview.trim()) {
+                event.preventDefault();
+                void save();
+            }
+        }
+    }
 </script>
+
+<svelte:window onkeydown={handleKeydown} />
 
 <div class="glean-formatting" aria-labelledby="glean-formatting-title" aria-describedby="glean-formatting-desc" aria-busy={busy}>
     <header class="glean-formatting__head">

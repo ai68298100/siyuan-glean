@@ -1,7 +1,7 @@
 /** 读库时间线筛选/排序纯函数（S3 / T-1715）。 */
 import test from "node:test";
 import assert from "node:assert/strict";
-import { filterAndSortLibrary, groupCandidatesBySite, libraryFacets, matchLibraryReason, type LibraryItem } from "../src/domain/library-view.ts";
+import { filterAndSortLibrary, groupCandidatesBySite, libraryFacets, matchLibraryReason, matchReadingTimeTier, type LibraryItem } from "../src/domain/library-view.ts";
 import { parseUserTags } from "../src/domain/schema.ts";
 import { applyRailGroupToggle, normalizeRailGroups, projectRailFacets, railFacetSelected } from "../src/domain/library-rail.ts";
 
@@ -286,4 +286,43 @@ test("applyRailGroupToggle：普通模式保留其他分组，手风琴模式展
     const foldNext = applyRailGroupToggle(accordionNext, "authors", { collapsed: true }, true);
     assert.equal(foldNext.authors.collapsed, true);
     assert.equal(foldNext.queues.collapsed, true);
+});
+
+test("matchReadingTimeTier：预计阅读时间分档纯函数与读库过滤（T-3391）", () => {
+    // 纯函数边界测试：短文 (≤5m)、中篇 (6-15m)、长篇 (>15m)
+    assert.equal(matchReadingTimeTier("all", 3), true);
+    assert.equal(matchReadingTimeTier("all", 10), true);
+    assert.equal(matchReadingTimeTier("all", undefined), true);
+    assert.equal(matchReadingTimeTier(undefined, 5), true);
+
+    // 短文: <= 5 分钟
+    assert.equal(matchReadingTimeTier("short", 1), true);
+    assert.equal(matchReadingTimeTier("short", 5), true);
+    assert.equal(matchReadingTimeTier("short", 6), false);
+    assert.equal(matchReadingTimeTier("short", undefined), false);
+    assert.equal(matchReadingTimeTier("short", 0), false);
+
+    // 中篇: 6 - 15 分钟
+    assert.equal(matchReadingTimeTier("medium", 5), false);
+    assert.equal(matchReadingTimeTier("medium", 6), true);
+    assert.equal(matchReadingTimeTier("medium", 15), true);
+    assert.equal(matchReadingTimeTier("medium", 16), false);
+
+    // 长篇: > 15 分钟
+    assert.equal(matchReadingTimeTier("long", 15), false);
+    assert.equal(matchReadingTimeTier("long", 16), true);
+    assert.equal(matchReadingTimeTier("long", 60), true);
+
+    // 读库列表联动筛选测试
+    const items = [
+        clip({ id: "short-doc", title: "短文", minutes: 3 }),
+        clip({ id: "med-doc", title: "中篇", minutes: 10 }),
+        clip({ id: "long-doc", title: "长篇", minutes: 25 }),
+        clip({ id: "unknown-doc", title: "未知时长", minutes: undefined }),
+    ];
+
+    assert.deepEqual(filterAndSortLibrary(items, { readingTimeTier: "short" }).map((i) => i.id), ["short-doc"]);
+    assert.deepEqual(filterAndSortLibrary(items, { readingTimeTier: "medium" }).map((i) => i.id), ["med-doc"]);
+    assert.deepEqual(filterAndSortLibrary(items, { readingTimeTier: "long" }).map((i) => i.id), ["long-doc"]);
+    assert.equal(filterAndSortLibrary(items, { readingTimeTier: "all" }).length, 4);
 });

@@ -1,6 +1,14 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
-## 当前有效交接（2026-10-19 收集箱已有文章统一走阅读门面路由）
+## 当前有效交接（2026-10-19 排版整理弹窗快捷键与读库时长分档筛选）
+
+- T-3390/T-3391/D-0270：承接全插件 UI 走查与 Readwise/Cubox 调研。在 `src/ui/FormattingDialog.svelte` 接入 `<svelte:window>` 级别 Escape 关闭与 `Ctrl/Cmd+Enter` 快捷保存草稿；在 `src/domain/library-view.ts` 增加 `matchReadingTimeTier` 纯函数与 `ReadingTimeTier` 枚举类型（短文 ≤5m、中篇 6-15m、长篇 >15m），并在 `LibraryFilters.svelte` 更多筛选中接入时长分档下拉，同步计入 `countSecondaryActiveFilters`；纯视图状态与分面筛选投影，不修改文章属性、端点或持久化存储。
+- 全量门禁闭环：完整单测（1540/1540）、类型检查与 `svelte-check` 0 错误 0 警告、生产构建与发布包校验、视觉矩阵登记与任务账本检查均通过。真实原工作区、触控与宿主视觉仍归 B-0002。
+
+## 当前有效交接（2026-10-19 制卡弹窗键盘快捷提交与字符计数纯函数）
+
+- T-3389/D-0269：承接 T-1792 与 T-3243，在 `src/domain/flashcard.ts` 增加 `countFlashcardCharacters` 纯函数；`FlashcardDialog.svelte` 接入 Escape 退出与 Ctrl/Cmd+Enter 快捷提交；单测与门禁完备。
+- 全量门禁闭环：完整单测（1539/1539）、类型检查与 `svelte-check` 0 错误 0 警告、生产构建与发布包校验、视觉矩阵登记与任务账本检查均通过。真实原工作区、触控与宿主视觉仍归 B-0002。
 
 - T-3388/D-0268：承接 T-1500 与 D-0250，在 `src/ui/InboxSection.svelte` 将三处打开已有文章重构为调用 `facade.openReadingDocument`，统一接入会话最近阅读与实验页签偏好；`src/domain/inbox-recovery.ts` 新增 `isShorthandActionable` 纯函数；纯客户端 UI 交互路由重构，不修改文章属性、端点或持久化存储。
 - 全量门禁闭环：完整单测（1538/1538）、类型检查与 `svelte-check` 0 错误 0 警告、生产构建与发布包校验（`package.zip` 437998B）、视觉矩阵登记与任务账本检查均通过。真实原工作区、触控与宿主视觉仍归 B-0002，版本保持 1.3.6，不打 tag 或发布。

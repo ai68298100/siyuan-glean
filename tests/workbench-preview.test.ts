@@ -36,7 +36,7 @@ function navigationHarness() {
     const scope: any = {
         view: "library", loading: false, disposed: false, focusGeneration: 0, focusRequested: false, pendingFocusId: "",
         index: { clips: { "article-A": entry }, candidates: {} },
-        activeQueue: "reading", authorTimeline: true, selectedSite: "example.org", selectedAuthor: "Author", selectedTag: "topic", selectedAiTag: "ai-topic", selectedSource: "web", selectedTimeSource: "clip", selectedContentType: "fulltext", keyword: "Article A",
+        activeQueue: "reading", authorTimeline: true, selectedSite: "example.org", selectedAuthor: "Author", selectedTag: "topic", selectedAiTag: "ai-topic", selectedSource: "web", selectedTimeSource: "clip", selectedContentType: "fulltext", selectedReadingTimeTier: "all", keyword: "Article A",
         isTabCanvas: true, layoutMode: "list", previewPrefsTouched: false, previewEnabled: true, previewRevision: 0, previewId: "", previewSplit: null, renderLimit: 80, applyingPrefs: false, prefsLoading: false, prefsUserTouched: false, sortBy: "time", sortDirection: "desc",
         rootEl, document, focusReturnOrigin: null, focusFlashTimer: null, focusFlashTarget: null, CSS: { escape: (value: string) => value },
         window: { setTimeout: () => 1, clearTimeout() {} },

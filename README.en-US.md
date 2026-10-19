@@ -8,16 +8,26 @@ Lv Glean organizes clippings and articles already in SiYuan. It does not crawl t
 
 [中文说明](README.md) · [Latest Release](https://github.com/ai68298100/siyuan-glean/releases/latest) · [Capability matrix](docs/CAPABILITY-MATRIX.md) · [Feedback](https://github.com/ai68298100/siyuan-glean/issues/new/choose)
 
-## In development, unreleased (2026-10-18)
+## v1.3.7 update (2026-10-19)
 
-The source version remains `1.3.6`. The public [v1.3.6 download](https://github.com/ai68298100/siyuan-glean/releases/tag/v1.3.6) comes from `408d92c` and does not include the later local feature/audit fixes or documentation evidence alignment; the current worktree is still unpublished.
+This release unifies keyboard accessibility across dialogs, introduces reading time tier filtering inspired by Readwise Reader and Cubox, and completes reading-facade routing for uninterrupted reading continuity.
 
-- Improved library titles, row density, and narrow layouts across pages.
-- Added clearer Today's Gleaning receipts/undo, reading-bookmark access and tab targeting, settings error focus, import checkpoint reads, and index-delay protection.
-- Import previews distinguish empty input, format mismatch, missing valid links, and complete duplication, with direct file replacement and original-file task identity checks for pause/resume.
-- This maintenance aligns release evidence, roadmap, and historical task records. Highlights already provides current-document and library-wide excerpts; a separate `QuotesView` draft has no production entry.
+**Added:**
 
-These implementations have local or isolated evidence. Real-host, device, and four-format export-file acceptance remains pending under B-0002/B-0005. See the [release candidate record](docs/RELEASE-CANDIDATE.md) for the source/release difference; the version notes below retain published history.
+- **Reading time tier filtering**: Filter articles by estimated reading time (short ≤5 min, medium 6-15 min, long >15 min) in library secondary filters, combining seamlessly with site, author, tag, and content type.
+- **Keyboard accessibility and shortcut workflows**: Escape closes FormattingDialog, FlashcardDialog, ArchiveDialog, and RestoreDialog; `Ctrl+Enter` / `Cmd+Enter` provides quick draft saving and card confirmation.
+- **Unified reading-facade routing and session continuity**: Opening existing inbox articles routes through `facade.openReadingDocument` to connect recent reading history and ReaderTab; Today's Gleaning features an in-session "Continue Reading" card; TTS playback remembers speech rate (0.75x–1.5x) and resumes from the current chunk; "Continue Reading" command supports alternating between reading history and current document.
+- **Friendly site branding**: New `displaySiteName` pure function projects high-frequency domains (WeChat, Zhihu, Bilibili, SSPAI, Juejin, GitHub, etc.) to clean brand names while preserving raw `custom-clip-site` facts.
+- **Excerpts and statistics enhancements**: Highlights wall supports one-click "Clear selection" and formatted Markdown quote copying, plus bulk export to `.md` files; stats heatmap and daily table support click-to-filter completed articles; added calm conversion funnel card.
+- **Data sovereignty and security safeguards**: Canonical URL deduplication strips tracking parameters; custom AI endpoint validates HTTP vs HTTPS and warns on cleartext public endpoints; backup exports adopt standard timestamped filenames with package summaries; hardened high-contrast and forced-colors styling.
+
+**Improved & Fixed:**
+
+- Responsive titles and row density for library and candidate views, preventing horizontal text squeezing in narrow split panes.
+- Batch action bar preserves selections across filter changes, returning keyboard focus safely; fixed mobile topbar/bottombar CSS selectors for edge-to-edge safe areas.
+- Candidate source replenishment input supports Enter to submit and Escape to cancel; restore dialog supports partial-failure retry.
+
+See the [release candidate record](docs/RELEASE-CANDIDATE.md) for automated gates and release evidence. Real-host, screen-reader, mobile, and external capabilities remain tracked under B-0002 and B-0004–B-0008.
 
 ## v1.3.6 update (2026-10-16)
 

@@ -1403,3 +1403,11 @@ T-3389 承接 T-1792 与 T-3243 摘录制卡交互可用性收口：
 1. 字符计数纯函数：在 `src/domain/flashcard.ts` 增加 `countFlashcardCharacters` 纯函数，按 Unicode 字符码点统计正背面字数，避免代理对等非 ASCII 字符计数漂移。
 2. 键盘完全可达：在 `FlashcardDialog.svelte` 接入 `<svelte:window>` 的 Escape 快捷取消关闭，并在正背面输入框支持 `Ctrl+Enter` / `Cmd+Enter` 快捷确认制卡。
 3. 严格数据主权：纯前端键盘交互与字符校验，不改变 riff 制卡端点、不增加文章属性、端点或持久化存储。
+
+
+## D-0270（2026-10-19）排版整理弹窗键盘快捷提交与读库时长分档筛选（T-3390/T-3391）
+
+T-3390 与 T-3391 承接全插件 UI 走查与 Readwise/Cubox 竞品调研：
+1. 弹窗无障碍与快捷交互：在 `src/ui/FormattingDialog.svelte` 接入 `<svelte:window>` 级别 Escape 快捷关闭，并在排版对比区域支持 `Ctrl+Enter` / `Cmd+Enter` 快捷保存整理草案，与 `FlashcardDialog`、`ArchiveDialog`、`RestoreDialog` 的键盘交互契约对齐。
+2. 预计阅读时长分档纯函数：在 `src/domain/library-view.ts` 增加 `matchReadingTimeTier` 纯函数与 `ReadingTimeTier` 枚举类型（短文 ≤ 5 分钟、中篇 6-15 分钟、长篇 > 15 分钟）；在 `LibraryFilters.svelte` 更多筛选中提供时长分档下拉，支持多端、无障碍与双语对齐。
+3. 激活计数与持久化边界：时长分档纳入 `countSecondaryActiveFilters` 激活计数，与高级筛选就地清空联动；纯视图投影，不修改文档属性、端点或 saveData 存储。
