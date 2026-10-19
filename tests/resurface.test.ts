@@ -1,6 +1,7 @@
 /** domain/resurface 纯函数单测（T-1400，插件灵魂算法） */
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 
 import {
     ageDays,
@@ -224,4 +225,12 @@ test("pickDaily：分数差距大但无标签重叠的候选按序入选，仅�
     ];
     const deduped = pickDaily(sameTopic, [], { count: 3, includeDone: false, now });
     assert.equal(deduped.length < 3, true);
+});
+
+test("ResurfaceView 接线：撤销与换篇提示支持 Escape 快捷关闭（T-3396）", () => {
+    const view = readFileSync(new URL("../src/ui/ResurfaceView.svelte", import.meta.url), "utf8");
+    assert.match(view, /<svelte:window onkeydown=\{onWindowKeyDown\} \/>/);
+    assert.match(view, /if \(event\.key !== "Escape"/);
+    assert.match(view, /if \(undoNotice && undoingId !== undoNotice\.id\) \{[\s\S]*?void dismissUndo\(\);/);
+    assert.match(view, /if \(replacementNotice\) \{[\s\S]*?replacementNotice = null;/);
 });

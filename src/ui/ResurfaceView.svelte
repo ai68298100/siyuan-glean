@@ -422,7 +422,24 @@ function reasonText(reason: SurfaceReason): string {
         case "freshTopic": return t(i18n, "resurface.reason.freshTopic");
     }
 }
+
+function onWindowKeyDown(event: KeyboardEvent): void {
+    if (event.key !== "Escape" || event.defaultPrevented || event.isComposing || event.keyCode === 229 || event.repeat) return;
+    if (undoNotice && undoingId !== undoNotice.id) {
+        event.preventDefault();
+        event.stopPropagation();
+        void dismissUndo();
+        return;
+    }
+    if (replacementNotice) {
+        event.preventDefault();
+        event.stopPropagation();
+        replacementNotice = null;
+    }
+}
 </script>
+
+<svelte:window onkeydown={onWindowKeyDown} />
 
 <div bind:this={panelRoot} tabindex="-1" class="glean-panel glean-resurface" class:glean-resurface--embedded={embedded} aria-labelledby={!embedded ? panelTitleId : undefined}>
     {#if !embedded}<header class="glean-panel__head glean-resurface__head">

@@ -1,5 +1,11 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-19 今日拾遗撤销与换篇提示 Escape 快捷关闭与焦点闭环）
+
+- T-3396/D-0275：承接全插件键盘无障碍走查与 Escape 契约闭环。在 `src/ui/ResurfaceView.svelte` 挂载 `<svelte:window>` 级别 Escape 快捷关闭，支持在非忙碌时一键关闭操作撤销条（`undoNotice`，自动安全回退焦点）并清空换文提示（`replacementNotice`）；保持平静原则与数据事实不变，不修改底层数据契约、文章属性、端点或持久化存储。
+- 全量门禁闭环：定向 `tests/resurface.test.ts` 20/20、完整 `pnpm test` 1568/1568、`tsc` 与 `svelte-check` 0 错误 0 警告、`pnpm build`、`pnpm check:release`（`package.zip` 443485B）、`pnpm perf:check`、`pnpm visual:check`（24 项仍待真实宿主）与任务账本检查均通过。真实宿主今日拾遗卡片连续操作与键盘关闭观感仍归 B-0002。
+- 下一步：按当前执行板顺序推进下一个任务（如 T-3367 批量选择范围与底部操作可达性在更多场景的走查与补强，或按作者点单继续）。版本保持 1.3.7，本轮不打 tag、不发布、不推送。
+
 ## 当前有效交接（2026-10-19 统计回顾预览与日期过滤 Escape 快捷退出交互）
 
 - T-3395/D-0274：承接全插件键盘无障碍走查与 Escape 契约闭环。在 `src/ui/StatsView.svelte` 挂载 `<svelte:window>` 级别 Escape 快捷关闭，支持在非忙碌时一键放弃并退出回顾预览草稿；当选中有具体日期过滤（`selectedDayDate`）时，按 Escape 快捷清除单日过滤回到完整完成列表；保持平静原则与数据事实不变，不修改底层数据契约、文章属性、端点或持久化存储。
