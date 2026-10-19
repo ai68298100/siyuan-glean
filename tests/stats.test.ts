@@ -1,6 +1,7 @@
 /** domain/stats 纯函数单测（T-1201） */
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { summarizeDistribution } from "../src/domain/distribution.ts";
 
@@ -421,4 +422,12 @@ test("filterCompletedItemsByDate：按日历日期过滤完成文章清单（T-1
 
     // 4. 未命中日期返回空数组
     assert.equal(filterCompletedItemsByDate(items, "2026-10-01").length, 0);
+});
+
+test("StatsView 接线：回顾预览与日期过滤支持 Escape 快捷退出（T-3395）", () => {
+    const view = readFileSync(new URL("../src/ui/StatsView.svelte", import.meta.url), "utf8");
+    assert.match(view, /<svelte:window onkeydown=\{onWindowKeyDown\} \/>/);
+    assert.match(view, /if \(event\.key !== "Escape"/);
+    assert.match(view, /if \(session && !busy && \(saveState === "ready" \|\| saveState === "saved"\)\) \{[\s\S]*?discard\(\);/);
+    assert.match(view, /if \(selectedDayDate\) \{[\s\S]*?selectedDayDate = "";/);
 });

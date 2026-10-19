@@ -1,5 +1,11 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-19 统计回顾预览与日期过滤 Escape 快捷退出交互）
+
+- T-3395/D-0274：承接全插件键盘无障碍走查与 Escape 契约闭环。在 `src/ui/StatsView.svelte` 挂载 `<svelte:window>` 级别 Escape 快捷关闭，支持在非忙碌时一键放弃并退出回顾预览草稿；当选中有具体日期过滤（`selectedDayDate`）时，按 Escape 快捷清除单日过滤回到完整完成列表；保持平静原则与数据事实不变，不修改底层数据契约、文章属性、端点或持久化存储。
+- 全量门禁闭环：定向 `tests/stats.test.ts` 22/22、完整 `pnpm test` 1567/1567、`tsc` 与 `svelte-check` 0 错误 0 警告、`pnpm build`、`pnpm check:release`（`package.zip` 443485B）、`pnpm perf:check`、`pnpm visual:check`（24 项仍待真实宿主）与任务账本检查均通过。真实宿主统计视图长趋势与日期联动交互仍归 B-0002。
+- 下一步：按当前执行板顺序推进下一个任务（如 T-3367 批量选择范围与底部操作可达性在更多场景的走查与补强，或按作者点单继续）。版本保持 1.3.7，本轮不打 tag、不发布、不推送。
+
 ## 当前有效交接（2026-10-19 摘录墙全库制卡贯通与导出预览 Escape 退出交互）
 
 - T-3394/D-0273：承接方向四（找回文章，并把摘录用起来）与键盘无障碍交互收口。在 `src/ui/HighlightView.svelte` 中解除原先 `{#if scope === "current"}` 对制作闪卡（`flashcard.make`）的人为限定，全库摘录墙浏览时也能直接调用 `makeQuoteCardPreview` 一键沉淀至思源 riff 牌组；挂载 `<svelte:window>` 级别 Escape 快捷关闭导出预览，并在搜索框接入 Escape 快速清空当前检索词与筛选；不修改任何底层数据契约、文章属性、端点或持久化存储。

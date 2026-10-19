@@ -1435,3 +1435,10 @@ T-3394 承接方向四（找回文章，并把摘录用起来）与键盘无障�
 1. 全库制卡贯通：在 `src/ui/HighlightView.svelte` 中解除原先 `{#if scope === "current"}` 对制作闪卡（`flashcard.make`）的人为限定；`listLibraryHighlights` 返回的每个条目均完整包含 `rootId`（文章文档 ID）、`id`（摘录块 ID）、`title` 与 `text`，`makeQuoteCardPreview` 可直接调用，使全库摘录墙浏览时能即时沉淀进思源 riff 牌组，对标 Readwise / Cubox 摘录复习体验。
 2. 键盘与弹层无障碍：在 `HighlightView.svelte` 挂载 `<svelte:window>` 级别 `onkeydown`，非忙碌态下按 `Escape` 可快捷关闭导出预览；搜索框接入 `Escape` 快捷键，支持快速清空当前检索词与筛选。
 3. 严格数据主权：纯客户端交互与状态调度，不修改任何底层数据契约、文章属性、端点或持久化存储。
+
+## D-0274（2026-10-19）统计回顾预览与日期过滤 Escape 快捷退出交互（T-3395）
+
+T-3395 承接全插件键盘无障碍走查与 Escape 契约闭环：
+1. 回顾预览快捷退出：在 `src/ui/StatsView.svelte` 中挂载 `<svelte:window>` 级别的 `onkeydown`，在非忙碌态且会话处于 `ready` 或 `saved` 时，按下 `Escape` 可安全调用 `discard()` 放弃当前预览草稿，防止因误触或放弃而必须鼠标点击“放弃”。
+2. 日期联动就地清除：当用户在热力图或近期趋势表格中点击日期过滤已完成列表（`selectedDayDate` 非空）时，按下 `Escape` 快捷清空该日期过滤，无缝回到全周期完成文章列表。
+3. 严格数据主权：纯组件会话状态与键盘事件响应，不修改底层数据契约、文章属性、端点或持久化存储。

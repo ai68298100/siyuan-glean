@@ -186,7 +186,24 @@ function downloadCsv(): void {
     anchor.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
+
+function onWindowKeyDown(event: KeyboardEvent): void {
+    if (event.key !== "Escape" || event.defaultPrevented || event.isComposing || event.keyCode === 229 || event.repeat) return;
+    if (session && !busy && (saveState === "ready" || saveState === "saved")) {
+        event.preventDefault();
+        event.stopPropagation();
+        discard();
+        return;
+    }
+    if (selectedDayDate) {
+        event.preventDefault();
+        event.stopPropagation();
+        selectedDayDate = "";
+    }
+}
 </script>
+
+<svelte:window onkeydown={onWindowKeyDown} />
 
 <div class="glean-stats" aria-busy={busy}>
     {#if loading && !index.updatedAt}
