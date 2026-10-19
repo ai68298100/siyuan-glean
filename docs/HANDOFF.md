@@ -1,5 +1,11 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-19 阅读伴读 AI 结果卡片可关闭与问答输入 Escape 清空）
+
+- T-3402/D-0281：承接方向五（有依据的阅读 AI）与阅读器快捷交互闭环。在 `src/ui/ReaderTab.svelte` 的 AI 伴读结果（`aiResult`，总结/翻译）与文章提问问答（`questionResult`）卡片内提供明确的关闭按钮（`action.close`）；问答输入框监听 Escape 快捷清空草稿；主键盘事件处理 Escape 时同步关闭常驻的 AI 结果卡片。纯客户端交互优化，不改变模型请求或数据主权。
+- 全量门禁闭环：定向 `tests/reader.test.ts` 12/12、完整 `pnpm test` 1573/1573、`tsc` 与 `svelte-check` 0 错误 0 警告、`pnpm build`、`pnpm check:release`（`package.zip` 443485B）、`pnpm perf:check`、`pnpm visual:check`（24 项仍待真实宿主）与任务账本检查均通过。真实 AI 伴读调用与宿主多端仍归 B-0002/B-0004。
+- 下一步：按当前执行板顺序推进下一个任务（如 T-3367 批量选择范围与底部操作可达性在更多场景的走查与补强，或按作者点单继续）。版本保持 1.3.7，本轮不打 tag、不发布、不推送。
+
 ## 当前有效交接（2026-10-19 阅读器全键盘工作流对齐）
 
 - T-3401/D-0280：将读库与今日拾遗的键盘分拣契约（T-3392/T-3400）延伸至阅读页签（ReaderTab）。`src/domain/reader-shortcuts.ts` 扩展 `ReaderShortcut`，新增 `later`（a 键稍后读）与 `openSource`（o 键打开原文链接）；所有写入与外部跳转动作全部禁止长按重复。`src/ui/ReaderTab.svelte` 接入快捷键动作路由，并收口 Escape 快捷关闭帮助浮层或工具/外观弹层；帮助浮层（`<dl>`）展示新键位并补齐双语 i18n。纯会话状态与读写路由复用，不改变文章属性或端点。

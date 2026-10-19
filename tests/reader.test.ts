@@ -129,3 +129,11 @@ test("ReaderTab 快捷键接线：稍后读(A)、打开原文(O)与帮助浮层E
     assert.match(tab, /<div><dt><kbd>o<\/kbd><\/dt><dd>\{t\(i18n, "reader\.shortcutOpenSource"\)\}<\/dd><\/div>/);
     assert.match(tab, /<div><dt><kbd>Esc<\/kbd><\/dt><dd>\{t\(i18n, "reader\.shortcutEscape"\)\}<\/dd><\/div>/);
 });
+
+test("ReaderTab 伴读 AI 结果卡片可关闭与问答输入 Escape 清空（T-3402）", () => {
+    const tab = readFileSync(new URL("../src/ui/ReaderTab.svelte", import.meta.url), "utf8");
+    assert.match(tab, /if \(aiResult \|\| questionResult\) \{[\s\S]*?aiResult = null;[\s\S]*?questionResult = null;/);
+    assert.match(tab, /if \(event\.key === "Escape" && question\) \{ event\.stopPropagation\(\); question = ""; \}/);
+    assert.match(tab, /onclick=\{\(\) => \{ aiResult = null; \}\}>[\s\S]*?\{t\(i18n, "action\.close"\)\}/);
+    assert.match(tab, /onclick=\{\(\) => \{ questionResult = null; \}\}>[\s\S]*?\{t\(i18n, "action\.close"\)\}/);
+});

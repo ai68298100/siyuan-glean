@@ -482,6 +482,13 @@ import { aiFailureKey } from "../libs/ai-feedback";
                 appearanceOpen = false;
                 return;
             }
+            if (aiResult || questionResult) {
+                event.preventDefault();
+                event.stopPropagation();
+                aiResult = null;
+                questionResult = null;
+                return;
+            }
             return;
         }
         const action = readerShortcut({
@@ -1323,7 +1330,7 @@ import { aiFailureKey } from "../libs/ai-feedback";
                                 {/if}
                                 {#if articleQuestionOn}
                                     <div class="glean-reader__question">
-                                        <input class="glean-mini-input" disabled={!aiReady} maxlength="1000" placeholder={t(i18n, "reader.articleQuestion.placeholder")} aria-label={t(i18n, "reader.articleQuestion.action")} bind:value={question} onkeydown={(event) => event.key === "Enter" && void runArticleQuestion()} />
+                                        <input class="glean-mini-input" disabled={!aiReady} maxlength="1000" placeholder={t(i18n, "reader.articleQuestion.placeholder")} aria-label={t(i18n, "reader.articleQuestion.action")} bind:value={question} onkeydown={(event) => { if (event.key === "Enter") void runArticleQuestion(); else if (event.key === "Escape" && question) { event.stopPropagation(); question = ""; } }} />
                                         <div class="glean-reader__ops">
                                             <button class="glean-btn glean-btn--ghost" disabled={!aiReady} class:glean-seg__btn--on={questionMode === "full"} onclick={() => { questionMode = "full"; }}>{t(i18n, "reader.articleQuestion.full")}</button>
                                             <button class="glean-btn glean-btn--ghost" disabled={!aiReady || !excerpt?.blockId} class:glean-seg__btn--on={questionMode === "selection"} onclick={() => { questionMode = "selection"; }}>{t(i18n, "reader.articleQuestion.selection")}</button>
@@ -1354,6 +1361,9 @@ import { aiFailureKey } from "../libs/ai-feedback";
                                                 {t(i18n, summarySaved ? "reader.aiSummarySaved" : "reader.aiSaveSummary")}
                                             </button>
                                         {/if}
+                                        <button class="glean-btn glean-btn--ghost" onclick={() => { aiResult = null; }}>
+                                            {t(i18n, "action.close")}
+                                        </button>
                                     </div>
                                 </div>
                             {/if}
@@ -1367,7 +1377,10 @@ import { aiFailureKey } from "../libs/ai-feedback";
                                         <div class="glean-reader__ai-src">{t(i18n, "reader.articleQuestion.evidence")}</div>
                                         {#each questionResult.evidence as evidence}<blockquote>{evidence}</blockquote>{/each}
                                     {:else}<div class="glean-reader__hint">{t(i18n, "reader.articleQuestion.insufficient")}</div>{/if}
-                                    <button class="glean-btn glean-btn--ghost" onclick={() => void copyText(`${questionResult!.answer}\n\n${questionResult!.evidence.join("\n")}`)}>{t(i18n, "reader.copy")}</button>
+                                    <div class="glean-reader__ops">
+                                        <button class="glean-btn glean-btn--ghost" onclick={() => void copyText(`${questionResult!.answer}\n\n${questionResult!.evidence.join("\n")}`)}>{t(i18n, "reader.copy")}</button>
+                                        <button class="glean-btn glean-btn--ghost" onclick={() => { questionResult = null; }}>{t(i18n, "action.close")}</button>
+                                    </div>
                                 </div>
                             {/if}
                             {#if relatedShown && relatedItems.length > 0}

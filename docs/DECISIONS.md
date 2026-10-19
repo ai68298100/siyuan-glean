@@ -1487,3 +1487,11 @@ T-3401 将读库与今日拾遗的键盘分拣契约（T-3392/T-3400）延伸至
 1. 键位扩展与长按防抖：`src/domain/reader-shortcuts.ts` 扩展 `ReaderShortcut`，新增 `later`（按 a 键转稍后读，保留已累计阅读进度）与 `openSource`（按 o 键在新标签页打开外部原文链接）；所有写入类与外部跳转动作全部禁止长按重复，与既有 `m` 读完动作的保护机制对齐。
 2. 帮助浮层与弹层 Escape 关闭：在 `ReaderTab.svelte` 的键盘事件处理中收口 `Escape` 逻辑，优先关闭快捷键帮助浮层（`shortcutHelp`），其次关闭更多工具（`moreToolsOpen`）与外观弹层（`appearanceOpen`），避免必须鼠标点击外部才能关闭。
 3. 可发现性与双语同步：阅读器快捷键帮助列表（`<dl>`）同步展示 `a 稍后读`、`o 打开原文链接`、`Esc 关闭帮助或浮层`，双语 i18n 完整映射；严格数据主权，不修改文章属性或端点。
+
+## D-0281（2026-10-19）阅读伴读 AI 结果卡片可关闭与问答输入 Escape 清空（T-3402）
+
+T-3402 承接方向五（有依据的阅读 AI）与阅读器快捷交互闭环：
+1. 结果卡片显式关闭：在 `src/ui/ReaderTab.svelte` 的 AI 伴读结果（`aiResult`，总结/翻译）与文章提问问答（`questionResult`）卡片内补充操作按钮 `{t(i18n, "action.close")}`，点击安全将对应状态置为 null，解决此前 AI 结果一旦生成便无法在同一文章内手动收起的痛点。
+2. 问答输入框 Escape 清空：在文章问答输入框（`question`）监听 `Escape` 按键，支持一键清空未发送的草稿提问并阻止事件冒泡。
+3. 键盘主事件联动关闭：在 `ReaderTab.svelte` 的 `onReaderKey` 中收口 `Escape` 行为——在关闭帮助浮层与外观弹层后，若存在开启的 `aiResult` 或 `questionResult`，按下 `Escape` 安全将其收起清空。
+4. 严格数据主权：纯客户端交互与状态调度，不发起额外模型调用、不修改文章属性或端点。
