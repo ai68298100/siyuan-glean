@@ -1520,3 +1520,14 @@ T-3405 承接设置视图键盘交互与全插件快捷操作统一走查：
    - 在放弃确认条内，按 `Escape` 取消放弃回到保存按钮，按 `Enter` 触发当前获焦的放弃或取消动作；
    - 当草稿干净无脏改动且非忙碌时，按 Escape 直接关闭设置弹窗。
 3. 严格数据主权与无障碍契约：所有快捷交互均为客户端组件级事件调度，无脏改动不落盘，保存与重置均经由 `services/settings.ts`，确保配置 schema 规范化与原子同步。
+
+## D-0285（2026-10-20）读库导出服务全链路容灾与边界测试补全（T-3406）
+
+T-3406 承接核心数据导出容灾与自动化测试健壮性：
+1. 架构级原生模块隔离测试（`tests/library-export-service.test.mjs`）：利用 Node 20+ 原生 `registerHooks` 机制，纯内存隔离劫持 `./clip-store`（`reconcileIndex`、`batchReadClipAttrs`、`readClipDocument`），完整测试 `src/services/library-export-service.ts` 内全部 4 项核心服务函数，无需真实思源内核环境，执行耗时 < 1 秒。
+2. 异常边界与数据安全契约校验：
+   - `exportLibraryCsv`：校验 UTF-8 BOM 注入、表头生成、RFC 4180 特殊字符（双引号、逗号、换行）转义、阅读位置 JSON 序列化、以及内部隐藏文档与未收录（无 status）文档的自动过滤；
+   - `exportArticleMarkdown`：校验 YAML Frontmatter 生成与单篇 Markdown 拼装，并在传入非收录文档 ID 时强制抛出业务防御异常；
+   - `exportLibraryMarkdownArchive`：校验空读库返回空归档；单篇文档读取异常（如块已删除或读取超时）时容灾捕获，不中断整体归档并在 `index.json` 中完整记录 failure 诊断项；大容量文章超出单卷阈值（`ARCHIVE_PART_MAX_BYTES`）时自动分包切为多卷 ZIP（`siyuan-glean-markdown-01.zip`, `02.zip`）；
+   - `exportAnonymousDiagnostic`：校验读库全量指标与功能开关的脱敏聚合，在底层索引对账异常时安全降级输出诊断报告，防止诊断工具本身崩溃。
+3. 严格分层与数据主权：测试仅在服务和域层运行，不改变思源 API 契约或文档属性 schema。

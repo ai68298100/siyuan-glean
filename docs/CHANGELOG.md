@@ -4,6 +4,7 @@
 
 ### 新增与体验增强
 
+- **读库导出服务全链路容灾与边界测试补全（T-3406）**：为 `src/services/library-export-service.ts` 补齐原生模块隔离服务级回归测试 `tests/library-export-service.test.mjs`；覆盖 CSV 导出特殊字符转义/BOM/内部与未收录文档过滤、单篇 Markdown 导出与 YAML Frontmatter/未入库拒止、Markdown 全库归档 ZIP 分卷切分（`ARCHIVE_PART_MAX_BYTES`）以及单篇文档读取异常时的容灾捕获（不中断归档并在 `index.json` 中记录 failure）、匿名诊断指标聚合与对账异常时的安全降级报告；单测与门禁完备，不改变导出契约或破坏分层架构。
 - **设置弹窗快捷保存与脏草稿退出键盘交互（T-3405）**：设置视图（`SettingsView`）挂载 `Ctrl/Cmd+Enter` 快捷保存；Esc 按键优先清空笔记本搜索框过滤，在有脏修改时激活放弃草稿确认条并引导焦点至“继续编辑”按钮，干净草稿时正常关闭；放弃确认条支持 Esc 键取消与 Enter 键确认。
 - **标签别名管理弹窗回车快捷保存与重置交互（T-3404）**：标签别名管理弹窗（`tagAliasDialog`）在别名输入框与来源标签下拉框接入键盘快捷键，按 `Enter` 或 `Ctrl/Cmd+Enter` 自动校验并保存别名；编辑已有别名时按 `Escape` 安全重置草稿并退出编辑状态回到新建表单，未编辑草稿时按 `Escape` 正常关闭弹窗。
 - **读库分面筛选器单项 Escape 清空与键盘交互闭环（T-3403）**：读库分面筛选器（`LibraryFilters`）的站点、标签以及高级筛选浮层内的作者、AI 标签、来源、时间源、载体类型、预计时长共 8 项下拉选择框全部接入 Escape 快捷键；在下拉框获焦时按 Escape 立即将该项重置为默认值并阻断事件冒泡。

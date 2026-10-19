@@ -1,5 +1,11 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-20 读库导出服务全链路容灾与边界测试补全）
+
+- T-3406/D-0285：承接读库核心数据导出容灾与自动化测试健壮性。为 `src/services/library-export-service.ts` 补齐原生模块隔离服务级回归测试 `tests/library-export-service.test.mjs`（9/9 通过，执行耗时 < 1 秒）；覆盖 CSV 导出特殊字符转义/BOM/内部与未收录文档过滤、单篇 Markdown 导出与 YAML Frontmatter/未入库拒止、Markdown 全库归档 ZIP 分卷切分（`ARCHIVE_PART_MAX_BYTES`）以及单篇文档读取异常时的容灾捕获（不中断归档并在 `index.json` 中记录 failure）、匿名诊断指标聚合与对账异常时的安全降级报告；单测与门禁完备，不改变导出契约或破坏分层架构。
+- 全量门禁闭环：定向 `tests/library-export-service.test.mjs` 9/9、完整 `pnpm test` 1586/1586、`tsc` 与 `svelte-check` 0 错误 0 警告、`pnpm build`、`pnpm check:release`、`pnpm perf:check`、`pnpm visual:check`（24 项仍待真实宿主）与任务账本检查均通过。真实多卷 ZIP 导出与大容量下载实测仍待 B-0002。
+- 下一步：按当前执行板顺序推进下一个任务（如 T-3367 批量选择范围与底部操作可达性在更多场景的走查与补强，或按作者点单继续）。版本保持 1.3.7，本轮不打 tag、不发布、不推送。
+
 ## 当前有效交接（2026-10-19 设置弹窗快捷保存与脏草稿退出键盘交互闭环）
 
 - T-3405/D-0284：承接设置视图键盘交互与全插件快捷操作统一走查。在 `src/ui/SettingsView.svelte` 挂载 `<svelte:window>` 级别 `Ctrl/Cmd+Enter` 快捷保存（`!saveBusy && draftDirty`）；接入 `installEscapeHandler` 捕获阶段拦截 Esc 退出，在有脏草稿时激活放弃确认条并将焦点移入“继续编辑”按钮，在干净草稿时正常关闭弹窗；归档笔记本搜索框按 Esc 优先清空过滤；放弃确认条支持 Esc 取消与 Enter 键盘触发；单测与门禁完备，不改变配置 schema 或端点契约。
