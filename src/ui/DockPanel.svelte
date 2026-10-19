@@ -1037,6 +1037,28 @@ function beginTagAliasEdit(alias?: TagAlias): void {
     tagAliasDraftTag = alias?.tag ?? "";
 }
 
+function handleTagAliasInputKeyDown(event: KeyboardEvent): void {
+    if (event.isComposing || event.keyCode === 229) return;
+    if (event.key === "Escape" && tagAliasDraftId) {
+        event.preventDefault();
+        event.stopPropagation();
+        beginTagAliasEdit();
+        return;
+    }
+    if ((event.key === "Enter" || ((event.ctrlKey || event.metaKey) && event.key === "Enter")) && tagAliasDraftName.trim() && tagAliasDraftTag && !tagAliasBusy) {
+        event.preventDefault();
+        void saveTagAlias();
+    }
+}
+
+function handleTagAliasSelectKeyDown(event: KeyboardEvent): void {
+    if (event.isComposing || event.keyCode === 229) return;
+    if ((event.key === "Enter" || ((event.ctrlKey || event.metaKey) && event.key === "Enter")) && tagAliasDraftName.trim() && tagAliasDraftTag && !tagAliasBusy) {
+        event.preventDefault();
+        void saveTagAlias();
+    }
+}
+
 function openTagAliasManager(): void {
     beginTagAliasEdit();
     tagAliasReturnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -3057,8 +3079,8 @@ function metaLine(entry: Row): string {
                     {/each}
                 </div>
                 <div class="glean-tag-alias-form">
-                    <label>{t(i18n, "library.tagAliasName")}<input class="b3-text-field" maxlength="40" bind:value={tagAliasDraftName} /></label>
-                    <label>{t(i18n, "library.tagAliasSource")}<select class="b3-select" bind:value={tagAliasDraftTag}><option value="">{t(i18n, "action.filterAll")}</option>{#each facets.tags as facet (facet.value)}<option value={facet.value}>#{facet.value} · {facet.count}</option>{/each}</select></label>
+                    <label>{t(i18n, "library.tagAliasName")}<input class="b3-text-field" maxlength="40" bind:value={tagAliasDraftName} onkeydown={handleTagAliasInputKeyDown} /></label>
+                    <label>{t(i18n, "library.tagAliasSource")}<select class="b3-select" bind:value={tagAliasDraftTag} onkeydown={handleTagAliasSelectKeyDown}><option value="">{t(i18n, "action.filterAll")}</option>{#each facets.tags as facet (facet.value)}<option value={facet.value}>#{facet.value} · {facet.count}</option>{/each}</select></label>
                     <div class="glean-tag-alias-form__actions">
                         <button type="button" class="glean-btn glean-btn--ghost" disabled={tagAliasBusy || (!tagAliasDraftName && !tagAliasDraftTag)} onclick={() => beginTagAliasEdit()}>{t(i18n, "library.tagAliasNew")}</button>
                         <button type="button" class="glean-btn glean-btn--pri" aria-busy={tagAliasBusy} disabled={tagAliasBusy || !tagAliasDraftName.trim() || !tagAliasDraftTag} onclick={() => void saveTagAlias()}>{t(i18n, "library.tagAliasSave")}</button>

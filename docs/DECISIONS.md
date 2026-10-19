@@ -1502,3 +1502,10 @@ T-3403 承接读库无鼠标分拣（T-3392）与键盘无障碍交互收口：
 1. 分面下拉单项清空：在 `src/ui/LibraryFilters.svelte` 中，为常规分面（站点 `site`、标签 `tag`）以及高级筛选浮层（`ActionPopover`）内的 6 项二级分面（作者 `author`、AI 标签 `aiTag`、来源 `source`、时间源 `timeSource`、载体类型 `contentType`、预计时长 `readingTimeTier`）的 `<select>` 下拉框全部接入 `onkeydown`；当该项存在已选值时，按下 `Escape` 即刻将该项重置为默认值（`""` 或 `"all"`）并调用 `event.preventDefault()` 与 `event.stopPropagation()`，避免用户每次清空单项筛选都要翻下拉列表或依赖鼠标。
 2. 作用域隔离：各个下拉框内的 Escape 事件在清空当前项后阻止继续向上冒泡，不触发父容器的关闭或其它全局快捷动作；无选中值时保持默认冒泡。
 3. 严格数据主权：纯组件状态绑定与事件响应，不修改底层数据契约、文章属性、端点或持久化存储。
+
+## D-0283（2026-10-19）标签别名管理弹窗回车快捷保存与重置交互闭环（T-3404）
+
+T-3404 承接标签别名（T-3346）与全插件弹窗键盘交互统一走查：
+1. 回车快捷提交：在 `src/ui/DockPanel.svelte` 的标签别名管理弹窗（`tagAliasDialog`）中，为别名输入框与来源标签下拉框分别挂载按键监听；在输入有效且非忙碌态下，按下 `Enter` 或 `Ctrl/Cmd+Enter` 自动触发 `saveTagAlias()`，与排版、制卡等弹窗的快捷提交契约对齐。
+2. Escape 两级分流：在编辑已有别名（`tagAliasDraftId` 存在）时，输入框内按下 `Escape` 会安全调用 `beginTagAliasEdit()` 重置回新建草稿状态并阻止事件向上冒泡，避免误关弹窗；在空白表单下按下 `Escape` 则由既有 `installModalFocus` 正常关闭弹窗。
+3. 严格数据主权：纯组件表单事件响应，不修改标签别名的数据契约、存储键或持久化规则。

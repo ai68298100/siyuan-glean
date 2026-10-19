@@ -1,6 +1,7 @@
 import { normalizeUiPrefs } from "../src/services/prefs.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { applySavedView, createSavedView, deleteSavedView, normalizeReaderAppearance, normalizeSavedViews, normalizeTagAliases, displayTagAlias, setDefaultSavedView, SMART_VIEW_PRESETS, instantiateSmartViewPreset } from "../src/domain/ui-prefs.ts";
 
 test("ui prefs normalizes reader appearance and drops invalid saved views", () => {
@@ -122,4 +123,12 @@ test("smart view presets instantiate with unique names and respect capacity (T-3
         filter: {},
     }));
     assert.equal(instantiateSmartViewPreset("deep-reads", maxViews), null);
+});
+
+test("tagAliasDialog 接线：Enter 快捷保存与 Escape 重置草稿（T-3404）", () => {
+    const dock = readFileSync(new URL("../src/ui/DockPanel.svelte", import.meta.url), "utf8");
+    assert.match(dock, /bind:value=\{tagAliasDraftName\}\s+onkeydown=\{handleTagAliasInputKeyDown\}/);
+    assert.match(dock, /bind:value=\{tagAliasDraftTag\}\s+onkeydown=\{handleTagAliasSelectKeyDown\}/);
+    assert.match(dock, /if \(event\.key === "Escape" && tagAliasDraftId\) \{[\s\S]*?beginTagAliasEdit\(\);/);
+    assert.match(dock, /if \(\(event\.key === "Enter" \|\| \(\(event\.ctrlKey \|\| event\.metaKey\) && event\.key === "Enter"\)\) && tagAliasDraftName\.trim\(\) && tagAliasDraftTag && !tagAliasBusy\) \{[\s\S]*?void saveTagAlias\(\);/);
 });

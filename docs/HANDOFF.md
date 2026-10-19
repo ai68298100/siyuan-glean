@@ -1,5 +1,11 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-19 标签别名管理弹窗回车快捷保存与重置交互闭环）
+
+- T-3404/D-0283：承接标签别名（T-3346）与全插件弹窗键盘交互统一走查。在 `src/ui/DockPanel.svelte` 中的标签别名管理弹窗（`tagAliasDialog`）内，为别名输入框与来源标签下拉框分别挂载按键监听；在输入有效且非忙碌态下，按下 `Enter` 或 `Ctrl/Cmd+Enter` 自动触发 `saveTagAlias()` 快捷提交；编辑已有别名时按下 `Escape` 安全重置回新建草稿状态并阻断事件冒泡，空白表单下按 `Escape` 正常关闭弹窗。纯组件事件响应，不修改标签别名契约或保存规则。
+- 全量门禁闭环：定向 `tests/ui-prefs.test.ts` 9/9、完整 `pnpm test` 1575/1575、`tsc` 与 `svelte-check` 0 错误 0 警告、`pnpm build`、`pnpm check:release`（`package.zip` 443485B）、`pnpm perf:check`、`pnpm visual:check`（24 项仍待真实宿主）与任务账本检查均通过。真实标签别名管理与键盘连续录入仍归 B-0002。
+- 下一步：按当前执行板顺序推进下一个任务（如 T-3367 批量选择范围与底部操作可达性在更多场景的走查与补强，或按作者点单继续）。版本保持 1.3.7，本轮不打 tag、不发布、不推送。
+
 ## 当前有效交接（2026-10-19 读库分面筛选器单项 Escape 清空与键盘交互闭环）
 
 - T-3403/D-0282：承接读库无鼠标分拣（T-3392）与键盘无障碍交互收口。在 `src/ui/LibraryFilters.svelte` 中，为常规分面（站点 `site`、标签 `tag`）以及高级筛选浮层（`ActionPopover`）内的 6 项二级分面（作者 `author`、AI 标签 `aiTag`、来源 `source`、时间源 `timeSource`、载体类型 `contentType`、预计时长 `readingTimeTier`）的 `<select>` 下拉框全部接入 Escape 快捷键；获焦且有选中值时按 Escape 立即重置回默认值并阻断冒泡。纯组件状态绑定，不修改底层数据契约、文章属性、端点或持久化存储。
