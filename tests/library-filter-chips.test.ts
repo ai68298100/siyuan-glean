@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { countSecondaryActiveFilters, libraryFilterChips, removeLibraryFilter } from "../src/domain/library-filter-chips.ts";
 import { filterAndSortLibrary, type LibraryFilter } from "../src/domain/library-view.ts";
 
@@ -41,4 +42,12 @@ test("countSecondaryActiveFilters：准确统计更多筛选浮层内激活条�
         timeSource: "source",
         contentType: "link",
     }), 4);
+});
+
+test("LibraryFilters 接线：各分面下拉支持 Escape 单项快捷清空（T-3403）", () => {
+    const filters = readFileSync(new URL("../src/ui/LibraryFilters.svelte", import.meta.url), "utf8");
+    assert.match(filters, /bind:value=\{site\}\s+onkeydown=\{\(e\) => \{ if \(e\.key === "Escape" && site\) \{ e\.preventDefault\(\); e\.stopPropagation\(\); site = ""; \} \}\}/);
+    assert.match(filters, /bind:value=\{tag\}\s+onkeydown=\{\(e\) => \{ if \(e\.key === "Escape" && tag\) \{ e\.preventDefault\(\); e\.stopPropagation\(\); tag = ""; \} \}\}/);
+    assert.match(filters, /bind:value=\{author\}\s+onkeydown=\{\(e\) => \{ if \(e\.key === "Escape" && author\) \{ e\.preventDefault\(\); e\.stopPropagation\(\); author = ""; \} \}\}/);
+    assert.match(filters, /bind:value=\{readingTimeTier\}\s+onkeydown=\{\(e\) => \{ if \(e\.key === "Escape" && readingTimeTier !== "all"\) \{ e\.preventDefault\(\); e\.stopPropagation\(\); readingTimeTier = "all"; \} \}\}/);
 });

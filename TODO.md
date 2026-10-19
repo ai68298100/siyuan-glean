@@ -49,6 +49,8 @@
 
 - [◐] **T-3402**（P2，2026-10-19）阅读伴读 AI 结果卡片可关闭与问答输入 Escape 清空（承接方向五：有依据的阅读 AI）：`ReaderTab.svelte` 在 AI 伴读结果（`aiResult`，总结/翻译）与文章提问问答（`questionResult`）卡片内提供明确的关闭按钮（`action.close`）；问答输入框监听 Escape 快捷清空草稿；主键盘事件处理 `Escape` 时同步关闭常驻的 AI 结果卡片；纯客户端交互优化，不改变模型请求或数据主权。代码状态：完成；隔离验证：`tests/reader.test.ts` 12/12、完整 `pnpm test` 1573/1573、`pnpm check` 0 错误/0 警告、构建与发布包校验通过；真实验收：待 B-0002/B-0004 真实 AI 伴读生成与卡片交互；延后原因：真实 AI 调用与宿主多端仍归 B-0002/B-0004。
 
+- [◐] **T-3403**（P2，2026-10-19）读库分面筛选器单项 Escape 清空与键盘交互闭环（承接读库无鼠标分拣）：`LibraryFilters.svelte` 为站点（`site`）、标签（`tag`）以及更多筛选浮层内的作者（`author`）、AI 标签（`aiTag`）、来源（`source`）、时间源（`timeSource`）、载体类型（`contentType`）、预计阅读时长（`readingTimeTier`）全部接入 Escape 快捷键，在下拉框获焦时按 Escape 立即将该项重置为默认值并阻断事件冒泡；不改变分面筛选计算与视图投影。代码状态：完成；隔离验证：`tests/library-filter-chips.test.ts` 4/4、完整 `pnpm test` 1574/1574、`pnpm check` 0 错误/0 警告、构建与发布包校验通过；真实验收：待 B-0002 真实多组合筛选下拉键盘操作；延后原因：真实宿主多分面筛选仍归 B-0002。
+
 - [◐] **T-3367**（P1，2026-10-18）批量选择范围与底部操作可达性：保留跨筛选选择，显示总数及筛选外数量，提供仅保留当前筛选、追加已显示文章和清空入口；三画布共用正常流批量条，避免窄屏换行遮挡内容。代码状态：实现完成，契约见 D-0247，不新增属性、端点或持久化；隔离验证：定向 51/51、完整 `pnpm test` 1517/1517、`pnpm check` 0 错误/0 警告、`pnpm build`、`pnpm check:release`、`pnpm perf:check`、`pnpm visual:check`、`pnpm task:ledger -- --check` 与 `git diff --check` 通过；Chrome 原型已点验宽/窄 Dock、筛选外提示、显式保留和清空，窄布局批量区 `738px` 宽、`142px` 高且无横溢出。真实验收：待 B-0002 原工作区、触控和系统读屏；延后原因：Chrome 原型与隔离样本不替代真实设备与视觉矩阵，视觉登记仍为 24 项待真实宿主。
 
 - [◐] **T-3389**（P3，2026-10-19）制卡弹窗键盘快捷提交与字符计数纯函数（承接 T-1792/T-3243）：`domain/flashcard.ts` 新增 `countFlashcardCharacters` 纯函数；`FlashcardDialog.svelte` 接入 Escape 退出与 Ctrl/Cmd+Enter 快捷提交；单测与门禁完备。代码状态：进行中；隔离验证：待运行；真实验收：待 B-0002/B-0006；延后原因：真实思源 riff 牌组与快捷键实操仍待 B-0002/B-0006，版本保持 1.3.6，本轮不发布。

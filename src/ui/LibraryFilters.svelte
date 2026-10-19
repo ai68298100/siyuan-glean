@@ -40,12 +40,12 @@
 </script>
 
 <div class="glean-filters glean-filters--compact" role="group" aria-label={t(i18n, "library.filters")}>
-    <select class="b3-select glean-filter" class:glean-filter--active={Boolean(site)} aria-label={t(i18n, "library.filterSite")} bind:value={site}>
+    <select class="b3-select glean-filter" class:glean-filter--active={Boolean(site)} aria-label={t(i18n, "library.filterSite")} bind:value={site} onkeydown={(e) => { if (e.key === "Escape" && site) { e.preventDefault(); e.stopPropagation(); site = ""; } }}>
         <option value="">{t(i18n, "library.filterSite")}</option>
         {#each facets.sites as facet (facet.value)}<option value={facet.value}>{facet.value} · {facet.count}</option>{/each}
         {#if site && !facets.sites.some((facet) => facet.value === site)}<option value={site}>{site}</option>{/if}
     </select>
-    <select class="b3-select glean-filter" class:glean-filter--active={Boolean(tag)} aria-label={t(i18n, "library.filterTag")} bind:value={tag}>
+    <select class="b3-select glean-filter" class:glean-filter--active={Boolean(tag)} aria-label={t(i18n, "library.filterTag")} bind:value={tag} onkeydown={(e) => { if (e.key === "Escape" && tag) { e.preventDefault(); e.stopPropagation(); tag = ""; } }}>
         <option value="">{t(i18n, "library.filterTag")}</option>
         {#each facets.tags as facet (facet.value)}<option value={facet.value}>#{displayTagAlias(tagAliases, facet.value)} · {facet.count}</option>{/each}
         {#if tag && !facets.tags.some((facet) => facet.value === tag)}<option value={tag}>#{displayTagAlias(tagAliases, tag)}</option>{/if}
@@ -64,42 +64,42 @@
             <button type="button" class="glean-btn glean-btn--ghost" onclick={onManageTagAliases}>{t(i18n, "library.tagAliasManage")}</button>
         {/if}
         <label class="glean-action-popover__field">{t(i18n, "library.filterAuthor")}
-            <select class="b3-select glean-filter" bind:value={author}>
+            <select class="b3-select glean-filter" bind:value={author} onkeydown={(e) => { if (e.key === "Escape" && author) { e.preventDefault(); e.stopPropagation(); author = ""; } }}>
                 <option value="">{t(i18n, "action.filterAll")}</option>
                 {#each facets.authors as facet (facet.value)}<option value={facet.value}>{facet.value} · {facet.count}</option>{/each}
                 {#if author && !facets.authors.some((facet) => facet.value === author)}<option value={author}>{author}</option>{/if}
             </select>
         </label>
         <label class="glean-action-popover__field">{t(i18n, "library.filterAiTag")}
-            <select class="b3-select glean-filter" bind:value={aiTag}>
+            <select class="b3-select glean-filter" bind:value={aiTag} onkeydown={(e) => { if (e.key === "Escape" && aiTag) { e.preventDefault(); e.stopPropagation(); aiTag = ""; } }}>
                 <option value="">{t(i18n, "action.filterAll")}</option>
                 {#each facets.aiTags as facet (facet.value)}<option value={facet.value}>✨{facet.value} · {facet.count}</option>{/each}
                 {#if aiTag && !facets.aiTags.some((facet) => facet.value === aiTag)}<option value={aiTag}>✨{aiTag}</option>{/if}
             </select>
         </label>
         <label class="glean-action-popover__field">{t(i18n, "library.filterSource")}
-            <select class="b3-select glean-filter" bind:value={source}>
+            <select class="b3-select glean-filter" bind:value={source} onkeydown={(e) => { if (e.key === "Escape" && source) { e.preventDefault(); e.stopPropagation(); source = ""; } }}>
                 <option value="">{t(i18n, "action.filterAll")}</option>
                 {#each facets.sources as facet (facet.value)}<option value={facet.value}>{sourceLabel(facet.value)} · {facet.count}</option>{/each}
                 {#if source && !facets.sources.some((facet) => facet.value === source)}<option value={source}>{sourceLabel(source)}</option>{/if}
             </select>
         </label>
         <label class="glean-action-popover__field">{t(i18n, "library.filterTimeSource")}
-            <select class="b3-select glean-filter" bind:value={timeSource}>
+            <select class="b3-select glean-filter" bind:value={timeSource} onkeydown={(e) => { if (e.key === "Escape" && timeSource) { e.preventDefault(); e.stopPropagation(); timeSource = ""; } }}>
                 <option value="">{t(i18n, "action.filterAll")}</option>
                 {#each facets.timeSources as facet (facet.value)}<option value={facet.value}>{facetLabel(facet.value, "timeSource")} · {facet.count}</option>{/each}
                 {#if timeSource && !facets.timeSources.some((facet) => facet.value === timeSource)}<option value={timeSource}>{facetLabel(timeSource, "timeSource")}</option>{/if}
             </select>
         </label>
         <label class="glean-action-popover__field">{t(i18n, "library.filterContentType")}
-            <select class="b3-select glean-filter" bind:value={contentType}>
+            <select class="b3-select glean-filter" bind:value={contentType} onkeydown={(e) => { if (e.key === "Escape" && contentType) { e.preventDefault(); e.stopPropagation(); contentType = ""; } }}>
                 <option value="">{t(i18n, "action.filterAll")}</option>
                 {#each facets.contentTypes as facet (facet.value)}<option value={facet.value}>{facetLabel(facet.value, "contentType")} · {facet.count}</option>{/each}
                 {#if contentType && !facets.contentTypes.some((facet) => facet.value === contentType)}<option value={contentType}>{facetLabel(contentType, "contentType")}</option>{/if}
             </select>
         </label>
         <label class="glean-action-popover__field">{t(i18n, "library.filterReadingTime")}
-            <select class="b3-select glean-filter" bind:value={readingTimeTier}>
+            <select class="b3-select glean-filter" bind:value={readingTimeTier} onkeydown={(e) => { if (e.key === "Escape" && readingTimeTier !== "all") { e.preventDefault(); e.stopPropagation(); readingTimeTier = "all"; } }}>
                 <option value="all">{t(i18n, "action.filterAll")}</option>
                 <option value="short">{t(i18n, "library.readingTimeShort")}</option>
                 <option value="medium">{t(i18n, "library.readingTimeMedium")}</option>

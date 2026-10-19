@@ -1495,3 +1495,10 @@ T-3402 承接方向五（有依据的阅读 AI）与阅读器快捷交互闭环�
 2. 问答输入框 Escape 清空：在文章问答输入框（`question`）监听 `Escape` 按键，支持一键清空未发送的草稿提问并阻止事件冒泡。
 3. 键盘主事件联动关闭：在 `ReaderTab.svelte` 的 `onReaderKey` 中收口 `Escape` 行为——在关闭帮助浮层与外观弹层后，若存在开启的 `aiResult` 或 `questionResult`，按下 `Escape` 安全将其收起清空。
 4. 严格数据主权：纯客户端交互与状态调度，不发起额外模型调用、不修改文章属性或端点。
+
+## D-0282（2026-10-19）读库分面筛选器单项 Escape 清空与键盘交互闭环（T-3403）
+
+T-3403 承接读库无鼠标分拣（T-3392）与键盘无障碍交互收口：
+1. 分面下拉单项清空：在 `src/ui/LibraryFilters.svelte` 中，为常规分面（站点 `site`、标签 `tag`）以及高级筛选浮层（`ActionPopover`）内的 6 项二级分面（作者 `author`、AI 标签 `aiTag`、来源 `source`、时间源 `timeSource`、载体类型 `contentType`、预计时长 `readingTimeTier`）的 `<select>` 下拉框全部接入 `onkeydown`；当该项存在已选值时，按下 `Escape` 即刻将该项重置为默认值（`""` 或 `"all"`）并调用 `event.preventDefault()` 与 `event.stopPropagation()`，避免用户每次清空单项筛选都要翻下拉列表或依赖鼠标。
+2. 作用域隔离：各个下拉框内的 Escape 事件在清空当前项后阻止继续向上冒泡，不触发父容器的关闭或其它全局快捷动作；无选中值时保持默认冒泡。
+3. 严格数据主权：纯组件状态绑定与事件响应，不修改底层数据契约、文章属性、端点或持久化存储。

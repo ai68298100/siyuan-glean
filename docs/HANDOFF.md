@@ -1,5 +1,11 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-19 读库分面筛选器单项 Escape 清空与键盘交互闭环）
+
+- T-3403/D-0282：承接读库无鼠标分拣（T-3392）与键盘无障碍交互收口。在 `src/ui/LibraryFilters.svelte` 中，为常规分面（站点 `site`、标签 `tag`）以及高级筛选浮层（`ActionPopover`）内的 6 项二级分面（作者 `author`、AI 标签 `aiTag`、来源 `source`、时间源 `timeSource`、载体类型 `contentType`、预计时长 `readingTimeTier`）的 `<select>` 下拉框全部接入 Escape 快捷键；获焦且有选中值时按 Escape 立即重置回默认值并阻断冒泡。纯组件状态绑定，不修改底层数据契约、文章属性、端点或持久化存储。
+- 全量门禁闭环：定向 `tests/library-filter-chips.test.ts` 4/4、完整 `pnpm test` 1574/1574、`tsc` 与 `svelte-check` 0 错误 0 警告、`pnpm build`、`pnpm check:release`（`package.zip` 443485B）、`pnpm perf:check`、`pnpm visual:check`（24 项仍待真实宿主）与任务账本检查均通过。真实宿主多分面组合筛选仍归 B-0002。
+- 下一步：按当前执行板顺序推进下一个任务（如 T-3367 批量选择范围与底部操作可达性在更多场景的走查与补强，或按作者点单继续）。版本保持 1.3.7，本轮不打 tag、不发布、不推送。
+
 ## 当前有效交接（2026-10-19 阅读伴读 AI 结果卡片可关闭与问答输入 Escape 清空）
 
 - T-3402/D-0281：承接方向五（有依据的阅读 AI）与阅读器快捷交互闭环。在 `src/ui/ReaderTab.svelte` 的 AI 伴读结果（`aiResult`，总结/翻译）与文章提问问答（`questionResult`）卡片内提供明确的关闭按钮（`action.close`）；问答输入框监听 Escape 快捷清空草稿；主键盘事件处理 Escape 时同步关闭常驻的 AI 结果卡片。纯客户端交互优化，不改变模型请求或数据主权。
