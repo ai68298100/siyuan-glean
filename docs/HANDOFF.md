@@ -1,5 +1,11 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-19 设置弹窗快捷保存与脏草稿退出键盘交互闭环）
+
+- T-3405/D-0284：承接设置视图键盘交互与全插件快捷操作统一走查。在 `src/ui/SettingsView.svelte` 挂载 `<svelte:window>` 级别 `Ctrl/Cmd+Enter` 快捷保存（`!saveBusy && draftDirty`）；接入 `installEscapeHandler` 捕获阶段拦截 Esc 退出，在有脏草稿时激活放弃确认条并将焦点移入“继续编辑”按钮，在干净草稿时正常关闭弹窗；归档笔记本搜索框按 Esc 优先清空过滤；放弃确认条支持 Esc 取消与 Enter 键盘触发；单测与门禁完备，不改变配置 schema 或端点契约。
+- 全量门禁闭环：定向 `tests/settings.test.ts` 21/21、完整 `pnpm test` 1577/1577、`tsc` 与 `svelte-check` 0 错误 0 警告、`pnpm build`、`pnpm check:release`、`pnpm perf:check`、`pnpm visual:check`（24 项仍待真实宿主）与任务账本检查均通过。真实设置弹窗键盘快捷操作与读屏交互仍归 B-0002。
+- 下一步：按当前执行板顺序推进下一个任务（如 T-3367 批量选择范围与底部操作可达性在更多场景的走查与补强，或按作者点单继续）。版本保持 1.3.7，本轮不打 tag、不发布、不推送。
+
 ## 当前有效交接（2026-10-19 标签别名管理弹窗回车快捷保存与重置交互闭环）
 
 - T-3404/D-0283：承接标签别名（T-3346）与全插件弹窗键盘交互统一走查。在 `src/ui/DockPanel.svelte` 中的标签别名管理弹窗（`tagAliasDialog`）内，为别名输入框与来源标签下拉框分别挂载按键监听；在输入有效且非忙碌态下，按下 `Enter` 或 `Ctrl/Cmd+Enter` 自动触发 `saveTagAlias()` 快捷提交；编辑已有别名时按下 `Escape` 安全重置回新建草稿状态并阻断事件冒泡，空白表单下按 `Escape` 正常关闭弹窗。纯组件事件响应，不修改标签别名契约或保存规则。

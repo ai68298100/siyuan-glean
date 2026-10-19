@@ -14,6 +14,7 @@ import { DEFAULT_SETTINGS, cloneSettings, loadSettings, mergeSettingsDraft, norm
 import { loadUiPrefs, saveUiPrefs } from "../services/prefs";
 import type { GleanFacade } from "../types";
 import { exportAnonymousDiagnostic, exportLibraryCsv, exportLibraryMarkdownArchive } from "../services/library-export-service";
+import { installEscapeHandler } from "../libs/modal-focus";
 import BackupPanel from "./BackupPanel.svelte";
 import FlashcardRecoveryPanel from "./FlashcardRecoveryPanel.svelte";
 import AiTagMergePanel from "./AiTagMergePanel.svelte";
@@ -91,6 +92,7 @@ let validationField = $state("");
 let validationError = $state("");
 let confirmDiscardOpen = $state(false);
 let keepEditingButton = $state<HTMLButtonElement>();
+let discardButton = $state<HTMLButtonElement>();
 let saveButton = $state<HTMLButtonElement>();
 let settingsRoot = $state<HTMLElement | null>(null);
 let showNewbieHint = $state(false);
@@ -162,6 +164,90 @@ function discardAndClose(): void {
     confirmDiscardOpen = false;
     onClose?.();
 }
+
+function handleConfirmKeydown(event: KeyboardEvent): void {
+    if (event.defaultPrevented || event.isComposing || event.keyCode === 229) return;
+    if (event.key === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+        keepEditing();
+    } else if (event.key === "Enter") {
+        if (event.target === discardButton) {
+            event.preventDefault();
+            event.stopPropagation();
+            discardAndClose();
+        } else if (event.target === keepEditingButton) {
+            event.preventDefault();
+            event.stopPropagation();
+            keepEditing();
+        }
+    }
+}
+
+function handleWindowKeydown(event: KeyboardEvent): void {
+    if (event.defaultPrevented || event.isComposing || event.keyCode === 229) return;
+
+    if (confirmDiscardOpen) {
+        if (event.key === "Escape") {
+            event.preventDefault();
+            event.stopPropagation();
+            keepEditing();
+        }
+        return;
+    }
+
+    if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+        if (!saveBusy && draftDirty) {
+            event.preventDefault();
+            event.stopPropagation();
+            void save();
+        }
+        return;
+    }
+
+    if (event.key === "Escape") {
+        if (notebookFilter && document.activeElement?.classList.contains("glean-nb-search__input")) {
+            event.preventDefault();
+            event.stopPropagation();
+            notebookFilter = "";
+            return;
+        }
+        if (draftDirty) {
+            event.preventDefault();
+            event.stopPropagation();
+            confirmDiscardOpen = true;
+            void tick().then(() => keepEditingButton?.focus());
+            return;
+        }
+        if (canCloseSettings()) {
+            event.preventDefault();
+            event.stopPropagation();
+            onClose?.();
+        }
+    }
+}
+
+$effect(() => {
+    const root = settingsRoot;
+    if (!root) return;
+    const onEscape = (_event: KeyboardEvent) => {
+        if (confirmDiscardOpen) {
+            keepEditing();
+            return true;
+        }
+        if (notebookFilter && document.activeElement?.classList.contains("glean-nb-search__input")) {
+            notebookFilter = "";
+            return true;
+        }
+        if (draftDirty) {
+            confirmDiscardOpen = true;
+            void tick().then(() => keepEditingButton?.focus());
+            return true;
+        }
+        return false;
+    };
+    return installEscapeHandler(root, onEscape);
+});
 
 let mounted = false;
 
@@ -509,6 +595,8 @@ async function doMountBoard() {
 }
 </script>
 
+<svelte:window onkeydown={handleWindowKeydown} />
+
 <section class="glean-settings" bind:this={settingsRoot} aria-labelledby={titleId} aria-busy={saveBusy || testBusy || boardBusy || rebuildBusy || Boolean(exportBusy) || dismissHintBusy || notebookLoading || checkinLoading || aiLogLoading}>
     {#if validationError}<div class="glean-load-error" role="alert" aria-live="assertive">{validationError}</div>{/if}
     <div class="glean-settings__layout">
@@ -583,6 +671,13 @@ async function doMountBoard() {
                         placeholder={t(i18n, "settings.anchorSearch")}
                         aria-label={t(i18n, "settings.anchorSearch")}
                         bind:value={notebookFilter}
+                        onkeydown={(e) => {
+                            if (e.key === "Escape" && notebookFilter) {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                notebookFilter = "";
+                            }
+                        }}
                     />
                     {#if notebookFilter}
                         <button class="glean-linkish glean-nb-search__clear" type="button" aria-label={t(i18n, "settings.anchorSearchClear")} onclick={() => (notebookFilter = "")}>×</button>
@@ -1018,12 +1113,13 @@ async function doMountBoard() {
 
     <div class="glean-settings__footer">
         {#if confirmDiscardOpen}
-            <div class="glean-settings__close-confirm" role="group" aria-live="assertive" aria-labelledby={`${idPrefix}-discard-title`} aria-describedby={`${idPrefix}-discard-description`}>
+            <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+            <div class="glean-settings__close-confirm" role="group" aria-live="assertive" aria-labelledby={`${idPrefix}-discard-title`} aria-describedby={`${idPrefix}-discard-description`} onkeydown={handleConfirmKeydown}>
                 <strong id={`${idPrefix}-discard-title`}>{t(i18n, "settings.discardConfirmTitle")}</strong>
                 <span id={`${idPrefix}-discard-description`}>{t(i18n, "settings.discardConfirmDescription")}</span>
                 <div class="glean-settings__close-confirm-actions">
                     <button class="glean-btn glean-btn--ghost" bind:this={keepEditingButton} onclick={keepEditing}>{t(i18n, "settings.keepEditing")}</button>
-                    <button class="glean-btn glean-btn--danger" onclick={discardAndClose}>{t(i18n, "settings.discardAndClose")}</button>
+                    <button class="glean-btn glean-btn--danger" bind:this={discardButton} onclick={discardAndClose}>{t(i18n, "settings.discardAndClose")}</button>
                 </div>
             </div>
         {:else}

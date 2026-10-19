@@ -1,6 +1,7 @@
 /** settings 兼容性单测（AI 开关细化轮） */
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 
 import { DEFAULT_SETTINGS, cloneSettings, mergeSettingsDraft, normalizeSettings, settingsEqual } from "../src/services/settings.ts";
 
@@ -132,4 +133,24 @@ test("桥接写开关参与草稿克隆、修改检测、提交与重置", () =>
     assert.equal(merged.integration.checkinItemId, "reading");
     assert.equal(merged.migrateBatchSize, 37);
     assert.equal(mergeSettingsDraft(merged, cloneSettings(DEFAULT_SETTINGS)).integration.bridgeWriteEnabled, false);
+});
+
+test("SettingsView 键盘流契约：Esc 触发草稿放弃/关闭、Ctrl+Enter 快捷保存与确认框键盘支持（T-3405）", () => {
+    const source = readFileSync(new URL("../src/ui/SettingsView.svelte", import.meta.url), "utf8");
+
+    // 1. 结构与事件监听绑定
+    assert.match(source, /<svelte:window onkeydown=\{handleWindowKeydown\} \/>/);
+    assert.match(source, /class="glean-settings__close-confirm"[\s\S]*?onkeydown=\{handleConfirmKeydown\}/);
+    assert.match(source, /bind:this=\{discardButton\}/);
+    assert.match(source, /installEscapeHandler\(root, onEscape\)/);
+
+    // 2. Ctrl/Cmd+Enter 快捷保存
+    assert.match(source, /if \(\(event\.ctrlKey \|\| event\.metaKey\) && event\.key === "Enter"\) \{[\s\S]*?if \(!saveBusy && draftDirty\) \{[\s\S]*?void save\(\);/);
+
+    // 3. Escape 键盘分流逻辑
+    assert.match(source, /if \(notebookFilter && document\.activeElement\?\.classList\.contains\("glean-nb-search__input"\)\) \{[\s\S]*?notebookFilter = "";/);
+    assert.match(source, /if \(draftDirty\) \{[\s\S]*?confirmDiscardOpen = true;/);
+
+    // 4. 确认框键盘处理：Escape 取消，Enter 分流按钮
+    assert.match(source, /function handleConfirmKeydown\(event: KeyboardEvent\): void \{[\s\S]*?if \(event\.key === "Escape"\) \{[\s\S]*?keepEditing\(\);[\s\S]*?\} else if \(event\.key === "Enter"\) \{/);
 });

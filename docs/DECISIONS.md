@@ -1509,3 +1509,14 @@ T-3404 承接标签别名（T-3346）与全插件弹窗键盘交互统一走查�
 1. 回车快捷提交：在 `src/ui/DockPanel.svelte` 的标签别名管理弹窗（`tagAliasDialog`）中，为别名输入框与来源标签下拉框分别挂载按键监听；在输入有效且非忙碌态下，按下 `Enter` 或 `Ctrl/Cmd+Enter` 自动触发 `saveTagAlias()`，与排版、制卡等弹窗的快捷提交契约对齐。
 2. Escape 两级分流：在编辑已有别名（`tagAliasDraftId` 存在）时，输入框内按下 `Escape` 会安全调用 `beginTagAliasEdit()` 重置回新建草稿状态并阻止事件向上冒泡，避免误关弹窗；在空白表单下按下 `Escape` 则由既有 `installModalFocus` 正常关闭弹窗。
 3. 严格数据主权：纯组件表单事件响应，不修改标签别名的数据契约、存储键或持久化规则。
+
+## D-0284（2026-10-19）设置弹窗快捷保存与脏草稿退出键盘交互闭环（T-3405）
+
+T-3405 承接设置视图键盘交互与全插件快捷操作统一走查：
+1. 快捷保存：在 `src/ui/SettingsView.svelte` 挂载 `<svelte:window onkeydown={handleWindowKeydown} />`；在非保存忙碌态且草稿有脏改动（`!saveBusy && draftDirty`）时，按下 `Ctrl+Enter` 或 `Cmd+Enter` 即可立即触发保存设置，无需切换焦点至底部按钮。
+2. Escape 两级拦截与确认流：
+   - 当归档笔记本搜索框（`notebookFilter`）有内容时，按 Escape 优先清空搜索词；
+   - 当草稿处于脏改动状态时，捕获阶段由 `installEscapeHandler(root, onEscape)` 拦截模态 Esc 关闭，转为激活确认放弃条（`confirmDiscardOpen = true`）并自动聚焦至“继续编辑”按钮；
+   - 在放弃确认条内，按 `Escape` 取消放弃回到保存按钮，按 `Enter` 触发当前获焦的放弃或取消动作；
+   - 当草稿干净无脏改动且非忙碌时，按 Escape 直接关闭设置弹窗。
+3. 严格数据主权与无障碍契约：所有快捷交互均为客户端组件级事件调度，无脏改动不落盘，保存与重置均经由 `services/settings.ts`，确保配置 schema 规范化与原子同步。
