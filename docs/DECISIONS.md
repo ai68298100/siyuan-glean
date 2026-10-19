@@ -1472,3 +1472,11 @@ T-3399 把 T-3392 的键位仲裁扩展到场外视图，避免第二套快捷�
 2. 收窄接管范围：只消费 `move`、`toggleSelect`、`activate` 三类动作；方向键即使满足仲裁也交还列表原生滚动，避免打断正常的页面浏览。
 3. 光标生命周期：光标只对应当前页已渲染条目（`visibleIds`），翻页、筛选或作用域切换后不可见即清除；`Escape` 优先关闭导出预览，其次退出光标，两层都走同一窗口处理器。
 4. 语义与可访问性：`X` 复用既有 `toggle`（只改会话勾选），`Enter` 复用 `openDoc`（只做导航），均不新增写入路径；卡片补 `data-glean-highlight-id`、`aria-current` 与 `--cursor` 描边，并在 `forced-colors` 下回退系统 `Highlight`。
+
+## D-0279（2026-10-19）今日拾遗桌面端全键盘分拣流（T-3400）
+
+T-3400 把读库的键盘分拣模式（T-3392）扩展到每日重浮（今日拾遗）核心工作流：
+1. 键位映射与仲裁：`src/ui/ResurfaceView.svelte` 引入 `moveLibraryCursor` 与 `resolveLibraryShortcut`，为每日重浮卡片（`picks`）提供 J/K 移动、Enter/R 阅读（`act(pick, "read")`）、A 改天（`act(pick, "later")`）、E 归档（`act(pick, "archive")`）；同时新增专属键位 `H` 换一篇（`replacePick(pick)`，从备用池补位）；方向键仅在光标激活时接管，其余交给原生滚动。
+2. 防误触与长按保护：严格遵循 T-3392 的仲裁契约，输入法组合期间、Ctrl/Alt/Meta 修饰键、文本输入控件、按钮原生语义与弹层打开时一律让出；写状态操作（read/later/archive/replace）全部忽略长按重复。
+3. 提示与焦点回退：在桌面端卡片顶部提供 `glean-kbdhint` 行内快捷键提示与读屏 `aria-live` 播报；卡片增加 `data-glean-surf-id`、`aria-current` 与 `.glean-surf-card--cursor` 设计令牌描边（并在 forced-colors 下回退为系统 Highlight）；Escape 键多层收口（优先撤销条/换文提示，其次退出键盘光标）。
+4. 严格数据主权：纯会话光标状态与组件事件调度，状态写入复用既有 `act` 与 `clip-store`，不修改底层数据契约、文章属性、端点或持久化存储。

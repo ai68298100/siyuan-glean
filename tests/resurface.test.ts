@@ -230,7 +230,22 @@ test("pickDaily：分数差距大但无标签重叠的候选按序入选，仅�
 test("ResurfaceView 接线：撤销与换篇提示支持 Escape 快捷关闭（T-3396）", () => {
     const view = readFileSync(new URL("../src/ui/ResurfaceView.svelte", import.meta.url), "utf8");
     assert.match(view, /<svelte:window onkeydown=\{onWindowKeyDown\} \/>/);
-    assert.match(view, /if \(event\.key !== "Escape"/);
+    assert.match(view, /if \(event\.key === "Escape"\) \{/);
     assert.match(view, /if \(undoNotice && undoingId !== undoNotice\.id\) \{[\s\S]*?void dismissUndo\(\);/);
     assert.match(view, /if \(replacementNotice\) \{[\s\S]*?replacementNotice = null;/);
+});
+
+test("ResurfaceView 接线：今日拾遗桌面端全键盘分拣流（T-3400）", () => {
+    const view = readFileSync(new URL("../src/ui/ResurfaceView.svelte", import.meta.url), "utf8");
+    assert.match(view, /import \{ moveLibraryCursor, resolveLibraryShortcut \} from "\.\.\/domain\/library-keyboard"/);
+    assert.match(view, /let cursorId = \$state\(""\)/);
+    assert.match(view, /const pickIds = \$derived\(picks\.map\(\(pick\) => pick\.item\.id\)\)/);
+    assert.match(view, /setCursor\(moveLibraryCursor\(pickIds, cursorId, action\.delta\)\)/);
+    assert.match(view, /case "startReading":[\s\S]*?void act\(pick, "read"\)/);
+    assert.match(view, /case "later":[\s\S]*?void act\(pick, "later"\)/);
+    assert.match(view, /case "archive":[\s\S]*?void act\(pick, "archive"\)/);
+    assert.match(view, /void replacePick\(slot, pick\)/);
+    assert.match(view, /data-glean-surf-id=\{pick\.item\.id\}/);
+    assert.match(view, /class:glean-surf-card--cursor=\{cursorId === pick\.item\.id\}/);
+    assert.match(view, /class="glean-kbdhint"/);
 });

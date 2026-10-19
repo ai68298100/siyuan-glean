@@ -12,6 +12,7 @@ import { hasSourceAction, openTargetForCarrier, resolveCarrier, sourceUrlForCarr
 import { clampSurfaceSwipe, resolveSurfaceSwipe, type SurfaceSwipeAction } from "../domain/surface-swipe";
 import ContextSelectionPanel from "./ContextSelectionPanel.svelte";
 import { projectActiveRecentReadings, type RecentReadingEntry } from "../domain/recent-reading";
+import { moveLibraryCursor, resolveLibraryShortcut } from "../domain/library-keyboard";
 
 interface Props {
     facade: GleanFacade;
@@ -41,7 +42,15 @@ type SurfaceDisplayPick = SurfacePick & { reasons: SurfaceReason[] };
 let sessionPicks = $state<SurfaceDisplayPick[] | null>(null);
 let replacementExcluded = $state<string[]>([]);
 let replacementNotice = $state<{ from: string; to: string } | null>(null);
-const picks = $derived(sessionPicks ?? daily.picks);
+    const picks = $derived(sessionPicks ?? daily.picks);
+    /** 今日拾遗卡片键盘光标（T-3400）：仅桌面端会话状态，不写文章属性与偏好。 */
+    let cursorId = $state("");
+    const pickIds = $derived(picks.map((pick) => pick.item.id));
+    const activePick = $derived<SurfaceDisplayPick | null>(cursorId ? picks.find((p) => p.item.id === cursorId) ?? null : null);
+
+    $effect(() => {
+        if (cursorId && !pickIds.includes(cursorId)) cursorId = "";
+    });
 const recentCount = $derived(daily.recentCount);
 const clipCount = $derived(Object.keys(index.clips).length);
 const candidateCount = $derived(Object.keys(index.candidates).length);
@@ -424,18 +433,100 @@ function reasonText(reason: SurfaceReason): string {
 }
 
 function onWindowKeyDown(event: KeyboardEvent): void {
-    if (event.key !== "Escape" || event.defaultPrevented || event.isComposing || event.keyCode === 229 || event.repeat) return;
-    if (undoNotice && undoingId !== undoNotice.id) {
-        event.preventDefault();
-        event.stopPropagation();
-        void dismissUndo();
+    if (event.defaultPrevented || event.isComposing || event.keyCode === 229 || event.repeat) return;
+    if (event.key === "Escape") {
+        if (undoNotice && undoingId !== undoNotice.id) {
+            event.preventDefault();
+            event.stopPropagation();
+            void dismissUndo();
+            return;
+        }
+        if (replacementNotice) {
+            event.preventDefault();
+            event.stopPropagation();
+            replacementNotice = null;
+            return;
+        }
+        if (cursorId) {
+            event.preventDefault();
+            event.stopPropagation();
+            const previous = cursorId;
+            cursorId = "";
+            focusCard(previous);
+        }
         return;
     }
-    if (replacementNotice) {
+    if (!facade.isMobile) {
+        handleResurfaceShortcut(event);
+    }
+}
+
+/**
+ * 今日拾遗全键盘操作流（T-3400）：复用读库键位仲裁层，
+ * J/K 移动、Enter/R 阅读、A 改天、E 归档、H 换一篇（今日拾遗专属）。
+ */
+function handleResurfaceShortcut(event: KeyboardEvent): void {
+    const target = event.target instanceof Element ? event.target : null;
+    const textEntry = Boolean(target?.closest("input, textarea, select, [contenteditable]:not([contenteditable='false'])"));
+    const nativeAction = Boolean(target?.closest("button, a[href], summary, [role='button']"));
+    const action = resolveLibraryShortcut(event, {
+        textEntry,
+        nativeAction,
+        overlay: Boolean(document.querySelector("dialog[open], .b3-menu")),
+        cursorActive: Boolean(cursorId),
+    });
+    // H 换一篇作为今日拾遗特色快捷键，仅在光标激活且未在输入控件中时接管
+    if (!action && !textEntry && Boolean(cursorId) && (event.key === "h" || event.key === "H")) {
+        const pick = activePick;
+        if (pick && !actingId && !undoingId) {
+            const slot = picks.indexOf(pick);
+            if (slot >= 0) {
+                event.preventDefault();
+                event.stopPropagation();
+                void replacePick(slot, pick);
+            }
+        }
+        return;
+    }
+    if (!action) return;
+    if (action.type === "move") {
         event.preventDefault();
         event.stopPropagation();
-        replacementNotice = null;
+        setCursor(moveLibraryCursor(pickIds, cursorId, action.delta));
+        return;
     }
+    const pick = activePick;
+    if (!pick || actingId || undoingId) return;
+    switch (action.type) {
+        case "activate":
+        case "startReading":
+            event.preventDefault();
+            event.stopPropagation();
+            void act(pick, "read");
+            break;
+        case "later":
+            event.preventDefault();
+            event.stopPropagation();
+            void act(pick, "later");
+            break;
+        case "archive":
+            event.preventDefault();
+            event.stopPropagation();
+            void act(pick, "archive");
+            break;
+    }
+}
+
+function setCursor(id: string): void {
+    cursorId = id;
+    if (id) focusCard(id);
+}
+
+function focusCard(id: string): void {
+    void tick().then(() => {
+        if (!id) return;
+        panelRoot?.querySelector<HTMLElement>(`[data-glean-surf-id="${CSS.escape(id)}"] .glean-surf-card__title button`)?.focus({ preventScroll: true });
+    });
 }
 </script>
 
@@ -621,6 +712,21 @@ function onWindowKeyDown(event: KeyboardEvent): void {
                 <div class="glean-empty__hint">{t(i18n, "resurface.allDoneHint")}</div>
             </div>
         {/if}
+        {#if !facade.isMobile && picks.length > 0}
+            <div class="glean-kbdhint" class:glean-kbdhint--active={Boolean(activePick)}>
+                <span class="glean-kbdhint__keys" aria-hidden="true">
+                    <kbd>J</kbd><kbd>K</kbd> {t(i18n, "library.keyboardMove")}
+                    <kbd>Enter</kbd> {t(i18n, "library.keyboardRead")}
+                    <kbd>A</kbd> {t(i18n, "resurface.later")}
+                    <kbd>E</kbd> {t(i18n, "resurface.archive")}
+                    <kbd>H</kbd> {t(i18n, "resurface.replace")}
+                    <kbd>Esc</kbd> {t(i18n, "library.keyboardExit")}
+                </span>
+                <span class="glean-sr-only" role="status" aria-live="polite">
+                    {activePick ? t(i18n, "library.keyboardCursor", { title: activePick.item.title || t(i18n, "panel.untitled") }) : ""}
+                </span>
+            </div>
+        {/if}
         <div class="glean-surf">
             {#each picks as pick, index (pick.item.id)}
                 <div class="glean-surf-swipe">
@@ -629,6 +735,9 @@ function onWindowKeyDown(event: KeyboardEvent): void {
                     <article
                         class:glean-surf-card--swiping={swipeState?.id === pick.item.id}
                         class="glean-surf-card"
+                        class:glean-surf-card--cursor={cursorId === pick.item.id}
+                        data-glean-surf-id={pick.item.id}
+                        aria-current={cursorId === pick.item.id ? "true" : undefined}
                         aria-labelledby={cardTitleId(pick.item.id)}
                         aria-busy={actingId === pick.item.id || undoingId === pick.item.id}
                         style="--glean-surf-index: {index}; --glean-swipe-offset: {swipeOffsetFor(pick.item.id)}px"

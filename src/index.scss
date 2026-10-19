@@ -8449,13 +8449,15 @@ body.b3-theme-dark {
     transform: translateY(-1px);
 }
 
-.glean-highlights__item--cursor {
+.glean-highlights__item--cursor,
+.glean-surf-card--cursor {
     outline: 2px solid var(--glean-accent-b);
     outline-offset: 2px;
 }
 
 @media (forced-colors: active) {
-    .glean-highlights__item--cursor {
+    .glean-highlights__item--cursor,
+    .glean-surf-card--cursor {
         outline: 2px solid Highlight;
     }
 }

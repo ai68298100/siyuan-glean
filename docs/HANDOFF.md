@@ -1,5 +1,11 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-19 今日拾遗桌面端全键盘分拣流）
+
+- T-3400/D-0279：把读库分拣流（T-3392）扩展到每日重浮（今日拾遗）。`src/ui/ResurfaceView.svelte` 引入 `moveLibraryCursor` 与 `resolveLibraryShortcut`，为每日重浮卡片提供 J/K 移动、Enter/R 阅读、A 改天、E 归档，以及专属 H 换一篇分拣；桌面端顶部提供 `glean-kbdhint` 提示条与读屏 `aria-live` 播报，卡片补 `data-glean-surf-id`、`aria-current` 与 `.glean-surf-card--cursor` 描边；Escape 多层收口（优先撤销条/换文提示，其次退出键盘光标）。纯会话状态与状态路由复用，不修改文章属性或持久化。
+- 全量门禁闭环：定向 `tests/resurface.test.ts` 21/21、完整 `pnpm test` 1571/1571、`tsc` 与 `svelte-check` 0 错误 0 警告、`pnpm build`、`pnpm check:release`（`package.zip` 443485B）、`pnpm perf:check`、`pnpm visual:check`（24 项仍待真实宿主）与任务账本检查均通过。真实宿主长周期重浮与键盘实操仍归 B-0002。
+- 下一步：按当前执行板顺序推进下一个任务（如 T-3367 批量选择范围与底部操作可达性在更多场景的走查与补强，或按作者点单继续）。版本保持 1.3.7，本轮不打 tag、不发布、不推送。
+
 ## 当前有效交接（2026-10-19 摘录墙行级键盘导航复用读库仲裁层）
 
 - T-3399/D-0278：把 T-3392 的键位仲裁扩展到场外视图。`src/ui/HighlightView.svelte` 引入 `moveLibraryCursor` / `resolveLibraryShortcut`，为当前页摘录卡片提供 J/K 移动、X 勾选、Enter 打开原文、Escape 退出光标；只消费 `move`/`toggleSelect`/`activate`，方向键仍交还原生滚动；翻页或筛选后光标不可见即清除，`Escape` 先关导出预览再退光标。卡片补 `data-glean-highlight-id`、`aria-current` 与 `--cursor` 描边（含 forced-colors）。纯会话状态，不写文章属性或持久化。
