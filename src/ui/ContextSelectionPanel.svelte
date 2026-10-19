@@ -6,6 +6,8 @@
     import { openTargetForCarrier, resolveCarrier, sourceUrlForCarrier } from "../domain/carrier";
     import { CONTEXT_BUDGETS, selectReadingContext, type ContextBudget, type ContextReason, type ContextSelectionCandidate } from "../domain/context-selection";
     import type { GleanIndex } from "../services/index-store";
+    import { loadUiPrefs } from "../services/prefs";
+    import { displayTagAlias, type TagAlias } from "../domain/ui-prefs";
 
     interface Props {
         facade: GleanFacade;
@@ -23,6 +25,25 @@
     let selectedTag = $state("");
     let includeDone = $state(false);
     let includeUnknownMinutes = $state(false);
+    let tagAliases = $state<TagAlias[]>([]);
+    let tagAliasGeneration = 0;
+
+    $effect(() => {
+        let active = true;
+        const syncTagAliases = (): void => {
+            const request = ++tagAliasGeneration;
+            void loadUiPrefs(facade.pluginInstance).then((prefs) => {
+                if (active && request === tagAliasGeneration) tagAliases = prefs.tagAliases;
+            }).catch(() => undefined);
+        };
+        syncTagAliases();
+        document.addEventListener("glean:tag-aliases-changed", syncTagAliases);
+        return () => {
+            active = false;
+            tagAliasGeneration += 1;
+            document.removeEventListener("glean:tag-aliases-changed", syncTagAliases);
+        };
+    });
 
     const items = $derived.by(() => Object.values(index.clips).map((item) => ({
         id: item.id,
@@ -96,7 +117,7 @@
             case "budget": return reason.value === "unknown"
                 ? t(i18n, "context.reason.unknownMinutes")
                 : t(i18n, "context.reason.budget", { n: reason.value ?? 0 });
-            case "tag": return t(i18n, "context.reason.tag", { tag: reason.value ?? "" });
+            case "tag": return t(i18n, "context.reason.tag", { tag: displayTagAlias(tagAliases, String(reason.value ?? "")) });
             case "priority": return t(i18n, "context.reason.priority", { n: reason.value ?? 3 });
             case "waiting": return t(i18n, "context.reason.waiting", { n: reason.value ?? 0 });
             case "unknownMinutes": return t(i18n, "context.reason.unknownMinutes");
@@ -139,13 +160,13 @@
         </label>
         <label class="glean-context-selection__field">
             <span>{t(i18n, "context.tag")}</span>
-            <select aria-label={t(i18n, "context.tag")} value={selectedTag} onchange={setTag}>
+            <select aria-label={t(i18n, "context.tag")} value={selectedTag} onchange={setTag} onkeydown={(event) => { if (event.key === "Escape" && selectedTag) { event.preventDefault(); event.stopPropagation(); selectedTag = ""; } }}>
                 <option value="">{t(i18n, "context.allTags")}</option>
                 {#each userTags as tag}
-                    <option value={tag}>{tag}</option>
+                    <option value={tag}>{displayTagAlias(tagAliases, tag)}</option>
                 {/each}
                 {#if selectedTag && !userTags.includes(selectedTag)}
-                    <option value={selectedTag}>{selectedTag}</option>
+                    <option value={selectedTag}>{displayTagAlias(tagAliases, selectedTag)}</option>
                 {/if}
             </select>
         </label>

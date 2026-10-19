@@ -4,6 +4,7 @@
 
 ### 新增与体验增强
 
+- **情境选文标签别名贯通与 Escape 快捷清空（T-3397）**：情境选文面板（`ContextSelectionPanel`）接入 `tagAliases` 偏好观察与实时更新，标签下拉选项与理由卡片（`reasonText`）统一投影用户友好的标签别名；控件区域接入 Escape 快捷键清空已选主题标签，保持会话纯投影与数据主权不变。
 - **今日拾遗撤销与换篇提示 Escape 快捷关闭与焦点闭环（T-3396）**：今日拾遗视图（`ResurfaceView`）挂载 `<svelte:window>` Escape 快捷退出，在非忙碌时按 Escape 即可快捷关闭操作撤销条（`undoNotice`，将焦点安全回退至可用卡片标题）并清空换文提示（`replacementNotice`）。
 - **统计回顾预览与日期过滤 Escape 退出交互（T-3395）**：统计视图（`StatsView`）回顾预览区接入 `<svelte:window>` Escape 快捷退出，在非忙碌时按 Escape 即可放弃并退出预览草稿；在热力图或近期趋势表格中按日期联动过滤已完成文章列表时，按 Escape 快捷清除单日过滤回到完整完成文章列表。
 - **摘录墙全库制卡贯通与导出预览 Escape 退出交互（T-3394）**：解除原先在全库摘录墙浏览时制卡按钮被隐藏的限制，浏览全库高亮时也可一键为任意金句或要点制作思源 riff 闪卡；导出预览区接入 `<svelte:window>` Escape 快捷退出，并在搜索框支持按 Escape 一键清空搜索词与筛选。

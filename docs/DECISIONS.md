@@ -1449,3 +1449,10 @@ T-3396 承接全插件键盘无障碍走查与 Escape 契约闭环：
 1. 撤销通知快捷关闭：在 `src/ui/ResurfaceView.svelte` 挂载 `<svelte:window>` 级别 `onkeydown`，在非撤销中状态下按 `Escape` 可安全调用 `dismissUndo()`，关闭操作撤销条（`undoNotice`）并将焦点顺畅安全回退到可用卡片标题，避免用户必须精准点击关闭小按钮。
 2. 换文提示就地清除：当今日拾遗展示“换一篇”替补提示（`replacementNotice`）时，按下 `Escape` 快捷清空该提示条。
 3. 严格数据主权：纯组件会话状态与键盘事件响应，不修改底层数据契约、文章属性、端点或持久化存储。
+
+## D-0276（2026-10-19）情境选文标签别名贯通与 Escape 快捷清空（T-3397）
+
+T-3397 承接 T-3346 与全插件键盘无障碍走查：
+1. 别名无缝贯通：在 `src/ui/ContextSelectionPanel.svelte` 中接入 `tagAliases` 偏好观察与 `glean:tag-aliases-changed` 事件，下拉选项与理由卡片（`reasonText`）通过 `displayTagAlias` 展示用户配置的别名（例如“技术 (tech)”），消除此前仅显示原始标签的体验盲区。
+2. 键盘便捷清空：在情境选文控件区（`glean-context-selection__controls`）监听 `Escape` 按键，当选中具体主题标签时按下 `Escape` 可快捷重置回“全部主题”，避免每次重置都要翻下拉框。
+3. 严格数据主权：纯视图状态投影与偏好读取，不修改文章根块 IAL 标签、文章属性、端点或持久化存储。

@@ -48,12 +48,15 @@ test("预算控件与数字选项类型一致，长面板保留今日卡片的�
     assert.match(read("src/ui/ResurfaceView.svelte"), /observedIndex = \$state\.raw<GleanIndex \| null>\(null\)/);
 });
 
-test("情境选文刷新后保留已选但不再存在的主题并保留清除入口", () => {
+test("情境选文刷新后保留已选但不再存在的主题并保留清除入口，支持标签别名与 Escape 清除（T-3397）", () => {
     const panel = read("src/ui/ContextSelectionPanel.svelte");
     const tagSelect = panel.match(/<select aria-label=\{t\(i18n, "context\.tag"\)\}[\s\S]*?<\/select>/)?.[0] ?? "";
     assert.match(tagSelect, /value=\{selectedTag\} onchange=\{setTag\}/);
     assert.match(tagSelect, /<option value="">\{t\(i18n, "context\.allTags"\)\}<\/option>/);
-    assert.match(tagSelect, /\{#if selectedTag && !userTags\.includes\(selectedTag\)\}\s*<option value=\{selectedTag\}>\{selectedTag\}<\/option>/);
+    assert.match(tagSelect, /\{#if selectedTag && !userTags\.includes\(selectedTag\)\}\s*<option value=\{selectedTag\}>\{displayTagAlias\(tagAliases, selectedTag\)\}<\/option>/);
+    assert.match(panel, /displayTagAlias\(tagAliases, tag\)/);
+    assert.match(panel, /displayTagAlias\(tagAliases, String\(reason\.value \?\? ""\)\)/);
+    assert.match(panel, /if \(event\.key === "Escape" && selectedTag\) \{ event\.preventDefault\(\); event\.stopPropagation\(\); selectedTag = ""; \}/);
 });
 
 test("情境选文打开按钮关联实例内稳定的文章标题", () => {
