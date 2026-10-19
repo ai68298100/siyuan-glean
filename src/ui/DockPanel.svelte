@@ -1738,8 +1738,9 @@ function keyboardContext(event: KeyboardEvent): LibraryKeyboardContext {
 function hasBlockingOverlay(): boolean {
     if (rootEl?.querySelector(":popover-open")) return true;
     if (typeof document === "undefined") return false;
+    // 任何可见的菜单/模态层都优先：包括插件自己的别名与预览对话框。
     const overlays = document.querySelectorAll<HTMLElement>(".b3-menu, .b3-dialog, dialog[open], [role='dialog'][aria-modal='true']");
-    return Array.from(overlays).some((element) => element.getClientRects().length > 0 && !rootEl?.contains(element));
+    return Array.from(overlays).some((element) => element.getClientRects().length > 0);
 }
 
 function focusKeyboardRow(id: string): void {
@@ -2785,9 +2786,11 @@ function metaLine(entry: Row): string {
                     {#each visibleRows as entry (entry.id)}
                         <article
                             class="glean-card"
-                            data-glean-clip-id={entry.kind === "clip" ? entry.id : undefined}
+                            data-glean-clip-id={entry.id}
                             class:glean-card--candidate={entry.kind === "candidate"}
                             class:glean-card--selected={selection.has(entry.id)}
+                            class:glean-card--cursor={keyboardCursorId === entry.id}
+                            aria-current={keyboardCursorId === entry.id ? "true" : undefined}
                         >
                             <div class="glean-card__body">
                                 <button type="button" class="glean-card__title" aria-label={articleActionLabel(entry.title, true)} title={entry.title || t(i18n, "panel.untitled")} onclick={() => selectPreview(entry.id)}>{entry.title || t(i18n, "panel.untitled")}</button>

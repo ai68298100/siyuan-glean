@@ -1083,14 +1083,16 @@ body.b3-theme-dark {
 }
 
 .glean-drow--cursor,
-.glean-kcard--cursor {
+.glean-kcard--cursor,
+.glean-card--cursor {
     outline: 2px solid var(--glean-accent-b);
     outline-offset: 1px;
 }
 
 @media (forced-colors: active) {
     .glean-drow--cursor,
-    .glean-kcard--cursor {
+    .glean-kcard--cursor,
+    .glean-card--cursor {
         outline: 2px solid Highlight;
     }
 }

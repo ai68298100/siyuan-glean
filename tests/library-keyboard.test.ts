@@ -83,6 +83,8 @@ test("DockPanel 接线：键盘光标样式、提示条与动作路由存在", (
     assert.match(dock, /let keyboardCursorId = \$state\(""\)/);
     assert.match(dock, /class:glean-drow--cursor=\{keyboardCursorId === entry\.id\}/);
     assert.match(dock, /class:glean-kcard--cursor=\{keyboardCursorId === entry\.id\}/);
+    // 窄 Dock 的卡片布局同样参与光标与定位（候选也必须能按 id 找到）。
+    assert.match(dock, /class:glean-card--cursor=\{keyboardCursorId === entry\.id\}/);
     assert.match(dock, /class="glean-kbdhint"/);
     assert.match(dock, /case "later":[\s\S]*?await setStatus\(entry, "later"\)/);
     assert.match(dock, /case "archive":[\s\S]*?facade\.openArchiveDialog\(entry\.id\)/);
@@ -92,7 +94,7 @@ test("DockPanel 接线：键盘光标样式、提示条与动作路由存在", (
 });
 
 test("样式：光标描边使用设计令牌并提供强制颜色系统回退", () => {
-    assert.match(styles, /\.glean-drow--cursor,\s*\n\.glean-kcard--cursor\s*\{\s*\n\s*outline: 2px solid var\(--glean-accent-b\);/);
+    assert.match(styles, /\.glean-drow--cursor,\s*\n\.glean-kcard--cursor,\s*\n\.glean-card--cursor\s*\{\s*\n\s*outline: 2px solid var\(--glean-accent-b\);/);
     assert.match(styles, /@media \(forced-colors: active\) \{[\s\S]*?\.glean-drow--cursor,[\s\S]*?outline: 2px solid Highlight;/);
     assert.match(styles, /\.glean-kbdhint[\s\S]*?kbd \{/);
 });

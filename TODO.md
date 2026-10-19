@@ -27,7 +27,7 @@
 
 - [◐] **T-3391**（P2，2026-10-19）读库分面筛选器支持预计阅读时间分档筛选（承接 Readwise/Cubox 调研 / D-0270）：`domain/library-view.ts` 新增 `matchReadingTimeTier` 纯函数与 `ReadingTimeTier` 类型；`LibraryFilters.svelte` 更多筛选接入时长下拉分档（短文 ≤5m、中篇 6-15m、长篇 >15m）；单测与双语支持完备。代码状态：完成；隔离验证：单测通过；真实验收：待 B-0002；延后原因：真实多篇长短文读库联动观感仍待 B-0002。
 
-- [◐] **T-3392**（P2，2026-10-19）读库全键盘操作流导航与快捷状态分拣（参考 Readwise Reader）：`domain/library-keyboard.ts` 新增 `resolveLibraryShortcut` 与 `moveLibraryCursor` 纯函数，仲裁 J/K、Enter、O、R、A、E、X、Esc，并让出 IME 组合、修饰键、Shift 组合、文本输入、按钮原生语义与浮层打开场景；`DockPanel.svelte` 在读库列表行/卡片与看板卡片接入键盘光标、行内快捷键提示条与 SR 播报，移动端不注册；纯会话状态与视图投影，不新增属性、端点或持久化。代码状态：完成；隔离验证：定向 `tests/library-keyboard.test.ts` 8/8、完整 `pnpm test` 1564/1564、`pnpm check` 0 错误/0 警告、`pnpm build`、`pnpm check:release`、`pnpm perf:check`、`pnpm visual:check` 与任务账本门禁通过；真实验收：待 B-0002 真实宿主键盘、读屏与窄 Dock；延后原因：真实宿主按键冲突与视觉矩阵仍归 B-0002。
+- [◐] **T-3392**（P2，2026-10-19）读库全键盘操作流导航与快捷状态分拣（参考 Readwise Reader）：`domain/library-keyboard.ts` 新增 `resolveLibraryShortcut` 与 `moveLibraryCursor` 纯函数，仲裁 J/K、Enter、O、R、A、E、X、Esc，并让出 IME 组合、修饰键、Shift 组合、文本输入、按钮原生语义与浮层打开场景；`DockPanel.svelte` 在读库列表行/卡片与看板卡片接入键盘光标、行内快捷键提示条与 SR 播报，移动端不注册；纯会话状态与视图投影，不新增属性、端点或持久化。代码状态：完成；隔离验证：定向 `tests/library-keyboard.test.ts` 9/9、完整 `pnpm test` 1564/1564、`pnpm check` 0 错误/0 警告、`pnpm build`、`pnpm check:release`、`pnpm perf:check`、`pnpm visual:check` 与任务账本门禁通过；真实验收：待 B-0002 真实宿主键盘、读屏与窄 Dock；延后原因：真实宿主按键冲突与视觉矩阵仍归 B-0002。
 
 - [☐] **T-3393**（P2，2026-10-19）智能聚合视图与动态规则过滤器（参考 Cubox）：研究与实现多维度组合条件（如未读且短文）保存为一键快捷智能标签页，丰富读库个性化管理能力。代码状态：待办；隔离验证：待运行；真实验收：待 B-0002；延后原因：需先确定持久化存储格式与跨设备同步方案。
 

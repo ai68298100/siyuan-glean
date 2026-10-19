@@ -3,7 +3,7 @@
 ## 当前有效交接（2026-10-19 读库全键盘操作流）
 
 - T-3392/D-0271：承接 Readwise Reader 调研与 T-1792 键盘可达性主线。新增 `src/domain/library-keyboard.ts`：`resolveLibraryShortcut` 仲裁 J/↓、K/↑、Enter、O、R、A、E、X、Esc，并对 IME 组合、修饰键、Shift 组合、文本输入、按钮原生 Enter 语义、浮层打开一律让出；`moveLibraryCursor` 处理首入端点、边界不回绕与空列表。`src/ui/DockPanel.svelte` 在列表行、候选行、看板卡片接入会话级键盘光标（`glean-drow--cursor` / `glean-kcard--cursor`）、`aria-current`、行内 `glean-kbdhint` 提示条与 SR 播报；移动端不注册，候选只允许查看与勾选。纯会话状态与视图投影，不新增文章属性、端点或持久化。
-- 全量门禁闭环：定向 `tests/library-keyboard.test.ts` 8/8、完整 `pnpm test` 1564/1564、`tsc` 与 `svelte-check` 0 错误 0 警告、`pnpm build`、`pnpm check:release`（`package.zip` 442681B）、`pnpm perf:check`、`pnpm visual:check`（24 项仍待真实宿主）与任务账本检查均通过。真实宿主键盘冲突、读屏播报与窄 Dock 观感仍归 B-0002。
+- 全量门禁闭环：定向 `tests/library-keyboard.test.ts` 9/9、完整 `pnpm test` 1564/1564、`tsc` 与 `svelte-check` 0 错误 0 警告、`pnpm build`、`pnpm check:release`（`package.zip` 442671B）、`pnpm perf:check`、`pnpm visual:check`（24 项仍待真实宿主）与任务账本检查均通过。覆盖三种画布：桌面行表、工作台看板卡片、窄 Dock 卡片；候选行/卡片同样可按 id 定位并显示光标。真实宿主键盘冲突、读屏播报与窄 Dock 观感仍归 B-0002。
 - 下一步：T-3393（智能聚合视图与动态规则过滤器）需先确定持久化格式与跨设备语义，再做纯函数；也可按作者点单继续当前执行板上的其他任务。版本保持 1.3.7，本轮不打 tag、不发布、不推送。
 
 ## 当前有效交接（2026-10-19 排版整理弹窗快捷键与读库时长分档筛选）
