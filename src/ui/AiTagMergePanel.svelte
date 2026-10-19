@@ -85,7 +85,18 @@
             busy = "";
         }
     }
+
+    function handleWindowKeydown(event: KeyboardEvent): void {
+        if (event.isComposing || event.keyCode === 229) return;
+        if (event.key === "Escape" && confirmKey && !busy) {
+            event.preventDefault();
+            event.stopPropagation();
+            confirmKey = "";
+        }
+    }
 </script>
+
+<svelte:window onkeydown={handleWindowKeydown} />
 
 <section class="glean-ai-tag-merge" aria-labelledby={titleId} aria-busy={Boolean(busy)}>
     <div class="glean-ai-tag-merge__head">

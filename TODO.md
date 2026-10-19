@@ -57,6 +57,8 @@
 
 - [◐] **T-3406**（P2，2026-10-20）读库导出服务全链路容灾与边界测试补全（自动化测试与健壮性）：为 `library-export-service.ts` 补齐原生模块隔离服务级回归测试 `tests/library-export-service.test.mjs`；覆盖 CSV 导出特殊字符转义/BOM/内部与未收录文档过滤、单篇 Markdown 导出与 YAML Frontmatter/未入库拒止、Markdown 全库归档 ZIP 分卷切分（`ARCHIVE_PART_MAX_BYTES`）以及单篇文档读取异常时的容灾捕获（不中断归档并在 index.json 记录 failure）、匿名诊断指标聚合与对账异常时的安全降级报告；单测与门禁完备，不改变导出契约或破坏分层架构。代码状态：完成；隔离验证：`tests/library-export-service.test.mjs` 9/9、`pnpm check` 0 错误/0 警告、完整 `pnpm test` 1586/1586、构建与发布包校验通过；真实验收：待 B-0002 真实多卷 ZIP 导出与大容量下载实测；延后原因：真实大容量导出仍待 B-0002。
 
+- [◐] **T-3407**（P2，2026-10-20）作者编辑与 AI 标签合并二次确认 Escape 快捷退出与键盘交互闭环（全插件键盘交互走查）：`AuthorEditor.svelte` 表单接入 Escape 快捷退出与有建议时优先清空建议，输入框支持 `Ctrl/Cmd+Enter` 快捷保存；`AiTagMergePanel.svelte` 挂载 `<svelte:window>` Escape 快捷取消二次确认合并状态；双语与单测完备，不改变底层文档属性与端点契约。代码状态：完成；隔离验证：`tests/ai-tag-merge-ui.test.mjs`、`tests/reader-acceptance.test.ts`、完整 `pnpm test` 通过；真实验收：待 B-0002 真实宿主作者编辑与标签合并键盘操作；延后原因：真实宿主键盘与读屏走查仍归 B-0002。
+
 - [◐] **T-3367**（P1，2026-10-18）批量选择范围与底部操作可达性：保留跨筛选选择，显示总数及筛选外数量，提供仅保留当前筛选、追加已显示文章和清空入口；三画布共用正常流批量条，避免窄屏换行遮挡内容。代码状态：实现完成，契约见 D-0247，不新增属性、端点或持久化；隔离验证：定向 51/51、完整 `pnpm test` 1517/1517、`pnpm check` 0 错误/0 警告、`pnpm build`、`pnpm check:release`、`pnpm perf:check`、`pnpm visual:check`、`pnpm task:ledger -- --check` 与 `git diff --check` 通过；Chrome 原型已点验宽/窄 Dock、筛选外提示、显式保留和清空，窄布局批量区 `738px` 宽、`142px` 高且无横溢出。真实验收：待 B-0002 原工作区、触控和系统读屏；延后原因：Chrome 原型与隔离样本不替代真实设备与视觉矩阵，视觉登记仍为 24 项待真实宿主。
 
 - [◐] **T-3389**（P3，2026-10-19）制卡弹窗键盘快捷提交与字符计数纯函数（承接 T-1792/T-3243）：`domain/flashcard.ts` 新增 `countFlashcardCharacters` 纯函数；`FlashcardDialog.svelte` 接入 Escape 退出与 Ctrl/Cmd+Enter 快捷提交；单测与门禁完备。代码状态：进行中；隔离验证：待运行；真实验收：待 B-0002/B-0006；延后原因：真实思源 riff 牌组与快捷键实操仍待 B-0002/B-0006，版本保持 1.3.6，本轮不发布。

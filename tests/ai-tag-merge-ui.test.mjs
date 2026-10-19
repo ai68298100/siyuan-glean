@@ -36,6 +36,9 @@ test("AI 标签合并提供破坏性操作确认与部分失败文案", () => {
     assert.match(source, /aiTagMerge\.scanFailed/);
     assert.match(source, /aiTagMerge\.retryScan/);
     assert.match(source, /onclick=\{\(\) => void scan\(\)\}/);
+    assert.match(source, /<svelte:window onkeydown=\{handleWindowKeydown\} \/>/);
+    assert.match(source, /event\.key === "Escape" && confirmKey && !busy/);
+    assert.match(source, /confirmKey = ""/);
 });
 
 test("AI 标签合并面板首屏只展示说明和扫描入口，不调用服务", () => {

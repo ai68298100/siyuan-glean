@@ -1,5 +1,11 @@
 # 进度（PROGRESS）
 
+## T-3407 作者编辑与 AI 标签合并二次确认 Escape 快捷退出与键盘交互闭环（2026-10-20）
+
+- [x] 作者编辑器键盘交互闭环：`src/ui/AuthorEditor.svelte` 表单挂载 `onkeydown` 拦截 Escape 键；编辑状态且非忙碌态下，若有 AI 建议则优先清空 AI 建议并阻断冒泡，若无建议则退出编辑状态回到 trigger 按钮并阻止冒泡；输入框接入 `Ctrl/Cmd+Enter` 快捷提交表单保存。
+- [x] AI 标签合并二次确认 Escape 快捷取消：`src/ui/AiTagMergePanel.svelte` 挂载 `<svelte:window>` 级别 Escape 监听；在处于二次确认合并状态（`confirmKey !== ""`）且非忙碌时，按 Escape 快捷清除确认态，防止键盘误触或冒泡关闭外层设置弹窗。
+- [x] 单测完备与架构闭环：`tests/ai-tag-merge-ui.test.mjs` 补充 Escape 取消二次确认断言；`tests/reader-acceptance.test.ts` 补充作者编辑器 Escape 退出与 `Ctrl/Cmd+Enter` 快捷保存单测断言（32/32 全数通过）。
+
 ## T-3388 收集箱已有文章打开统一走阅读门面路由（2026-10-19）
 
 - [x] 统一阅读路由：`src/ui/InboxSection.svelte` 中三处打开已有文章（包括云端删除失败已建文档、待收录文档与 URL 冲突已有文档）由裸调思源 `openTab` 重构为统一调用 `facade.openReadingDocument(docId)`，完整融入会话最近阅读记录、桌面内嵌阅读页签偏好及移动端原生回退。

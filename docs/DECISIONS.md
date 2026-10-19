@@ -1531,3 +1531,13 @@ T-3406 承接核心数据导出容灾与自动化测试健壮性：
    - `exportLibraryMarkdownArchive`：校验空读库返回空归档；单篇文档读取异常（如块已删除或读取超时）时容灾捕获，不中断整体归档并在 `index.json` 中完整记录 failure 诊断项；大容量文章超出单卷阈值（`ARCHIVE_PART_MAX_BYTES`）时自动分包切为多卷 ZIP（`siyuan-glean-markdown-01.zip`, `02.zip`）；
    - `exportAnonymousDiagnostic`：校验读库全量指标与功能开关的脱敏聚合，在底层索引对账异常时安全降级输出诊断报告，防止诊断工具本身崩溃。
 3. 严格分层与数据主权：测试仅在服务和域层运行，不改变思源 API 契约或文档属性 schema。
+
+## D-0286（2026-10-20）作者编辑与 AI 标签合并二次确认 Escape 快捷退出与键盘交互闭环（T-3407）
+
+T-3407 承接行内作者编辑与 AI 标签合并二次确认的键盘无障碍交互统一收口：
+1. 作者编辑器快捷交互闭环：
+   - 处于编辑状态（`editing = true`）且非忙碌时，在编辑表单监听 `Escape` 键；若存在 AI 建议卡片（`suggestion`），按 `Escape` 优先清空 AI 建议并阻断事件冒泡；若无建议，按 `Escape` 取消编辑（`close()`）、放弃未保存草稿并安全回退焦点至编辑触发按钮（`trigger`），防止事件冒泡至外部弹窗或宿主上下文导致父级被意外关闭；
+   - 在作者输入框内监听 `(event.ctrlKey || event.metaKey) && event.key === "Enter"`，支持快捷保存表单，保持全插件保存快捷键习惯一致；
+2. AI 标签合并二次确认 Escape 取消：
+   - 在 `src/ui/AiTagMergePanel.svelte` 挂载 `<svelte:window>` 级别 `Escape` 键盘监听；当处于某分组破坏性合并二次确认状态（`confirmKey !== ""`）且非忙碌时，按下 `Escape` 立即将 `confirmKey` 重置为空并阻断冒泡，平滑取消二次确认；
+3. 严格数据主权与架构契约：所有快捷交互均为客户端组件内局部状态与焦点流转，不改变任何底层文档属性、数据库结构或端点契约。

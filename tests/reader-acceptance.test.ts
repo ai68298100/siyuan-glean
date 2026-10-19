@@ -47,6 +47,13 @@ test("工作台预览写入保留索引待同步结果，作者编辑也显示�
     assert.match(authorEditor, /result\.indexSyncFailed \? "msg\.writeIndexPending" : "author\.saved"/);
 });
 
+test("作者编辑器支持 Escape 退出编辑与 Ctrl/Cmd+Enter 快捷保存", () => {
+    assert.match(authorEditor, /<svelte:window onkeydown=\{handleWindowKeydown\} \/>/);
+    assert.match(authorEditor, /onkeydown=\{handleInputKeydown\}/);
+    assert.match(authorEditor, /if \(event\.key === "Escape" && editing && !busy\) \{[\s\S]*?if \(suggestion\) \{[\s\S]*?clearSuggestion\(\);[\s\S]*?\} else \{[\s\S]*?close\(\);[\s\S]*?\}/);
+    assert.match(authorEditor, /if \(\(event\.ctrlKey \|\| event\.metaKey\) && event\.key === "Enter"\) \{[\s\S]*?void save\(\);/);
+});
+
 test("阅读状态、评分和今日拾遗写入会提示索引待同步", () => {
     const contextSource = readFileSync(resolve(root, "src/ui/ReadingContext.svelte"), "utf8");
     const dock = readFileSync(resolve(root, "src/ui/DockPanel.svelte"), "utf8");

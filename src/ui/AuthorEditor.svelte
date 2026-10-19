@@ -89,6 +89,27 @@
         }
     }
 
+    function handleWindowKeydown(event: KeyboardEvent): void {
+        if (event.isComposing || event.keyCode === 229) return;
+        if (event.key === "Escape" && editing && !busy) {
+            event.preventDefault();
+            event.stopPropagation();
+            if (suggestion) {
+                clearSuggestion();
+            } else {
+                close();
+            }
+        }
+    }
+
+    function handleInputKeydown(event: KeyboardEvent): void {
+        if (event.isComposing || event.keyCode === 229) return;
+        if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+            event.preventDefault();
+            void save();
+        }
+    }
+
     function close(): void {
         if (busy) return;
         requests.invalidate();
@@ -179,13 +200,15 @@
     }
 </script>
 
+<svelte:window onkeydown={handleWindowKeydown} />
+
 <div class="glean-author-editor">
     <button type="button" class="glean-btn glean-btn--ghost" bind:this={trigger} aria-expanded={editing} aria-controls={`glean-author-editor-form-${docId}`} disabled={busy} onclick={(event) => { event.stopPropagation(); if (editing) close(); else void load(); }}>{t(i18n, "author.edit")}</button>
     {#if editing}
         <form id={`glean-author-editor-form-${docId}`} class="glean-author-editor__form" aria-busy={busy} onsubmit={(event) => { event.preventDefault(); void save(); }}>
             {#if busy}<p class="glean-author-editor__status glean-author-editor__status--busy" role="status" aria-live="polite"><span class="glean-author-editor__status-dot" aria-hidden="true"></span>{t(i18n, "panel.loading")}</p>{/if}
             <label for={`glean-author-editor-input-${docId}`}>{t(i18n, "author.label")}
-                <input id={`glean-author-editor-input-${docId}`} class="b3-text-field" bind:this={input} bind:value={draft} disabled={busy} autocomplete="off" maxlength="120" />
+                <input id={`glean-author-editor-input-${docId}`} class="b3-text-field" bind:this={input} bind:value={draft} disabled={busy} autocomplete="off" maxlength="120" onkeydown={handleInputKeydown} />
             </label>
             <p class="glean-author-editor__hint">{t(i18n, "author.hint")}</p>
             {#if snapshot}<p class="glean-author-editor__current"><span>{t(i18n, "author.current")}</span><strong>{snapshot.raw || t(i18n, "author.unknown")}</strong></p>{/if}
