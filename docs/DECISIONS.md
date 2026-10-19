@@ -1464,3 +1464,11 @@ T-3398 把 T-3392 的键盘光标与 T-3367 的跨筛选批量选择连成一条
 2. 防误触一致性：三个新动作全部纳入 `REPEAT_SENSITIVE`，长按不重复执行；文本输入、原生按钮语义、浮层打开与修饰键的让出规则沿用既有仲裁，不新增例外。
 3. 语义复用而非重写：`DockPanel.svelte` 只做路由，分别调用既有 `selectDisplayedArticles()`（追加已挂载的已收录文章）、`keepFilteredArticles()`（按当前筛选裁剪）与 `clearSelection()`；D-0247 的跨筛选会话集合、隐藏项提示与焦点回退规则保持不变。
 4. 可发现性：行内 `glean-kbdhint` 提示条补 S/F/C 三条中文与英文说明；批量条的 `role="status" aria-live="polite"` 范围摘要继续承担变化播报，不重复引入第二处 live region。
+
+## D-0278（2026-10-19）摘录墙行级键盘导航复用读库仲裁层（T-3399）
+
+T-3399 把 T-3392 的键位仲裁扩展到场外视图，避免第二套快捷键规则漂移：
+1. 复用而非复制：`src/ui/HighlightView.svelte` 直接引入 `moveLibraryCursor` 与 `resolveLibraryShortcut`，前缀条件、IME、修饰键、Shift、文本输入、原生按钮语义与浮层让出规则全部继承读库契约。
+2. 收窄接管范围：只消费 `move`、`toggleSelect`、`activate` 三类动作；方向键即使满足仲裁也交还列表原生滚动，避免打断正常的页面浏览。
+3. 光标生命周期：光标只对应当前页已渲染条目（`visibleIds`），翻页、筛选或作用域切换后不可见即清除；`Escape` 优先关闭导出预览，其次退出光标，两层都走同一窗口处理器。
+4. 语义与可访问性：`X` 复用既有 `toggle`（只改会话勾选），`Enter` 复用 `openDoc`（只做导航），均不新增写入路径；卡片补 `data-glean-highlight-id`、`aria-current` 与 `--cursor` 描边，并在 `forced-colors` 下回退系统 `Highlight`。

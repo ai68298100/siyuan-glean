@@ -3,7 +3,7 @@
 // 宽屏布局契约集中在 src/index.scss：@container glean-workbench (min-width: 760px)
 // 下 .glean-highlights__items { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr)); }，
 // .glean-highlights__empty { width: min(100%, 720px); align-self: center; }。
-import { untrack } from "svelte";
+import { tick, untrack } from "svelte";
 import { showMessage } from "siyuan";
 import type { GleanFacade } from "../types";
 import { t } from "../libs/i18n";
@@ -17,6 +17,7 @@ import { makeQuoteCardPreview } from "./flashcard-dialog";
 import type { GleanSettings } from "../services/settings";
 import { loadUiPrefs } from "../services/prefs";
 import { displayTagAlias, type TagAlias } from "../domain/ui-prefs";
+import { moveLibraryCursor, resolveLibraryShortcut } from "../domain/library-keyboard";
 
 interface Props { facade: GleanFacade }
 let { facade }: Props = $props();
@@ -49,6 +50,9 @@ let exportError = $state("");
 let exportStatus = $state("");
 let retryAction = $state<"copy" | "csv" | "markdown" | "preview" | "save">("preview");
 let tagAliases = $state<TagAlias[]>([]);
+/** 摘录墙键盘光标（T-3399）：只描述当前页可见条目，不写入任何文章事实。 */
+let cursorId = $state("");
+let rootEl = $state<HTMLElement | null>(null);
 let generation = 0;
 let relatedGeneration = 0;
 let loadedContext = "";
@@ -58,6 +62,12 @@ const facets = $derived(highlightFacets(items));
 const filtered = $derived(filterHighlights(items, { search, site, tag, aiTag, sort, direction }));
 const highlightPageSize = 20;
 const visible = $derived(pageHighlights(filtered, page, highlightPageSize));
+const visibleIds = $derived(visible.items.map((item) => item.id));
+
+// 翻页、筛选或作用域变化后，光标只在仍可见时保留。
+$effect(() => {
+    if (cursorId && !visibleIds.includes(cursorId)) cursorId = "";
+});
 const labels = $derived({ title: t(i18n, "highlight.exportTitle"), original: t(i18n, "highlight.original"), source: t(i18n, "highlight.source") });
 
 $effect(() => {
@@ -312,20 +322,73 @@ function openDoc(id: string) {
 }
 
 function onWindowKeyDown(event: KeyboardEvent): void {
-    if (event.key !== "Escape" || event.defaultPrevented || event.isComposing || event.keyCode === 229 || event.repeat) return;
-    if (session && !exportBusy) {
-        event.preventDefault();
-        event.stopPropagation();
-        session = null;
-        exportError = "";
-        exportStatus = "";
+    if (event.defaultPrevented || event.isComposing || event.keyCode === 229 || event.repeat) return;
+    if (event.key === "Escape") {
+        if (session && !exportBusy) {
+            event.preventDefault();
+            event.stopPropagation();
+            session = null;
+            exportError = "";
+            exportStatus = "";
+            return;
+        }
+        if (cursorId) {
+            event.preventDefault();
+            event.stopPropagation();
+            const previous = cursorId;
+            cursorId = "";
+            focusHighlightRow(previous);
+        }
+        return;
     }
+    handleHighlightShortcut(event);
+}
+
+/**
+ * 摘录墙行级键盘导航（T-3399）：与读库共用同一个键位仲裁层，
+ * J/K 移动，X 勾选，Enter 打开原文；Escape 由上面的窗口处理器收口。
+ */
+function handleHighlightShortcut(event: KeyboardEvent): void {
+    const target = event.target instanceof Element ? event.target : null;
+    const textEntry = Boolean(target?.closest("input, textarea, select, [contenteditable]:not([contenteditable='false'])"));
+    const nativeAction = Boolean(target?.closest("button, a[href], summary, [role='button']"));
+    const action = resolveLibraryShortcut(event, {
+        textEntry,
+        nativeAction,
+        overlay: Boolean(document.querySelector("dialog[open], .b3-menu")),
+        cursorActive: Boolean(cursorId),
+    });
+    // 只接管 J/K/X/Enter；方向键仍交给列表原生滚动。
+    if (!action || action.type === "clearCursor") return;
+    if (!["move", "toggleSelect", "activate"].includes(action.type)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (action.type === "move") {
+        setCursor(moveLibraryCursor(visibleIds, cursorId, action.delta));
+        return;
+    }
+    const item = visible.items.find((entry) => entry.id === cursorId);
+    if (!item) return;
+    if (action.type === "toggleSelect") toggle(item.id);
+    if (action.type === "activate") openDoc(item.id);
+}
+
+function setCursor(id: string): void {
+    cursorId = id;
+    if (id) focusHighlightRow(id);
+}
+
+function focusHighlightRow(id: string): void {
+    void tick().then(() => {
+        if (!id) return;
+        rootEl?.querySelector<HTMLElement>(`[data-glean-highlight-id="${CSS.escape(id)}"] .glean-highlights__quote input`)?.focus({ preventScroll: true });
+    });
 }
 </script>
 
 <svelte:window onkeydown={onWindowKeyDown} />
 
-<div class="glean-panel glean-highlights" aria-busy={loading || exportBusy} aria-labelledby={titleId}>
+<div class="glean-panel glean-highlights" bind:this={rootEl} aria-busy={loading || exportBusy} aria-labelledby={titleId}>
     <div class="glean-highlights__head">
         <div>
             <h2 id={titleId} class="glean-highlights__title">{t(i18n, "highlight.title")}</h2>
@@ -403,7 +466,7 @@ function onWindowKeyDown(event: KeyboardEvent): void {
     {#if !loadError}
     <div class="glean-highlights__items">
         {#each visible.items as item (item.id)}
-            <article class="glean-highlights__item" aria-busy={cardingKey === item.id}>
+            <article class="glean-highlights__item" data-glean-highlight-id={item.id} class:glean-highlights__item--cursor={cursorId === item.id} aria-current={cursorId === item.id ? "true" : undefined} aria-busy={cardingKey === item.id}>
                 <div class="glean-highlights__item-head">
                     <span class="glean-highlights__item-label">{t(i18n, "highlight.quoteTag")}</span>
                     <span class="glean-highlights__item-index">{(visible.page - 1) * highlightPageSize + visible.items.indexOf(item) + 1}</span>

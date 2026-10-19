@@ -136,8 +136,22 @@ test("HighlightView 接线：全库制卡贯通与导出预览 Escape 退出交�
     assert.match(view, /onclick=\{\(\) => void card\(item\)\}\s+title=\{t\(i18n, "flashcard\.make"\)\}/);
     // 导出预览支持 <svelte:window> Escape 关闭
     assert.match(view, /<svelte:window onkeydown=\{onWindowKeyDown\} \/>/);
-    assert.match(view, /if \(event\.key !== "Escape"/);
+    assert.match(view, /if \(event\.key === "Escape"\) \{/);
     assert.match(view, /if \(session && !exportBusy\)/);
     // 搜索输入框按 Escape 清空当前搜索词
     assert.match(view, /if \(event\.key === "Escape" && search\)/);
+});
+
+test("HighlightView 行级键盘导航复用读库仲裁层（T-3399）", () => {
+    const view = readFileSync(new URL("../src/ui/HighlightView.svelte", import.meta.url), "utf8");
+    assert.match(view, /import \{ moveLibraryCursor, resolveLibraryShortcut \} from "\.\.\/domain\/library-keyboard"/);
+    assert.match(view, /const visibleIds = \$derived\(visible\.items\.map\(\(item\) => item\.id\)\)/);
+    assert.match(view, /if \(cursorId && !visibleIds\.includes\(cursorId\)\) cursorId = ""/);
+    assert.match(view, /setCursor\(moveLibraryCursor\(visibleIds, cursorId, action\.delta\)\)/);
+    assert.match(view, /if \(action\.type === "toggleSelect"\) toggle\(item\.id\)/);
+    assert.match(view, /if \(action\.type === "activate"\) openDoc\(item\.id\)/);
+    // 只接管 move/toggleSelect/activate，方向键仍交给原生滚动
+    assert.match(view, /if \(!\["move", "toggleSelect", "activate"\]\.includes\(action\.type\)\) return;/);
+    assert.match(view, /data-glean-highlight-id=\{item\.id\}/);
+    assert.match(view, /class:glean-highlights__item--cursor=\{cursorId === item\.id\}/);
 });

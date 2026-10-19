@@ -1,5 +1,11 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-19 摘录墙行级键盘导航复用读库仲裁层）
+
+- T-3399/D-0278：把 T-3392 的键位仲裁扩展到场外视图。`src/ui/HighlightView.svelte` 引入 `moveLibraryCursor` / `resolveLibraryShortcut`，为当前页摘录卡片提供 J/K 移动、X 勾选、Enter 打开原文、Escape 退出光标；只消费 `move`/`toggleSelect`/`activate`，方向键仍交还原生滚动；翻页或筛选后光标不可见即清除，`Escape` 先关导出预览再退光标。卡片补 `data-glean-highlight-id`、`aria-current` 与 `--cursor` 描边（含 forced-colors）。纯会话状态，不写文章属性或持久化。
+- 全量门禁闭环：`tests/highlights.test.ts` 12/12、`tests/library-keyboard.test.ts` 9/9、`tests/library-selection.test.ts` 16/16、完整 `pnpm test` 1571/1571、`tsc` 与 `svelte-check` 0 错误 0 警告、`pnpm build`、`pnpm check:release`、`pnpm perf:check`、`pnpm visual:check`（24 项待真实宿主）与任务账本检查均通过。真实按键冲突与读屏节奏仍归 B-0002。
+- 下一步：T-3398 / T-3399 已把键盘主线扩展到批量收尾与摘录墙；可继续补今日拾遗与统计视图的行级导航，或按作者点单推进执行板其他任务。版本保持 1.3.7，本轮不打 tag、不发布、不推送。
+
 ## 当前有效交接（2026-10-19 读库键盘流补齐批量选择收尾键位）
 
 - T-3398/D-0277：接续 T-3392 的键盘光标与 T-3367 的跨筛选批量选择。`src/domain/library-keyboard.ts` 新增 `selectDisplayed`（S，需光标）、`keepFiltered`（F）与 `clearSelection`（C）动作，后两者只要求 `hasSelection`，因此 Esc 退出光标后仍能收尾；三者均纳入 `REPEAT_SENSITIVE`。`src/ui/DockPanel.svelte` 只做路由，复用既有 `selectDisplayedArticles` / `keepFilteredArticles` / `clearSelection`，D-0247 的跨筛选会话集合与焦点回退语义不变；行内提示条补 S/F/C，批量条既有 `aria-live` 范围摘要继续播报。
