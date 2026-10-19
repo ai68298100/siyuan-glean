@@ -1,14 +1,18 @@
-# 对外桥接 v1（T-3224 / D-0066）
+# 对外桥接 v1（T-3224 / D-0066 / Epoch-6 生态联动）
 
-插件加载并读取设置后在当前宿主窗口注册 `window.siyuanGlean`。它是同窗口插件协同接口，不提供 HTTP 服务，不反向依赖兄弟插件。`apiVersion` 固定为数字 `1`；`version` 来自本次构建的 `plugin.json`，表示插件版本，不能作为协议版本判断依据。
+插件加载并读取设置后在当前宿主窗口注册 `window.siyuanGlean`，并同步挂载生态标准化多别名 `window.xiaolvGlean`、`window.lvGlean`、`window.LvGlean`。它是同窗口插件协同接口，不提供 HTTP 服务，不反向依赖兄弟插件。`apiVersion` 固定为数字 `1`（向下兼容历史调用方）；`protocol` 为生态标准化协议版本号 `1`；`capabilities` 为公开能力数组；`version` 来自本次构建的 `plugin.json`，表示插件版本。
 
 ```ts
 interface GleanBridge {
+    readonly protocol: 1;
     readonly apiVersion: 1;
     readonly version: string;
+    readonly capabilities: readonly string[];
+    whenReady(): Promise<boolean>;
     listClips(filter?: GleanBridgeFilter): Promise<GleanBridgeClip[]>;
     getClip(id: string): Promise<GleanBridgeClip | null>;
     setClipStatus(id: string, status: ClipStatus): Promise<void>;
+    getOverview(): GleanBridgeOverview;
 }
 ```
 

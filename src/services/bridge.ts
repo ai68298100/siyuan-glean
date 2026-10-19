@@ -43,16 +43,43 @@ export interface GleanBridgeFilter {
     offset?: number;
 }
 
+export const LVGLEAN_BRIDGE_PROTOCOL = 1;
+export const LVGLEAN_API_NAME = "siyuanGlean";
+export const LVGLEAN_API_ALIASES = [
+    "siyuanGlean",
+    "xiaolvGlean",
+    "lvGlean",
+    "LvGlean",
+] as const;
+
+export type LvGleanApiAlias = (typeof LVGLEAN_API_ALIASES)[number];
+
+export interface GleanBridgeOverview {
+    protocol: number;
+    apiVersion: number;
+    version: string;
+    capabilities: readonly string[];
+    writable: boolean;
+    updatedAt: string;
+}
+
 export interface GleanBridge {
+    readonly protocol: 1;
     readonly apiVersion: 1;
     readonly version: string;
+    readonly capabilities: readonly string[];
+    whenReady(): Promise<boolean>;
     listClips(filter?: GleanBridgeFilter): Promise<GleanBridgeClip[]>;
     getClip(id: string): Promise<GleanBridgeClip | null>;
     setClipStatus(id: string, status: ClipStatus): Promise<void>;
+    getOverview(): GleanBridgeOverview;
 }
 
 interface BridgeHost {
     siyuanGlean?: unknown;
+    xiaolvGlean?: unknown;
+    lvGlean?: unknown;
+    LvGlean?: unknown;
 }
 
 type BridgeFacade = Pick<GleanFacade, "pluginInstance" | "settings" | "notifyDataChanged">;
@@ -61,6 +88,9 @@ type ClipMeta = Pick<GleanBridgeClip, "id" | "title" | "hpath" | "box" | "update
 declare global {
     interface Window {
         siyuanGlean?: GleanBridge;
+        xiaolvGlean?: GleanBridge;
+        lvGlean?: GleanBridge;
+        LvGlean?: GleanBridge;
     }
 }
 
@@ -155,9 +185,34 @@ export function installBridge(facade: BridgeFacade, version: string, host: Bridg
         return projectClip({ id, title: row.content || "", hpath: row.hpath || "", box: row.box || "", updated: row.updated || "" }, parseClipAttrs(ial), parseUserTags(ial.tags));
     }
 
+    const capabilities = [
+        "listClips",
+        "getClip",
+        "setClipStatus",
+        "whenReady",
+        "getOverview",
+    ] as const;
+
     const bridge: GleanBridge = Object.freeze({
+        protocol: LVGLEAN_BRIDGE_PROTOCOL,
         apiVersion: 1,
         version,
+        capabilities,
+        async whenReady() {
+            assertActive();
+            return true;
+        },
+        getOverview() {
+            assertActive();
+            return {
+                protocol: LVGLEAN_BRIDGE_PROTOCOL,
+                apiVersion: 1,
+                version,
+                capabilities,
+                writable: facade.settings.integration.bridgeWriteEnabled === true,
+                updatedAt: new Date().toISOString(),
+            };
+        },
         async listClips(filter: GleanBridgeFilter = {}): Promise<GleanBridgeClip[]> {
             assertActive();
             const normalized = normalizeFilter(filter);
@@ -211,9 +266,18 @@ export function installBridge(facade: BridgeFacade, version: string, host: Bridg
             });
         },
     });
-    host.siyuanGlean = bridge;
+    const mounted: string[] = [];
+    const hostRecord = host as Record<string, unknown>;
+    for (const alias of LVGLEAN_API_ALIASES) {
+        if (!hostRecord[alias] || hostRecord[alias] === bridge) {
+            hostRecord[alias] = bridge;
+            mounted.push(alias);
+        }
+    }
     return () => {
         active = false;
-        if (host.siyuanGlean === bridge) delete host.siyuanGlean;
+        for (const alias of mounted) {
+            if (hostRecord[alias] === bridge) delete hostRecord[alias];
+        }
     };
 }

@@ -64,6 +64,7 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
     );
     private disposeReadingContext: (() => void) | null = null;
     private disposeBridge: (() => void) | null = null;
+    private cardsReviewedHandler?: () => void;
     private loaded = false;
     private lastReadingDocId = "";
     private recentReadings: RecentReadingEntry[] = [];
@@ -275,6 +276,14 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
         // 阅读上下文挂在原生编辑器容器，事件回调按编辑器根块切换和销毁清理。
         this.disposeReadingContext = installReadingContext(this);
         this.disposeBridge = installBridge(this, pluginManifest.version);
+
+        this.cardsReviewedHandler = () => {
+            this.notifyDataChanged();
+        };
+        if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
+            window.addEventListener("lv-cards:reviewed", this.cardsReviewedHandler);
+            window.addEventListener("lv-exam:stats", this.cardsReviewedHandler);
+        }
     }
 
     onLayoutReady() {
@@ -310,6 +319,11 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
             clearTimeout(this.onboardingTimer);
             this.onboardingTimer = null;
         }
+        if (typeof window !== "undefined" && typeof window.removeEventListener === "function" && this.cardsReviewedHandler) {
+            window.removeEventListener("lv-cards:reviewed", this.cardsReviewedHandler);
+            window.removeEventListener("lv-exam:stats", this.cardsReviewedHandler);
+            this.cardsReviewedHandler = undefined;
+        }
         this.disposeBridge?.();
         this.disposeBridge = null;
         this.eventBus.off("open-menu-content", this.onMenuContent);
@@ -329,6 +343,16 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
     notifyDataChanged(): void {
         // 在 document 上派发（事件只向上冒泡，不能从父容器传到子面板）
         document.dispatchEvent(new CustomEvent("glean:data-changed"));
+        if (typeof window !== "undefined" && typeof window.dispatchEvent === "function") {
+            const detail = {
+                v: 1,
+                source: "siyuan-glean",
+                type: "data-changed",
+                eventId: `glean_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+                at: new Date().toISOString(),
+            };
+            window.dispatchEvent(new CustomEvent("lv-glean:data-changed", { detail }));
+        }
     }
 
     currentDocId(): string {

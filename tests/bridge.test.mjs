@@ -78,7 +78,7 @@ registerHooks({
     },
 });
 
-const { installBridge } = await import(bridgeUrl);
+const { installBridge, LVGLEAN_BRIDGE_PROTOCOL, LVGLEAN_API_ALIASES, LVGLEAN_API_NAME } = await import(bridgeUrl);
 const { normalizeSettings, saveSettings } = await import("../src/services/settings.ts");
 const { CLIP_STATUSES, siyuanTimestamp } = await import("../src/domain/schema.ts");
 const { default: LvGleanPlugin } = await import(indexUrl);
@@ -533,19 +533,86 @@ test("插件生命周期从 manifest 注册版本，设置加载后可用，卸�
     }
 });
 
-test("设置加载仍挂起时卸载，完成加载也不能重新注册桥接", async () => {
-    const loading = deferred();
-    globalThis.__gleanBridgePlugin = { loadData: () => loading.promise };
-    const previousWindow = globalThis.window;
-    globalThis.window = {};
-    try {
-        const plugin = new LvGleanPlugin({ app: {}, name: manifest.name, displayName: "Glean", i18n: {} });
-        const onload = plugin.onload();
-        await plugin.onunload();
-        loading.resolve({});
-        await onload;
-        assert.equal(Object.hasOwn(window, "siyuanGlean"), false);
-    } finally {
-        globalThis.window = previousWindow;
-    }
-});
+    test("设置加载仍挂起时卸载，完成加载也不能重新注册桥接", async () => {
+        const loading = deferred();
+        globalThis.__gleanBridgePlugin = { loadData: () => loading.promise };
+        const previousWindow = globalThis.window;
+        globalThis.window = {};
+        try {
+            const plugin = new LvGleanPlugin({ app: {}, name: manifest.name, displayName: "Glean", i18n: {} });
+            const onload = plugin.onload();
+            await plugin.onunload();
+            loading.resolve({});
+            await onload;
+            assert.equal(Object.hasOwn(window, "siyuanGlean"), false);
+        } finally {
+            globalThis.window = previousWindow;
+        }
+    });
+
+    test("Epoch 6: 桥接提供 protocol=1、capabilities 列表、whenReady 与 getOverview 概览", async () => {
+        const context = harness({ enabled: true });
+        const { bridge } = context;
+        assert.equal(bridge.protocol, 1);
+        assert.equal(bridge.apiVersion, 1);
+        assert.equal(bridge.version, "1.2.3");
+        assert.deepEqual(bridge.capabilities, [
+            "listClips",
+            "getClip",
+            "setClipStatus",
+            "whenReady",
+            "getOverview",
+        ]);
+        assert.equal(await bridge.whenReady(), true);
+
+        const overview = bridge.getOverview();
+        assert.equal(overview.protocol, 1);
+        assert.equal(overview.apiVersion, 1);
+        assert.equal(overview.version, "1.2.3");
+        assert.deepEqual(overview.capabilities, bridge.capabilities);
+        assert.equal(overview.writable, true);
+        assert.ok(typeof overview.updatedAt === "string");
+        assert.ok(!Number.isNaN(Date.parse(overview.updatedAt)));
+
+        context.dispose();
+        assert.throws(() => bridge.getOverview(), /unloaded/);
+        await assert.rejects(bridge.whenReady(), /unloaded/);
+    });
+
+    test("Epoch 6: 桥接多别名挂载 (siyuanGlean, xiaolvGlean, lvGlean, LvGlean) 与清理", async () => {
+        const host = {};
+        const context = harness({ host });
+        const { bridge } = context;
+
+        for (const alias of LVGLEAN_API_ALIASES) {
+            assert.equal(host[alias], bridge);
+        }
+
+        context.dispose();
+        for (const alias of LVGLEAN_API_ALIASES) {
+            assert.equal(Object.hasOwn(host, alias), false);
+        }
+    });
+
+    test("Epoch 6: 打卡桥探针支持多别名探查 (siyuanCheckin || xiaolvCheckin || lvCheckin || LvCheckin)", async () => {
+        const { listCheckinItems } = await import("../src/services/checkin-bridge.ts");
+        const prevWindow = globalThis.window;
+        try {
+            const mockApi = {
+                protocol: "siyuan-checkin",
+                whenReady: () => Promise.resolve(),
+                hasCapability: (cap) => cap === "items.query",
+                queryItems: () => Promise.resolve([
+                    { id: "item-read", name: "每日阅读", kind: "duration" },
+                ]),
+            };
+            // 测试使用 lvCheckin 别名
+            globalThis.window = { lvCheckin: mockApi };
+            const items = await listCheckinItems();
+            assert.equal(items.length, 1);
+            assert.equal(items[0].id, "item-read");
+            assert.equal(items[0].name, "每日阅读");
+        } finally {
+            globalThis.window = prevWindow;
+        }
+    });

@@ -23,7 +23,14 @@ interface CheckinApi {
 }
 
 function api(): CheckinApi | null {
-    const candidate = (window as unknown as { siyuanCheckin?: CheckinApi }).siyuanCheckin;
+    if (typeof window === "undefined") return null;
+    const host = window as unknown as {
+        siyuanCheckin?: CheckinApi;
+        xiaolvCheckin?: CheckinApi;
+        lvCheckin?: CheckinApi;
+        LvCheckin?: CheckinApi;
+    };
+    const candidate = host.siyuanCheckin || host.xiaolvCheckin || host.lvCheckin || host.LvCheckin;
     if (!candidate || candidate.protocol !== "siyuan-checkin") return null;
     return candidate;
 }
