@@ -1,5 +1,11 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-19 摘录墙全库制卡贯通与导出预览 Escape 退出交互）
+
+- T-3394/D-0273：承接方向四（找回文章，并把摘录用起来）与键盘无障碍交互收口。在 `src/ui/HighlightView.svelte` 中解除原先 `{#if scope === "current"}` 对制作闪卡（`flashcard.make`）的人为限定，全库摘录墙浏览时也能直接调用 `makeQuoteCardPreview` 一键沉淀至思源 riff 牌组；挂载 `<svelte:window>` 级别 Escape 快捷关闭导出预览，并在搜索框接入 Escape 快速清空当前检索词与筛选；不修改任何底层数据契约、文章属性、端点或持久化存储。
+- 全量门禁闭环：定向 `tests/highlights.test.ts` 11/11、完整 `pnpm test` 1567/1567、`tsc` 与 `svelte-check` 0 错误 0 警告、`pnpm build`、`pnpm check:release`（`package.zip` 443485B）、`pnpm perf:check`、`pnpm visual:check`（24 项仍待真实宿主）与任务账本检查均通过。真实宿主 riff 题库与全库摘录卡片交互仍归 B-0002/B-0006。
+- 下一步：按当前执行板顺序推进下一个任务（如 T-3367 批量选择范围与底部操作可达性在更多场景的走查与补强，或按作者点单继续）。版本保持 1.3.7，本轮不打 tag、不发布、不推送。
+
 ## 当前有效交接（2026-10-19 智能聚合视图与动态规则过滤器）
 
 - T-3393/D-0272：承接 Cubox / Readwise Reader 调研与保存视图契约演进。在 `src/domain/ui-prefs.ts` 中扩充 `SavedViewFilter` 纳入 `readingTimeTier`（预计时长分档短/中/长篇）与 `favoriteOnly`（星标收藏）；`normalizeFilter` 补充安全归一与深拷贝；定义 `SMART_VIEW_PRESETS`（短文速读、深度长文、星标收藏、最久待办）与 `instantiateSmartViewPreset` 纯函数，支持去重命名与 20 个视图容量保护。`src/ui/DockPanel.svelte` 贯通 `readingTimeTier` 保存与恢复，并在保存视图栏提供智能预设一键创建与落盘；纯视图状态投影，不修改文章属性或端点。

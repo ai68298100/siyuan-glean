@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import {
     cleanHighlightText, escapeHighlightText, filterHighlights, formatHighlightShare, formatHighlightTime,
     highlightBlockLink, highlightFacets, highlightMarker, pageHighlights, renderHighlightsCsv, renderHighlightsMarkdown,
@@ -126,4 +127,17 @@ test("formatHighlightTime：从思源块 ID 解析时间线索（T-1753）", () 
     assert.equal(formatHighlightTime("20250101090500-1234567"), "2025-01-01 09:05");
     assert.equal(formatHighlightTime("invalid-id"), "");
     assert.equal(formatHighlightTime(""), "");
+});
+
+test("HighlightView 接线：全库制卡贯通与导出预览 Escape 退出交互（T-3394）", () => {
+    const view = readFileSync(new URL("../src/ui/HighlightView.svelte", import.meta.url), "utf8");
+    // 全库与当前文档均支持制卡（不再用 {#if scope === "current"} 人为屏蔽）
+    assert.doesNotMatch(view, /\{#if scope === "current"\}<button[^>]*flashcard\.make/);
+    assert.match(view, /onclick=\{\(\) => void card\(item\)\}\s+title=\{t\(i18n, "flashcard\.make"\)\}/);
+    // 导出预览支持 <svelte:window> Escape 关闭
+    assert.match(view, /<svelte:window onkeydown=\{onWindowKeyDown\} \/>/);
+    assert.match(view, /if \(event\.key !== "Escape"/);
+    assert.match(view, /if \(session && !exportBusy\)/);
+    // 搜索输入框按 Escape 清空当前搜索词
+    assert.match(view, /if \(event\.key === "Escape" && search\)/);
 });

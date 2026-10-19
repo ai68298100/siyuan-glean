@@ -1428,3 +1428,10 @@ T-3393 承接 Cubox / Readwise Reader 调研与保存视图契约演进：
 2. 规范化与防御：`normalizeFilter` 补充对 `readingTimeTier`（仅保留 short/medium/long，其余或 all 丢弃）与 `favoriteOnly`（仅保留布尔 true，其余丢弃）的安全清洗；深拷贝过滤条件，防止内存引用泄露。
 3. 智能视图模版与实例化：提供 `SMART_VIEW_PRESETS`（短文速读、深度长文、星标收藏、最久待办）预设配置；提供纯函数 `instantiateSmartViewPreset`，自动处理重复命名（追加序号规避冲突）并受最多 20 个视图的持久化容量上限保护。
 4. UI 联动与持久化：`DockPanel.svelte` 中的 `currentSavedFilter` 与 `applySavedViewState` 贯通 `readingTimeTier` 的保存与恢复；在保存视图栏增设“智能预设”一键创建选择器，创建后即刻切换并异步落盘 `ui-prefs.json`；纯视图状态投影，不增加文章属性、端点或破坏性数据写入。
+
+## D-0273（2026-10-19）摘录墙全库制卡贯通与导出预览 Escape 退出交互（T-3394）
+
+T-3394 承接方向四（找回文章，并把摘录用起来）与键盘无障碍交互收口：
+1. 全库制卡贯通：在 `src/ui/HighlightView.svelte` 中解除原先 `{#if scope === "current"}` 对制作闪卡（`flashcard.make`）的人为限定；`listLibraryHighlights` 返回的每个条目均完整包含 `rootId`（文章文档 ID）、`id`（摘录块 ID）、`title` 与 `text`，`makeQuoteCardPreview` 可直接调用，使全库摘录墙浏览时能即时沉淀进思源 riff 牌组，对标 Readwise / Cubox 摘录复习体验。
+2. 键盘与弹层无障碍：在 `HighlightView.svelte` 挂载 `<svelte:window>` 级别 `onkeydown`，非忙碌态下按 `Escape` 可快捷关闭导出预览；搜索框接入 `Escape` 快捷键，支持快速清空当前检索词与筛选。
+3. 严格数据主权：纯客户端交互与状态调度，不修改任何底层数据契约、文章属性、端点或持久化存储。

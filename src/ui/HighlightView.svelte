@@ -310,7 +310,20 @@ async function copyQuote(item: HighlightItem): Promise<void> {
 function openDoc(id: string) {
     facade.openReadingDocument(id);
 }
+
+function onWindowKeyDown(event: KeyboardEvent): void {
+    if (event.key !== "Escape" || event.defaultPrevented || event.isComposing || event.keyCode === 229 || event.repeat) return;
+    if (session && !exportBusy) {
+        event.preventDefault();
+        event.stopPropagation();
+        session = null;
+        exportError = "";
+        exportStatus = "";
+    }
+}
 </script>
+
+<svelte:window onkeydown={onWindowKeyDown} />
 
 <div class="glean-panel glean-highlights" aria-busy={loading || exportBusy} aria-labelledby={titleId}>
     <div class="glean-highlights__head">
@@ -325,7 +338,7 @@ function openDoc(id: string) {
         </div>
     </div>
     <div class="glean-highlights__filters" role="search" aria-label={t(i18n, "action.search")}>
-        <input type="search" bind:value={search} oninput={() => page = 1} placeholder={t(i18n, "highlight.searchPlaceholder")} aria-label={t(i18n, "action.search")} />
+        <input type="search" bind:value={search} oninput={() => page = 1} onkeydown={(event) => { if (event.key === "Escape" && search) { event.stopPropagation(); search = ""; page = 1; } }} placeholder={t(i18n, "highlight.searchPlaceholder")} aria-label={t(i18n, "action.search")} />
         <label>{t(i18n, "library.filterSite")}<select bind:value={site} onchange={() => page = 1}><option value="">{t(i18n, "action.filterAll")}</option>{#each facets.sites as value}<option value={value}>{value}</option>{/each}</select></label>
         <label>{t(i18n, "library.filterTag")}<select bind:value={tag} onchange={() => page = 1}><option value="">{t(i18n, "action.filterAll")}</option>{#each facets.tags as value}<option value={value}>{displayTagAlias(tagAliases, value)}</option>{/each}</select></label>
         <label>{t(i18n, "library.filterAiTag")}<select bind:value={aiTag} onchange={() => page = 1}><option value="">{t(i18n, "action.filterAll")}</option>{#each facets.aiTags as value}<option value={value}>{value}</option>{/each}</select></label>
@@ -409,7 +422,7 @@ function openDoc(id: string) {
                         <svg class="glean-icon" aria-hidden="true"><use href="#iconGleanCopy" /></svg>
                         {t(i18n, "highlight.copyShare")}
                     </button>
-                    {#if scope === "current"}<button type="button" aria-busy={cardingKey === item.id} disabled={Boolean(cardingKey)} onclick={() => void card(item)}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanCard" /></svg>{t(i18n, "flashcard.make")}</button>{/if}
+                    <button type="button" aria-busy={cardingKey === item.id} disabled={Boolean(cardingKey)} onclick={() => void card(item)} title={t(i18n, "flashcard.make")} aria-label={t(i18n, "flashcard.make")}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanCard" /></svg>{t(i18n, "flashcard.make")}</button>
                 </div>
             </article>
         {/each}

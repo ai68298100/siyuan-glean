@@ -31,6 +31,8 @@
 
 - [◐] **T-3393**（P2，2026-10-19）智能聚合视图与动态规则过滤器（参考 Cubox）：`domain/ui-prefs.ts` 扩充 `SavedViewFilter` 纳入 `readingTimeTier` 与 `favoriteOnly`，`normalizeFilter` 补充时长分档与收藏合法性归一；新增 `SMART_VIEW_PRESETS`（短文速读、深度长文、星标收藏、最久待办）与 `instantiateSmartViewPreset` 纯函数，支持去重命名与 20 个视图容量约束；`DockPanel.svelte` 接线保存与恢复时长分档，并在保存视图栏提供智能预设一键创建；双语文案与单测完备，不改文章属性与端点。代码状态：完成；隔离验证：`tests/ui-prefs.test.ts` 8/8、完整 `pnpm test` 1566/1566、`pnpm check` 0 错误/0 警告、构建与发布包校验通过；真实验收：待 B-0002 真实多组合视图与跨设备同步；延后原因：真实宿主多视图观感与数据持久仍归 B-0002。
 
+- [◐] **T-3394**（P2，2026-10-19）摘录墙全库制卡贯通与导出预览 Escape 退出交互（承接方向四：找回文章，并把摘录用起来）：`HighlightView.svelte` 解除制卡按钮的 `scope === "current"` 人为限定，全库与当前文档均可一键制作思源 riff 闪卡；接入 `<svelte:window>` 级别 Escape 快捷关闭导出预览，并在搜索框支持 Escape 键一键清空搜索词；不改变任何数据契约与文章属性。代码状态：完成；隔离验证：`tests/highlights.test.ts` 11/11、完整 `pnpm test` 1567/1567、`pnpm check` 0 错误/0 警告、构建与发布包校验通过；真实验收：待 B-0002/B-0006 真实思源 riff 牌组与全库摘录卡片交互；延后原因：真实宿主 riff 题库与多端观感仍归 B-0002/B-0006。
+
 - [◐] **T-3367**（P1，2026-10-18）批量选择范围与底部操作可达性：保留跨筛选选择，显示总数及筛选外数量，提供仅保留当前筛选、追加已显示文章和清空入口；三画布共用正常流批量条，避免窄屏换行遮挡内容。代码状态：实现完成，契约见 D-0247，不新增属性、端点或持久化；隔离验证：定向 51/51、完整 `pnpm test` 1517/1517、`pnpm check` 0 错误/0 警告、`pnpm build`、`pnpm check:release`、`pnpm perf:check`、`pnpm visual:check`、`pnpm task:ledger -- --check` 与 `git diff --check` 通过；Chrome 原型已点验宽/窄 Dock、筛选外提示、显式保留和清空，窄布局批量区 `738px` 宽、`142px` 高且无横溢出。真实验收：待 B-0002 原工作区、触控和系统读屏；延后原因：Chrome 原型与隔离样本不替代真实设备与视觉矩阵，视觉登记仍为 24 项待真实宿主。
 
 - [◐] **T-3389**（P3，2026-10-19）制卡弹窗键盘快捷提交与字符计数纯函数（承接 T-1792/T-3243）：`domain/flashcard.ts` 新增 `countFlashcardCharacters` 纯函数；`FlashcardDialog.svelte` 接入 Escape 退出与 Ctrl/Cmd+Enter 快捷提交；单测与门禁完备。代码状态：进行中；隔离验证：待运行；真实验收：待 B-0002/B-0006；延后原因：真实思源 riff 牌组与快捷键实操仍待 B-0002/B-0006，版本保持 1.3.6，本轮不发布。
