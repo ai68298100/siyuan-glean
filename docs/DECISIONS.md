@@ -1480,3 +1480,10 @@ T-3400 把读库的键盘分拣模式（T-3392）扩展到每日重浮（今日�
 2. 防误触与长按保护：严格遵循 T-3392 的仲裁契约，输入法组合期间、Ctrl/Alt/Meta 修饰键、文本输入控件、按钮原生语义与弹层打开时一律让出；写状态操作（read/later/archive/replace）全部忽略长按重复。
 3. 提示与焦点回退：在桌面端卡片顶部提供 `glean-kbdhint` 行内快捷键提示与读屏 `aria-live` 播报；卡片增加 `data-glean-surf-id`、`aria-current` 与 `.glean-surf-card--cursor` 设计令牌描边（并在 forced-colors 下回退为系统 Highlight）；Escape 键多层收口（优先撤销条/换文提示，其次退出键盘光标）。
 4. 严格数据主权：纯会话光标状态与组件事件调度，状态写入复用既有 `act` 与 `clip-store`，不修改底层数据契约、文章属性、端点或持久化存储。
+
+## D-0280（2026-10-19）阅读器全键盘工作流对齐（T-3401）
+
+T-3401 将读库与今日拾遗的键盘分拣契约（T-3392/T-3400）延伸至阅读页签（ReaderTab）：
+1. 键位扩展与长按防抖：`src/domain/reader-shortcuts.ts` 扩展 `ReaderShortcut`，新增 `later`（按 a 键转稍后读，保留已累计阅读进度）与 `openSource`（按 o 键在新标签页打开外部原文链接）；所有写入类与外部跳转动作全部禁止长按重复，与既有 `m` 读完动作的保护机制对齐。
+2. 帮助浮层与弹层 Escape 关闭：在 `ReaderTab.svelte` 的键盘事件处理中收口 `Escape` 逻辑，优先关闭快捷键帮助浮层（`shortcutHelp`），其次关闭更多工具（`moreToolsOpen`）与外观弹层（`appearanceOpen`），避免必须鼠标点击外部才能关闭。
+3. 可发现性与双语同步：阅读器快捷键帮助列表（`<dl>`）同步展示 `a 稍后读`、`o 打开原文链接`、`Esc 关闭帮助或浮层`，双语 i18n 完整映射；严格数据主权，不修改文章属性或端点。

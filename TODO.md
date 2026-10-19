@@ -45,6 +45,8 @@
 
 - [◐] **T-3400**（P2，2026-10-19）今日拾遗桌面端全键盘分拣流（J/K/Enter/A/E/H）：`ResurfaceView.svelte` 接入 `moveLibraryCursor` 与 `resolveLibraryShortcut`，为每日重浮卡片提供 J/K 上下移动、Enter/R 阅读、A 改天、E 归档、H 换一篇（今日拾遗专属）快捷分拣；桌面端卡片补 `data-glean-surf-id`、`aria-current` 与 `--cursor` 描边，并在顶部展示 `glean-kbdhint` 行内快捷键提示与读屏播报；纯会话状态与状态路由复用，不修改文章属性或持久化。代码状态：完成；隔离验证：`tests/resurface.test.ts` 21/21、完整 `pnpm test` 1571/1571、`pnpm check` 0 错误/0 警告、构建与发布包校验通过；真实验收：待 B-0002 真实桌面端今日拾遗连续键盘分拣与换篇实操；延后原因：真实宿主长周期重浮与读屏观感仍归 B-0002。
 
+- [◐] **T-3401**（P2，2026-10-19）阅读器全键盘工作流对齐（A 稍后读、O 打开原文、Escape 关闭帮助与浮层）：`domain/reader-shortcuts.ts` 扩展 `ReaderShortcut` 纳入 `later`（a）与 `openSource`（o），所有写入/跳转类动作忽略长按重复；`ReaderTab.svelte` 接入快捷键动作路由，支持按 a 快捷转稍后读（保留阅读时长），按 o 快捷打开外部原文，按 Escape 快捷退出快捷键帮助浮层或样式/工具菜单；更新快捷键帮助列表与双语文案；纯会话状态与读写路由复用，不改变文章属性或端点。代码状态：完成；隔离验证：`tests/reader.test.ts` 14/14、完整 `pnpm test` 1572/1572、`pnpm check` 0 错误/0 警告、构建与发布包校验通过；真实验收：待 B-0002 真实多文档阅读与长快捷键工作流；延后原因：真实宿主多页签与外部链接跳转仍归 B-0002。
+
 - [◐] **T-3367**（P1，2026-10-18）批量选择范围与底部操作可达性：保留跨筛选选择，显示总数及筛选外数量，提供仅保留当前筛选、追加已显示文章和清空入口；三画布共用正常流批量条，避免窄屏换行遮挡内容。代码状态：实现完成，契约见 D-0247，不新增属性、端点或持久化；隔离验证：定向 51/51、完整 `pnpm test` 1517/1517、`pnpm check` 0 错误/0 警告、`pnpm build`、`pnpm check:release`、`pnpm perf:check`、`pnpm visual:check`、`pnpm task:ledger -- --check` 与 `git diff --check` 通过；Chrome 原型已点验宽/窄 Dock、筛选外提示、显式保留和清空，窄布局批量区 `738px` 宽、`142px` 高且无横溢出。真实验收：待 B-0002 原工作区、触控和系统读屏；延后原因：Chrome 原型与隔离样本不替代真实设备与视觉矩阵，视觉登记仍为 24 项待真实宿主。
 
 - [◐] **T-3389**（P3，2026-10-19）制卡弹窗键盘快捷提交与字符计数纯函数（承接 T-1792/T-3243）：`domain/flashcard.ts` 新增 `countFlashcardCharacters` 纯函数；`FlashcardDialog.svelte` 接入 Escape 退出与 Ctrl/Cmd+Enter 快捷提交；单测与门禁完备。代码状态：进行中；隔离验证：待运行；真实验收：待 B-0002/B-0006；延后原因：真实思源 riff 牌组与快捷键实操仍待 B-0002/B-0006，版本保持 1.3.6，本轮不发布。

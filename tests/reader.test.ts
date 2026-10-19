@@ -1,6 +1,7 @@
 /** domain/reader 纯函数单测（T-1730d/e，D-0030）：摘录 DOM 与伴读 prompt。 */
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 
 import {
     buildQuoteBlockDom,
@@ -67,7 +68,7 @@ const readerKey: ReaderKeyInput = { key: "j", mode: "read", focused: true, block
 test("阅读单键：只在当前阅读页签焦点内执行映射", () => {
     const mappings: Array<[string, ReaderShortcut]> = [
         ["j", "scrollDown"], ["k", "scrollUp"], ["e", "edit"],
-        ["m", "done"], ["x", "excerpt"], ["?", "help"],
+        ["m", "done"], ["a", "later"], ["o", "openSource"], ["x", "excerpt"], ["?", "help"],
     ];
     for (const [key, action] of mappings) {
         assert.equal(readerShortcut({ ...readerKey, key }), action);
@@ -85,7 +86,7 @@ test("阅读单键：IME、宿主已处理事件和组合修饰键不会写入�
         { isComposing: true }, { keyCode: 229 }, { defaultPrevented: true },
         { ctrlKey: true }, { altKey: true }, { metaKey: true }, { shiftKey: true },
     ]) {
-        for (const key of ["j", "k", "e", "m", "x"]) {
+        for (const key of ["j", "k", "e", "m", "a", "o", "x"]) {
             assert.equal(readerShortcut({ ...readerKey, key, ...patch }), null);
         }
     }
@@ -96,7 +97,7 @@ test("阅读单键：IME、宿主已处理事件和组合修饰键不会写入�
 test("阅读单键：长按只允许滚动，不重复状态、编辑和摘录动作", () => {
     assert.equal(readerShortcut({ ...readerKey, repeat: true }), "scrollDown");
     assert.equal(readerShortcut({ ...readerKey, key: "k", repeat: true }), "scrollUp");
-    for (const key of ["e", "m", "x", "?"]) {
+    for (const key of ["e", "m", "a", "o", "x", "?"]) {
         assert.equal(readerShortcut({ ...readerKey, key, repeat: true }), null);
     }
 });
@@ -117,4 +118,14 @@ test("上下文请求：迟到的旧文响应不能覆盖新文，卸载使当�
     assert.equal(newCurrent(), false);
     assert.equal(requests.begin()(), true);
     assert.equal(oldCurrent(), false);
+});
+
+test("ReaderTab 快捷键接线：稍后读(A)、打开原文(O)与帮助浮层Escape关闭（T-3401）", () => {
+    const tab = readFileSync(new URL("../src/ui/ReaderTab.svelte", import.meta.url), "utf8");
+    assert.match(tab, /if \(action === "later"\) \{[\s\S]*?void writeStatus\("later"\);/);
+    assert.match(tab, /if \(action === "openSource"\) \{[\s\S]*?openSource\(\);/);
+    assert.match(tab, /if \(event\.key === "Escape"\) \{[\s\S]*?shortcutHelp = false;/);
+    assert.match(tab, /<div><dt><kbd>a<\/kbd><\/dt><dd>\{t\(i18n, "reader\.shortcutLater"\)\}<\/dd><\/div>/);
+    assert.match(tab, /<div><dt><kbd>o<\/kbd><\/dt><dd>\{t\(i18n, "reader\.shortcutOpenSource"\)\}<\/dd><\/div>/);
+    assert.match(tab, /<div><dt><kbd>Esc<\/kbd><\/dt><dd>\{t\(i18n, "reader\.shortcutEscape"\)\}<\/dd><\/div>/);
 });

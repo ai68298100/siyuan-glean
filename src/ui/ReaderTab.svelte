@@ -468,6 +468,22 @@ import { aiFailureKey } from "../libs/ai-feedback";
         const blockedTarget = target?.closest('input, textarea, select, button, a, [role="textbox"], [role="combobox"], [role="menu"], [role="menuitem"], [role="dialog"], [contenteditable]:not([contenteditable="false"])');
         const modalOpen = Array.from(document.querySelectorAll<HTMLElement>('.b3-dialog, .b3-menu, [role="dialog"], [aria-modal="true"]'))
             .some((element) => element.getClientRects().length > 0);
+        if (event.key === "Escape") {
+            if (shortcutHelp) {
+                event.preventDefault();
+                event.stopPropagation();
+                shortcutHelp = false;
+                return;
+            }
+            if (moreToolsOpen || appearanceOpen) {
+                event.preventDefault();
+                event.stopPropagation();
+                moreToolsOpen = false;
+                appearanceOpen = false;
+                return;
+            }
+            return;
+        }
         const action = readerShortcut({
             key: event.key, mode, focused: Boolean(root && active && root.contains(active) && root.getClientRects().length),
             blocked: Boolean(blockedTarget || modalOpen), defaultPrevented: event.defaultPrevented,
@@ -475,6 +491,19 @@ import { aiFailureKey } from "../libs/ai-feedback";
             altKey: event.altKey, metaKey: event.metaKey, shiftKey: event.shiftKey, repeat: event.repeat,
         });
         if (!action || !docId) return;
+        if (action === "openSource") {
+            event.preventDefault();
+            event.stopPropagation();
+            openSource();
+            return;
+        }
+        if (action === "later") {
+            if (!context || context.id !== docId || statusBusy || context.status === "later") return;
+            event.preventDefault();
+            event.stopPropagation();
+            void writeStatus("later");
+            return;
+        }
         if (action === "done" && (!context || context.id !== docId || statusBusy || context.status === "done")) return;
         if (action === "excerpt") {
             excerpt = excerptFromSelection(protyleHost, window.getSelection());
@@ -1052,8 +1081,11 @@ import { aiFailureKey } from "../libs/ai-feedback";
                     <div><dt><kbd>k</kbd></dt><dd>{t(i18n, "reader.shortcutScrollUp")}</dd></div>
                     <div><dt><kbd>e</kbd></dt><dd>{t(i18n, "reader.shortcutEdit")}</dd></div>
                     <div><dt><kbd>m</kbd></dt><dd>{t(i18n, "reader.shortcutDone")}</dd></div>
+                    <div><dt><kbd>a</kbd></dt><dd>{t(i18n, "reader.shortcutLater")}</dd></div>
+                    <div><dt><kbd>o</kbd></dt><dd>{t(i18n, "reader.shortcutOpenSource")}</dd></div>
                     <div><dt><kbd>x</kbd></dt><dd>{t(i18n, "reader.shortcutExcerpt")}</dd></div>
                     <div><dt><kbd>?</kbd></dt><dd>{t(i18n, "reader.shortcutHelp")}</dd></div>
+                    <div><dt><kbd>Esc</kbd></dt><dd>{t(i18n, "reader.shortcutEscape")}</dd></div>
                 </dl>
             </div>
         {/if}
