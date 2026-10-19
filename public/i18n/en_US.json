@@ -1260,6 +1260,15 @@
   "settings.ai.customHttpWarning": "Configured with an unencrypted public HTTP endpoint; API keys and content may be exposed in transit. HTTPS is strongly recommended.",
   "reading.position.progress": "Read approx. ${n}%",
   "library.clearMoreFilters": "Clear advanced filters",
+  "library.keyboardMove": "Move",
+  "library.keyboardView": "View",
+  "library.keyboardSource": "Source",
+  "library.keyboardRead": "Start reading",
+  "library.keyboardLater": "Read later",
+  "library.keyboardArchive": "Archive",
+  "library.keyboardSelect": "Select",
+  "library.keyboardExit": "Exit",
+  "library.keyboardCursor": "Keyboard cursor: ${title}",
   "review.filterDay": "Filtered by completed date ${date}",
   "review.clearDayFilter": "Show all completed articles"
 }

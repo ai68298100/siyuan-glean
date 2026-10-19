@@ -1411,3 +1411,12 @@ T-3390 与 T-3391 承接全插件 UI 走查与 Readwise/Cubox 竞品调研：
 1. 弹窗无障碍与快捷交互：在 `src/ui/FormattingDialog.svelte` 接入 `<svelte:window>` 级别 Escape 快捷关闭，并在排版对比区域支持 `Ctrl+Enter` / `Cmd+Enter` 快捷保存整理草案，与 `FlashcardDialog`、`ArchiveDialog`、`RestoreDialog` 的键盘交互契约对齐。
 2. 预计阅读时长分档纯函数：在 `src/domain/library-view.ts` 增加 `matchReadingTimeTier` 纯函数与 `ReadingTimeTier` 枚举类型（短文 ≤ 5 分钟、中篇 6-15 分钟、长篇 > 15 分钟）；在 `LibraryFilters.svelte` 更多筛选中提供时长分档下拉，支持多端、无障碍与双语对齐。
 3. 激活计数与持久化边界：时长分档纳入 `countSecondaryActiveFilters` 激活计数，与高级筛选就地清空联动；纯视图投影，不修改文档属性、端点或 saveData 存储。
+
+## D-0271（2026-10-19）读库全键盘操作流与键位仲裁（T-3392）
+
+T-3392 承接 Readwise Reader 调研与既有键盘可达性主线，为读库引入无鼠标分拣工作流：
+1. 键位与仲裁：`src/domain/library-keyboard.ts` 提供 `resolveLibraryShortcut(event, context)`，映射 J/↓、K/↑、Enter 查看、O 原文、R 开始读、A 稍后读、E 归档、X 选择、Esc 退出光标；输入法组合（`isComposing` / `keyCode 229`）、Ctrl/Meta/Alt、Shift 组合、文本输入控件、按钮与链接的原生 Enter 语义、插件或宿主浮层打开时一律返回 null，交还原生处理。
+2. 防误触：`REPEAT_SENSITIVE` 覆盖所有写入或打开动作，长按重复键不重复执行；J/K 移动允许长按连发。方向键仅在键盘光标已激活时接管，否则保留列表原生滚动。
+3. 光标与边界：`moveLibraryCursor(ids, currentId, delta)` 在首次进入时按方向取端点，到达两端不回绕，空列表返回空串；UI 只遍历当前已挂载窗口（`visibleRows` / `visibleKanbanCols`），避免 J 跳到尚未渲染的第 80 条之外。
+4. 落点与语义：`DockPanel.svelte` 只在桌面端且 `view === "library"` 时注册根级 keydown；光标仅存会话状态（不写 ui-prefs、不写文章属性、不新增端点），切换队列/筛选/布局或条目不可见即清除；A/E 沿用既有 `setStatus` 与 `openArchiveDialog`，候选只允许查看与勾选。
+5. 可发现性与无障碍：`glean-kbdhint` 行内提示条（移动端不渲染）、`aria-current` 标记当前行、`glean-sr-only` 状态区播报光标标题；光标描边使用 `--glean-accent-b`，并在 `forced-colors` 下回退为系统 `Highlight`。

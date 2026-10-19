@@ -19,6 +19,7 @@ import LibraryRailGroup from "./LibraryRailGroup.svelte";
 import WorkbenchPreview from "./WorkbenchPreview.svelte";
 import LibraryBatchBar from "./LibraryBatchBar.svelte";
 import { librarySelectionScope, addDisplayedSelection, retainFilteredSelection } from "../domain/library-selection";
+import { moveLibraryCursor, resolveLibraryShortcut, type LibraryKeyboardAction, type LibraryKeyboardContext } from "../domain/library-keyboard";
 import LibraryFilters from "./LibraryFilters.svelte";
 import ActionPopover from "./ActionPopover.svelte";
 import AuthorEditor from "./AuthorEditor.svelte";
@@ -130,6 +131,8 @@ type MobileFilterBackgroundState = {
 };
 let mobileFilterBackgroundState: MobileFilterBackgroundState | null = null;
 let selection = $state<ReadonlySet<string>>(new Set());
+/** 读库键盘光标（T-3392）：仅桌面端、仅当前画布可见条目；不写属性与偏好。 */
+let keyboardCursorId = $state("");
 /** IDs added again while a batch write is in flight remain selected after the result lands. */
 let batchAddedDuringRun = new Set<string>();
 let batchBusy = $state(false);
@@ -1433,6 +1436,10 @@ async function startReading(entry: ClipIndexEntry) {
 
 function toggleSelect(id: string, event: Event) {
     event.stopPropagation();
+    toggleSelection(id);
+}
+
+function toggleSelection(id: string) {
     const next = new Set(selection);
     if (next.has(id)) {
         next.delete(id);
@@ -1697,6 +1704,135 @@ function openSource(entry: ClipIndexEntry) {
     }
     window.open(url, "_blank", "noopener,noreferrer");
 }
+
+/* ============ 读库全键盘操作流（T-3392） ============ */
+
+/**
+ * 键盘光标可遍历的条目：与当前画布真实挂载顺序一致。
+ * 只覆盖已挂载窗口，避免 J 跳到尚未渲染的 80 条之外。
+ */
+const keyboardIds = $derived(isTabCanvas && layoutMode === "kanban"
+    ? visibleKanbanCols.flatMap((column) => column.items.map((entry) => entry.id))
+    : visibleRows.map((entry) => entry.id));
+const keyboardEntry = $derived<Row | null>(keyboardCursorId
+    ? rows.find((entry) => entry.id === keyboardCursorId) ?? null
+    : null);
+
+/** 输入框类型里只有这些算「正在打字」，复选框/单选框仍可参与快捷键。 */
+const TEXT_INPUT_TYPES = new Set(["text", "search", "url", "email", "password", "number", "tel", "date", "datetime-local"]);
+
+function keyboardContext(event: KeyboardEvent): LibraryKeyboardContext {
+    const target = event.target instanceof Element ? event.target : null;
+    const field = target?.closest("input, textarea, select, [contenteditable]:not([contenteditable='false'])");
+    const textEntry = Boolean(field && (!(field instanceof HTMLInputElement) || TEXT_INPUT_TYPES.has(field.type)));
+    const nativeAction = Boolean(target?.closest("button, a[href], summary, [role='button'], [role='menuitem']"));
+    return {
+        textEntry,
+        nativeAction,
+        overlay: hasBlockingOverlay(),
+        cursorActive: Boolean(keyboardEntry),
+    };
+}
+
+/** 宿主菜单、插件弹层或已展开的操作浮层打开时，不接管字母键。 */
+function hasBlockingOverlay(): boolean {
+    if (rootEl?.querySelector(":popover-open")) return true;
+    if (typeof document === "undefined") return false;
+    const overlays = document.querySelectorAll<HTMLElement>(".b3-menu, .b3-dialog, dialog[open], [role='dialog'][aria-modal='true']");
+    return Array.from(overlays).some((element) => element.getClientRects().length > 0 && !rootEl?.contains(element));
+}
+
+function focusKeyboardRow(id: string): void {
+    void tick().then(() => {
+        if (disposed || !id || view !== "library") return;
+        const row = rootEl?.querySelector<HTMLElement>(`[data-glean-clip-id="${CSS.escape(id)}"]`);
+        if (!row) return;
+        row.scrollIntoView({ block: "nearest" });
+        row.querySelector<HTMLElement>(".glean-drow__ti, .glean-kcard__t, .glean-card__title")?.focus({ preventScroll: true });
+    });
+}
+
+function setKeyboardCursor(id: string): void {
+    keyboardCursorId = id;
+    if (id) focusKeyboardRow(id);
+}
+
+/** 状态动作让行离开当前队列后，光标顺势落到原位置的下一条。 */
+function cursorAfterRemoval(id: string): string {
+    const index = keyboardIds.indexOf(id);
+    if (index < 0) return "";
+    return keyboardIds[Math.min(index, keyboardIds.length - 1)] ?? "";
+}
+
+async function runKeyboardAction(action: LibraryKeyboardAction): Promise<void> {
+    if (action.type === "move") {
+        setKeyboardCursor(moveLibraryCursor(keyboardIds, keyboardCursorId, action.delta));
+        return;
+    }
+    if (action.type === "clearCursor") {
+        const id = keyboardCursorId;
+        keyboardCursorId = "";
+        if (id) focusKeyboardRow(id);
+        return;
+    }
+    const entry = keyboardEntry;
+    if (!entry) return;
+    if (entry.kind === "candidate") {
+        // 候选没有五态：Enter/O 查看证据，X 可勾选，其余状态动作不适用。
+        if (action.type === "activate" || action.type === "openDocument") selectPreview(entry.id);
+        if (action.type === "toggleSelect") toggleSelection(entry.id);
+        return;
+    }
+    switch (action.type) {
+        case "activate":
+            selectPreview(entry.id);
+            break;
+        case "openDocument":
+            openDoc(entry.id);
+            break;
+        case "startReading":
+            await startReading(entry);
+            break;
+        case "later": {
+            if (entry.status === "later") break;
+            const next = cursorAfterRemoval(entry.id);
+            if (await setStatus(entry, "later")) setKeyboardCursor(next);
+            break;
+        }
+        case "archive":
+            // 归档是带后处理选项的显式动作；已经归档的行不再重复打开对话框。
+            if (entry.status !== "archived") facade.openArchiveDialog(entry.id);
+            break;
+        case "toggleSelect":
+            toggleSelection(entry.id);
+            break;
+    }
+}
+
+$effect(() => {
+    const root = rootEl;
+    if (!root || facade.isMobile || view !== "library") return;
+    const onKeyDown = (event: KeyboardEvent) => {
+        if (event.defaultPrevented) return;
+        const action = resolveLibraryShortcut(event, keyboardContext(event));
+        if (!action) return;
+        // J/K 在行内按钮上也要生效；其余动作由原生控件优先（见 keyboardContext）。
+        event.preventDefault();
+        event.stopPropagation();
+        void runKeyboardAction(action);
+    };
+    root.addEventListener("keydown", onKeyDown);
+    return () => root.removeEventListener("keydown", onKeyDown);
+});
+
+// 切换队列、筛选、布局或视图后，光标只在仍可见时保留。
+$effect(() => {
+    if (view !== "library" || facade.isMobile) {
+        if (keyboardCursorId) keyboardCursorId = "";
+        return;
+    }
+    if (keyboardCursorId && !keyboardIds.includes(keyboardCursorId)) keyboardCursorId = "";
+});
 
 /** “开始阅读”按载体选择正文或原文；导航本身不再写状态。 */
 function openReading(entry: ClipIndexEntry) {
@@ -2102,6 +2238,24 @@ function metaLine(entry: Row): string {
             {/each}
         </nav>
 
+        {#if !facade.isMobile}
+            <div class="glean-kbdhint" class:glean-kbdhint--active={Boolean(keyboardEntry)}>
+                <span class="glean-kbdhint__keys" aria-hidden="true">
+                    <kbd>J</kbd><kbd>K</kbd> {t(i18n, "library.keyboardMove")}
+                    <kbd>Enter</kbd> {t(i18n, "library.keyboardView")}
+                    <kbd>O</kbd> {t(i18n, "library.keyboardSource")}
+                    <kbd>R</kbd> {t(i18n, "library.keyboardRead")}
+                    <kbd>A</kbd> {t(i18n, "library.keyboardLater")}
+                    <kbd>E</kbd> {t(i18n, "library.keyboardArchive")}
+                    <kbd>X</kbd> {t(i18n, "library.keyboardSelect")}
+                    <kbd>Esc</kbd> {t(i18n, "library.keyboardExit")}
+                </span>
+                <span class="glean-sr-only" role="status" aria-live="polite">
+                    {keyboardEntry ? t(i18n, "library.keyboardCursor", { title: keyboardEntry.title || t(i18n, "panel.untitled") }) : ""}
+                </span>
+            </div>
+        {/if}
+
         {#if facade.isMobile}
             <div class="glean-mobile-filter-summary">
                 <button
@@ -2385,10 +2539,12 @@ function metaLine(entry: Row): string {
                             <div
                                 class="glean-kcard"
                                 class:glean-kcard--selected={selection.has(entry.id)}
+                                class:glean-kcard--cursor={keyboardCursorId === entry.id}
                                 data-glean-clip-id={entry.id}
                                 draggable="true"
                                 role="group"
                                 aria-label={entry.title || t(i18n, "panel.untitled")}
+                                aria-current={keyboardCursorId === entry.id ? "true" : undefined}
                                 ondragstart={(e) => { dragId = entry.id; e.dataTransfer?.setData("text/plain", entry.id); }}
                                 ondragend={() => { dragId = ""; dragOverCol = null; }}
                             >
@@ -2490,6 +2646,8 @@ function metaLine(entry: Row): string {
                                         data-glean-clip-id={entry.id}
                                         class:glean-drow--selected={selection.has(entry.id)}
                                         class:glean-drow--preview={previewId === entry.id}
+                                        class:glean-drow--cursor={keyboardCursorId === entry.id}
+                                        aria-current={keyboardCursorId === entry.id ? "true" : undefined}
                                     >
                                         <label class="glean-drow__select" title={t(i18n, "library.selectArticle")}>
                                             <input type="checkbox" checked={selection.has(entry.id)} aria-label={t(i18n, "library.selectArticle")} onclick={(event) => event.stopPropagation()} onchange={(event) => toggleSelect(entry.id, event)} />
@@ -2543,6 +2701,8 @@ function metaLine(entry: Row): string {
                                         class="glean-drow glean-drow--candidate"
                                         data-glean-clip-id={entry.id}
                                         class:glean-drow--preview={previewId === entry.id}
+                                        class:glean-drow--cursor={keyboardCursorId === entry.id}
+                                        aria-current={keyboardCursorId === entry.id ? "true" : undefined}
                                     >
                                         <span class="glean-dot glean-dot--inbox"></span>
                                         <div class="glean-drow__body">

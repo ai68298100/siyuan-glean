@@ -1038,6 +1038,63 @@ body.b3-theme-dark {
     color: var(--glean-accent-b);
 }
 
+/* 读库键盘操作提示（T-3392）：桌面端行内快捷键，光标激活时加深。 */
+.glean-kbdhint {
+    display: flex;
+    align-items: center;
+    gap: var(--glean-space-2);
+    padding: var(--glean-space-0) var(--glean-space-3) var(--glean-space-2);
+    color: color-mix(in srgb, var(--b3-theme-on-surface) 58%, transparent);
+    font-size: var(--glean-text-caption);
+    line-height: var(--glean-leading-1-4);
+    flex-shrink: 0;
+
+    &__keys {
+        display: flex;
+        align-items: center;
+        gap: var(--glean-space-1);
+        flex-wrap: wrap;
+        min-width: 0;
+    }
+
+    kbd {
+        display: inline-grid;
+        place-items: center;
+        min-width: 18px;
+        height: 18px;
+        padding: var(--glean-space-0) var(--glean-space-1);
+        border: 1px solid var(--glean-border-soft);
+        border-bottom-width: 2px;
+        border-radius: var(--glean-radius-sm);
+        background: var(--b3-theme-surface);
+        color: inherit;
+        font-family: inherit;
+        font-size: var(--glean-text-caption);
+        line-height: 1;
+    }
+
+    &--active {
+        color: var(--glean-accent-b);
+
+        kbd {
+            border-color: color-mix(in srgb, var(--glean-accent-b) 32%, var(--glean-border-soft));
+        }
+    }
+}
+
+.glean-drow--cursor,
+.glean-kcard--cursor {
+    outline: 2px solid var(--glean-accent-b);
+    outline-offset: 1px;
+}
+
+@media (forced-colors: active) {
+    .glean-drow--cursor,
+    .glean-kcard--cursor {
+        outline: 2px solid Highlight;
+    }
+}
+
 /* ============ 待收录横幅 ============ */
 
 .glean-candidates {

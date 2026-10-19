@@ -1260,6 +1260,15 @@
   "settings.ai.customHttpWarning": "当前配置为公网明文 HTTP 端点，API 密钥与正文可能在传输中泄漏，建议使用 HTTPS",
   "reading.position.progress": "已读到约 ${n}%",
   "library.clearMoreFilters": "清空高级筛选",
+  "library.keyboardMove": "移动",
+  "library.keyboardView": "查看",
+  "library.keyboardSource": "原文",
+  "library.keyboardRead": "开始读",
+  "library.keyboardLater": "稍后读",
+  "library.keyboardArchive": "归档",
+  "library.keyboardSelect": "选择",
+  "library.keyboardExit": "退出",
+  "library.keyboardCursor": "键盘光标：${title}",
   "review.filterDay": "已筛选 ${date} 完成的文章",
   "review.clearDayFilter": "查看全部完成文章"
 }
