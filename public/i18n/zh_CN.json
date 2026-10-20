@@ -1273,6 +1273,8 @@
   "library.keyboardSelectDisplayed": "全选可见",
   "library.keyboardKeepFiltered": "仅留筛选",
   "library.keyboardClearSelection": "清空选择",
+  "library.keyboardPriority": "优先级",
+  "library.keyboardRating": "评分",
   "library.keyboardExit": "退出",
   "library.keyboardCursor": "键盘光标：${title}",
   "library.smartPresets": "智能预设",

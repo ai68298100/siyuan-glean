@@ -244,6 +244,11 @@ test("ResurfaceView 接线：今日拾遗桌面端全键盘分拣流（T-3400）
     assert.match(view, /case "startReading":[\s\S]*?void act\(pick, "read"\)/);
     assert.match(view, /case "later":[\s\S]*?void act\(pick, "later"\)/);
     assert.match(view, /case "archive":[\s\S]*?void act\(pick, "archive"\)/);
+    assert.match(view, /case "cyclePriority":[\s\S]*?cyclePriorityValue/);
+    assert.match(view, /case "setPriority":[\s\S]*?void setPickPriority\(pick, action\.value\)/);
+    assert.match(view, /case "cycleRating":[\s\S]*?cycleRatingValue/);
+    assert.match(view, /<kbd>P<\/kbd><kbd>1-5<\/kbd> \{t\(i18n, "library\.keyboardPriority"\)\}/);
+    assert.match(view, /<kbd>M<\/kbd> \{t\(i18n, "library\.keyboardRating"\)\}/);
     assert.match(view, /void replacePick\(slot, pick\)/);
     assert.match(view, /data-glean-surf-id=\{pick\.item\.id\}/);
     assert.match(view, /class:glean-surf-card--cursor=\{cursorId === pick\.item\.id\}/);

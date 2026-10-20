@@ -34,7 +34,7 @@
 | T-3410 | ◐ | 完成 | `tests/modal-escape.test.ts` 9/9、完整 `pnpm test` 通过 | 待 B-0002/B-0006 真实宿主备份导出恢复与闪卡走查 | 真实宿主备份文件与闪卡操作仍归 B-0002/B-0006 |
 | T-3411 | ◐ | 完成 | `tests/ai-batch-ui.test.mjs`、`tests/modal-escape.test.ts`、完整 `pnpm test` 通过 | 待 B-0002/B-0004 真实宿主 AI 批处理与键盘走查 | 真实宿主 AI 批处理与外部模型能力仍归 B-0002/B-0004 |
 | T-3412 | ◐ | 完成 | `tests/snapshot-governance.test.ts`、`tests/modal-escape.test.ts`、完整 `pnpm test` 通过 | 待 B-0002 真实宿主快照治理批量执行与键盘走查 | 真实宿主快照批量拍摄与外部写入仍归 B-0002 |
-| T-3413 |   | 待实现 | 待运行 | 待 B-0002 | 待主线键盘交互按序推进 |
+| T-3413 | ◐ | 完成 | `tests/library-keyboard.test.ts` 10/10、`tests/resurface.test.ts` 21/21、完整 `pnpm test` 通过 | 待 B-0002 真实宿主读库与今日拾遗键盘快捷分拣实操 | 真实宿主键盘与读屏走查仍归 B-0002 |
 | T-3414 |   | 待实现 | 待运行 | 待 B-0002 | 长文阅读视口与大纲联动待实现 |
 | T-3415 |   | 待实现 | 待运行 | 待 B-0002 | 待摘录墙视图功能扩展 |
 | T-3416 |   | 待实现 | 待运行 | 待 B-0002/B-0004 | 待真实模型与正文插入联动 |

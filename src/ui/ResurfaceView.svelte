@@ -13,6 +13,8 @@ import { clampSurfaceSwipe, resolveSurfaceSwipe, type SurfaceSwipeAction } from 
 import ContextSelectionPanel from "./ContextSelectionPanel.svelte";
 import { projectActiveRecentReadings, type RecentReadingEntry } from "../domain/recent-reading";
 import { moveLibraryCursor, resolveLibraryShortcut } from "../domain/library-keyboard";
+import { cyclePriorityValue, cycleRatingValue } from "../domain/library-keyboard";
+import { writeClip } from "../services/clip-store";
 
 interface Props {
     facade: GleanFacade;
@@ -514,6 +516,60 @@ function handleResurfaceShortcut(event: KeyboardEvent): void {
             event.stopPropagation();
             void act(pick, "archive");
             break;
+        case "cyclePriority": {
+            event.preventDefault();
+            event.stopPropagation();
+            const currentClip = index.clips[pick.item.id];
+            const nextVal = cyclePriorityValue(currentClip?.priority ?? pick.item.priority);
+            void setPickPriority(pick, nextVal);
+            break;
+        }
+        case "setPriority": {
+            event.preventDefault();
+            event.stopPropagation();
+            void setPickPriority(pick, action.value);
+            break;
+        }
+        case "cycleRating": {
+            event.preventDefault();
+            event.stopPropagation();
+            const currentClip = index.clips[pick.item.id];
+            const nextVal = cycleRatingValue(currentClip?.rating);
+            void setPickRating(pick, nextVal);
+            break;
+        }
+    }
+}
+
+async function setPickPriority(pick: SurfaceDisplayPick, value: number): Promise<void> {
+    if (actingId || undoingId) return;
+    actingId = pick.item.id;
+    try {
+        const result = await writeClip(facade.pluginInstance, pick.item.id, { priority: value }, { force: true });
+        showMessage(t(i18n, result.indexSyncFailed ? "msg.writeIndexPending" : "msg.rankSaved"), result.indexSyncFailed ? 4000 : 2500);
+        facade.notifyDataChanged();
+        onMutated();
+    } catch (error) {
+        console.warn("[glean] 今日拾遗优先级写入失败:", error);
+        showMessage(t(i18n, "msg.statusFailed"), 3000);
+    } finally {
+        actingId = "";
+    }
+}
+
+async function setPickRating(pick: SurfaceDisplayPick, value: number): Promise<void> {
+    if (actingId || undoingId) return;
+    actingId = pick.item.id;
+    try {
+        const result = await writeClip(facade.pluginInstance, pick.item.id, { rating: value }, { force: true });
+        showMessage(t(i18n, result.indexSyncFailed ? "msg.writeIndexPending" : "msg.rankSaved"), result.indexSyncFailed ? 4000 : 2500);
+        facade.notifyDataChanged();
+        onMutated();
+    } catch (error) {
+        console.warn("[glean] 今日拾遗评分写入失败:", error);
+        showMessage(t(i18n, "msg.statusFailed"), 3000);
+    } finally {
+        actingId = "";
     }
 }
 
@@ -720,6 +776,8 @@ function focusCard(id: string): void {
                     <kbd>A</kbd> {t(i18n, "resurface.later")}
                     <kbd>E</kbd> {t(i18n, "resurface.archive")}
                     <kbd>H</kbd> {t(i18n, "resurface.replace")}
+                    <kbd>P</kbd><kbd>1-5</kbd> {t(i18n, "library.keyboardPriority")}
+                    <kbd>M</kbd> {t(i18n, "library.keyboardRating")}
                     <kbd>Esc</kbd> {t(i18n, "library.keyboardExit")}
                 </span>
                 <span class="glean-sr-only" role="status" aria-live="polite">

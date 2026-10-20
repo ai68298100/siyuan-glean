@@ -8,7 +8,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { moveLibraryCursor, resolveLibraryShortcut, type LibraryKeyboardContext } from "../src/domain/library-keyboard.ts";
+import { moveLibraryCursor, resolveLibraryShortcut, cyclePriorityValue, cycleRatingValue, type LibraryKeyboardContext } from "../src/domain/library-keyboard.ts";
 
 const dock = readFileSync(new URL("../src/ui/DockPanel.svelte", import.meta.url), "utf8");
 const styles = readFileSync(new URL("../src/index.scss", import.meta.url), "utf8");
@@ -66,6 +66,39 @@ test("O/R/A/E/X 映射到对应动作，Escape 只在光标激活时消费", () 
     assert.equal(resolveLibraryShortcut(key("z"), active), null);
 });
 
+test("快捷设置优先级与评分：P/1-5 调优先级，M 调评分，长按防抖保护（T-3413）", () => {
+    assert.deepEqual(resolveLibraryShortcut(key("p"), active), { type: "cyclePriority" });
+    assert.deepEqual(resolveLibraryShortcut(key("P"), active), { type: "cyclePriority" });
+    assert.deepEqual(resolveLibraryShortcut(key("1"), active), { type: "setPriority", value: 1 });
+    assert.deepEqual(resolveLibraryShortcut(key("3"), active), { type: "setPriority", value: 3 });
+    assert.deepEqual(resolveLibraryShortcut(key("5"), active), { type: "setPriority", value: 5 });
+    assert.deepEqual(resolveLibraryShortcut(key("m"), active), { type: "cycleRating" });
+    assert.deepEqual(resolveLibraryShortcut(key("M"), active), { type: "cycleRating" });
+
+    // 未激活光标不响应
+    assert.equal(resolveLibraryShortcut(key("p"), {}), null);
+    assert.equal(resolveLibraryShortcut(key("1"), {}), null);
+    assert.equal(resolveLibraryShortcut(key("m"), {}), null);
+
+    // 长按不重复写入（防抖节流保护）
+    assert.equal(resolveLibraryShortcut(key("p", { repeat: true }), active), null);
+    assert.equal(resolveLibraryShortcut(key("1", { repeat: true }), active), null);
+    assert.equal(resolveLibraryShortcut(key("m", { repeat: true }), active), null);
+
+    // 纯函数循环计算
+    assert.equal(cyclePriorityValue(3), 4);
+    assert.equal(cyclePriorityValue(4), 5);
+    assert.equal(cyclePriorityValue(5), 1);
+    assert.equal(cyclePriorityValue(1), 2);
+    assert.equal(cyclePriorityValue(undefined), 4);
+
+    assert.equal(cycleRatingValue(0), 1);
+    assert.equal(cycleRatingValue(1), 2);
+    assert.equal(cycleRatingValue(4), 5);
+    assert.equal(cycleRatingValue(5), 0);
+    assert.equal(cycleRatingValue(undefined), 1);
+});
+
 test("批量选择键位：S 需光标，F/C 只需已有勾选（T-3367）", () => {
     assert.deepEqual(resolveLibraryShortcut(key("s"), active), { type: "selectDisplayed" });
     assert.equal(resolveLibraryShortcut(key("s"), {}), null);
@@ -108,6 +141,11 @@ test("DockPanel 接线：键盘光标样式、提示条与动作路由存在", (
     assert.match(dock, /if \(action\.type === "selectDisplayed"\) \{[\s\S]*?selectDisplayedArticles\(\);/);
     assert.match(dock, /if \(action\.type === "keepFiltered"\) \{[\s\S]*?retainSelectionToFilter\(\);/);
     assert.match(dock, /if \(action\.type === "clearSelection"\) \{[\s\S]*?clearSelection\(\);/);
+    assert.match(dock, /case "cyclePriority":[\s\S]*?cyclePriorityValue\(entry\.priority\)/);
+    assert.match(dock, /case "setPriority":[\s\S]*?await setPriority\(entry, action\.value\)/);
+    assert.match(dock, /case "cycleRating":[\s\S]*?cycleRatingValue\(entry\.rating\)/);
+    assert.match(dock, /<kbd>P<\/kbd><kbd>1-5<\/kbd> \{t\(i18n, "library\.keyboardPriority"\)\}/);
+    assert.match(dock, /<kbd>M<\/kbd> \{t\(i18n, "library\.keyboardRating"\)\}/);
     assert.match(dock, /hasSelection: selection\.size > 0/);
     assert.match(dock, /case "later":[\s\S]*?await setStatus\(entry, "later"\)/);
     assert.match(dock, /case "archive":[\s\S]*?facade\.openArchiveDialog\(entry\.id\)/);

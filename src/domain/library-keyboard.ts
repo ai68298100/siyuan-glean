@@ -20,7 +20,10 @@ export type LibraryKeyboardAction =
     | { type: "selectDisplayed" }
     | { type: "keepFiltered" }
     | { type: "clearSelection" }
-    | { type: "clearCursor" };
+    | { type: "clearCursor" }
+    | { type: "cyclePriority" }
+    | { type: "setPriority"; value: number }
+    | { type: "cycleRating" };
 
 export interface LibraryKeyboardEventLike {
     key: string;
@@ -50,6 +53,7 @@ export interface LibraryKeyboardContext {
 const REPEAT_SENSITIVE = new Set<LibraryKeyboardAction["type"]>([
     "activate", "openDocument", "startReading", "later", "archive", "toggleSelect",
     "selectDisplayed", "keepFiltered", "clearSelection",
+    "cyclePriority", "setPriority", "cycleRating",
 ]);
 
 /**
@@ -96,6 +100,9 @@ export function resolveLibraryShortcut(
     if (lower === "a") return repeatOrNull(event, { type: "later" });
     if (lower === "e") return repeatOrNull(event, { type: "archive" });
     if (lower === "x") return repeatOrNull(event, { type: "toggleSelect" });
+    if (lower === "p") return repeatOrNull(event, { type: "cyclePriority" });
+    if (key >= "1" && key <= "5") return repeatOrNull(event, { type: "setPriority", value: Number(key) });
+    if (lower === "m") return repeatOrNull(event, { type: "cycleRating" });
     return null;
 }
 
@@ -121,4 +128,22 @@ export function moveLibraryCursor(ids: readonly string[], currentId: string, del
 /** 供 UI 决定是否显示「已用键盘选中」提示。 */
 export function isLibraryCursorVisible(currentId: string, ids: readonly string[]): boolean {
     return Boolean(currentId) && ids.includes(currentId);
+}
+
+/**
+ * 循环计算下一个优先级（1-5）。
+ * 默认优先级为 3；循环顺序：3 -> 4 -> 5 -> 1 -> 2 -> 3。
+ */
+export function cyclePriorityValue(current?: number): number {
+    const val = typeof current === "number" && current >= 1 && current <= 5 ? current : 3;
+    return val >= 5 ? 1 : val + 1;
+}
+
+/**
+ * 循环计算下一个评分（0-5 星）。
+ * 默认评分为 0（无评分）；循环顺序：0 -> 1 -> 2 -> 3 -> 4 -> 5 -> 0。
+ */
+export function cycleRatingValue(current?: number): number {
+    const val = typeof current === "number" && current >= 0 && current <= 5 ? current : 0;
+    return val >= 5 ? 0 : val + 1;
 }

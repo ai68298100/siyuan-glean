@@ -69,7 +69,7 @@
 
 - [◐] **T-3412**（P2，2026-10-20）快照治理面板 Escape 忙碌守卫与键盘交互闭环（全插件键盘交互走查）：`SnapshotGovernance.svelte` 挂载 `<svelte:window>` Escape 监听，在批量补拍快照（`busy`）或对账扫描加载中（`loading`）时拦截并阻止冒泡，避免外部设置弹窗意外关闭导致中途卸载；空闲态不拦截交由外层设置正常关闭；单测与门禁完备，不改变底层文档属性与端点契约。代码状态：完成；隔离验证：`tests/snapshot-governance.test.ts`、`tests/modal-escape.test.ts`、完整 `pnpm test` 通过；真实验收：待 B-0002 真实宿主快照治理批量执行与键盘走查；延后原因：真实宿主快照批量拍摄与外部写入仍归 B-0002。
 
-- [ ] **T-3413**（P2，2026-10-20）读库与今日拾遗键盘流快捷设置优先级与评分（同类产品对标 / 快捷分拣）：参考 Readwise Reader，在读库行/卡片与今日拾遗卡片获焦时，支持按键直接调出或快捷循环设置优先级（`priority` 1-5）与评分（`rating` 1-5），免除频繁鼠标操作；代码状态：待实现；隔离验证：待运行；真实验收：待 B-0002；延后原因：待主线键盘交互按序推进。
+- [◐] **T-3413**（P2，2026-10-20）读库与今日拾遗键盘流快捷设置优先级与评分（同类产品对标 / 快捷分拣）：`domain/library-keyboard.ts` 扩展 `LibraryKeyboardAction` 纳入 `cyclePriority`（P）、`setPriority`（1-5 数字键）与 `cycleRating`（M），增加 `cyclePriorityValue` 与 `cycleRatingValue` 纯函数并纳入长按防抖保护；`DockPanel.svelte` 与 `ResurfaceView.svelte` 接入快捷键动作路由并分别调用 `setPriority` / `setRating` 与 `setPickPriority` / `setPickRating`，行内快捷键提示条同步呈现 P/1-5 与 M；纯会话状态与状态路由复用，不改变底层文档属性与端点契约。代码状态：完成；隔离验证：`tests/library-keyboard.test.ts` 10/10、`tests/resurface.test.ts` 21/21、完整 `pnpm test` 通过；真实验收：待 B-0002 真实宿主读库与今日拾遗键盘快捷分拣实操；延后原因：真实宿主键盘与读屏走查仍归 B-0002。
 
 - [ ] **T-3414**（P2，2026-10-20）阅读伴生栏大纲目录与块书签视口联动指示（同类产品对标 / 连续阅读）：参考 Readwise Reader / Omnivore，在 ReaderTab 伴生栏大纲视图中高亮标示当前阅读书签所在的对应标题小节，支持点击快速定位并更新当前正文视口；代码状态：待实现；隔离验证：待运行；真实验收：待 B-0002；延后原因：长文阅读视口与大纲联动待实现。
 

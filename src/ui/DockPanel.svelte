@@ -19,7 +19,7 @@ import LibraryRailGroup from "./LibraryRailGroup.svelte";
 import WorkbenchPreview from "./WorkbenchPreview.svelte";
 import LibraryBatchBar from "./LibraryBatchBar.svelte";
 import { librarySelectionScope, addDisplayedSelection, retainFilteredSelection } from "../domain/library-selection";
-import { moveLibraryCursor, resolveLibraryShortcut, type LibraryKeyboardAction, type LibraryKeyboardContext } from "../domain/library-keyboard";
+import { moveLibraryCursor, resolveLibraryShortcut, cyclePriorityValue, cycleRatingValue, type LibraryKeyboardAction, type LibraryKeyboardContext } from "../domain/library-keyboard";
 import LibraryFilters from "./LibraryFilters.svelte";
 import ActionPopover from "./ActionPopover.svelte";
 import AuthorEditor from "./AuthorEditor.svelte";
@@ -1867,6 +1867,20 @@ async function runKeyboardAction(action: LibraryKeyboardAction): Promise<void> {
         case "toggleSelect":
             toggleSelection(entry.id);
             break;
+        case "cyclePriority": {
+            const nextVal = cyclePriorityValue(entry.priority);
+            await setPriority(entry, nextVal);
+            break;
+        }
+        case "setPriority": {
+            await setPriority(entry, action.value);
+            break;
+        }
+        case "cycleRating": {
+            const nextVal = cycleRatingValue(entry.rating);
+            await setRating(entry, nextVal);
+            break;
+        }
     }
 }
 
@@ -2312,6 +2326,8 @@ function metaLine(entry: Row): string {
                     <kbd>S</kbd> {t(i18n, "library.keyboardSelectDisplayed")}
                     <kbd>F</kbd> {t(i18n, "library.keyboardKeepFiltered")}
                     <kbd>C</kbd> {t(i18n, "library.keyboardClearSelection")}
+                    <kbd>P</kbd><kbd>1-5</kbd> {t(i18n, "library.keyboardPriority")}
+                    <kbd>M</kbd> {t(i18n, "library.keyboardRating")}
                     <kbd>Esc</kbd> {t(i18n, "library.keyboardExit")}
                 </span>
                 <span class="glean-sr-only" role="status" aria-live="polite">

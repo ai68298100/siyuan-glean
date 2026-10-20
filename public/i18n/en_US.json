@@ -1273,6 +1273,8 @@
   "library.keyboardSelectDisplayed": "Select shown",
   "library.keyboardKeepFiltered": "Keep filtered",
   "library.keyboardClearSelection": "Clear selection",
+  "library.keyboardPriority": "Priority",
+  "library.keyboardRating": "Rating",
   "library.keyboardExit": "Exit",
   "library.keyboardCursor": "Keyboard cursor: ${title}",
   "library.smartPresets": "Smart presets",
