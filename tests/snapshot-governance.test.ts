@@ -30,4 +30,6 @@ test("批量服务和 UI 明确逐篇失败可重试且不覆盖已有快照", (
     assert.match(ui, /retryFailed/);
     assert.match(ui, /snapshot\.batchRetry/);
     assert.match(ui, /snapshot\.batchTake/);
+    assert.match(ui, /<svelte:window onkeydown=\{handleWindowKeydown\} \/>/);
+    assert.match(ui, /if \(event\.key === "Escape" && \(busy \|\| loading\)\) \{/);
 });

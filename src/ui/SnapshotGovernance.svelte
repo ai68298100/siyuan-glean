@@ -67,7 +67,17 @@
     function retryFailed(): void {
         void run(failed);
     }
+
+    function handleWindowKeydown(event: KeyboardEvent): void {
+        if (event.isComposing || event.keyCode === 229) return;
+        if (event.key === "Escape" && (busy || loading)) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+    }
 </script>
+
+<svelte:window onkeydown={handleWindowKeydown} />
 
 <section class="glean-snapshot-governance" aria-labelledby="glean-snapshot-governance-title" aria-busy={busy || loading}>
     <header class="glean-snapshot-governance__head">

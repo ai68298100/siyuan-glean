@@ -201,3 +201,9 @@ test("AiBatchPanel支持window级别Escape分级拦截与状态守卫（T-3411�
     assert.match(aiBatch, /if \(preview\) \{[\s\S]*?preview = null;[\s\S]*?confirmed = false;[\s\S]*?return;/);
     assert.match(aiBatch, /close\(\);/);
 });
+
+test("SnapshotGovernance支持window级别Escape忙碌守卫（T-3412）", () => {
+    const snapshot = read("src/ui/SnapshotGovernance.svelte");
+    assert.match(snapshot, /<svelte:window onkeydown=\{handleWindowKeydown\} \/>/);
+    assert.match(snapshot, /if \(event\.key === "Escape" && \(busy \|\| loading\)\) \{[\s\S]*?event\.preventDefault\(\);[\s\S]*?event\.stopPropagation\(\);/);
+});

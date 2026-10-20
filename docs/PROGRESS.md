@@ -1,5 +1,11 @@
 # 进度（PROGRESS）
 
+## T-3412 快照治理面板 Escape 忙碌守卫与键盘交互闭环（2026-10-20）
+
+- [x] 快照批量补拍与对账扫描忙碌锁定：`src/ui/SnapshotGovernance.svelte` 挂载 `<svelte:window>` 级别 Escape 监听；在批量补拍快照（`busy` 为 true）或对账扫描加载中（`loading` 为 true）时，按下 Escape 拦截并阻止冒泡（`event.preventDefault(); event.stopPropagation();`），避免外部设置弹窗意外关闭导致中途卸载。
+- [x] 空闲安全交还宿主：当快照治理面板处于扫描完毕且非忙碌的空闲状态时，不拦截 Escape，允许正常由外层 `SettingsView.svelte` 处理关闭并检查未保存脏草稿。
+- [x] 单测完备与架构闭环：`tests/snapshot-governance.test.ts` 与 `tests/modal-escape.test.ts` 补充针对 `SnapshotGovernance` 的 window 级 Escape 忙碌守卫契约单测（14/14 全数通过）。
+
 ## T-3411 AI 批处理面板 Escape 分级拦截与状态守卫闭环（2026-10-20）
 
 - [x] 批处理运行中键盘忙碌锁定：`src/ui/AiBatchPanel.svelte` 挂载 `<svelte:window>` 级别 Escape 监听；展开态下批处理运行中（`busy` 为 true，特别是 `task.busy === "run"`）严格锁定并忽略 Escape，避免误触按键意外中断批量文章属性写入或丢弃未持久化日记。
