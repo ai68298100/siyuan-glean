@@ -1,5 +1,11 @@
 # 进度（PROGRESS）
 
+## T-3411 AI 批处理面板 Escape 分级拦截与状态守卫闭环（2026-10-20）
+
+- [x] 批处理运行中键盘忙碌锁定：`src/ui/AiBatchPanel.svelte` 挂载 `<svelte:window>` 级别 Escape 监听；展开态下批处理运行中（`busy` 为 true，特别是 `task.busy === "run"`）严格锁定并忽略 Escape，避免误触按键意外中断批量文章属性写入或丢弃未持久化日记。
+- [x] 二次确认撤销与预览重置：勾选开始批处理确认（`confirmed`）或丢弃确认（`discardConfirmed`）时，按下 Escape 优先将两项确认状态清空（重置为 `false`）并阻断冒泡；存在未执行的批处理预览（`preview !== null`）时，按 Escape 优先清空预览并复位确认状态（`preview = null; confirmed = false`），安全回到初始文章选择与恢复列表。
+- [x] 空闲安全折叠面板与单测闭环：处于干净空闲态时按 Escape 触发 `close()` 正常折叠面板并阻止事件冒泡；`tests/ai-batch-ui.test.mjs` 与 `tests/modal-escape.test.ts` 补充针对 `AiBatchPanel` 的 window 级 Escape 与状态守卫契约单测（13/13 全数通过）。
+
 ## T-3410 备份恢复面板与闪卡恢复面板 Escape 分级撤销与忙碌守卫（2026-10-20）
 
 - [x] 备份恢复面板键盘交互闭环：`src/ui/BackupPanel.svelte` 挂载 `<svelte:window>` 级别 Escape 监听；在导出备份、写入恢复或读取文件忙碌中（`busy === "export" | "restore" | "file"`）锁定并忽略 Escape 防中断；在异步预览中（`busy === "preview"`）按 Escape 触发取消解析（`controller?.abort()`）并阻断冒泡；在已生成差异预览会话（`session !== null`）时按 Escape 优先重置恢复会话（`reset()`）并阻止事件冒泡退出外层设置弹窗。

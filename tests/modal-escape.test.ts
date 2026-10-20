@@ -192,3 +192,12 @@ test("BackupPanel与FlashcardRecoveryPanel支持window级别Escape分级撤销�
     assert.match(flashcardRecovery, /<svelte:window onkeydown=\{handleWindowKeydown\} \/>/);
     assert.match(flashcardRecovery, /if \(event\.key === "Escape" && panelState === "busy"\) \{[\s\S]*?event\.preventDefault\(\);[\s\S]*?event\.stopPropagation\(\);/);
 });
+
+test("AiBatchPanel支持window级别Escape分级拦截与状态守卫（T-3411）", () => {
+    const aiBatch = read("src/ui/AiBatchPanel.svelte");
+    assert.match(aiBatch, /<svelte:window onkeydown=\{handleWindowKeydown\} \/>/);
+    assert.match(aiBatch, /if \(event\.key === "Escape" && open\) \{[\s\S]*?if \(busy\) \{[\s\S]*?event\.preventDefault\(\);[\s\S]*?return;/);
+    assert.match(aiBatch, /if \(confirmed \|\| discardConfirmed\) \{[\s\S]*?confirmed = false;[\s\S]*?discardConfirmed = false;[\s\S]*?return;/);
+    assert.match(aiBatch, /if \(preview\) \{[\s\S]*?preview = null;[\s\S]*?confirmed = false;[\s\S]*?return;/);
+    assert.match(aiBatch, /close\(\);/);
+});

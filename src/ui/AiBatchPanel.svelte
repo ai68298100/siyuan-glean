@@ -152,7 +152,37 @@
         catch (error) { if (mounted) failure(error); }
         finally { if (mounted) localBusy = false; }
     }
+
+    function handleWindowKeydown(event: KeyboardEvent): void {
+        if (event.isComposing || event.keyCode === 229) return;
+        if (event.key === "Escape" && open) {
+            if (busy) {
+                event.preventDefault();
+                event.stopPropagation();
+                return;
+            }
+            if (confirmed || discardConfirmed) {
+                event.preventDefault();
+                event.stopPropagation();
+                confirmed = false;
+                discardConfirmed = false;
+                return;
+            }
+            if (preview) {
+                event.preventDefault();
+                event.stopPropagation();
+                preview = null;
+                confirmed = false;
+                return;
+            }
+            event.preventDefault();
+            event.stopPropagation();
+            close();
+        }
+    }
 </script>
+
+<svelte:window onkeydown={handleWindowKeydown} />
 
 {#if open}
     <section class="glean-ai-batch" class:glean-ai-batch--busy={busy} aria-labelledby="glean-ai-batch-title" aria-busy={busy}>

@@ -48,3 +48,12 @@ test("没有勾选文章时预览按钮禁用；无任务的收起面板不展�
     assert.ok(!collapsed.body.includes(context.i18n["aiBatch.previewResume"]));
     assert.ok(!collapsed.body.includes("<button"));
 });
+
+test("AiBatchPanel支持window级别Escape分级拦截与状态守卫（T-3411）", () => {
+    const raw = readFileSync(componentUrl, "utf8");
+    assert.match(raw, /<svelte:window onkeydown=\{handleWindowKeydown\} \/>/);
+    assert.match(raw, /if \(event\.key === "Escape" && open\) \{[\s\S]*?if \(busy\) \{[\s\S]*?event\.preventDefault\(\);[\s\S]*?return;/);
+    assert.match(raw, /if \(confirmed \|\| discardConfirmed\) \{[\s\S]*?confirmed = false;[\s\S]*?discardConfirmed = false;[\s\S]*?return;/);
+    assert.match(raw, /if \(preview\) \{[\s\S]*?preview = null;[\s\S]*?confirmed = false;[\s\S]*?return;/);
+    assert.match(raw, /close\(\);/);
+});
