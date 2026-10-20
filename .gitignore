@@ -14,3 +14,4 @@ output/visual-regression/
 .mimosa/
 output/
 .codex-*.log
+.jeikcode/codegraph/

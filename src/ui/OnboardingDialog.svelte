@@ -245,7 +245,19 @@ async function skip(): Promise<void> {
 function continueLater(): void {
     onClose();
 }
+
+function handleWindowKeydown(event: KeyboardEvent): void {
+    if (event.isComposing || event.keyCode === 229) return;
+    if (event.key === "Escape") {
+        if (actionBusy || scanning) return;
+        event.preventDefault();
+        event.stopPropagation();
+        continueLater();
+    }
+}
 </script>
+
+<svelte:window onkeydown={handleWindowKeydown} />
 
 <div class="glean-migrate glean-onboarding" class:glean-onboarding--scanning={scanning} aria-labelledby={titleId} aria-describedby={descId} aria-busy={scanning || actionBusy}>
     <div class="glean-dlg-head">

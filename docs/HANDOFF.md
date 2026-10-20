@@ -1,5 +1,11 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-20 首启引导向导与存量迁移弹窗 Escape 快捷退出与状态守卫闭环）
+
+- T-3408/D-0287：承接全插件键盘交互走查（T-1792）与向导/迁移流体验打磨。在 `src/ui/OnboardingDialog.svelte` 挂载 `<svelte:window>` 级别 Escape 监听；在非忙碌（`!actionBusy && !scanning`）态下按 Escape 触发 `continueLater()` 稍后继续并阻断冒泡；后台扫描或设置保存忙碌中忽略 Escape，防止并发异常；当前步骤与中断标记安全持久化；在 `src/ui/MigrateDialog.svelte` 挂载 `<svelte:window>` 级别 Escape 监听；在回填运行中（`phase === "running"`）、清理进度忙碌（`discardBusy`）或行级保存中（`Boolean(rowBusyId)`）严格锁定并忽略 Escape；行内编辑来源（`editingRowId`）时按 Escape 优先取消编辑（3 处候选编辑输入框同步接入按键拦截）；丢弃确认（`confirmingDiscard`）时按 Escape 取消确认并安全回焦；正常空闲态下按 Escape 退出弹窗并阻断事件冒泡。纯组件事件响应与状态守卫，不修改底层数据契约、文章属性、端点或持久化存储。
+- 全量门禁闭环：定向 `tests/modal-escape.test.ts` 7/7、完整 `pnpm test`、`tsc` 与 `svelte-check` 0 错误 0 警告、`pnpm build`、`pnpm check:release`、`pnpm perf:check`、`pnpm visual:check`（24 项仍待真实宿主）与任务账本检查均通过。真实宿主向导与迁移键盘走查仍归 B-0002。
+- 下一步：按当前执行板顺序推进下一个任务（如 T-3367 批量选择范围与底部操作可达性在更多场景的走查与补强，或按作者点单继续）。版本保持 1.3.7，本轮不打 tag、不发布、不推送。
+
 ## 当前有效交接（2026-10-20 作者编辑与 AI 标签合并二次确认 Escape 快捷退出与键盘交互闭环）
 
 - T-3407/D-0286：承接全插件键盘交互走查（T-1792）与作者编辑（T-1813）/AI 标签合并（T-1761）交互收口。在 `src/ui/AuthorEditor.svelte` 表单中接入 Escape 快捷键；在编辑状态且非忙碌态下，若有 AI 建议（`suggestion`）则按 Escape 优先清空 AI 建议并阻断事件冒泡，若无建议则退出编辑状态安全回退焦点至编辑按钮并阻断冒泡；输入框接入 `Ctrl/Cmd+Enter` 快捷提交表单保存；在 `src/ui/AiTagMergePanel.svelte` 挂载 `<svelte:window>` 级别 Escape 监听，在处于二次确认合并状态（`confirmKey !== ""`）且非忙碌时，按 Escape 快捷取消确认态并阻断冒泡，防止误触或事件冒泡关闭外部设置弹窗。纯客户端组件交互与状态流转，不改变底层文档属性、数据库或端点契约。

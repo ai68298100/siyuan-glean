@@ -1541,3 +1541,16 @@ T-3407 承接行内作者编辑与 AI 标签合并二次确认的键盘无障碍
 2. AI 标签合并二次确认 Escape 取消：
    - 在 `src/ui/AiTagMergePanel.svelte` 挂载 `<svelte:window>` 级别 `Escape` 键盘监听；当处于某分组破坏性合并二次确认状态（`confirmKey !== ""`）且非忙碌时，按下 `Escape` 立即将 `confirmKey` 重置为空并阻断冒泡，平滑取消二次确认；
 3. 严格数据主权与架构契约：所有快捷交互均为客户端组件内局部状态与焦点流转，不改变任何底层文档属性、数据库结构或端点契约。
+
+## D-0287（2026-10-20）首启引导与存量迁移 Escape 快捷退出与状态守卫闭环（T-3408）
+
+T-3408 承接全插件键盘无障碍交互统一收口（T-1792）与向导/迁移流体验打磨：
+1. 首启引导向导（`OnboardingDialog.svelte`）：
+   - 挂载 `<svelte:window>` 级别 Escape 监听；在非忙碌（`!actionBusy && !scanning`）态下，按下 `Escape` 触发 `continueLater()` 稍后继续并阻断事件冒泡，平稳关闭弹窗；通过既有 `onDestroy` 机制安全持久化当前步骤与中断标记（`onboardingInterrupted: true`），下次打开或从设置/空态中可随时无缝续接；
+   - 在后台读取笔记本、保存设置或扫描未完成时（`actionBusy || scanning`），拦截并忽略 Escape 键，避免在写入中途并发卸载导致状态竞态。
+2. 存量迁移弹窗（`MigrateDialog.svelte`）：
+   - 挂载 `<svelte:window>` 级别 Escape 监听；在正在回填批次运行（`phase === "running"`）、正在清理进度（`discardBusy`）或正在保存行级人工裁决（`Boolean(rowBusyId)`）等关键写入阶段，严格锁定并忽略 Escape，守住数据主权与任务一致性；
+   - 在行内编辑来源 URL 状态（`editingRowId !== ""`）下，按 Escape 优先取消行内编辑并阻断冒泡；3 处候选编辑输入框内也显式接入 Escape 取消编辑；
+   - 在任务确认清理状态（`confirmingDiscard`）下，按 Escape 优先取消确认并安全回退焦点至丢弃触发按钮；
+   - 正常空闲状态下，按 Escape 退出弹窗并阻断事件冒泡，防止多层冒泡误关宿主其他上下文。
+3. 纯视图状态与无障碍契约：所有键盘响应均在组件生命周期内流转，不改变任何思源内核端点契约或文章属性。

@@ -393,7 +393,27 @@ function rowDetail(row: MigrateRow): string {
         default: return row.state === "error" ? t(i18n, "migrate.rowErrorRetry") : "";
     }
 }
+
+function handleWindowKeydown(event: KeyboardEvent): void {
+    if (event.isComposing || event.keyCode === 229) return;
+    if (event.key === "Escape") {
+        if (phase === "running" || discardBusy || Boolean(rowBusyId)) return;
+        event.preventDefault();
+        event.stopPropagation();
+        if (editingRowId) {
+            editingRowId = "";
+            return;
+        }
+        if (confirmingDiscard) {
+            void cancelDiscardConfirmation();
+            return;
+        }
+        onClose();
+    }
+}
 </script>
+
+<svelte:window onkeydown={handleWindowKeydown} />
 
 <div class="glean-migrate" data-phase={phase} aria-labelledby={titleId} aria-describedby={descId} aria-busy={progressLoadState === "loading" || phase === "scanning" || phase === "running"}>
     <div class="glean-dlg-head">
@@ -519,7 +539,7 @@ function rowDetail(row: MigrateRow): string {
                 </div>
                     {#if editingRowId === row.id}
                         <div class="glean-candidate-edit">
-                            <input class="b3-text-field" type="url" bind:value={manualUrl} disabled={Boolean(rowBusyId)} placeholder={t(i18n, "candidate.urlPlaceholder")} aria-label={t(i18n, "candidate.urlPlaceholder")} onkeydown={(event) => { if (event.key === "Enter") { event.preventDefault(); void resolveManual(row, "url"); } }} />
+                            <input class="b3-text-field" type="url" bind:value={manualUrl} disabled={Boolean(rowBusyId)} placeholder={t(i18n, "candidate.urlPlaceholder")} aria-label={t(i18n, "candidate.urlPlaceholder")} onkeydown={(event) => { if (event.key === "Enter") { event.preventDefault(); void resolveManual(row, "url"); } else if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); editingRowId = ""; } }} />
                             <button class="glean-btn" disabled={Boolean(rowBusyId)} onclick={() => void resolveManual(row, "url")}>{t(i18n, "action.save")}</button>
                             <button class="glean-btn glean-btn--ghost" disabled={Boolean(rowBusyId)} onclick={() => (editingRowId = "")}>{t(i18n, "action.cancel")}</button>
                         </div>
@@ -592,7 +612,7 @@ function rowDetail(row: MigrateRow): string {
                 </div>
                     {#if editingRowId === row.id}
                         <div class="glean-candidate-edit">
-                            <input class="b3-text-field" type="url" bind:value={manualUrl} disabled={Boolean(rowBusyId)} placeholder={t(i18n, "candidate.urlPlaceholder")} aria-label={t(i18n, "candidate.urlPlaceholder")} onkeydown={(event) => { if (event.key === "Enter") { event.preventDefault(); void resolveManual(row, "url"); } }} />
+                            <input class="b3-text-field" type="url" bind:value={manualUrl} disabled={Boolean(rowBusyId)} placeholder={t(i18n, "candidate.urlPlaceholder")} aria-label={t(i18n, "candidate.urlPlaceholder")} onkeydown={(event) => { if (event.key === "Enter") { event.preventDefault(); void resolveManual(row, "url"); } else if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); editingRowId = ""; } }} />
                             <button class="glean-btn" disabled={Boolean(rowBusyId)} onclick={() => void resolveManual(row, "url")}>{t(i18n, "action.save")}</button>
                             <button class="glean-btn glean-btn--ghost" disabled={Boolean(rowBusyId)} onclick={() => (editingRowId = "")}>{t(i18n, "action.cancel")}</button>
                         </div>
@@ -638,7 +658,7 @@ function rowDetail(row: MigrateRow): string {
                     </div>
                     {#if editingRowId === row.id}
                         <div class="glean-candidate-edit">
-                            <input class="b3-text-field" type="url" bind:value={manualUrl} disabled={Boolean(rowBusyId)} placeholder={t(i18n, "candidate.urlPlaceholder")} aria-label={t(i18n, "candidate.urlPlaceholder")} onkeydown={(event) => { if (event.key === "Enter") { event.preventDefault(); void resolveManual(row, "url"); } }} />
+                            <input class="b3-text-field" type="url" bind:value={manualUrl} disabled={Boolean(rowBusyId)} placeholder={t(i18n, "candidate.urlPlaceholder")} aria-label={t(i18n, "candidate.urlPlaceholder")} onkeydown={(event) => { if (event.key === "Enter") { event.preventDefault(); void resolveManual(row, "url"); } else if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); editingRowId = ""; } }} />
                             <button class="glean-btn" disabled={Boolean(rowBusyId)} onclick={() => void resolveManual(row, "url")}>{t(i18n, "action.save")}</button>
                             <button class="glean-btn glean-btn--ghost" disabled={Boolean(rowBusyId)} onclick={() => (editingRowId = "")}>{t(i18n, "action.cancel")}</button>
                         </div>

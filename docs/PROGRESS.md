@@ -1,5 +1,11 @@
 # 进度（PROGRESS）
 
+## T-3408 首启引导向导与存量迁移弹窗 Escape 快捷退出与状态守卫闭环（2026-10-20）
+
+- [x] 首启引导向导快捷退出闭环：`src/ui/OnboardingDialog.svelte` 挂载 `<svelte:window>` 级别 Escape 监听；在非忙碌（`!actionBusy && !scanning`）态下按 Escape 触发 `continueLater()` 稍后继续并阻断冒泡；后台扫描或设置保存忙碌中忽略 Escape，防止并发异常；当前步骤与中断标记安全持久化。
+- [x] 存量迁移弹窗 Escape 分级拦截与状态守卫：`src/ui/MigrateDialog.svelte` 挂载 `<svelte:window>` 级别 Escape 监听；在回填运行中（`phase === "running"`）、清理进度忙碌（`discardBusy`）或行级保存中（`Boolean(rowBusyId)`）严格锁定并忽略 Escape；行内编辑来源（`editingRowId`）时按 Escape 优先取消编辑（3 处候选编辑输入框同步接入按键拦截）；丢弃确认（`confirmingDiscard`）时按 Escape 取消确认并安全回焦；正常空闲态下按 Escape 退出弹窗并阻断事件冒泡。
+- [x] 单测完备与架构闭环：`tests/modal-escape.test.ts` 补充针对 `OnboardingDialog` 与 `MigrateDialog` 的 window 级 Escape 与状态守卫契约单测（7/7 全数通过）。
+
 ## T-3407 作者编辑与 AI 标签合并二次确认 Escape 快捷退出与键盘交互闭环（2026-10-20）
 
 - [x] 作者编辑器键盘交互闭环：`src/ui/AuthorEditor.svelte` 表单挂载 `onkeydown` 拦截 Escape 键；编辑状态且非忙碌态下，若有 AI 建议则优先清空 AI 建议并阻断冒泡，若无建议则退出编辑状态回到 trigger 按钮并阻止冒泡；输入框接入 `Ctrl/Cmd+Enter` 快捷提交表单保存。

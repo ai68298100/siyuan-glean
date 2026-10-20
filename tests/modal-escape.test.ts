@@ -158,3 +158,17 @@ test("FormattingDialog支持window级别Escape关闭与快捷键支持（T-3390�
     assert.match(src, /event\.key === "Escape" && !busy/);
     assert.match(src, /event\.ctrlKey \|\| event\.metaKey/);
 });
+
+test("OnboardingDialog与MigrateDialog支持window级别Escape与状态守卫闭环（T-3408）", () => {
+    const onboarding = read("src/ui/OnboardingDialog.svelte");
+    assert.match(onboarding, /<svelte:window onkeydown=\{handleWindowKeydown\} \/>/);
+    assert.match(onboarding, /if \(event\.key === "Escape"\) \{[\s\S]*?if \(actionBusy \|\| scanning\) return;[\s\S]*?event\.preventDefault\(\);[\s\S]*?continueLater\(\);/);
+
+    const migrate = read("src/ui/MigrateDialog.svelte");
+    assert.match(migrate, /<svelte:window onkeydown=\{handleWindowKeydown\} \/>/);
+    assert.match(migrate, /if \(event\.key === "Escape"\) \{[\s\S]*?if \(phase === "running" \|\| discardBusy \|\| Boolean\(rowBusyId\)\) return;/);
+    assert.match(migrate, /if \(editingRowId\) \{[\s\S]*?editingRowId = "";[\s\S]*?return;[\s\S]*?\}/);
+    assert.match(migrate, /if \(confirmingDiscard\) \{[\s\S]*?void cancelDiscardConfirmation\(\);[\s\S]*?return;[\s\S]*?\}/);
+    assert.match(migrate, /onClose\(\);/);
+    assert.match(migrate, /else if \(event\.key === "Escape"\) \{ event\.preventDefault\(\); event\.stopPropagation\(\); editingRowId = ""; \}/);
+});
