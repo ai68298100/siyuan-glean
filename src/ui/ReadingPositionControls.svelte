@@ -9,8 +9,14 @@
         ClipRestoreError, readReadingPosition, saveReadingPosition, verifyReadingBlock, type ReadingPositionSnapshot,
     } from "../services/clip-store";
 
-    interface Props { facade: GleanFacade; docId: string; host: HTMLElement | null; instanceId?: string }
-    let { facade, docId, host, instanceId = "glean-reading-position" }: Props = $props();
+    interface Props {
+        facade: GleanFacade;
+        docId: string;
+        host: HTMLElement | null;
+        instanceId?: string;
+        onPositionChange?: (position: ReadingPositionSnapshot | null) => void;
+    }
+    let { facade, docId, host, instanceId = "glean-reading-position", onPositionChange }: Props = $props();
     const i18n = $derived(facade.i18n);
     const titleId = $derived(`glean-reading-position-${instanceId}-title`);
     const requests = createLatestRequestGate();
@@ -35,6 +41,7 @@
         blockFallback = null;
         messageKey = "";
         busy = false;
+        onPositionChange?.(null);
         untrack(() => void reload(id, element));
         return () => { active = false; requests.invalidate(); };
     });
@@ -64,10 +71,12 @@
             if (next.meta.id !== id) throw new Error("Mismatched document");
             snapshot = next;
             messageKey = snapshotMessage(next);
+            onPositionChange?.(next);
         } catch (error) {
             if (!current()) return;
             snapshot = null;
             messageKey = errorMessage(error);
+            onPositionChange?.(null);
         } finally {
             if (current()) busy = false;
         }
@@ -88,6 +97,7 @@
             if (!current()) return;
             snapshot = next;
             messageKey = "reading.position.saved";
+            onPositionChange?.(next);
             facade.notifyDataChanged();
         } catch (error) {
             if (!current()) return;
@@ -110,6 +120,7 @@
             if (!current()) return;
             if (next.meta.id !== id) throw new Error("Mismatched document");
             snapshot = next;
+            onPositionChange?.(next);
             if (!next.position) { messageKey = snapshotMessage(next); return; }
             await verifyReadingBlock(id, next.position.blockId);
             if (!current()) return;

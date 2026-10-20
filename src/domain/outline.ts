@@ -36,3 +36,14 @@ export function buildOutline(rows: readonly OutlineRow[], rootId: string): Outli
     }
     return result;
 }
+
+/**
+ * 匹配给定目标块 ID 的大纲节点。
+ */
+export function findMatchingOutlineItemId(
+    items: readonly OutlineItem[],
+    targetBlockId: string | null | undefined,
+): string | null {
+    if (!targetBlockId || items.length === 0) return null;
+    return items.find((item) => item.id === targetBlockId)?.id ?? null;
+}

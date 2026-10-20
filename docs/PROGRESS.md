@@ -1,5 +1,12 @@
 # 进度（PROGRESS）
 
+## T-3414 阅读伴生栏大纲目录与块书签视口联动指示（2026-10-20）
+
+- [x] 章节定位纯函数：`src/domain/outline.ts` 新增 `findMatchingOutlineItemId`；`src/libs/reading-position.ts` 新增 `findActiveOutlineItemInHost`，在 Protyle DOM 中使用 `Node.compareDocumentPosition` 真实文档顺序计算书签块所属的最近前置大纲标题（支持标题直接命中、正文段落归属、容器嵌套与宿主断开安全回退）。
+- [x] 数据流与组件联动：`ReadingClipContext` 新增只读投影 `readingPosition` 并由 `readClipContext` 解析带回；`ReadingPositionControls.svelte` 新增 `onPositionChange` 回调，在首读、保存、恢复书签时向上游通知最新快照；`ReaderTab.svelte` 维护 `currentBookmarkBlockId`，大纲高亮 `glean-reader__outline-item--active` 并展示书签标记，点击仍复用 `scrollToOutline` 平滑滚动。
+- [x] 样式与无障碍：新增 `glean-reader__outline-item--active`、`glean-reader__outline-text` 与 `glean-reader__outline-bookmark` 样式，使用 `--glean-*` 与 `--b3-*` 令牌并提供 forced-colors 回退。
+- [x] 单测完备与架构闭环：`tests/outline.test.ts` 新增章节匹配与 DOM 归属定位回归（4/4）；阅读器相关套件 159/159、上下文刷新与无障碍样式 38/38 全数通过。
+
 ## T-3367 批量选择范围与底部操作在看板多列与窄屏移动端的无障碍走查（2026-10-20）
 
 - [x] 批量条内部获焦 Escape 快捷取消选择：`src/ui/LibraryBatchBar.svelte` 挂载 `<svelte:window>` 级别 Escape 监听；在用户通过 Tab 键盘导航或点击进入批量条内部（`barEl && barEl.contains(document.activeElement)`），且处于非忙碌（`!busy`）态并存在选中项时，按 Escape 立即触发 `onClear()` 清空选择并阻断冒泡。

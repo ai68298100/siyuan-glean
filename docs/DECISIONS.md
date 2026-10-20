@@ -1614,3 +1614,15 @@ T-3367 承接批量选择范围与底部操作在各视图与屏幕断点下的�
 2. 批量忙碌与数据安全保护：
    - 当正在批量应用状态写入（`busy === true`）期间，严格忽略 Escape 键，避免中途并发清空选择导致写回结果与界面集合状态不一致；
 3. 严格数据主权与架构契约：纯组件层焦点路由与按键事件拦截，不改变底层文档属性、数据库或思源内核端点。
+
+## D-0293（2026-10-20）阅读伴生栏大纲目录与块书签视口联动指示（T-3414）
+
+T-3414 承接方向三（中断后接着读）与同类产品对标（Readwise Reader / Omnivore 章节感知）：
+1. 书签与大纲章节定位纯函数（domain 与 libs 分层）：
+   - `src/domain/outline.ts` 新增 `findMatchingOutlineItemId(items, targetBlockId)`：当目标块 ID 恰好等于某标题块 ID 时直接返回该大纲项；
+   - `src/libs/reading-position.ts` 新增 `findActiveOutlineItemInHost(host, items, targetBlockId)`：在已渲染的思源 Protyle DOM 中使用 `Node.compareDocumentPosition` 真实文档顺序计算目标块所属的最近前置大纲标题（支持标题块直接命中、正文段落归属、容器嵌套与宿主断开的安全回退）；
+2. 组件联动与数据流：
+   - `ReadingClipContext` 新增可选只读投影 `readingPosition?: ReadingPosition`，`readClipContext` 从根块属性 `custom-clip-reading-position` 解析后带回，避免 UI 重复请求；
+   - `ReadingPositionControls.svelte` 新增可选 `onPositionChange` 回调，在首次读取、显式保存书签、恢复书签时向上游安全通知最新快照；
+   - `ReaderTab.svelte` 维护 `currentBookmarkBlockId` 派生状态，大纲列表按真实 DOM 顺序或纯函数回退匹配高亮 `glean-reader__outline-item--active` 并展示书签标记，点击大纲仍复用既有 `scrollToOutline` 平滑滚动；
+3. 严格数据主权与架构契约：不新增任何文章属性键、不修改书签 JSON 结构（仍为 `{version:1, blockId, offset, at}`）、不写入 saveData 业务数据；所有匹配均为只读投影；样式使用 `--glean-*` 与 `--b3-*` 令牌并提供 forced-colors 系统高对比回退。

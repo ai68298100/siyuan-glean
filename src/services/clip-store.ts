@@ -127,6 +127,7 @@ export interface ReadingClipContext {
     snapshot?: string;
     priority?: number;
     rating?: number;
+    readingPosition?: ReadingPosition;
 }
 
 /** 编辑器上下文只读当前根块属性；旧索引不能冒充正在阅读的状态。 */
@@ -149,6 +150,7 @@ export async function readClipContext(docId: string): Promise<ReadingClipContext
         snapshot: attrs.snapshot ?? "",
         priority: attrs.priority ?? 3,
         rating: attrs.rating ?? 0,
+        readingPosition: attrs.readingPosition,
     };
 }
 

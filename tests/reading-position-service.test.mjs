@@ -656,5 +656,6 @@ test("UI 编译无警告，ReaderTab 不监听滚动/卸载写入或展示百分
     assert.deepEqual(compile(source, { filename: "ReadingPositionControls.svelte", generate: "client" }).warnings, []);
     assert.doesNotMatch(source, /addEventListener\(["'](?:scroll|beforeunload)|percent|setInterval|batchSetStatus/);
     const reader = readFileSync(new URL("../src/ui/ReaderTab.svelte", import.meta.url), "utf8");
-    assert.match(reader, /<ReadingPositionControls \{facade\} \{docId\} host=\{protyleHost\}/);
+    assert.match(reader, /<ReadingPositionControls[\s\S]*?\{facade\}[\s\S]*?\{docId\}[\s\S]*?host=\{protyleHost\}/);
+    assert.match(reader, /onPositionChange=\{\(snap\) => \{[\s\S]*?currentBookmarkBlockId = snap\?\.position\?\.blockId \?\? null;/);
 });

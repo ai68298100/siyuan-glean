@@ -1,5 +1,11 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-20 阅读伴生栏大纲目录与块书签视口联动指示）
+
+- T-3414/D-0293：承接方向三（中断后接着读）与同类产品对标（Readwise Reader / Omnivore 章节感知）。`src/domain/outline.ts` 新增 `findMatchingOutlineItemId`，`src/libs/reading-position.ts` 新增 `findActiveOutlineItemInHost`（使用 `Node.compareDocumentPosition` 在 Protyle DOM 真实顺序中定位目标块所属的最近前置大纲标题，支持标题直接命中、正文段落归属、容器嵌套与宿主断开安全回退）；`ReadingClipContext` 新增只读投影 `readingPosition`，`readClipContext` 从 `custom-clip-reading-position` 解析带回；`ReadingPositionControls.svelte` 新增 `onPositionChange` 回调，在首读、保存书签、恢复书签时向上游通知最新快照；`ReaderTab.svelte` 维护 `currentBookmarkBlockId` 并高亮 `glean-reader__outline-item--active` 与书签标记，点击大纲继续复用 `scrollToOutline`。纯只读投影，不新增属性键、不改变书签 JSON 契约。
+- 全量门禁闭环：定向 `tests/outline.test.ts` 4/4、阅读器相关 159/159、上下文与样式 38/38、`tsc` 与 `svelte-check` 0 错误 0 警告、`pnpm build`、`pnpm check:release`、`pnpm perf:check`、`pnpm visual:check`（24 项仍待真实宿主）与任务账本检查均通过。真实宿主长文大纲联动仍归 B-0002。
+- 下一步：按当前执行板顺序推进下一个任务（如 T-3415 摘录墙按文章聚类分组与整篇引述导出，或按作者点单继续）。版本保持 1.3.7，本轮不打 tag、不发布、不推送。
+
 ## 当前有效交接（2026-10-20 批量选择范围与底部操作在看板多列与窄屏移动端的无障碍走查）
 
 - T-3367/D-0292：承接批量选择范围与底部操作在各视图与屏幕断点下的无障碍与交互走查。在 `src/ui/LibraryBatchBar.svelte` 挂载 `<svelte:window>` 级别 Escape 监听；在用户通过 Tab 键盘导航或点击进入批量条内部（`barEl && barEl.contains(document.activeElement)`），且处于非忙碌（`!busy`）态并存在选中项时，按 Escape 立即触发 `onClear()` 清空选择并阻断冒泡；联动 `DockPanel.svelte` 中的焦点保护机制（`restoreLibrarySelectionFocus()`），在批量操作条卸载后安全将焦点回退到可见搜索输入框或折叠搜索按钮；批量条继续维持在正常流中占位并在所有移动宽度（含平板/横屏）保留左右安全区（`--glean-safe-left` / `--glean-safe-right`），避免窄屏遮挡或横向溢出。纯组件层焦点路由与按键事件拦截，不修改底层数据契约、文章属性、端点或持久化存储。

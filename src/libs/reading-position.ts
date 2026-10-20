@@ -95,3 +95,35 @@ export function restoreReadingPosition(host: HTMLElement | null, value: ReadingP
     target.focus({ preventScroll: true });
     return true;
 }
+
+/**
+ * 在已渲染的编辑器 DOM 中，根据目标块位置查找所属的最近前置大纲小节。
+ */
+export function findActiveOutlineItemInHost(
+    host: HTMLElement | null,
+    items: readonly { id: string }[],
+    targetBlockId: string | null | undefined,
+): string | null {
+    if (!targetBlockId || !items.length) return null;
+    const direct = items.find((item) => item.id === targetBlockId);
+    if (direct) return direct.id;
+    if (!host || !host.isConnected) return null;
+    const escapedTarget = typeof CSS !== "undefined" && typeof CSS.escape === "function" ? CSS.escape(targetBlockId) : targetBlockId;
+    const targetEl = host.querySelector<HTMLElement>(`[data-node-id="${escapedTarget}"]`);
+    if (!targetEl) return null;
+
+    const FOLLOWING = typeof Node !== "undefined" ? (Node.DOCUMENT_POSITION_FOLLOWING | Node.DOCUMENT_POSITION_CONTAINED_BY) : 20;
+    let activeId: string | null = null;
+    for (const item of items) {
+        const escaped = typeof CSS !== "undefined" && typeof CSS.escape === "function" ? CSS.escape(item.id) : item.id;
+        const itemEl = host.querySelector<HTMLElement>(`[data-node-id="${escaped}"]`);
+        if (!itemEl) continue;
+        const pos = itemEl.compareDocumentPosition(targetEl);
+        if (itemEl === targetEl || Boolean(pos & FOLLOWING)) {
+            activeId = item.id;
+        } else {
+            break;
+        }
+    }
+    return activeId;
+}

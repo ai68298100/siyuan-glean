@@ -71,7 +71,7 @@
 
 - [◐] **T-3413**（P2，2026-10-20）读库与今日拾遗键盘流快捷设置优先级与评分（同类产品对标 / 快捷分拣）：`domain/library-keyboard.ts` 扩展 `LibraryKeyboardAction` 纳入 `cyclePriority`（P）、`setPriority`（1-5 数字键）与 `cycleRating`（M），增加 `cyclePriorityValue` 与 `cycleRatingValue` 纯函数并纳入长按防抖保护；`DockPanel.svelte` 与 `ResurfaceView.svelte` 接入快捷键动作路由并分别调用 `setPriority` / `setRating` 与 `setPickPriority` / `setPickRating`，行内快捷键提示条同步呈现 P/1-5 与 M；纯会话状态与状态路由复用，不改变底层文档属性与端点契约。代码状态：完成；隔离验证：`tests/library-keyboard.test.ts` 10/10、`tests/resurface.test.ts` 21/21、完整 `pnpm test` 通过；真实验收：待 B-0002 真实宿主读库与今日拾遗键盘快捷分拣实操；延后原因：真实宿主键盘与读屏走查仍归 B-0002。
 
-- [ ] **T-3414**（P2，2026-10-20）阅读伴生栏大纲目录与块书签视口联动指示（同类产品对标 / 连续阅读）：参考 Readwise Reader / Omnivore，在 ReaderTab 伴生栏大纲视图中高亮标示当前阅读书签所在的对应标题小节，支持点击快速定位并更新当前正文视口；代码状态：待实现；隔离验证：待运行；真实验收：待 B-0002；延后原因：长文阅读视口与大纲联动待实现。
+- [◐] **T-3414**（P2，2026-10-20）阅读伴生栏大纲目录与块书签视口联动指示（同类产品对标 / 连续阅读）：`domain/outline.ts` 新增 `findMatchingOutlineItemId`，`libs/reading-position.ts` 新增 `findActiveOutlineItemInHost`（按 Protyle DOM 真实文档顺序定位目标块所属章节）；`ReadingClipContext` 带回只读投影 `readingPosition`；`ReadingPositionControls` 新增 `onPositionChange` 回调；`ReaderTab.svelte` 高亮当前书签所属 `glean-reader__outline-item--active` 并展示书签标记，点击仍平滑滚动；纯只读投影，不新增属性键或改变书签 JSON 契约。代码状态：完成；隔离验证：`tests/outline.test.ts` 4/4、阅读器相关 159/159、上下文与样式 38/38、`tsc` 与 `svelte-check` 0 错误 0 警告；真实验收：待 B-0002 真实宿主长文大纲联动与滚动实操；延后原因：真实宿主 Protyle 渲染差异与读屏节奏仍归 B-0002。
 
 - [ ] **T-3415**（P2，2026-10-20）摘录墙支持“按文章聚类”分组浏览与整篇引述导出（同类产品对标 / 摘录沉淀）：参考 Cubox 高亮管理，在 `HighlightView.svelte` 增加按来源文章聚合分组展示开关，支持读者集中回顾单篇长文的所有摘录并一键打包导出该文笔记；代码状态：待实现；隔离验证：待运行；真实验收：待 B-0002；延后原因：待摘录墙视图功能扩展。
 

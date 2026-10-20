@@ -1681,6 +1681,10 @@ body.b3-theme-dark {
 }
 
 .glean-reader__outline-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--glean-space-1);
     border: 0;
     background: transparent;
     color: var(--b3-theme-on-surface);
@@ -1692,9 +1696,34 @@ body.b3-theme-dark {
     padding: var(--glean-space-1-25) var(--glean-space-1-75) var(--glean-space-1-25) calc(var(--glean-space-1-75) + (var(--glean-outline-level) - 1) * var(--glean-space-2-5));
     border-radius: var(--glean-radius-sm);
     text-align: left;
-    text-overflow: ellipsis;
     white-space: nowrap;
     transition: color var(--glean-duration-fast) ease, background var(--glean-duration-fast) ease, transform var(--glean-duration-fast) var(--glean-ease-out);
+}
+
+.glean-reader__outline-text {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.glean-reader__outline-bookmark {
+    flex: 0 0 auto;
+    font-size: 11px;
+    line-height: 1;
+}
+
+.glean-reader__outline-item--active {
+    color: var(--b3-theme-primary);
+    background: color-mix(in srgb, var(--b3-theme-primary) 12%, transparent);
+    font-weight: var(--glean-weight-semibold);
+}
+
+@media (forced-colors: active) {
+    .glean-reader__outline-item--active {
+        outline: 1px solid Highlight;
+    }
 }
 
 .glean-reader__outline-item:hover,

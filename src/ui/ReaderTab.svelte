@@ -41,7 +41,8 @@ import { aiFailureKey } from "../libs/ai-feedback";
     import { loadUiPrefs, saveUiPrefs } from "../services/prefs";
     import { normalizeReaderAppearance, type ReaderAppearance } from "../domain/ui-prefs";
     import { loadReadingOutline } from "../services/outline-service";
-    import type { OutlineItem } from "../domain/outline";
+    import { findMatchingOutlineItemId, type OutlineItem } from "../domain/outline";
+    import { findActiveOutlineItemInHost } from "../libs/reading-position";
     import { readerShortcut } from "../domain/reader-shortcuts";
     import { createLatestRequestGate } from "../libs/latest-request";
     import type { RecentReadingEntry } from "../domain/recent-reading";
@@ -100,6 +101,10 @@ import { aiFailureKey } from "../libs/ai-feedback";
     let outlineLoading = $state(false);
     let outlineError = $state(false);
     let outlineGeneration = 0;
+    let currentBookmarkBlockId = $state<string | null>(null);
+    const activeOutlineId = $derived(
+        findActiveOutlineItemInHost(protyleHost, outline, currentBookmarkBlockId) ?? findMatchingOutlineItemId(outline, currentBookmarkBlockId)
+    );
     let recentReadings = $state<RecentReadingEntry[]>([]);
     let readingTimer = $state<ReadingTimerState>(createReadingTimer());
     let readingTimerDocId = "";
@@ -345,7 +350,12 @@ import { aiFailureKey } from "../libs/ai-feedback";
                     readingTimerExpectedLocation = next.location;
                     readingTimer = createReadingTimer(next.readMinutes ?? 0);
                 }
-                if (next) facade.recordRecentReading(id, next.title);
+                if (next) {
+                    currentBookmarkBlockId = next.readingPosition?.blockId ?? null;
+                    facade.recordRecentReading(id, next.title);
+                } else {
+                    currentBookmarkBlockId = null;
+                }
             }
         } catch (error) {
             if (!mounted || !isCurrent() || docId !== id) return;
@@ -1147,7 +1157,15 @@ import { aiFailureKey } from "../libs/ai-feedback";
                     />
                 </div>
                 {#if context.id === docId}
-                    <ReadingPositionControls {facade} {docId} host={protyleHost} instanceId={idFor("reading-position")} />
+                    <ReadingPositionControls
+                        {facade}
+                        {docId}
+                        host={protyleHost}
+                        instanceId={idFor("reading-position")}
+                        onPositionChange={(snap) => {
+                            currentBookmarkBlockId = snap?.position?.blockId ?? null;
+                        }}
+                    />
                 {/if}
                 <div class="glean-reader__section glean-reader__section--utility" aria-labelledby={rankTitleId}>
                     <div id={rankTitleId} class="glean-reader__section-title" role="heading" aria-level="3">{t(i18n, "panel.rankTitle")}</div>
@@ -1263,7 +1281,18 @@ import { aiFailureKey } from "../libs/ai-feedback";
                         {:else}
                             <nav class="glean-reader__outline" aria-label={t(i18n, "reader.outlineTitle")}>
                                 {#each outline as item (item.id)}
-                                    <button class="glean-reader__outline-item" style={`--glean-outline-level:${item.level}`} title={item.title} onclick={() => scrollToOutline(item)}>{item.title}</button>
+                                    <button
+                                        class="glean-reader__outline-item"
+                                        class:glean-reader__outline-item--active={activeOutlineId === item.id}
+                                        style={`--glean-outline-level:${item.level}`}
+                                        title={item.title}
+                                        onclick={() => scrollToOutline(item)}
+                                    >
+                                        <span class="glean-reader__outline-text">{item.title}</span>
+                                        {#if activeOutlineId === item.id}
+                                            <span class="glean-reader__outline-bookmark" title={t(i18n, "reading.position.title")} aria-label={t(i18n, "reading.position.title")}>🔖</span>
+                                        {/if}
+                                    </button>
                                 {/each}
                             </nav>
                         {/if}

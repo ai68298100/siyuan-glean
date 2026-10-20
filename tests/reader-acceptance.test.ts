@@ -165,6 +165,7 @@ test("阅读页签后台刷新保留当前上下文，首读和失败重试仍�
     const state = {
         context: current as typeof current | null, contextLoading: false, contextError: false,
         mounted: true, docId: "current", contextRequests: createLatestRequestGate(),
+        currentBookmarkBlockId: null as string | null,
         readingTimerDocId: "current", readingTimerExpectedRaw: null, readingTimerExpectedLocation: null,
         readingTimer: {}, createReadingTimer: () => ({}),
         facade: { recordRecentReading() {} }, console: { debug() {} },
