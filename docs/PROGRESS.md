@@ -1,5 +1,12 @@
 # 进度（PROGRESS）
 
+## T-3384/T-3383/T-3382 归档删除确认/TTS续听/候选补来源键盘可达性走查与状态升级（2026-10-20）
+
+- [x] 归档与删除确认键盘流优化（T-3384）：`src/ui/ArchiveDialog.svelte` 挂载 `<svelte:window>` Escape 监听，在展开“彻底删除”二次确认条（`purgeConfirmOpen`）时按 Escape 优先安全收起确认条并将焦点平稳退回触发按钮（`purgeTrigger`）且阻断冒泡，未处于确认态时按 Escape 正常关闭弹窗。
+- [x] TTS 朗读分句续听调度加固（T-3383）：`src/ui/ReaderTab.svelte` 的 `startSpeech` 续听分支中，显式调用 `resumeSpeechChunkIndex(speechChunks, speechChunkIndex)` 防御分句索引越界，确保暂停或分段调整后百分百安全接续。
+- [x] 候选补来源键盘完全可达收口（T-3382）：`src/ui/WorkbenchPreview.svelte` 的来源 URL 输入框按键处理中，补充 `event.preventDefault()` 与 `event.stopPropagation()` 阻断冒泡，确保 Escape 退出与 Enter 提交不与外层工作台快捷键冲突，补齐 placeholder 属性保证无障碍规范。
+- [x] 全量单测核对与升级：T-3384（`tests/modal-escape.test.ts` 29/29）、T-3383（`tests/tts.test.ts` 55/55）、T-3382（`tests/workbench-preview.test.ts` 19/19）、T-3381（`tests/schema.test.ts` 18/18）、T-3380（`tests/reading-position.test.ts` 54/54）全部通过，在 TODO 执行板中统一升级为隔离验证完成。
+
 ## T-3416 阅读伴读 AI 结果与问答一键插入正文开头（2026-10-20）
 
 - [x] 正文前置块插入服务：`src/api/client.ts` 封装 `prependBlockDomIds` 与 `prependBlockDom`，调用思源 `/api/block/prependBlock` 端点，并在写入后白名单中加入该端点以自动刷新 SQL/正文缓存；`src/domain/reader.ts` 新增 `buildAiCalloutBlockDom` 纯函数，按照思源原生 `<div data-type="NodeBlockquote" class="bq">` 标准结构构建带有元信息标题与多段引述的 Callout DOM。

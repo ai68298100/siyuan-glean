@@ -104,9 +104,23 @@
         purgeError = "";
         await runSettled("archive.donePurged", () => purgeDoc(facade.pluginInstance, docId));
     }
+
+    function handleWindowKeydown(e: KeyboardEvent): void {
+        if (e.isComposing || e.keyCode === 229) return;
+        if (e.key === "Escape") {
+            if (pending) return;
+            e.preventDefault();
+            e.stopPropagation();
+            if (purgeConfirmOpen) {
+                void cancelPurgeConfirmation();
+                return;
+            }
+            onClose();
+        }
+    }
 </script>
 
-<svelte:window onkeydown={(e) => { if (e.key === "Escape" && !pending && !purgeConfirmOpen) onClose(); }} />
+<svelte:window onkeydown={handleWindowKeydown} />
 
 <div class="glean-archive-dlg">
     <div class="glean-archive-dlg__hint">

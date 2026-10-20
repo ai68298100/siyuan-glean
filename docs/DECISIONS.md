@@ -1651,3 +1651,15 @@ T-3416 承接方向五（有依据的阅读 AI）与同类产品对标（Readwis
    - `src/services/reader-ai.ts` 新增 `insertAiCalloutToDocument` 服务，完成文档 ID 校验与块插入；
    - `src/ui/ReaderTab.svelte` 在 AI 伴读结果卡片与文章问答卡片分别接入「插入正文开头」动作，写入完成后派发数据变更并展示反馈提示；
 4. 严格数据主权与分层契约：AI 结果直接沉淀为用户思源正文块，不另外新增插件专有属性，插件内不保存正文副本；失败安全捕获并提示。
+
+## D-0296（2026-10-20）归档删除确认/TTS续听/候选补来源键盘可达性走查与状态升级（T-3384/T-3383/T-3382）
+
+针对历史体验任务开展大颗粒度批量走查与加固闭环：
+1. 归档与删除确认键盘流优化（T-3384）：
+   - 在 `src/ui/ArchiveDialog.svelte` 挂载 `<svelte:window>` Escape 监听；在用户展开不可逆“彻底删除”二次确认条（`purgeConfirmOpen === true`）时，按 Escape 优先安全收起确认条并将焦点平稳退回触发按钮（`purgeTrigger`）且阻断冒泡，未处于确认态时按 Escape 正常关闭弹窗；
+2. TTS 朗读分句续听调度加固（T-3383）：
+   - 在 `src/ui/ReaderTab.svelte` 的 `startSpeech` 续听（`continueCurrent === true`）分支中，显式调用 `resumeSpeechChunkIndex(speechChunks, speechChunkIndex)` 防御分句索引越界，确保暂停或分段调整后百分百安全接续；
+3. 候选补来源键盘完全可达收口（T-3382）：
+   - 在 `src/ui/WorkbenchPreview.svelte` 的来源 URL 输入框按键处理中，补充 `event.preventDefault()` 与 `event.stopPropagation()` 阻断冒泡，确保 Escape 退出与 Enter 提交不与外层工作台快捷键发生冲突；补齐 placeholder 属性保证无障碍规范；
+4. 全量单测核对与升级：
+   - 包含 T-3384、T-3383、T-3382、T-3381（友好站点投影）、T-3380（视口百分比估算）在内的 5 项任务对应单测全量核对通过（单测总计通过 106+），在 TODO 执行板中统一升级为隔离验证完成。

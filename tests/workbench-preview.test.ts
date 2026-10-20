@@ -358,3 +358,11 @@ test("Protyle：构造与resize异常可反馈，不遗留挂载节点", () => {
     assert.equal(errors.length, 2);
     controller.destroy();
 });
+
+test("WorkbenchPreview 候选补来源支持 Enter 保存与 Escape 退出（T-3382）", () => {
+    const preview = readFileSync(resolve(import.meta.dirname, "../src/ui/WorkbenchPreview.svelte"), "utf8");
+    assert.match(preview, /\{#if editingUrl && candidate\}/);
+    assert.match(preview, /if \(event\.key === "Enter"\) \{ event\.preventDefault\(\); saveUrl\(\); \}/);
+    assert.match(preview, /else if \(event\.key === "Escape"\) \{ event\.preventDefault\(\); event\.stopPropagation\(\); editingUrl = false; \}/);
+    assert.match(preview, /placeholder=\{t\(i18n, "candidate\.urlPlaceholder"\)\}/);
+});

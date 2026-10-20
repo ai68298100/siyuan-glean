@@ -1,5 +1,11 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-20 归档删除确认/TTS续听/候选补来源键盘可达性走查与状态升级）
+
+- T-3384/T-3383/T-3382/D-0296：承接全插件键盘交互走查与历史体验强化任务批量闭环。`src/ui/ArchiveDialog.svelte` 挂载 `<svelte:window>` Escape 监听，在展开“彻底删除”二次确认条（`purgeConfirmOpen`）时按 Escape 优先安全收起确认条并将焦点平稳退回触发按钮（`purgeTrigger`）且阻断冒泡，未处于确认态时按 Escape 正常关闭弹窗；`src/ui/ReaderTab.svelte` 在 `startSpeech` 续听分支中显式调用 `resumeSpeechChunkIndex(speechChunks, speechChunkIndex)` 防御分句索引越界；`src/ui/WorkbenchPreview.svelte` 来源 URL 输入框按键处理补充 `event.preventDefault()` 与 `event.stopPropagation()` 阻断冒泡并补齐 placeholder 属性保证无障碍规范；包含 T-3384、T-3383、T-3382、T-3381（友好站点投影）、T-3380（视口百分比估算）在内的 5 项任务对应单测全量核对通过（单测通过 106+），在 TODO 执行板中统一升级为隔离验证完成。
+- 全量门禁闭环：定向单测（106/106 全部通过）、`tsc` 与 `svelte-check` 0 错误 0 警告、`pnpm build`、`pnpm check:release`、`pnpm perf:check`、`pnpm visual:check`（24 项仍待真实宿主）与任务账本检查均通过。真实宿主弹层焦点与按键走查仍归 B-0002。
+- 下一步：按当前执行板顺序推进下一个任务（如 T-3378 自定义 AI 通道公网明文 HTTP 安全警示走查，或按作者点单继续）。版本保持 1.3.7，本轮不打 tag、不发布、不推送。
+
 ## 当前有效交接（2026-10-20 阅读伴读 AI 结果与问答一键插入正文开头）
 
 - T-3416/D-0295：承接方向五（有依据的阅读 AI）与同类产品对标（Readwise Ghost Reader 知识回流）。`src/api/client.ts` 封装 `prependBlockDomIds` 与 `prependBlockDom`，调用思源 `/api/block/prependBlock` 端点，并在写入后白名单中加入该端点以自动刷新 SQL/正文缓存；`src/domain/reader.ts` 新增 `buildAiCalloutBlockDom` 纯函数，按照思源原生 `<div data-type="NodeBlockquote" class="bq">` 标准结构构建带有元信息标题与多段引述的 Callout DOM；`src/services/reader-ai.ts` 新增 `insertAiCalloutToDocument`；`src/ui/ReaderTab.svelte` 在 AI 伴读结果卡片（总结/翻译）与文章提问问答卡片提供「插入正文开头」动作，插入成功后展示反馈并广播数据变更，失败优雅提示；新增 `reader.aiInsertCallout` 与 `reader.aiCalloutInserted` 双语键。纯思源原生块级事实沉淀，不新增插件专有属性。

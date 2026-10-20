@@ -17,7 +17,7 @@ import { aiFailureKey } from "../libs/ai-feedback";
     import { fulltextBodyState } from "../domain/content";
     import { canCountReading, createReadingTimer, readingTimerMinutes, setReadingTimerActive, type ReadingTimerState } from "../domain/reading-timer";
     import { hasSourceAction, resolveCarrier, sourceUrlForCarrier } from "../domain/carrier";
-    import { chunkSpeechText, clampSpeechRate, speechLanguage } from "../domain/speech";
+    import { chunkSpeechText, clampSpeechRate, resumeSpeechChunkIndex, speechLanguage } from "../domain/speech";
     import type { ClipStatus } from "../domain/schema";
     import { DEFAULT_SETTINGS } from "../services/settings";
     import {
@@ -283,6 +283,8 @@ import { aiFailureKey } from "../libs/ai-feedback";
             speechChunks = chunkSpeechText(text);
             speechChunkIndex = 0;
             speechScope = scope;
+        } else {
+            speechChunkIndex = resumeSpeechChunkIndex(speechChunks, speechChunkIndex);
         }
         if (speechChunkIndex >= speechChunks.length) {
             showMessage(t(i18n, "reader.speechNoText"), 2500);
