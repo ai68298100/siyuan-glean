@@ -139,7 +139,32 @@
             if (mounted) error = t(i18n, "backup.failed", { error: String(failure).slice(0, 200) });
         } finally { if (mounted) { busy = ""; controller = null; } }
     }
+
+    function handleWindowKeydown(event: KeyboardEvent): void {
+        if (event.isComposing || event.keyCode === 229) return;
+        if (event.key === "Escape") {
+            if (busy === "export" || busy === "restore" || busy === "file") {
+                event.preventDefault();
+                event.stopPropagation();
+                return;
+            }
+            if (busy === "preview") {
+                event.preventDefault();
+                event.stopPropagation();
+                controller?.abort();
+                return;
+            }
+            if (session) {
+                event.preventDefault();
+                event.stopPropagation();
+                reset();
+                return;
+            }
+        }
+    }
 </script>
+
+<svelte:window onkeydown={handleWindowKeydown} />
 
 <section class="glean-backup" aria-labelledby={titleId} aria-busy={Boolean(busy)}>
     <header class="glean-backup__head">

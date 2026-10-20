@@ -180,3 +180,15 @@ test("ImportDialog支持window级别Escape分级拦截与状态守卫闭环（T-
     assert.match(importDialog, /if \(discardConfirmed \|\| forceResetConfirmed \|\| resumeConfirmed \|\| importConfirmed\) \{[\s\S]*?discardConfirmed = false;[\s\S]*?return;[\s\S]*?\}/);
     assert.match(importDialog, /onClose\(\);/);
 });
+
+test("BackupPanel与FlashcardRecoveryPanel支持window级别Escape分级撤销与忙碌守卫（T-3410）", () => {
+    const backup = read("src/ui/BackupPanel.svelte");
+    assert.match(backup, /<svelte:window onkeydown=\{handleWindowKeydown\} \/>/);
+    assert.match(backup, /if \(busy === "export" \|\| busy === "restore" \|\| busy === "file"\) \{[\s\S]*?event\.preventDefault\(\);[\s\S]*?return;/);
+    assert.match(backup, /if \(busy === "preview"\) \{[\s\S]*?controller\?\.abort\(\);[\s\S]*?return;/);
+    assert.match(backup, /if \(session\) \{[\s\S]*?reset\(\);[\s\S]*?return;/);
+
+    const flashcardRecovery = read("src/ui/FlashcardRecoveryPanel.svelte");
+    assert.match(flashcardRecovery, /<svelte:window onkeydown=\{handleWindowKeydown\} \/>/);
+    assert.match(flashcardRecovery, /if \(event\.key === "Escape" && panelState === "busy"\) \{[\s\S]*?event\.preventDefault\(\);[\s\S]*?event\.stopPropagation\(\);/);
+});

@@ -64,7 +64,17 @@
     }
 
     onMount(() => { void refresh(); });
+
+    function handleWindowKeydown(event: KeyboardEvent): void {
+        if (event.isComposing || event.keyCode === 229) return;
+        if (event.key === "Escape" && panelState === "busy") {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+    }
 </script>
+
+<svelte:window onkeydown={handleWindowKeydown} />
 
 <div class="glean-flashcard-recovery" role="region" aria-labelledby="glean-flashcard-recovery-title" aria-busy={panelState === "loading" || panelState === "busy"}>
     <div class="glean-set-row">

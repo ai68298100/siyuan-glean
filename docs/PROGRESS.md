@@ -1,5 +1,11 @@
 # 进度（PROGRESS）
 
+## T-3410 备份恢复面板与闪卡恢复面板 Escape 分级撤销与忙碌守卫（2026-10-20）
+
+- [x] 备份恢复面板键盘交互闭环：`src/ui/BackupPanel.svelte` 挂载 `<svelte:window>` 级别 Escape 监听；在导出备份、写入恢复或读取文件忙碌中（`busy === "export" | "restore" | "file"`）锁定并忽略 Escape 防中断；在异步预览中（`busy === "preview"`）按 Escape 触发取消解析（`controller?.abort()`）并阻断冒泡；在已生成差异预览会话（`session !== null`）时按 Escape 优先重置恢复会话（`reset()`）并阻止事件冒泡退出外层设置弹窗。
+- [x] 闪卡恢复面板忙碌守卫：`src/ui/FlashcardRecoveryPanel.svelte` 挂载 `<svelte:window>` 级别 Escape 监听；在恢复执行中或清除丢失记录忙碌中（`panelState === "busy"`）严格锁定并忽略 Escape，守住闪卡牌组写操作原子性。
+- [x] 单测完备与架构闭环：`tests/modal-escape.test.ts` 补充针对 `BackupPanel` 与 `FlashcardRecoveryPanel` 的 window 级 Escape 与忙碌守卫契约单测（9/9 全数通过）。
+
 ## T-3409 外部导入弹窗 Escape 分级拦截与状态守卫闭环（2026-10-20）
 
 - [x] 导入弹窗键盘状态守卫：`src/ui/ImportDialog.svelte` 挂载 `<svelte:window>` 级别 Escape 监听；在正在导入（`phase === "importing"`）、文件/进度处理中（`busy`）、正在请求暂停（`stopping`）或正在读取检查点（`progressLoading`）期间，严格忽略 Escape 键，避免外部按键意外关闭弹窗导致内核导入事务中断或检查点并发异常。
