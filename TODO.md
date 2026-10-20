@@ -73,7 +73,7 @@
 
 - [◐] **T-3414**（P2，2026-10-20）阅读伴生栏大纲目录与块书签视口联动指示（同类产品对标 / 连续阅读）：`domain/outline.ts` 新增 `findMatchingOutlineItemId`，`libs/reading-position.ts` 新增 `findActiveOutlineItemInHost`（按 Protyle DOM 真实文档顺序定位目标块所属章节）；`ReadingClipContext` 带回只读投影 `readingPosition`；`ReadingPositionControls` 新增 `onPositionChange` 回调；`ReaderTab.svelte` 高亮当前书签所属 `glean-reader__outline-item--active` 并展示书签标记，点击仍平滑滚动；纯只读投影，不新增属性键或改变书签 JSON 契约。代码状态：完成；隔离验证：`tests/outline.test.ts` 4/4、阅读器相关 159/159、上下文与样式 38/38、`tsc` 与 `svelte-check` 0 错误 0 警告；真实验收：待 B-0002 真实宿主长文大纲联动与滚动实操；延后原因：真实宿主 Protyle 渲染差异与读屏节奏仍归 B-0002。
 
-- [ ] **T-3415**（P2，2026-10-20）摘录墙支持“按文章聚类”分组浏览与整篇引述导出（同类产品对标 / 摘录沉淀）：参考 Cubox 高亮管理，在 `HighlightView.svelte` 增加按来源文章聚合分组展示开关，支持读者集中回顾单篇长文的所有摘录并一键打包导出该文笔记；代码状态：待实现；隔离验证：待运行；真实验收：待 B-0002；延后原因：待摘录墙视图功能扩展。
+- [◐] **T-3415**（P2，2026-10-20）摘录墙支持“按文章聚类”分组浏览与整篇引述导出（同类产品对标 / 摘录沉淀）：`domain/highlights.ts` 新增 `ArticleHighlightGroup` 接口、`groupHighlightsByArticle` 纯函数与 `renderArticleHighlightsMarkdown`；`HighlightView.svelte` 增加 `viewMode: "timeline" | "article"` 切换并在折叠卡片头部提供打开原文、一键复制整篇摘录与一键下载 Markdown 导出；纯客户端只读投影与本地导出，不改变文章属性或端点。代码状态：完成；隔离验证：`tests/highlights.test.ts` 52/52、`tests/highlights-service.test.mjs`、`tsc` 与 `svelte-check` 0 错误 0 警告；真实验收：待 B-0002 真实宿主摘录墙按文章聚合与整篇导出；延后原因：真实多篇引述排版与多端观感仍归 B-0002。
 
 - [ ] **T-3416**（P2，2026-10-20）阅读伴读 AI 结果与问答一键插入正文开头（同类产品对标 / 知识回流）：参考 Readwise Ghost Reader，在 ReaderTab 的 AI 总结与文章提问卡片提供“作为引述块写入正文开头”一键操作，将 AI 分析事实直接沉淀至用户思源文档；代码状态：待实现；隔离验证：待运行；真实验收：待 B-0002/B-0004；延后原因：待真实模型与正文插入联动。
 

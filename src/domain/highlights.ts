@@ -166,3 +166,67 @@ export function formatHighlightTime(blockId: string): string {
     const mm = blockId.slice(10, 12);
     return y + "-" + m + "-" + d + " " + hh + ":" + mm;
 }
+
+export interface ArticleHighlightGroup {
+    rootId: string;
+    title: string;
+    site: string;
+    url: string;
+    tags: string[];
+    aiTags: string[];
+    items: HighlightItem[];
+}
+
+/**
+ * 将已筛选的摘录按来源文章（rootId）聚合为分组（T-3415）。
+ * 保持首次出现的文章顺序及组内条目顺序。
+ */
+export function groupHighlightsByArticle(items: readonly HighlightItem[]): ArticleHighlightGroup[] {
+    const map = new Map<string, ArticleHighlightGroup>();
+    for (const item of items) {
+        const existing = map.get(item.rootId);
+        if (existing) {
+            existing.items.push(item);
+        } else {
+            map.set(item.rootId, {
+                rootId: item.rootId,
+                title: item.title,
+                site: item.site,
+                url: item.url,
+                tags: [...item.tags],
+                aiTags: [...item.aiTags],
+                items: [item],
+            });
+        }
+    }
+    return Array.from(map.values());
+}
+
+/**
+ * 将单篇文章的所有摘录渲染为合集 Markdown（T-3415）。
+ */
+export function renderArticleHighlightsMarkdown(
+    group: ArticleHighlightGroup,
+    labels: HighlightExportLabels,
+): string {
+    const title = group.title || group.rootId;
+    const headerLines = [
+        `# ${inlineHighlightText(title)}`,
+        "",
+        ...(group.site ? [`*${inlineHighlightText(labels.source)}: ${inlineHighlightText(group.site)}*`, ""] : []),
+        ...(isHighlightId(group.rootId) ? [`[${inlineHighlightText(labels.title)}](${highlightBlockLink(group.rootId)})`] : [inlineHighlightText(labels.title)]),
+        "",
+        "---",
+        "",
+    ];
+
+    const quotes = group.items.map((item, index) => {
+        const quote = item.text.split(/\r?\n/).map((line) => `> ${escapeHighlightText(line)}`).join("\n");
+        return [
+            quote,
+            `[${inlineHighlightText(labels.original)} #${index + 1}](${highlightBlockLink(item.id)})`,
+        ].join("\n\n");
+    });
+
+    return headerLines.join("\n") + quotes.join("\n\n---\n\n");
+}

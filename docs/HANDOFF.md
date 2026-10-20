@@ -1,5 +1,11 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-20 摘录墙按文章聚类分组浏览与整篇引述导出）
+
+- T-3415/D-0294：承接方向四（找回文章，并把摘录用起来）与同类产品对标（Cubox 高亮卡片管理与导出）。`src/domain/highlights.ts` 新增 `ArticleHighlightGroup` 接口、`groupHighlightsByArticle` 纯函数（按来源文章 `rootId` 聚类，保持首次出现顺序与组内条目顺序）与 `renderArticleHighlightsMarkdown`（整篇文章所有摘录的 Markdown 合集导出，含来源与确切块链接）；`src/ui/HighlightView.svelte` 接入 `viewMode: "timeline" | "article"` 切换状态并在顶部提供平铺/按文章切换，按文章模式下以折叠卡片（`<details class="glean-highlights__article-group">`）集中呈现单篇文章全部摘录，并在分组头部提供一键打开原文文档、一键复制整篇摘录 Markdown（`copyArticleQuotes`）与一键导出整篇 Markdown 文件（`exportArticleQuotes`）。纯客户端只读投影与本地导出，不改变文章属性或端点。
+- 全量门禁闭环：定向 `tests/highlights.test.ts` 52/52、`tests/highlights-service.test.mjs`、`tsc` 与 `svelte-check` 0 错误 0 警告、`pnpm build`、`pnpm check:release`、`pnpm perf:check`、`pnpm visual:check`（24 项仍待真实宿主）与任务账本检查均通过。真实宿主摘录墙按文章聚合与整篇导出仍归 B-0002。
+- 下一步：按当前执行板顺序推进下一个任务（如 T-3416 阅读伴读 AI 结果与问答一键插入正文开头，或按作者点单继续）。版本保持 1.3.7，本轮不打 tag、不发布、不推送。
+
 ## 当前有效交接（2026-10-20 阅读伴生栏大纲目录与块书签视口联动指示）
 
 - T-3414/D-0293：承接方向三（中断后接着读）与同类产品对标（Readwise Reader / Omnivore 章节感知）。`src/domain/outline.ts` 新增 `findMatchingOutlineItemId`，`src/libs/reading-position.ts` 新增 `findActiveOutlineItemInHost`（使用 `Node.compareDocumentPosition` 在 Protyle DOM 真实顺序中定位目标块所属的最近前置大纲标题，支持标题直接命中、正文段落归属、容器嵌套与宿主断开安全回退）；`ReadingClipContext` 新增只读投影 `readingPosition`，`readClipContext` 从 `custom-clip-reading-position` 解析带回；`ReadingPositionControls.svelte` 新增 `onPositionChange` 回调，在首读、保存书签、恢复书签时向上游通知最新快照；`ReaderTab.svelte` 维护 `currentBookmarkBlockId` 并高亮 `glean-reader__outline-item--active` 与书签标记，点击大纲继续复用 `scrollToOutline`。纯只读投影，不新增属性键、不改变书签 JSON 契约。

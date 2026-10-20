@@ -1,5 +1,11 @@
 # 进度（PROGRESS）
 
+## T-3415 摘录墙“按文章聚类”分组浏览与整篇引述导出（2026-10-20）
+
+- [x] 文章聚类纯函数与格式化：`src/domain/highlights.ts` 新增 `ArticleHighlightGroup` 接口、`groupHighlightsByArticle` 纯函数（按来源文章 `rootId` 聚合，保持出现顺序）与 `renderArticleHighlightsMarkdown`（整篇文章所有摘录的 Markdown 合集导出，含来源与确切块链接）。
+- [x] 摘录墙双视图与文章级动作贯通：`src/ui/HighlightView.svelte` 接入 `viewMode: "timeline" | "article"` 切换状态；在顶部工具栏提供平铺/按文章聚类切换，按文章模式下以折叠卡片（`<details class="glean-highlights__article-group">`）集中呈现单篇文章全部摘录，并在分组头部提供一键打开原文文档、一键复制整篇摘录 Markdown（`copyArticleQuotes`）与一键导出整篇 Markdown 文件（`exportArticleQuotes`）。
+- [x] 双语与单测完备：新增 `highlight.viewTimeline`、`highlight.viewArticle`、`highlight.groupCount`、`highlight.copyArticleQuotes`、`highlight.exportArticleQuotes` 双语键；`tests/highlights.test.ts` 补充文章聚类、单篇导出格式与组件接线回归测试（52/52 全数通过）。
+
 ## T-3414 阅读伴生栏大纲目录与块书签视口联动指示（2026-10-20）
 
 - [x] 章节定位纯函数：`src/domain/outline.ts` 新增 `findMatchingOutlineItemId`；`src/libs/reading-position.ts` 新增 `findActiveOutlineItemInHost`，在 Protyle DOM 中使用 `Node.compareDocumentPosition` 真实文档顺序计算书签块所属的最近前置大纲标题（支持标题直接命中、正文段落归属、容器嵌套与宿主断开安全回退）。

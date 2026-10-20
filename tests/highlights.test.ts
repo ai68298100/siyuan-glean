@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
     cleanHighlightText, escapeHighlightText, filterHighlights, formatHighlightShare, formatHighlightTime,
-    highlightBlockLink, highlightFacets, highlightMarker, pageHighlights, renderHighlightsCsv, renderHighlightsMarkdown,
+    groupHighlightsByArticle, highlightBlockLink, highlightFacets, highlightMarker, pageHighlights,
+    renderArticleHighlightsMarkdown, renderHighlightsCsv, renderHighlightsMarkdown,
     retainHighlightSelection, safeHighlightCsvCell, selectHighlights, type HighlightItem,
 } from "../src/domain/highlights.ts";
 
@@ -154,4 +155,50 @@ test("HighlightView 行级键盘导航复用读库仲裁层（T-3399）", () => 
     assert.match(view, /if \(!\["move", "toggleSelect", "activate"\]\.includes\(action\.type\)\) return;/);
     assert.match(view, /data-glean-highlight-id=\{item\.id\}/);
     assert.match(view, /class:glean-highlights__item--cursor=\{cursorId === item\.id\}/);
+});
+
+test("groupHighlightsByArticle 与 renderArticleHighlightsMarkdown：按文章聚类与单篇导出（T-3415）", () => {
+    const doc1 = "20261020100000-doc0001";
+    const doc2 = "20261020100000-doc0002";
+    const item1 = item(1, { id: "20261020100001-aaaaaaa", rootId: doc1, title: "文章一", site: "site1.test", text: "第一摘录" });
+    const item2 = item(2, { id: "20261020100002-bbbbbbb", rootId: doc2, title: "文章二", site: "site2.test", text: "第二摘录" });
+    const item3 = item(3, { id: "20261020100003-ccccccc", rootId: doc1, title: "文章一", site: "site1.test", text: "第三摘录" });
+
+    const groups = groupHighlightsByArticle([item1, item2, item3]);
+    assert.equal(groups.length, 2);
+    assert.equal(groups[0].rootId, doc1);
+    assert.equal(groups[0].title, "文章一");
+    assert.equal(groups[0].items.length, 2);
+    assert.deepEqual(groups[0].items.map((i) => i.id), [item1.id, item3.id]);
+
+    assert.equal(groups[1].rootId, doc2);
+    assert.equal(groups[1].title, "文章二");
+    assert.equal(groups[1].items.length, 1);
+
+    // 空列表返回空数组
+    assert.deepEqual(groupHighlightsByArticle([]), []);
+
+    // 渲染单篇文章全部摘录为 Markdown
+    const markdown = renderArticleHighlightsMarkdown(groups[0], labels);
+    assert.ok(markdown.includes("# 文章一"));
+    assert.ok(markdown.includes(labels.source));
+    assert.ok(markdown.includes(groups[0].site.replace(".", "\\.")));
+    assert.ok(markdown.includes("> 第一摘录"));
+    assert.ok(markdown.includes("> 第三摘录"));
+    assert.ok(markdown.includes(`siyuan://blocks/${doc1}`));
+    assert.ok(markdown.includes(`siyuan://blocks/${item1.id}`));
+    assert.ok(markdown.includes(`siyuan://blocks/${item3.id}`));
+});
+
+test("HighlightView 接线：支持平铺与按文章聚类双视图切换（T-3415）", () => {
+    const view = readFileSync(new URL("../src/ui/HighlightView.svelte", import.meta.url), "utf8");
+    assert.match(view, /groupHighlightsByArticle/);
+    assert.match(view, /renderArticleHighlightsMarkdown/);
+    assert.match(view, /let viewMode = \$state<"timeline" \| "article">\("timeline"\)/);
+    assert.match(view, /const articleGroups = \$derived\(groupHighlightsByArticle\(filtered\)\)/);
+    assert.match(view, /onclick=\{\(\) => viewMode = "timeline"\}/);
+    assert.match(view, /onclick=\{\(\) => viewMode = "article"\}/);
+    assert.match(view, /class="glean-highlights__article-groups"/);
+    assert.match(view, /copyArticleQuotes\(group\)/);
+    assert.match(view, /exportArticleQuotes\(group\)/);
 });

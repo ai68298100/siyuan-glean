@@ -7,7 +7,7 @@ import { tick, untrack } from "svelte";
 import { showMessage } from "siyuan";
 import type { GleanFacade } from "../types";
 import { t } from "../libs/i18n";
-import { filterHighlights, formatHighlightShare, formatHighlightTime, highlightFacets, pageHighlights, retainHighlightSelection, type HighlightFilter } from "../domain/highlights";
+import { filterHighlights, formatHighlightShare, formatHighlightTime, groupHighlightsByArticle, highlightFacets, pageHighlights, renderArticleHighlightsMarkdown, retainHighlightSelection, type ArticleHighlightGroup, type HighlightFilter } from "../domain/highlights";
 import {
     copyHighlights, exportHighlightsCsv, HighlightExportError, highlightDocumentTitle, listDocHighlights, listLibraryHighlights,
     prepareHighlightExport, saveHighlightDraft, type HighlightExportSession, type HighlightItem, type HighlightSaveReason,
@@ -28,6 +28,7 @@ const relatedTitleId = `glean-highlights-related-title-${instanceId}`;
 const i18n = $derived(facade.i18n);
 const currentDocId = $derived(facade.currentDocId());
 let scope = $state<"current" | "library">("current");
+let viewMode = $state<"timeline" | "article">("timeline");
 let items = $state<HighlightItem[]>([]);
 let loading = $state(true);
 let loadError = $state("");
@@ -60,6 +61,7 @@ let tagAliasGeneration = 0;
 
 const facets = $derived(highlightFacets(items));
 const filtered = $derived(filterHighlights(items, { search, site, tag, aiTag, sort, direction }));
+const articleGroups = $derived(groupHighlightsByArticle(filtered));
 const highlightPageSize = 20;
 const visible = $derived(pageHighlights(filtered, page, highlightPageSize));
 const visibleIds = $derived(visible.items.map((item) => item.id));
@@ -321,6 +323,47 @@ function openDoc(id: string) {
     facade.openReadingDocument(id);
 }
 
+async function copyArticleQuotes(group: ArticleHighlightGroup): Promise<void> {
+    if (exportBusy || loading) return;
+    exportBusy = true;
+    exportError = "";
+    try {
+        const md = renderArticleHighlightsMarkdown(group, labels);
+        if (navigator?.clipboard?.writeText) {
+            await navigator.clipboard.writeText(md);
+            showMessage(t(i18n, "highlight.copied"), 2500);
+        } else {
+            showMessage(t(i18n, "highlight.clipboardUnavailable"), 3000);
+        }
+    } catch (error) {
+        console.warn("[glean] 文章摘录复制失败:", error);
+        showMessage(t(i18n, "msg.actionFailed"), 3000);
+    } finally {
+        exportBusy = false;
+    }
+}
+
+function exportArticleQuotes(group: ArticleHighlightGroup): void {
+    if (exportBusy || loading) return;
+    try {
+        const md = renderArticleHighlightsMarkdown(group, labels);
+        const blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        const safeTitle = (group.title || group.rootId).replace(/[\/\\?%*:|"<>]/g, "_").slice(0, 50);
+        anchor.download = `${safeTitle}-highlights.md`;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        showMessage(t(i18n, "highlight.exported"), 2500);
+    } catch (error) {
+        console.warn("[glean] 文章摘录导出失败:", error);
+        showMessage(t(i18n, "msg.actionFailed"), 3000);
+    }
+}
+
 function onWindowKeyDown(event: KeyboardEvent): void {
     if (event.defaultPrevented || event.isComposing || event.keyCode === 229 || event.repeat) return;
     if (event.key === "Escape") {
@@ -397,6 +440,8 @@ function focusHighlightRow(id: string): void {
         <div class="glean-highlights__tools glean-highlights__tools--scope" role="group" aria-label={t(i18n, "highlight.title")}>
             <button aria-pressed={scope === "current"} disabled={exportBusy} onclick={() => scope = "current"}>{t(i18n, "highlight.current")}</button>
             <button aria-pressed={scope === "library"} disabled={exportBusy} onclick={() => scope = "library"}>{t(i18n, "highlight.allLibrary")}</button>
+            <button aria-pressed={viewMode === "timeline"} disabled={exportBusy} onclick={() => viewMode = "timeline"}>{t(i18n, "highlight.viewTimeline")}</button>
+            <button aria-pressed={viewMode === "article"} disabled={exportBusy} onclick={() => viewMode = "article"}>{t(i18n, "highlight.viewArticle")}</button>
             <button class="glean-highlights__refresh" disabled={loading || exportBusy} onclick={refresh}>{t(i18n, "action.refresh")}</button>
         </div>
     </div>
@@ -464,39 +509,87 @@ function focusHighlightRow(id: string): void {
         {/if}
     {/if}
     {#if !loadError}
-    <div class="glean-highlights__items">
-        {#each visible.items as item (item.id)}
-            <article class="glean-highlights__item" data-glean-highlight-id={item.id} class:glean-highlights__item--cursor={cursorId === item.id} aria-current={cursorId === item.id ? "true" : undefined} aria-busy={cardingKey === item.id}>
-                <div class="glean-highlights__item-head">
-                    <span class="glean-highlights__item-label">{t(i18n, "highlight.quoteTag")}</span>
-                    <span class="glean-highlights__item-index">{(visible.page - 1) * highlightPageSize + visible.items.indexOf(item) + 1}</span>
-                </div>
-                <label class="glean-highlights__quote"><input type="checkbox" checked={selected.includes(item.id)} disabled={exportBusy} onchange={() => toggle(item.id)} aria-label={`${t(i18n, "highlight.quoteTag")} ${(visible.page - 1) * highlightPageSize + visible.items.indexOf(item) + 1}: ${item.text.slice(0, 120)}`} /><span>{item.text}</span></label>
-                <p class="glean-highlights__meta" title={item.title || t(i18n, "panel.untitled")}>
-                    {item.title || t(i18n, "panel.untitled")} {item.site ? ` · ${item.site}` : ""}
-                    {#if formatHighlightTime(item.id)}<span class="glean-highlights__time"> · {formatHighlightTime(item.id)}</span>{/if}
-                </p>
-                {#if item.tags.length}<p class="glean-highlights__meta glean-highlights__tags"><span>{t(i18n, "library.filterTag")}</span>{#each item.tags as value}<span class="glean-highlights__tag">{value}</span>{/each}</p>{/if}
-                {#if item.aiTags.length}<p class="glean-highlights__meta glean-highlights__tags glean-highlights__tags--ai"><span>{t(i18n, "library.filterAiTag")}</span>{#each item.aiTags as value}<span class="glean-highlights__tag">{value}</span>{/each}</p>{/if}
-                <div class="glean-highlights__tools glean-highlights__tools--card">
-                    <button type="button" onclick={() => openDoc(item.id)}>{t(i18n, "highlight.original")}</button>
-                    <button type="button" onclick={() => openDoc(item.rootId)}>{t(i18n, "action.openDoc")}</button>
-                    <button type="button" aria-busy={copyingId === item.id} disabled={Boolean(copyingId)} onclick={() => void copyQuote(item)} title={t(i18n, "highlight.copyShare")}>
-                        <svg class="glean-icon" aria-hidden="true"><use href="#iconGleanCopy" /></svg>
-                        {t(i18n, "highlight.copyShare")}
-                    </button>
-                    <button type="button" aria-busy={cardingKey === item.id} disabled={Boolean(cardingKey)} onclick={() => void card(item)} title={t(i18n, "flashcard.make")} aria-label={t(i18n, "flashcard.make")}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanCard" /></svg>{t(i18n, "flashcard.make")}</button>
-                </div>
-            </article>
-        {/each}
-    </div>
-    {/if}
-    {#if !loading && !loadError && visible.pages > 1}
-        <nav class="glean-highlights__tools glean-highlights__pagination" aria-label={t(i18n, "highlight.pageInfo", { page: visible.page, pages: visible.pages, n: visible.total })}>
-            <button disabled={visible.page <= 1} onclick={() => page = visible.page - 1}>{t(i18n, "highlight.previousPage")}</button>
-            <span>{t(i18n, "highlight.pageInfo", { page: visible.page, pages: visible.pages, n: visible.total })}</span>
-            <button disabled={visible.page >= visible.pages} onclick={() => page = visible.page + 1}>{t(i18n, "highlight.nextPage")}</button>
-        </nav>
+        {#if viewMode === "timeline"}
+            <div class="glean-highlights__items">
+                {#each visible.items as item (item.id)}
+                    <article class="glean-highlights__item" data-glean-highlight-id={item.id} class:glean-highlights__item--cursor={cursorId === item.id} aria-current={cursorId === item.id ? "true" : undefined} aria-busy={cardingKey === item.id}>
+                        <div class="glean-highlights__item-head">
+                            <span class="glean-highlights__item-label">{t(i18n, "highlight.quoteTag")}</span>
+                            <span class="glean-highlights__item-index">{(visible.page - 1) * highlightPageSize + visible.items.indexOf(item) + 1}</span>
+                        </div>
+                        <label class="glean-highlights__quote"><input type="checkbox" checked={selected.includes(item.id)} disabled={exportBusy} onchange={() => toggle(item.id)} aria-label={`${t(i18n, "highlight.quoteTag")} ${(visible.page - 1) * highlightPageSize + visible.items.indexOf(item) + 1}: ${item.text.slice(0, 120)}`} /><span>{item.text}</span></label>
+                        <p class="glean-highlights__meta" title={item.title || t(i18n, "panel.untitled")}>
+                            {item.title || t(i18n, "panel.untitled")} {item.site ? ` · ${item.site}` : ""}
+                            {#if formatHighlightTime(item.id)}<span class="glean-highlights__time"> · {formatHighlightTime(item.id)}</span>{/if}
+                        </p>
+                        {#if item.tags.length}<p class="glean-highlights__meta glean-highlights__tags"><span>{t(i18n, "library.filterTag")}</span>{#each item.tags as value}<span class="glean-highlights__tag">{value}</span>{/each}</p>{/if}
+                        {#if item.aiTags.length}<p class="glean-highlights__meta glean-highlights__tags glean-highlights__tags--ai"><span>{t(i18n, "library.filterAiTag")}</span>{#each item.aiTags as value}<span class="glean-highlights__tag">{value}</span>{/each}</p>{/if}
+                        <div class="glean-highlights__tools glean-highlights__tools--card">
+                            <button type="button" onclick={() => openDoc(item.id)}>{t(i18n, "highlight.original")}</button>
+                            <button type="button" onclick={() => openDoc(item.rootId)}>{t(i18n, "action.openDoc")}</button>
+                            <button type="button" aria-busy={copyingId === item.id} disabled={Boolean(copyingId)} onclick={() => void copyQuote(item)} title={t(i18n, "highlight.copyShare")}>
+                                <svg class="glean-icon" aria-hidden="true"><use href="#iconGleanCopy" /></svg>
+                                {t(i18n, "highlight.copyShare")}
+                            </button>
+                            <button type="button" aria-busy={cardingKey === item.id} disabled={Boolean(cardingKey)} onclick={() => void card(item)} title={t(i18n, "flashcard.make")} aria-label={t(i18n, "flashcard.make")}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanCard" /></svg>{t(i18n, "flashcard.make")}</button>
+                        </div>
+                    </article>
+                {/each}
+            </div>
+            {#if !loading && visible.pages > 1}
+                <nav class="glean-highlights__tools glean-highlights__pagination" aria-label={t(i18n, "highlight.pageInfo", { page: visible.page, pages: visible.pages, n: visible.total })}>
+                    <button disabled={visible.page <= 1} onclick={() => page = visible.page - 1}>{t(i18n, "highlight.previousPage")}</button>
+                    <span>{t(i18n, "highlight.pageInfo", { page: visible.page, pages: visible.pages, n: visible.total })}</span>
+                    <button disabled={visible.page >= visible.pages} onclick={() => page = visible.page + 1}>{t(i18n, "highlight.nextPage")}</button>
+                </nav>
+            {/if}
+        {:else}
+            <div class="glean-highlights__article-groups">
+                {#each articleGroups as group (group.rootId)}
+                    <details class="glean-highlights__article-group" open>
+                        <summary class="glean-highlights__article-header">
+                            <span class="glean-highlights__article-title" title={group.title || t(i18n, "panel.untitled")}>
+                                {group.title || t(i18n, "panel.untitled")}
+                            </span>
+                            {#if group.site}<span class="glean-highlights__article-site"> · {group.site}</span>{/if}
+                            <span class="glean-chip">{t(i18n, "highlight.groupCount", { n: group.items.length })}</span>
+                            <div class="glean-highlights__article-actions" role="group" aria-label={t(i18n, "action.more")}>
+                                <button type="button" class="glean-btn glean-btn--ghost" onclick={(e) => { e.stopPropagation(); openDoc(group.rootId); }}>{t(i18n, "action.openDoc")}</button>
+                                <button type="button" class="glean-btn glean-btn--ghost" disabled={exportBusy} onclick={(e) => { e.stopPropagation(); void copyArticleQuotes(group); }} title={t(i18n, "highlight.copyArticleQuotes")}>
+                                    <svg class="glean-icon" aria-hidden="true"><use href="#iconGleanCopy" /></svg>
+                                    {t(i18n, "highlight.copyArticleQuotes")}
+                                </button>
+                                <button type="button" class="glean-btn glean-btn--ghost" disabled={exportBusy} onclick={(e) => { e.stopPropagation(); exportArticleQuotes(group); }} title={t(i18n, "highlight.exportArticleQuotes")}>
+                                    <svg class="glean-icon" aria-hidden="true"><use href="#iconGleanDownload" /></svg>
+                                    {t(i18n, "highlight.exportArticleQuotes")}
+                                </button>
+                            </div>
+                        </summary>
+                        <div class="glean-highlights__items glean-highlights__items--grouped">
+                            {#each group.items as item, itemIndex (item.id)}
+                                <article class="glean-highlights__item" data-glean-highlight-id={item.id} class:glean-highlights__item--cursor={cursorId === item.id} aria-current={cursorId === item.id ? "true" : undefined} aria-busy={cardingKey === item.id}>
+                                    <div class="glean-highlights__item-head">
+                                        <span class="glean-highlights__item-label">{t(i18n, "highlight.quoteTag")}</span>
+                                        <span class="glean-highlights__item-index">{itemIndex + 1}</span>
+                                    </div>
+                                    <label class="glean-highlights__quote"><input type="checkbox" checked={selected.includes(item.id)} disabled={exportBusy} onchange={() => toggle(item.id)} aria-label={`${t(i18n, "highlight.quoteTag")} ${itemIndex + 1}: ${item.text.slice(0, 120)}`} /><span>{item.text}</span></label>
+                                    {#if formatHighlightTime(item.id)}<p class="glean-highlights__meta"><span class="glean-highlights__time">{formatHighlightTime(item.id)}</span></p>{/if}
+                                    <div class="glean-highlights__tools glean-highlights__tools--card">
+                                        <button type="button" onclick={() => openDoc(item.id)}>{t(i18n, "highlight.original")}</button>
+                                        <button type="button" onclick={() => openDoc(item.rootId)}>{t(i18n, "action.openDoc")}</button>
+                                        <button type="button" aria-busy={copyingId === item.id} disabled={Boolean(copyingId)} onclick={() => void copyQuote(item)} title={t(i18n, "highlight.copyShare")}>
+                                            <svg class="glean-icon" aria-hidden="true"><use href="#iconGleanCopy" /></svg>
+                                            {t(i18n, "highlight.copyShare")}
+                                        </button>
+                                        <button type="button" aria-busy={cardingKey === item.id} disabled={Boolean(cardingKey)} onclick={() => void card(item)} title={t(i18n, "flashcard.make")} aria-label={t(i18n, "flashcard.make")}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanCard" /></svg>{t(i18n, "flashcard.make")}</button>
+                                    </div>
+                                </article>
+                            {/each}
+                        </div>
+                    </details>
+                {/each}
+            </div>
+        {/if}
     {/if}
     {#if scope === "current" && currentDocId && !loading && !loadError}
         <section class="glean-highlights__related" aria-labelledby={relatedTitleId} aria-busy={relatedLoading}>
@@ -800,5 +893,56 @@ function focusHighlightRow(id: string): void {
         .glean-highlights__item {
             transition: none;
         }
+    }
+
+    .glean-highlights__article-groups {
+        display: grid;
+        gap: var(--glean-space-3);
+        min-width: 0;
+    }
+
+    .glean-highlights__article-group {
+        border: 1px solid var(--glean-border-soft);
+        border-radius: var(--glean-radius-lg);
+        background: var(--b3-theme-surface);
+        padding: var(--glean-space-3) var(--glean-space-4);
+        box-shadow: var(--glean-shadow-card);
+    }
+
+    .glean-highlights__article-header {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: var(--glean-space-2);
+        cursor: pointer;
+        font-weight: 600;
+        font-size: var(--glean-text-md);
+        padding-bottom: var(--glean-space-2);
+    }
+
+    .glean-highlights__article-title {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .glean-highlights__article-site {
+        color: var(--b3-theme-on-surface);
+        font-size: var(--glean-text-xs);
+        font-weight: 400;
+    }
+
+    .glean-highlights__article-actions {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: var(--glean-space-1-5);
+    }
+
+    .glean-highlights__items--grouped {
+        margin-top: var(--glean-space-3);
+        padding-top: var(--glean-space-3);
+        border-top: 1px dashed var(--glean-border-soft);
     }
 </style>

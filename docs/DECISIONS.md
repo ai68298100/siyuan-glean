@@ -1626,3 +1626,15 @@ T-3414 承接方向三（中断后接着读）与同类产品对标（Readwise R
    - `ReadingPositionControls.svelte` 新增可选 `onPositionChange` 回调，在首次读取、显式保存书签、恢复书签时向上游安全通知最新快照；
    - `ReaderTab.svelte` 维护 `currentBookmarkBlockId` 派生状态，大纲列表按真实 DOM 顺序或纯函数回退匹配高亮 `glean-reader__outline-item--active` 并展示书签标记，点击大纲仍复用既有 `scrollToOutline` 平滑滚动；
 3. 严格数据主权与架构契约：不新增任何文章属性键、不修改书签 JSON 结构（仍为 `{version:1, blockId, offset, at}`）、不写入 saveData 业务数据；所有匹配均为只读投影；样式使用 `--glean-*` 与 `--b3-*` 令牌并提供 forced-colors 系统高对比回退。
+
+## D-0294（2026-10-20）摘录墙“按文章聚类”分组浏览与整篇引述导出（T-3415）
+
+T-3415 承接方向四（找回文章，并把摘录用起来）与同类产品对标（Cubox 高亮卡片管理与导出）：
+1. 纯函数文章聚类与格式化：
+   - `src/domain/highlights.ts` 新增 `ArticleHighlightGroup` 接口与 `groupHighlightsByArticle` 纯函数，按来源文章（`rootId`）聚合摘录并保留首次出现顺序与组内条目顺序；
+   - 新增 `renderArticleHighlightsMarkdown(group, labels)` 纯函数，将整篇文章的所有引述块格式化为 Markdown 文档（含标题、来源站点、原文回链与逐条引述块深度链接）；
+2. 摘录墙双视图与交互贯通：
+   - `src/ui/HighlightView.svelte` 增加 `viewMode: "timeline" | "article"` 切换状态并在顶部提供「平铺时间线 / 按文章聚类」切换器；
+   - 按文章模式下渲染折叠卡片（`<details class="glean-highlights__article-group" open>`），展示文章标题、来源站点与摘录条数徽标，并在分组头部提供一键打开原文文档、一键复制整篇摘录 Markdown（`copyArticleQuotes`）与一键导出整篇 Markdown 文件（`exportArticleQuotes`）；
+   - 卡片内每条引述继续保留单篇原块回跳、复制单条格式化引用与制作思源 riff 闪卡完整能力；
+3. 严格数据主权与架构分层契约：所有聚类与导出均为客户端只读计算与本地下载，不增加任何文档属性、不写入插件持久化存储。

@@ -36,7 +36,7 @@
 | T-3412 | ◐ | 完成 | `tests/snapshot-governance.test.ts`、`tests/modal-escape.test.ts`、完整 `pnpm test` 通过 | 待 B-0002 真实宿主快照治理批量执行与键盘走查 | 真实宿主快照批量拍摄与外部写入仍归 B-0002 |
 | T-3413 | ◐ | 完成 | `tests/library-keyboard.test.ts` 10/10、`tests/resurface.test.ts` 21/21、完整 `pnpm test` 通过 | 待 B-0002 真实宿主读库与今日拾遗键盘快捷分拣实操 | 真实宿主键盘与读屏走查仍归 B-0002 |
 | T-3414 | ◐ | 完成 | `tests/outline.test.ts` 4/4、阅读器相关 159/159、上下文与样式 38/38、`tsc` 与 `svelte-check` 0 错误 0 警告 | 待 B-0002 真实宿主长文大纲联动与滚动实操 | 真实宿主 Protyle 渲染差异与读屏节奏仍归 B-0002 |
-| T-3415 |   | 待实现 | 待运行 | 待 B-0002 | 待摘录墙视图功能扩展 |
+| T-3415 | ◐ | 完成 | `tests/highlights.test.ts` 52/52、`tests/highlights-service.test.mjs`、`tsc` 与 `svelte-check` 0 错误 0 警告 | 待 B-0002 真实宿主摘录墙按文章聚合与整篇导出 | 真实多篇引述排版与多端观感仍归 B-0002 |
 | T-3416 |   | 待实现 | 待运行 | 待 B-0002/B-0004 | 待真实模型与正文插入联动 |
 | T-3367 | ◐ | 实现完成，契约见 D-0247/D-0292，不新增属性、端点或持久化 | 定向 51/51、完整 `pnpm test` 1517/1517、`pnpm check` 0 错误/0 警告、`pnpm build`、`pnpm check:release`、`pnpm perf:check`、`pnpm visual:check`、`pnpm task:ledger -- --check` 与 `git diff --check` 通过 | 待 B-0002 原工作区、触控和系统读屏 | Chrome 原型与隔离样本不替代真实设备与视觉矩阵，视觉登记仍为 24 项待真实宿主 |
 | T-3389 | ◐ | 进行中 | 待运行 | 待 B-0002/B-0006 | 真实思源 riff 牌组与快捷键实操仍待 B-0002/B-0006，版本保持 1.3.6，本轮不发布 |
