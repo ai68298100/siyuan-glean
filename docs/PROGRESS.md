@@ -1,5 +1,13 @@
 # 进度（PROGRESS）
 
+## T-3417 分面侧栏手风琴互斥折叠与全展开/全收起顶部工具栏支持（2026-10-20）
+
+- [x] 分面折叠纯函数状态机：`src/domain/library-rail.ts` 新增 `RailGroupStateMap` 类型，提供 `toggleRailGroupState`（手风琴模式激活时自动互斥折叠其余分组，普通模式独立切换）、`collapseAllRailGroups`（一键全收起）与 `expandAllRailGroups`（一键全展开）纯函数。
+- [x] 偏好记忆与组件解耦：`src/services/prefs.ts` 新增 `railAccordion: boolean` 偏好配置，默认保持 `false`；`src/ui/LibraryRailGroup.svelte` 重构支持外部受控 `groupPrefs` 与 `onToggleGroup` 变更通知，同时保留非受控回退逻辑保证兼容。
+- [x] 交互工具栏与无障碍完备：`src/ui/DockPanel.svelte` 侧栏分面头部新增操作工具栏，提供手风琴互斥开关（`glean-rail-accordion-btn`）、一键全收起（`collapseAll`）与一键全展开（`expandAll`）按钮；新增 `library.railAccordion`、`library.railAccordionDesc`、`library.railCollapseAll`、`library.railExpandAll` 双语国际化键，注册 `iconGleanAccordion` 原生 SVG。
+- [x] 单测完备与架构闭环：新增 `tests/library-rail-accordion.test.ts`（13/13 全数通过），`tests/architecture.test.ts` 与 `tests/i18n.test.ts` 零告警通过。
+
+
 ## T-3384/T-3383/T-3382 归档删除确认/TTS续听/候选补来源键盘可达性走查与状态升级（2026-10-20）
 
 - [x] 归档与删除确认键盘流优化（T-3384）：`src/ui/ArchiveDialog.svelte` 挂载 `<svelte:window>` Escape 监听，在展开“彻底删除”二次确认条（`purgeConfirmOpen`）时按 Escape 优先安全收起确认条并将焦点平稳退回触发按钮（`purgeTrigger`）且阻断冒泡，未处于确认态时按 Escape 正常关闭弹窗。

@@ -1,5 +1,12 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-20 分面侧栏手风琴互斥折叠与全展开/全收起顶部工具栏支持）
+
+- T-3417/D-0297：承接分面侧栏手风琴互斥折叠与全展开/全收起支持。`src/domain/library-rail.ts` 新增 `RailGroupStateMap` 类型，提供 `toggleRailGroupState`（手风琴模式激活时自动互斥折叠其余分组，普通模式独立切换）、`collapseAllRailGroups`（一键全收起）与 `expandAllRailGroups`（一键全展开）纯函数；`src/services/prefs.ts` 新增 `railAccordion: boolean` 偏好配置，默认保持 `false`；`src/ui/LibraryRailGroup.svelte` 重构支持外部受控 `groupPrefs` 与 `onToggleGroup` 变更通知，同时保留非受控回退逻辑保证兼容；`src/ui/DockPanel.svelte` 侧栏分面头部新增操作工具栏，提供手风琴互斥开关（`glean-rail-accordion-btn`）、一键全收起（`collapseAll`）与一键全展开（`expandAll`）按钮；新增 `library.railAccordion`、`library.railAccordionDesc`、`library.railCollapseAll`、`library.railExpandAll` 双语国际化键，注册 `iconGleanAccordion` 原生 SVG。
+- 全量门禁闭环：定向单测（13/13 全部通过）、`tsc` 与 `svelte-check` 0 错误 0 警告、`pnpm build`、`pnpm check:release`、`pnpm perf:check`、`pnpm visual:check`（24 项仍待真实宿主）与任务账本检查均通过。真实宿主交互手感仍归 B-0002。
+- 下一步：按当前执行板顺序推进下一个任务（如 T-3378 自定义 AI 通道公网明文 HTTP 安全警示走查，或按作者点单继续）。版本保持 1.3.7，本轮不打 tag、不发布、不推送。
+
+
 ## 当前有效交接（2026-10-20 归档删除确认/TTS续听/候选补来源键盘可达性走查与状态升级）
 
 - T-3384/T-3383/T-3382/D-0296：承接全插件键盘交互走查与历史体验强化任务批量闭环。`src/ui/ArchiveDialog.svelte` 挂载 `<svelte:window>` Escape 监听，在展开“彻底删除”二次确认条（`purgeConfirmOpen`）时按 Escape 优先安全收起确认条并将焦点平稳退回触发按钮（`purgeTrigger`）且阻断冒泡，未处于确认态时按 Escape 正常关闭弹窗；`src/ui/ReaderTab.svelte` 在 `startSpeech` 续听分支中显式调用 `resumeSpeechChunkIndex(speechChunks, speechChunkIndex)` 防御分句索引越界；`src/ui/WorkbenchPreview.svelte` 来源 URL 输入框按键处理补充 `event.preventDefault()` 与 `event.stopPropagation()` 阻断冒泡并补齐 placeholder 属性保证无障碍规范；包含 T-3384、T-3383、T-3382、T-3381（友好站点投影）、T-3380（视口百分比估算）在内的 5 项任务对应单测全量核对通过（单测通过 106+），在 TODO 执行板中统一升级为隔离验证完成。

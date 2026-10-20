@@ -1663,3 +1663,17 @@ T-3416 承接方向五（有依据的阅读 AI）与同类产品对标（Readwis
    - 在 `src/ui/WorkbenchPreview.svelte` 的来源 URL 输入框按键处理中，补充 `event.preventDefault()` 与 `event.stopPropagation()` 阻断冒泡，确保 Escape 退出与 Enter 提交不与外层工作台快捷键发生冲突；补齐 placeholder 属性保证无障碍规范；
 4. 全量单测核对与升级：
    - 包含 T-3384、T-3383、T-3382、T-3381（友好站点投影）、T-3380（视口百分比估算）在内的 5 项任务对应单测全量核对通过（单测总计通过 106+），在 TODO 执行板中统一升级为隔离验证完成。
+
+## D-0297（2026-10-20）分面侧栏手风琴互斥折叠与全展开/全收起顶部工具栏支持（T-3417）
+
+针对多维度（状态、载体、优先级、星级评分、阅读时长预估、主题/标签）分面侧栏在内容较多时的纵向空间利用与浏览效率进行系统优化：
+1. 纯函数状态机与折叠逻辑解耦：
+   - 在 `src/domain/library-rail.ts` 中定义 `RailGroupStateMap` 字典契约，提供 `toggleRailGroupState`（手风琴模式下激活组展开时互斥关闭其余分组，反之折叠当前分组）、`collapseAllRailGroups`（批量折叠所有可用分组）与 `expandAllRailGroups`（批量展开所有可用分组）纯函数；
+2. 偏好持久化与响应式受控模式：
+   - 在 `src/services/prefs.ts` 中新增 `railAccordion: boolean` 偏好配置，默认保持为 `false`（多组独立展开）；用户开启手风琴模式后自动记忆至 `glean-prefs.json`；
+   - 重构 `src/ui/LibraryRailGroup.svelte`，保留原有非受控本地回退的同时，优先支持 `groupPrefs` 外部受控传入与 `onToggleGroup` 响应式回调，使得父级面板可以统筹全局状态；
+3. 顶部工具栏与交互闭环：
+   - 在 `src/ui/DockPanel.svelte` 侧栏分面头部新增紧凑工具栏，提供「手风琴互斥模式」切换按钮、「全部折叠」与「全部展开」快捷按钮，具备清晰的 `aria-pressed` / `title` 与键盘 Tab 可达性；
+   - 提供双语国际化文案（`library.railAccordion` / `library.railAccordionDesc` / `library.railCollapseAll` / `library.railExpandAll`）与 `iconGleanAccordion` 原生 SVG 注册；
+   - 新增 `tests/library-rail-accordion.test.ts` 全面验证纯函数折叠逻辑与边界情况（13/13 全数通过），保证分层单向依赖与数据主权不受影响。
+

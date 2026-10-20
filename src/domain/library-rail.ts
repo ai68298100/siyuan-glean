@@ -35,18 +35,29 @@ export function projectRailFacets(items: readonly LibraryFacet[], expanded: bool
 export function applyRailGroupToggle(
     current: RailGroups,
     targetKey: RailGroupKey,
-    patch: Partial<RailGroupPrefs>,
+    accordionOrPatch: boolean | Partial<RailGroupPrefs> = false,
     accordion = false
 ): RailGroups {
     const next = normalizeRailGroups(current);
     const targetCurrent = next[targetKey];
-    const nextTarget: RailGroupPrefs = {
-        collapsed: patch.collapsed ?? targetCurrent.collapsed,
-        expanded: patch.expanded ?? targetCurrent.expanded,
-    };
+    let nextTarget: RailGroupPrefs;
+    let isAccordion = accordion;
+
+    if (typeof accordionOrPatch === "boolean") {
+        isAccordion = accordionOrPatch;
+        nextTarget = {
+            ...targetCurrent,
+            collapsed: !targetCurrent.collapsed,
+        };
+    } else {
+        nextTarget = {
+            collapsed: accordionOrPatch.collapsed ?? targetCurrent.collapsed,
+            expanded: accordionOrPatch.expanded ?? targetCurrent.expanded,
+        };
+    }
     next[targetKey] = nextTarget;
 
-    if (accordion && !nextTarget.collapsed) {
+    if (isAccordion && !nextTarget.collapsed) {
         for (const key of RAIL_GROUP_KEYS) {
             if (key !== targetKey) {
                 next[key] = { ...next[key], collapsed: true };
@@ -56,3 +67,33 @@ export function applyRailGroupToggle(
 
     return next;
 }
+
+/**
+ * 批量切换所有分组折叠状态（全部折叠 / 全部展开）
+ */
+export function toggleAllRailGroups(current: RailGroups, collapsed: boolean): RailGroups {
+    const next = normalizeRailGroups(current);
+    for (const key of RAIL_GROUP_KEYS) {
+        next[key] = { ...next[key], collapsed };
+    }
+    return next;
+}
+
+/**
+ * 手风琴约束同步：保证至多只有一个分组处于展开状态。
+ * 若当前有多个分组展开，保留首个展开的分组（或指定的 preferredKey），其余折叠。
+ */
+export function syncAccordionRailGroups(current: RailGroups, preferredKey?: RailGroupKey): RailGroups {
+    const next = normalizeRailGroups(current);
+    const expandedKeys = RAIL_GROUP_KEYS.filter((k) => !next[k].collapsed);
+    if (expandedKeys.length <= 1) return next;
+
+    const keepKey = preferredKey && !next[preferredKey].collapsed ? preferredKey : expandedKeys[0];
+    for (const key of RAIL_GROUP_KEYS) {
+        if (key !== keepKey) {
+            next[key] = { ...next[key], collapsed: true };
+        }
+    }
+    return next;
+}
+

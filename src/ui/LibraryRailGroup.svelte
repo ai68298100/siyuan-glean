@@ -18,29 +18,51 @@
         onSelect: (value: string) => void;
         itemLabel?: (value: string) => string;
         dotClass?: (value: string) => string;
+        groupPrefs?: RailGroupPrefs;
+        onToggleGroup?: (group: RailGroupKey, key: keyof RailGroupPrefs) => void;
     }
-    let { plugin, i18n, group, label, hint = "", prefix = "", items, selected, onSelect, itemLabel = (value) => value, dotClass }: Props = $props();
-    let prefs = $state<RailGroupPrefs>({ collapsed: false, expanded: false });
+    let {
+        plugin,
+        i18n,
+        group,
+        label,
+        hint = "",
+        prefix = "",
+        items,
+        selected,
+        onSelect,
+        itemLabel = (value) => value,
+        dotClass,
+        groupPrefs,
+        onToggleGroup,
+    }: Props = $props();
+    let localPrefs = $state<RailGroupPrefs>({ collapsed: false, expanded: false });
     let query = $state("");
     let busy = $state(false);
     let touched = false;
+    const prefs = $derived(groupPrefs ?? localPrefs);
     const effectiveQuery = $derived(items.length > 15 ? query : "");
     const visible = $derived(projectRailFacets(items, group === "queues" || prefs.expanded, effectiveQuery, selected));
     const selectedMissing = $derived(Boolean(selected && !items.some((item) => railFacetSelected(item.value, selected))));
 
     onMount(() => {
+        if (groupPrefs) return;
         let mounted = true;
         void loadUiPrefs(plugin).then((value) => {
-            if (mounted && !touched) prefs = value.libraryRailGroups[group];
+            if (mounted && !touched) localPrefs = value.libraryRailGroups[group];
         });
         return () => { mounted = false; };
     });
 
     async function toggle(key: keyof RailGroupPrefs): Promise<void> {
+        if (onToggleGroup) {
+            onToggleGroup(group, key);
+            return;
+        }
         if (busy) return;
         touched = true;
-        const next = { ...prefs, [key]: !prefs[key] };
-        prefs = next;
+        const next = { ...localPrefs, [key]: !localPrefs[key] };
+        localPrefs = next;
         busy = true;
         try {
             await saveUiPrefs(plugin, { libraryRailGroups: { [group]: next } });

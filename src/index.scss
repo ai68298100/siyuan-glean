@@ -5355,6 +5355,46 @@ body.b3-theme-dark {
     scrollbar-gutter: stable;
 }
 
+.glean-rail__toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--glean-space-1) var(--glean-space-1-5) var(--glean-space-1-5);
+    margin-bottom: var(--glean-space-micro);
+    border-bottom: 1px solid color-mix(in srgb, var(--glean-border-soft) 80%, transparent);
+}
+
+.glean-rail__toolbar-title {
+    font-size: var(--glean-text-caption);
+    font-weight: var(--glean-weight-bold);
+    color: var(--b3-theme-on-surface);
+    letter-spacing: var(--glean-tracking-0-6);
+    text-transform: uppercase;
+}
+
+.glean-rail__toolbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.glean-icon-btn--sm {
+    width: 22px;
+    height: 22px;
+    padding: 3px;
+    border-radius: var(--glean-radius-sm);
+
+    svg {
+        width: 13px;
+        height: 13px;
+    }
+
+    &.glean-icon-btn--active {
+        color: var(--glean-accent-b);
+        background: var(--glean-primary-soft);
+    }
+}
+
 .glean-rail__title {
     font-size: var(--glean-text-caption);
     font-weight: var(--glean-weight-bold);

@@ -17,6 +17,7 @@ import StatsView from "./StatsView.svelte";
 import HighlightView from "./HighlightView.svelte";
 import LibraryRailGroup from "./LibraryRailGroup.svelte";
 import WorkbenchPreview from "./WorkbenchPreview.svelte";
+import { applyRailGroupToggle, syncAccordionRailGroups, toggleAllRailGroups, normalizeRailGroups, type RailGroupKey, type RailGroupPrefs, type RailGroups } from "../domain/library-rail";
 import LibraryBatchBar from "./LibraryBatchBar.svelte";
 import { librarySelectionScope, addDisplayedSelection, retainFilteredSelection } from "../domain/library-selection";
 import { moveLibraryCursor, resolveLibraryShortcut, cyclePriorityValue, cycleRatingValue, type LibraryKeyboardAction, type LibraryKeyboardContext } from "../domain/library-keyboard";
@@ -212,6 +213,8 @@ let mobileMoreMenu = $state<HTMLDivElement | null>(null);
 let savedViews = $state<SavedView[]>([]);
 let defaultSavedViewId = $state("");
 let savedViewId = $state("");
+let railGroups = $state<RailGroups>(normalizeRailGroups(undefined));
+let railAccordion = $state(false);
 let tagAliases = $state<TagAlias[]>([]);
 let tagAliasManagerOpen = $state(false);
 let tagAliasDraftId = $state("");
@@ -922,6 +925,8 @@ async function restorePreferences(): Promise<void> {
         tagAliases = prefs.tagAliases;
         defaultSavedViewId = prefs.defaultSavedViewId;
         governanceMuted = prefs.governanceMuted;
+        railGroups = prefs.libraryRailGroups;
+        railAccordion = prefs.railAccordion;
         if (!previewPrefsTouched) {
             previewEnabled = prefs.workbenchPreviewEnabled;
             previewRatio = prefs.workbenchPreviewRatio;
@@ -1155,6 +1160,54 @@ function makeDefaultSavedView(): void {
     void setDefaultSavedViewPref(facade.pluginInstance, defaultSavedViewId).catch((error) => {
         console.warn("[glean] 默认视图写回失败:", error);
         showMessage(t(i18n, 'settings.saveFailed'), 3000);
+    });
+}
+
+function handleToggleRailGroup(group: RailGroupKey, key: keyof RailGroupPrefs): void {
+    if (key === "collapsed") {
+        const next = applyRailGroupToggle(railGroups, group, railAccordion);
+        railGroups = next;
+        void saveUiPrefs(facade.pluginInstance, { libraryRailGroups: next });
+    } else {
+        const currentGroup = railGroups[group];
+        const nextGroup = { ...currentGroup, [key]: !currentGroup[key] };
+        const next = { ...railGroups, [group]: nextGroup };
+        railGroups = next;
+        void saveUiPrefs(facade.pluginInstance, { libraryRailGroups: next });
+    }
+}
+
+async function toggleAccordion(): Promise<void> {
+    const nextAccordion = !railAccordion;
+    railAccordion = nextAccordion;
+    let nextGroups = railGroups;
+    if (nextAccordion) {
+        nextGroups = syncAccordionRailGroups(railGroups);
+        railGroups = nextGroups;
+    }
+    await saveUiPrefs(facade.pluginInstance, {
+        railAccordion: nextAccordion,
+        libraryRailGroups: nextGroups,
+    });
+}
+
+async function collapseAllGroups(): Promise<void> {
+    const next = toggleAllRailGroups(railGroups, true);
+    railGroups = next;
+    await saveUiPrefs(facade.pluginInstance, { libraryRailGroups: next });
+}
+
+async function expandAllGroups(): Promise<void> {
+    let nextAccordion = railAccordion;
+    if (nextAccordion) {
+        nextAccordion = false;
+        railAccordion = false;
+    }
+    const next = toggleAllRailGroups(railGroups, false);
+    railGroups = next;
+    await saveUiPrefs(facade.pluginInstance, {
+        railAccordion: nextAccordion,
+        libraryRailGroups: next,
     });
 }
 
@@ -2678,18 +2731,52 @@ function metaLine(entry: Row): string {
         {:else if isTabCanvas && layoutMode === "list"}
             <div class="glean-lib" class:glean-lib--preview={Boolean(previewEntry)} bind:this={previewSplit}>
                 <aside class="glean-rail" aria-label={t(i18n, "view.library")}>
-                    <LibraryRailGroup plugin={facade.pluginInstance} {i18n} group="queues" label={t(i18n, "rail.queues")} items={queues.map((queue) => ({ value: queue, count: queueCount(queue) }))} selected={authorTimeline ? "" : activeQueue} itemLabel={(value) => queueLabel(value as ClipStatus)} dotClass={(value) => statusDotClass(value as ClipStatus)} onSelect={(value) => selectQueue(value as ClipStatus)} />
+                    <div class="glean-rail__toolbar" role="toolbar" aria-label={t(i18n, "rail.title")}>
+                        <span class="glean-rail__toolbar-title">{t(i18n, "rail.title")}</span>
+                        <div class="glean-rail__toolbar-actions">
+                            <button
+                                type="button"
+                                class="glean-icon-btn glean-icon-btn--sm"
+                                class:glean-icon-btn--active={railAccordion}
+                                aria-pressed={railAccordion}
+                                title={t(i18n, railAccordion ? "rail.accordionOn" : "rail.accordionOff")}
+                                aria-label={t(i18n, railAccordion ? "rail.accordionOn" : "rail.accordionOff")}
+                                onclick={toggleAccordion}
+                            >
+                                <svg aria-hidden="true"><use href="#iconGleanAccordion" /></svg>
+                            </button>
+                            <button
+                                type="button"
+                                class="glean-icon-btn glean-icon-btn--sm"
+                                title={t(i18n, "rail.collapseAll")}
+                                aria-label={t(i18n, "rail.collapseAll")}
+                                onclick={collapseAllGroups}
+                            >
+                                <svg aria-hidden="true"><use href="#iconGleanCollapseAll" /></svg>
+                            </button>
+                            <button
+                                type="button"
+                                class="glean-icon-btn glean-icon-btn--sm"
+                                title={t(i18n, "rail.expandAll")}
+                                aria-label={t(i18n, "rail.expandAll")}
+                                onclick={expandAllGroups}
+                            >
+                                <svg aria-hidden="true"><use href="#iconGleanExpandAll" /></svg>
+                            </button>
+                        </div>
+                    </div>
+                    <LibraryRailGroup plugin={facade.pluginInstance} {i18n} group="queues" label={t(i18n, "rail.queues")} items={queues.map((queue) => ({ value: queue, count: queueCount(queue) }))} selected={authorTimeline ? "" : activeQueue} itemLabel={(value) => queueLabel(value as ClipStatus)} dotClass={(value) => statusDotClass(value as ClipStatus)} onSelect={(value) => selectQueue(value as ClipStatus)} groupPrefs={railGroups.queues} onToggleGroup={handleToggleRailGroup} />
                     {#if railStats.authors.length > 0 || selectedAuthor}
-                        <LibraryRailGroup plugin={facade.pluginInstance} {i18n} group="authors" label={t(i18n, "rail.authors")} items={railStats.authors} selected={selectedAuthor} onSelect={selectAuthor} />
+                        <LibraryRailGroup plugin={facade.pluginInstance} {i18n} group="authors" label={t(i18n, "rail.authors")} items={railStats.authors} selected={selectedAuthor} onSelect={selectAuthor} groupPrefs={railGroups.authors} onToggleGroup={handleToggleRailGroup} />
                     {/if}
                     {#if railStats.sites.length > 0 || selectedSite}
-                        <LibraryRailGroup plugin={facade.pluginInstance} {i18n} group="sites" label={t(i18n, "rail.sites")} items={railStats.sites} selected={selectedSite} onSelect={(value) => { markPrefsInteraction(); selectedSite = selectedSite.toLocaleLowerCase() === value.toLocaleLowerCase() ? "" : value; }} />
+                        <LibraryRailGroup plugin={facade.pluginInstance} {i18n} group="sites" label={t(i18n, "rail.sites")} items={railStats.sites} selected={selectedSite} onSelect={(value) => { markPrefsInteraction(); selectedSite = selectedSite.toLocaleLowerCase() === value.toLocaleLowerCase() ? "" : value; }} groupPrefs={railGroups.sites} onToggleGroup={handleToggleRailGroup} />
                     {/if}
                     {#if railStats.tags.length > 0 || selectedTag}
-                        <LibraryRailGroup plugin={facade.pluginInstance} {i18n} group="tags" label={t(i18n, "rail.tags")} prefix="#" items={railStats.tags} selected={selectedTag} itemLabel={aliasForTag} onSelect={(value) => { markPrefsInteraction(); selectedTag = selectedTag.toLocaleLowerCase() === value.toLocaleLowerCase() ? "" : value; }} />
+                        <LibraryRailGroup plugin={facade.pluginInstance} {i18n} group="tags" label={t(i18n, "rail.tags")} prefix="#" items={railStats.tags} selected={selectedTag} itemLabel={aliasForTag} onSelect={(value) => { markPrefsInteraction(); selectedTag = selectedTag.toLocaleLowerCase() === value.toLocaleLowerCase() ? "" : value; }} groupPrefs={railGroups.tags} onToggleGroup={handleToggleRailGroup} />
                     {/if}
                     {#if railStats.aiTags.length > 0 || selectedAiTag}
-                        <LibraryRailGroup plugin={facade.pluginInstance} {i18n} group="aiTags" label={`✨ ${t(i18n, "rail.aiTags")}`} hint={t(i18n, "library.filterAiTagHint")} prefix="✨" items={railStats.aiTags} selected={selectedAiTag} onSelect={(value) => { markPrefsInteraction(); selectedAiTag = selectedAiTag.toLocaleLowerCase() === value.toLocaleLowerCase() ? "" : value; }} />
+                        <LibraryRailGroup plugin={facade.pluginInstance} {i18n} group="aiTags" label={`✨ ${t(i18n, "rail.aiTags")}`} hint={t(i18n, "library.filterAiTagHint")} prefix="✨" items={railStats.aiTags} selected={selectedAiTag} onSelect={(value) => { markPrefsInteraction(); selectedAiTag = selectedAiTag.toLocaleLowerCase() === value.toLocaleLowerCase() ? "" : value; }} groupPrefs={railGroups.aiTags} onToggleGroup={handleToggleRailGroup} />
                     {/if}
                 </aside>
                 <div class="glean-lib__main">

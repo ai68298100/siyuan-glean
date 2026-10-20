@@ -40,6 +40,7 @@ export interface UiPrefs {
     workbenchPreviewEnabled: boolean;
     workbenchPreviewRatio: number;
     libraryRailGroups: RailGroups;
+    railAccordion: boolean;
     savedViews: SavedView[];
     tagAliases: TagAlias[];
     defaultSavedViewId: string;
@@ -60,6 +61,7 @@ const DEFAULTS: UiPrefs = {
     workbenchPreviewEnabled: true,
     workbenchPreviewRatio: normalizePreviewRatio(undefined),
     libraryRailGroups: normalizeRailGroups(undefined),
+    railAccordion: false,
     savedViews: [],
     tagAliases: [],
     defaultSavedViewId: "",
@@ -90,6 +92,7 @@ export function normalizeUiPrefs(raw: unknown): UiPrefs {
         workbenchPreviewEnabled: typeof partial.workbenchPreviewEnabled === "boolean" ? partial.workbenchPreviewEnabled : true,
         workbenchPreviewRatio: normalizePreviewRatio(partial.workbenchPreviewRatio),
         libraryRailGroups: normalizeRailGroups(partial.libraryRailGroups),
+        railAccordion: partial.railAccordion === true,
         savedViews,
         tagAliases: normalizeTagAliases(partial.tagAliases),
         defaultSavedViewId: savedViews.some((view) => view.id === requestedDefault) ? requestedDefault : "",
