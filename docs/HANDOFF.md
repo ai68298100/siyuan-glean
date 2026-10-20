@@ -1,5 +1,11 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-20 外部导入弹窗 Escape 分级拦截与状态守卫闭环）
+
+- T-3409/D-0288：承接全插件键盘交互走查（T-1792）与导入流体验打磨。在 `src/ui/ImportDialog.svelte` 挂载 `<svelte:window>` 级别 Escape 监听；在正在导入（`phase === "importing"`）、文件/进度处理中（`busy`）、正在请求暂停（`stopping`）或正在读取检查点（`progressLoading`）期间，严格忽略 Escape 键，避免外部按键意外关闭弹窗导致内核导入事务中断或检查点并发异常；在用户已勾选丢弃确认（`discardConfirmed`）、强制重置确认（`forceResetConfirmed`）、任务恢复确认（`resumeConfirmed`）或首次导入确认（`importConfirmed`）时，按下 Escape 优先将确认状态清空（重置为 `false`）并阻断冒泡；空闲且无未完成确认时，按下 Escape 安全关闭弹窗（`onClose()`）并阻止事件冒泡。纯组件事件响应与状态守卫，不修改底层数据契约、文章属性、端点或持久化存储。
+- 全量门禁闭环：定向 `tests/modal-escape.test.ts` 8/8、完整 `pnpm test`、`tsc` 与 `svelte-check` 0 错误 0 警告、`pnpm build`、`pnpm check:release`、`pnpm perf:check`、`pnpm visual:check`（24 项仍待真实宿主）与任务账本检查均通过。真实宿主导入文件与键盘走查仍归 B-0002/B-0005。
+- 下一步：按当前执行板顺序推进下一个任务（如 T-3367 批量选择范围与底部操作可达性在更多场景的走查与补强，或按作者点单继续）。版本保持 1.3.7，本轮不打 tag、不发布、不推送。
+
 ## 当前有效交接（2026-10-20 首启引导向导与存量迁移弹窗 Escape 快捷退出与状态守卫闭环）
 
 - T-3408/D-0287：承接全插件键盘交互走查（T-1792）与向导/迁移流体验打磨。在 `src/ui/OnboardingDialog.svelte` 挂载 `<svelte:window>` 级别 Escape 监听；在非忙碌（`!actionBusy && !scanning`）态下按 Escape 触发 `continueLater()` 稍后继续并阻断冒泡；后台扫描或设置保存忙碌中忽略 Escape，防止并发异常；当前步骤与中断标记安全持久化；在 `src/ui/MigrateDialog.svelte` 挂载 `<svelte:window>` 级别 Escape 监听；在回填运行中（`phase === "running"`）、清理进度忙碌（`discardBusy`）或行级保存中（`Boolean(rowBusyId)`）严格锁定并忽略 Escape；行内编辑来源（`editingRowId`）时按 Escape 优先取消编辑（3 处候选编辑输入框同步接入按键拦截）；丢弃确认（`confirmingDiscard`）时按 Escape 取消确认并安全回焦；正常空闲态下按 Escape 退出弹窗并阻断事件冒泡。纯组件事件响应与状态守卫，不修改底层数据契约、文章属性、端点或持久化存储。

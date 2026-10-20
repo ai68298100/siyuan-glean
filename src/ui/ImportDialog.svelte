@@ -298,7 +298,26 @@ function openProgressDocument(id: string): void {
     if (facade.isMobile) openMobileFileById(facade.pluginInstance.app, id);
     else void openTab({ app: facade.pluginInstance.app, doc: { id } });
 }
+
+function handleWindowKeydown(event: KeyboardEvent): void {
+    if (event.isComposing || event.keyCode === 229) return;
+    if (event.key === "Escape") {
+        if (phase === "importing" || busy || stopping || progressLoading) return;
+        event.preventDefault();
+        event.stopPropagation();
+        if (discardConfirmed || forceResetConfirmed || resumeConfirmed || importConfirmed) {
+            discardConfirmed = false;
+            forceResetConfirmed = false;
+            resumeConfirmed = false;
+            importConfirmed = false;
+            return;
+        }
+        onClose();
+    }
+}
 </script>
+
+<svelte:window onkeydown={handleWindowKeydown} />
 
 <div class="glean-migrate glean-import" class:glean-import--busy={busy} data-phase={phase} aria-labelledby={titleId} aria-describedby={descId} aria-busy={busy}>
     <!-- 保持同一文件控件：导入/完成/暂停切换不能遗留被卸载的绑定或失去下一次选择。 -->

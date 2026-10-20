@@ -1,5 +1,11 @@
 # 进度（PROGRESS）
 
+## T-3409 外部导入弹窗 Escape 分级拦截与状态守卫闭环（2026-10-20）
+
+- [x] 导入弹窗键盘状态守卫：`src/ui/ImportDialog.svelte` 挂载 `<svelte:window>` 级别 Escape 监听；在正在导入（`phase === "importing"`）、文件/进度处理中（`busy`）、正在请求暂停（`stopping`）或正在读取检查点（`progressLoading`）期间，严格忽略 Escape 键，避免外部按键意外关闭弹窗导致内核导入事务中断或检查点并发异常。
+- [x] 确认状态分级撤销与空闲安全退出：在用户已勾选丢弃确认（`discardConfirmed`）、强制重置确认（`forceResetConfirmed`）、任务恢复确认（`resumeConfirmed`）或首次导入确认（`importConfirmed`）时，按下 Escape 优先将确认状态清空（重置为 `false`）并阻断冒泡；空闲且无未完成确认时，按下 Escape 安全关闭弹窗（`onClose()`）并阻止事件冒泡。
+- [x] 单测完备与架构闭环：`tests/modal-escape.test.ts` 补充针对 `ImportDialog` 的 window 级 Escape 与状态守卫契约单测（8/8 全数通过）。
+
 ## T-3408 首启引导向导与存量迁移弹窗 Escape 快捷退出与状态守卫闭环（2026-10-20）
 
 - [x] 首启引导向导快捷退出闭环：`src/ui/OnboardingDialog.svelte` 挂载 `<svelte:window>` 级别 Escape 监听；在非忙碌（`!actionBusy && !scanning`）态下按 Escape 触发 `continueLater()` 稍后继续并阻断冒泡；后台扫描或设置保存忙碌中忽略 Escape，防止并发异常；当前步骤与中断标记安全持久化。

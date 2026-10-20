@@ -172,3 +172,11 @@ test("OnboardingDialog与MigrateDialog支持window级别Escape与状态守卫闭
     assert.match(migrate, /onClose\(\);/);
     assert.match(migrate, /else if \(event\.key === "Escape"\) \{ event\.preventDefault\(\); event\.stopPropagation\(\); editingRowId = ""; \}/);
 });
+
+test("ImportDialog支持window级别Escape分级拦截与状态守卫闭环（T-3409）", () => {
+    const importDialog = read("src/ui/ImportDialog.svelte");
+    assert.match(importDialog, /<svelte:window onkeydown=\{handleWindowKeydown\} \/>/);
+    assert.match(importDialog, /if \(event\.key === "Escape"\) \{[\s\S]*?if \(phase === "importing" \|\| busy \|\| stopping \|\| progressLoading\) return;/);
+    assert.match(importDialog, /if \(discardConfirmed \|\| forceResetConfirmed \|\| resumeConfirmed \|\| importConfirmed\) \{[\s\S]*?discardConfirmed = false;[\s\S]*?return;[\s\S]*?\}/);
+    assert.match(importDialog, /onClose\(\);/);
+});
