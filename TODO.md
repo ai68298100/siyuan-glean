@@ -75,19 +75,19 @@
 
 - [◐] **T-3415**（P2，2026-10-20）摘录墙支持“按文章聚类”分组浏览与整篇引述导出（同类产品对标 / 摘录沉淀）：`domain/highlights.ts` 新增 `ArticleHighlightGroup` 接口、`groupHighlightsByArticle` 纯函数与 `renderArticleHighlightsMarkdown`；`HighlightView.svelte` 增加 `viewMode: "timeline" | "article"` 切换并在折叠卡片头部提供打开原文、一键复制整篇摘录与一键下载 Markdown 导出；纯客户端只读投影与本地导出，不改变文章属性或端点。代码状态：完成；隔离验证：`tests/highlights.test.ts` 52/52、`tests/highlights-service.test.mjs`、`tsc` 与 `svelte-check` 0 错误 0 警告；真实验收：待 B-0002 真实宿主摘录墙按文章聚合与整篇导出；延后原因：真实多篇引述排版与多端观感仍归 B-0002。
 
-- [ ] **T-3416**（P2，2026-10-20）阅读伴读 AI 结果与问答一键插入正文开头（同类产品对标 / 知识回流）：参考 Readwise Ghost Reader，在 ReaderTab 的 AI 总结与文章提问卡片提供“作为引述块写入正文开头”一键操作，将 AI 分析事实直接沉淀至用户思源文档；代码状态：待实现；隔离验证：待运行；真实验收：待 B-0002/B-0004；延后原因：待真实模型与正文插入联动。
+- [◐] **T-3416**（P2，2026-10-20）阅读伴读 AI 结果与问答一键插入正文开头（同类产品对标 / 知识回流）：`api/client.ts` 新增 `prependBlockDomIds` 与 `prependBlockDom`，`domain/reader.ts` 新增 `buildAiCalloutBlockDom` 纯函数；`services/reader-ai.ts` 新增 `insertAiCalloutToDocument` 服务；`ReaderTab.svelte` 在 AI 伴读结果卡与问答卡提供一键“插入正文开头”动作，直接沉淀为思源原生引述块事实；双语与单测完备，不改变底层文档属性与端点契约。代码状态：完成；隔离验证：`tests/reader-ai.test.mjs` 53/53、`tests/reader.test.ts` 13/13、`tsc` 与 `svelte-check` 0 错误 0 警告；真实验收：待 B-0002/B-0004 真实宿主正文插入与多端实测；延后原因：真实宿主编辑器与外部模型能力仍归 B-0002/B-0004。
 
 - [◐] **T-3367**（P1，2026-10-18）批量选择范围与底部操作可达性：保留跨筛选选择，显示总数及筛选外数量，提供仅保留当前筛选、追加已显示文章和清空入口；三画布共用正常流批量条，获焦时按 Escape 快捷取消选择并安全回退焦点；移动窄屏保留左右安全区。代码状态：实现完成，契约见 D-0247/D-0292，不新增属性、端点或持久化；隔离验证：定向 51/51、完整 `pnpm test` 1517/1517、`pnpm check` 0 错误/0 警告、`pnpm build`、`pnpm check:release`、`pnpm perf:check`、`pnpm visual:check`、`pnpm task:ledger -- --check` 与 `git diff --check` 通过；Chrome 原型已点验宽/窄 Dock、筛选外提示、显式保留和清空，窄布局批量区 `738px` 宽、`142px` 高且无横溢出。真实验收：待 B-0002 原工作区、触控和系统读屏；延后原因：Chrome 原型与隔离样本不替代真实设备与视觉矩阵，视觉登记仍为 24 项待真实宿主。
 
-- [◐] **T-3389**（P3，2026-10-19）制卡弹窗键盘快捷提交与字符计数纯函数（承接 T-1792/T-3243）：`domain/flashcard.ts` 新增 `countFlashcardCharacters` 纯函数；`FlashcardDialog.svelte` 接入 Escape 退出与 Ctrl/Cmd+Enter 快捷提交；单测与门禁完备。代码状态：进行中；隔离验证：待运行；真实验收：待 B-0002/B-0006；延后原因：真实思源 riff 牌组与快捷键实操仍待 B-0002/B-0006，版本保持 1.3.6，本轮不发布。
+- [◐] **T-3389**（P3，2026-10-19）制卡弹窗键盘快捷提交与字符计数纯函数（承接 T-1792/T-3243）：`domain/flashcard.ts` 新增 `countFlashcardCharacters` 纯函数；`FlashcardDialog.svelte` 接入 Escape 退出与 Ctrl/Cmd+Enter 快捷提交；单测与门禁完备。代码状态：完成；隔离验证：`tests/flashcard.test.ts`、`tests/flashcard-service.test.mjs` 通过；真实验收：待 B-0002/B-0006；延后原因：真实思源 riff 牌组与快捷键实操仍待 B-0002/B-0006，版本保持 1.3.6，本轮不发布。
 
-- [◐] **T-3388**（P2，2026-10-19）收集箱已有文章打开统一走阅读门面路由（承接 T-1500/D-0250）：`InboxSection.svelte` 三处已有文章打开重构为统一调用 `facade.openReadingDocument`；`domain/inbox-recovery.ts` 增加可操作状态判定纯函数；单测与门禁完备。代码状态：进行中；隔离验证：待运行；真实验收：待 B-0002/B-0007；延后原因：真实云收集箱联调仍待 B-0007，版本保持 1.3.6，本轮不发布。
+- [◐] **T-3388**（P2，2026-10-19）收集箱已有文章打开统一走阅读门面路由（承接 T-1500/D-0250）：`InboxSection.svelte` 三处已有文章打开重构为统一调用 `facade.openReadingDocument`；`domain/inbox-recovery.ts` 增加可操作状态判定纯函数；单测与门禁完备。代码状态：完成；隔离验证：`tests/inbox-recovery.test.ts` 4/4 通过；真实验收：待 B-0002/B-0007；延后原因：真实云收集箱联调仍待 B-0007，版本保持 1.3.6，本轮不发布。
 
-- [◐] **T-3387**（P2，2026-10-19）统计热力图与按日明细点击日期联动过滤完成文章列表（承接 T-1770/T-1946）：`domain/stats.ts` 新增 `filterCompletedItemsByDate` 纯函数；`StatsView.svelte` 热力图与按日表格支持点击日期联动筛选完成文章并提供清除入口；双语文案与单测完备。代码状态：进行中；隔离验证：待运行；真实验收：待 B-0002；延后原因：真实多日期完成回顾交互仍待 B-0002，版本保持 1.3.6，本轮不发布。
+- [◐] **T-3387**（P2，2026-10-19）统计热力图与按日明细点击日期联动过滤完成文章列表（承接 T-1770/T-1946）：`domain/stats.ts` 新增 `filterCompletedItemsByDate` 纯函数；`StatsView.svelte` 热力图与按日表格支持点击日期联动筛选完成文章并提供清除入口；双语文案与单测完备。代码状态：完成；隔离验证：`tests/stats.test.ts` 26/26、`tests/stats-service.test.mjs` 通过；真实验收：待 B-0002；延后原因：真实多日期完成回顾交互仍待 B-0002，版本保持 1.3.6，本轮不发布。
 
-- [◐] **T-3386**（P3，2026-10-19）高级筛选浮层激活项计数与就地清空支持（承接 T-1808/T-1887）：`domain/library-filter-chips.ts` 新增 `countSecondaryActiveFilters` 纯函数；`LibraryFilters.svelte` 在更多筛选按钮显示生效徽标并提供就地清空动作；双语文案与单测完备。代码状态：进行中；隔离验证：待运行；真实验收：待 B-0002；延后原因：真实多维度组合筛选观感仍待 B-0002，版本保持 1.3.6，本轮不发布。
+- [◐] **T-3386**（P3，2026-10-19）高级筛选浮层激活项计数与就地清空支持（承接 T-1808/T-1887）：`domain/library-filter-chips.ts` 新增 `countSecondaryActiveFilters` 纯函数；`LibraryFilters.svelte` 在更多筛选按钮显示生效徽标并提供就地清空动作；双语文案与单测完备。代码状态：完成；隔离验证：`tests/library-filter-chips.test.ts` 8/8 通过；真实验收：待 B-0002；延后原因：真实多维度组合筛选观感仍待 B-0002，版本保持 1.3.6，本轮不发布。
 
-- [◐] **T-3385**（P3，2026-10-19）备份包标准文件命名与元信息摘要纯函数（承接 T-1780/D-0088）：`domain/backup.ts` 新增 `generateBackupFilename` 与 `summarizeBackupPackage` 纯函数；`BackupPanel.svelte` 接入标准导出命名并呈现备份摘要；双语文案与单测完备。代码状态：进行中；隔离验证：待运行；真实验收：待 B-0002；延后原因：真实备份导出与宿主恢复验证仍待 B-0002，版本保持 1.3.6，本轮不发布。
+- [◐] **T-3385**（P3，2026-10-19）备份包标准文件命名与元信息摘要纯函数（承接 T-1780/D-0088）：`domain/backup.ts` 新增 `generateBackupFilename` 与 `summarizeBackupPackage` 纯函数；`BackupPanel.svelte` 接入标准导出命名并呈现备份摘要；双语文案与单测完备。代码状态：完成；隔离验证：`tests/backup.test.ts` 29/29、`tests/backup-service.test.mjs` 通过；真实验收：待 B-0002；延后原因：真实备份导出与宿主恢复验证仍待 B-0002，版本保持 1.3.6，本轮不发布。
 
 - [◐] **T-3384**（P3，2026-10-19）归档与恢复对话框 Escape 快捷关闭与半成功重试（承接 T-1792/T-1848）：`ArchiveDialog.svelte` 与 `RestoreDialog.svelte` 接入 Escape 键盘关闭；`RestoreDialog.svelte` 支持部分失败就地重试；双语文案与无障碍语义完备。代码状态：进行中；隔离验证：待运行；真实验收：待 B-0002；延后原因：真实宿主弹层焦点与按键仍待 B-0002，版本保持 1.3.6，本轮不发布。
 

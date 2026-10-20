@@ -842,6 +842,8 @@
   "reader.aiChannelSiyuan": "思源 AI",
   "reader.aiSaveSummary": "保存为 AI 摘要",
   "reader.aiSummarySaved": "已保存到 AI 摘要",
+  "reader.aiInsertCallout": "插入正文开头",
+  "reader.aiCalloutInserted": "已作为引述块插入正文开头",
   "reader.aiScopeFull": "范围：当前文章全文（结果仅临时展示，除非主动保存）",
   "reader.aiScopeSelection": "范围：当前选区（结果仅临时展示）",
   "reader.relatedNone": "没有相关旧文（可能未启用语义嵌入）",

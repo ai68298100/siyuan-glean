@@ -14,7 +14,7 @@ registerHooks({
     },
 });
 
-const { clearReaderMarkdownCache, readerArticleQuestion, readerSummarize, readerTranslate, saveReaderSummary } = await import("../src/services/reader-ai.ts");
+const { clearReaderMarkdownCache, insertAiCalloutToDocument, readerArticleQuestion, readerSummarize, readerTranslate, saveReaderSummary } = await import("../src/services/reader-ai.ts");
 const { enrichClip, enqueueEnrich, usageToday } = await import("../src/services/enrich-service.ts");
 const { loadFormattingSession, planAiFormatting } = await import("../src/services/formatting-service.ts");
 const { DEFAULT_SETTINGS } = await import("../src/services/settings.ts");
@@ -88,6 +88,8 @@ function harness(markdown = "# 测试文章\n\n正文的核心观点。") {
                 if (failures.write) return { code: 1, msg: "private attribute details" };
                 attrs.set(body.id, { ...attrs.get(body.id), ...body.attrs });
                 return { code: 0, data: null };
+            case "/api/block/prependBlock":
+                return { code: 0, data: [{ doOperations: [{ id: "20261020120000-callout" }] }] };
             case "/api/query/sql": {
                 const blockMatch = body.stmt.match(/SELECT id, root_id FROM blocks WHERE id = '([^']+)' LIMIT 1/);
                 if (blockMatch) return { code: 0, data: selectionBlockExists && blockMatch[1] === selectionBlockId ? [{ id: selectionBlockId, root_id: selectionBlockRoot }] : [] };
@@ -527,3 +529,21 @@ for (const failure of ["usageSave", "usageReadback"]) {
         assert.doesNotMatch(JSON.stringify(fixture.files.get("ai-log.json")), /private/);
     });
 }
+
+test("insertAiCalloutToDocument：参数校验与正文开头引述块插入（T-3416）", async () => {
+    const fixture = harness();
+    await assert.rejects(() => insertAiCalloutToDocument("bad-id", "内容", { title: "总结" }), /文档 ID 无效/);
+    await assert.rejects(() => insertAiCalloutToDocument(docId, "  \n  ", { title: "总结" }), /插入内容为空/);
+
+    const blockId = await insertAiCalloutToDocument(docId, "AI 全文要点分析。", {
+        title: "全文总结",
+        source: "思源 AI",
+    });
+    assert.equal(blockId, "20261020120000-callout");
+    const prependCall = fixture.calls.find((call) => call.route === "/api/block/prependBlock");
+    assert.ok(prependCall);
+    assert.equal(prependCall.body.parentID, docId);
+    assert.ok(prependCall.body.data.includes('<div data-type="NodeBlockquote" class="bq">'));
+    assert.ok(prependCall.body.data.includes('✨ 全文总结（思源 AI）'));
+    assert.ok(prependCall.body.data.includes('AI 全文要点分析。'));
+});

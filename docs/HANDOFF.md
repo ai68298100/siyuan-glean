@@ -1,5 +1,11 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-20 阅读伴读 AI 结果与问答一键插入正文开头）
+
+- T-3416/D-0295：承接方向五（有依据的阅读 AI）与同类产品对标（Readwise Ghost Reader 知识回流）。`src/api/client.ts` 封装 `prependBlockDomIds` 与 `prependBlockDom`，调用思源 `/api/block/prependBlock` 端点，并在写入后白名单中加入该端点以自动刷新 SQL/正文缓存；`src/domain/reader.ts` 新增 `buildAiCalloutBlockDom` 纯函数，按照思源原生 `<div data-type="NodeBlockquote" class="bq">` 标准结构构建带有元信息标题与多段引述的 Callout DOM；`src/services/reader-ai.ts` 新增 `insertAiCalloutToDocument`；`src/ui/ReaderTab.svelte` 在 AI 伴读结果卡片（总结/翻译）与文章提问问答卡片提供「插入正文开头」动作，插入成功后展示反馈并广播数据变更，失败优雅提示；新增 `reader.aiInsertCallout` 与 `reader.aiCalloutInserted` 双语键。纯思源原生块级事实沉淀，不新增插件专有属性。
+- 全量门禁闭环：定向 `tests/reader-ai.test.mjs` 53/53、`tests/reader.test.ts` 13/13、`tsc` 与 `svelte-check` 0 错误 0 警告、`pnpm build`、`pnpm check:release`、`pnpm perf:check`、`pnpm visual:check`（24 项仍待真实宿主）与任务账本检查均通过。真实宿主正文插入与多端实测仍归 B-0002/B-0004。
+- 下一步：按当前执行板顺序推进下一个任务（如 T-3384 归档与恢复对话框 Escape 快捷关闭与半成功重试的真机复核，或按作者点单继续）。版本保持 1.3.7，本轮不打 tag、不发布、不推送。
+
 ## 当前有效交接（2026-10-20 摘录墙按文章聚类分组浏览与整篇引述导出）
 
 - T-3415/D-0294：承接方向四（找回文章，并把摘录用起来）与同类产品对标（Cubox 高亮卡片管理与导出）。`src/domain/highlights.ts` 新增 `ArticleHighlightGroup` 接口、`groupHighlightsByArticle` 纯函数（按来源文章 `rootId` 聚类，保持首次出现顺序与组内条目顺序）与 `renderArticleHighlightsMarkdown`（整篇文章所有摘录的 Markdown 合集导出，含来源与确切块链接）；`src/ui/HighlightView.svelte` 接入 `viewMode: "timeline" | "article"` 切换状态并在顶部提供平铺/按文章切换，按文章模式下以折叠卡片（`<details class="glean-highlights__article-group">`）集中呈现单篇文章全部摘录，并在分组头部提供一键打开原文文档、一键复制整篇摘录 Markdown（`copyArticleQuotes`）与一键导出整篇 Markdown 文件（`exportArticleQuotes`）。纯客户端只读投影与本地导出，不改变文章属性或端点。

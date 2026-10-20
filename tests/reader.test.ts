@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 import {
+    buildAiCalloutBlockDom,
     buildQuoteBlockDom,
     buildSummarizePrompt,
     buildTranslatePrompt,
@@ -136,4 +137,25 @@ test("ReaderTab 伴读 AI 结果卡片可关闭与问答输入 Escape 清空（T
     assert.match(tab, /if \(event\.key === "Escape" && question\) \{ event\.stopPropagation\(\); question = ""; \}/);
     assert.match(tab, /onclick=\{\(\) => \{ aiResult = null; \}\}>[\s\S]*?\{t\(i18n, "action\.close"\)\}/);
     assert.match(tab, /onclick=\{\(\) => \{ questionResult = null; \}\}>[\s\S]*?\{t\(i18n, "action\.close"\)\}/);
+});
+
+test("buildAiCalloutBlockDom 格式化与 ReaderTab 插入正文开头接线（T-3416）", () => {
+    const dom = buildAiCalloutBlockDom("第一段核心观点。\n第二段补充说明。", {
+        title: "全文总结",
+        source: "Claude 3.5",
+    }, escape);
+    assert.ok(dom.includes('<div data-type="NodeBlockquote" class="bq">'));
+    assert.ok(dom.includes('<strong>✨ 全文总结（Claude 3.5）</strong>'));
+    assert.ok(dom.includes('<div data-type="NodeParagraph" class="p">第一段核心观点。</div>'));
+    assert.ok(dom.includes('<div data-type="NodeParagraph" class="p">第二段补充说明。</div>'));
+
+    // 空文本安全返回空串
+    assert.equal(buildAiCalloutBlockDom("", { title: "空" }, escape), "");
+    assert.equal(buildAiCalloutBlockDom("   \n\n  ", { title: "空" }, escape), "");
+
+    const tab = readFileSync(new URL("../src/ui/ReaderTab.svelte", import.meta.url), "utf8");
+    assert.match(tab, /insertAiCalloutToDocument/);
+    assert.match(tab, /insertAiResultCallout/);
+    assert.match(tab, /insertQuestionCallout/);
+    assert.match(tab, /\{t\(i18n, "reader\.aiInsertCallout"\)\}/);
 });

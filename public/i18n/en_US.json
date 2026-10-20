@@ -842,6 +842,8 @@
   "reader.aiChannelSiyuan": "SiYuan AI",
   "reader.aiSaveSummary": "Save as AI summary",
   "reader.aiSummarySaved": "Saved to AI summary",
+  "reader.aiInsertCallout": "Insert at top of doc",
+  "reader.aiCalloutInserted": "Inserted at top of document as callout",
   "reader.aiScopeFull": "Scope: this article's full text (temporary unless explicitly saved)",
   "reader.aiScopeSelection": "Scope: current selection (temporary result)",
   "reader.relatedNone": "No related articles (semantic embedding may be off)",

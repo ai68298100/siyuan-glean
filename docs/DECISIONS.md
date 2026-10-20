@@ -1638,3 +1638,16 @@ T-3415 承接方向四（找回文章，并把摘录用起来）与同类产品�
    - 按文章模式下渲染折叠卡片（`<details class="glean-highlights__article-group" open>`），展示文章标题、来源站点与摘录条数徽标，并在分组头部提供一键打开原文文档、一键复制整篇摘录 Markdown（`copyArticleQuotes`）与一键导出整篇 Markdown 文件（`exportArticleQuotes`）；
    - 卡片内每条引述继续保留单篇原块回跳、复制单条格式化引用与制作思源 riff 闪卡完整能力；
 3. 严格数据主权与架构分层契约：所有聚类与导出均为客户端只读计算与本地下载，不增加任何文档属性、不写入插件持久化存储。
+
+## D-0295（2026-10-20）阅读伴读 AI 结果与问答一键插入正文开头（T-3416）
+
+T-3416 承接方向五（有依据的阅读 AI）与同类产品对标（Readwise Ghost Reader 知识回流）：
+1. 块插入端点封装与缓存一致性：
+   - `src/api/client.ts` 封装 `prependBlockDomIds` 与 `prependBlockDom`，调用思源公开的 `/api/block/prependBlock` 将 DOM 块插入指定文档根块的子块首位；
+   - 在 `invalidateAfterSuccessfulKernelWrite` 将 `/api/block/prependBlock` 纳入写入后缓存失效白名单，自动刷新 SQL 查询与正文导出缓存；
+2. AI 引述块 DOM 纯函数构建：
+   - `src/domain/reader.ts` 新增 `buildAiCalloutBlockDom(text, options, escape)` 纯函数，按照思源原生 `<div data-type="NodeBlockquote" class="bq">` 标准结构构建带有专属标题（如 `✨ 全文总结（思源 AI）` 或 `✨ 本文问答`）与段落文本的引述块；
+3. 服务与 UI 交互闭环：
+   - `src/services/reader-ai.ts` 新增 `insertAiCalloutToDocument` 服务，完成文档 ID 校验与块插入；
+   - `src/ui/ReaderTab.svelte` 在 AI 伴读结果卡片与文章问答卡片分别接入「插入正文开头」动作，写入完成后派发数据变更并展示反馈提示；
+4. 严格数据主权与分层契约：AI 结果直接沉淀为用户思源正文块，不另外新增插件专有属性，插件内不保存正文副本；失败安全捕获并提示。

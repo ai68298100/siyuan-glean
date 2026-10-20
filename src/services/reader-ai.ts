@@ -4,9 +4,10 @@
  * 额度与富化共享（aiQuotaAvailable/recordAiUsage），关闭模式与失败静默降级。
  */
 import type { Plugin } from "siyuan";
-import { exportMdContent, querySql } from "../api/client";
+import { exportMdContent, prependBlockDom, querySql } from "../api/client";
 import { stripMarkdown } from "../domain/migrate";
-import { ARTICLE_QUESTION_CONTEXT_MAX_LENGTH, buildArticleQuestionPrompt, buildSummarizePrompt, buildTranslatePrompt, clampArticleQuestion, parseArticleQuestionResponse, type ArticleQuestionResult } from "../domain/reader";
+import { ARTICLE_QUESTION_CONTEXT_MAX_LENGTH, buildAiCalloutBlockDom, buildArticleQuestionPrompt, buildSummarizePrompt, buildTranslatePrompt, clampArticleQuestion, parseArticleQuestionResponse, type AiCalloutOptions, type ArticleQuestionResult } from "../domain/reader";
+import { escapeDomText } from "../domain/flashcard";
 import { parseClipAttrs } from "../domain/schema";
 import { activeAiSettings, aiQuotaAvailable, callLLM, enqueueEnrich, logAiEvent, recordAiUsage, type AiCallFailure } from "./enrich-service";
 import { readClipAttributeSnapshot, writeClip } from "./clip-store";
@@ -236,4 +237,19 @@ async function readerCall(
 export async function saveReaderSummary(plugin: Plugin, docId: string, text: string): Promise<{ indexSyncFailed: boolean }> {
     const result = await writeClip(plugin, docId, { summary: text });
     return { indexSyncFailed: result.indexSyncFailed === true };
+}
+
+/**
+ * 将 AI 伴读结果或文章提问回答作为引述块（Callout）插入文档正文开头（T-3416）。
+ * 返回新插入的引述块 ID。
+ */
+export async function insertAiCalloutToDocument(
+    docId: string,
+    text: string,
+    options: AiCalloutOptions,
+): Promise<string> {
+    if (!/^\d{14}-[0-9a-z]{7}$/.test(docId)) throw new Error("文档 ID 无效");
+    const dom = buildAiCalloutBlockDom(text, options, escapeDomText);
+    if (!dom) throw new Error("插入内容为空");
+    return prependBlockDom(docId, dom);
 }

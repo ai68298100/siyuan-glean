@@ -553,7 +553,7 @@ function focusHighlightRow(id: string): void {
                             </span>
                             {#if group.site}<span class="glean-highlights__article-site"> · {group.site}</span>{/if}
                             <span class="glean-chip">{t(i18n, "highlight.groupCount", { n: group.items.length })}</span>
-                            <div class="glean-highlights__article-actions" role="group" aria-label={t(i18n, "action.more")}>
+                            <div class="glean-highlights__article-actions" role="group" aria-label={t(i18n, "library.moreActions")}>
                                 <button type="button" class="glean-btn glean-btn--ghost" onclick={(e) => { e.stopPropagation(); openDoc(group.rootId); }}>{t(i18n, "action.openDoc")}</button>
                                 <button type="button" class="glean-btn glean-btn--ghost" disabled={exportBusy} onclick={(e) => { e.stopPropagation(); void copyArticleQuotes(group); }} title={t(i18n, "highlight.copyArticleQuotes")}>
                                     <svg class="glean-icon" aria-hidden="true"><use href="#iconGleanCopy" /></svg>

@@ -1,5 +1,11 @@
 # 进度（PROGRESS）
 
+## T-3416 阅读伴读 AI 结果与问答一键插入正文开头（2026-10-20）
+
+- [x] 正文前置块插入服务：`src/api/client.ts` 封装 `prependBlockDomIds` 与 `prependBlockDom`，调用思源 `/api/block/prependBlock` 端点，并在写入后白名单中加入该端点以自动刷新 SQL/正文缓存；`src/domain/reader.ts` 新增 `buildAiCalloutBlockDom` 纯函数，按照思源原生 `<div data-type="NodeBlockquote" class="bq">` 标准结构构建带有元信息标题与多段引述的 Callout DOM。
+- [x] AI 结果卡与问答卡交互接入：`src/services/reader-ai.ts` 新增 `insertAiCalloutToDocument`；`src/ui/ReaderTab.svelte` 在 AI 伴读结果卡片（总结/翻译）与文章提问问答卡片提供「插入正文开头」动作，插入成功后展示反馈并广播数据变更，失败优雅提示；新增 `reader.aiInsertCallout` 与 `reader.aiCalloutInserted` 双语键。
+- [x] 单测完备与架构闭环：`tests/reader-ai.test.mjs` 增加参数校验与前置块插入服务回归（53/53）；`tests/reader.test.ts` 增加 Callout DOM 构建与组件接线回归（13/13）。
+
 ## T-3415 摘录墙“按文章聚类”分组浏览与整篇引述导出（2026-10-20）
 
 - [x] 文章聚类纯函数与格式化：`src/domain/highlights.ts` 新增 `ArticleHighlightGroup` 接口、`groupHighlightsByArticle` 纯函数（按来源文章 `rootId` 聚合，保持出现顺序）与 `renderArticleHighlightsMarkdown`（整篇文章所有摘录的 Markdown 合集导出，含来源与确切块链接）。

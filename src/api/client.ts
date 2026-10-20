@@ -206,7 +206,8 @@ function invalidateAfterSuccessfulKernelWrite(route: string, body: Record<string
         case "/api/filetree/removeDoc":
             invalidateAllBlockReads();
             break;
-        case "/api/block/insertBlock": {
+        case "/api/block/insertBlock":
+        case "/api/block/prependBlock": {
             invalidateSqlReads();
             const parentId = typeof payload.parentID === "string" ? payload.parentID : "";
             invalidateReadFlights("/api/block/getChildBlocks", (key) => !parentId || key === `child-blocks:${parentId}`);
@@ -724,4 +725,21 @@ export async function insertBlockAfterIds(previousBlockId: string, dom: string):
 /** 在指定块之后插入同级 DOM 块（兼容既有调用方）。 */
 export async function insertBlockAfter(previousBlockId: string, dom: string): Promise<string> {
     return (await insertBlockAfterIds(previousBlockId, dom))[0];
+}
+
+/** 向父块开头插入 DOM 块，返回事务中所有新节点 ID（按 DOM 操作顺序）。 */
+export async function prependBlockDomIds(parentBlockId: string, dom: string): Promise<string[]> {
+    const data = await kernelPost<unknown>('/api/block/prependBlock', {
+        dataType: 'dom',
+        parentID: parentBlockId,
+        data: dom,
+    });
+    const ids = extractInsertBlockIds(data);
+    if (ids.length === 0) throw new Error('prependBlock 未返回节点 ID');
+    return ids;
+}
+
+/** 向父块开头插入 DOM 块（返回首个节点 ID）。 */
+export async function prependBlockDom(parentBlockId: string, dom: string): Promise<string> {
+    return (await prependBlockDomIds(parentBlockId, dom))[0];
 }

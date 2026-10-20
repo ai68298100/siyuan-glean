@@ -33,6 +33,30 @@ export function buildQuoteBlockDom(text: string, escape: (value: string) => stri
     return `<div data-type="NodeBlockquote" class="bq">${inner}</div>`;
 }
 
+export interface AiCalloutOptions {
+    title: string;
+    source?: string;
+}
+
+/**
+ * 构建用于插入正文开头的 AI 分析引述块（Callout）DOM（T-3416）。
+ * 顶部带加粗标题与来源标记，正文按段落包裹。
+ */
+export function buildAiCalloutBlockDom(
+    text: string,
+    options: AiCalloutOptions,
+    escape: (value: string) => string,
+): string {
+    const paragraphs = quoteParagraphs(text);
+    if (paragraphs.length === 0) return "";
+    const metaTitle = options.source ? `✨ ${options.title}（${options.source}）` : `✨ ${options.title}`;
+    const headerP = `<div data-type="NodeParagraph" class="p"><strong>${escape(metaTitle)}</strong></div>`;
+    const bodyPs = paragraphs
+        .map((line) => `<div data-type="NodeParagraph" class="p">${escape(line)}</div>`)
+        .join("");
+    return `<div data-type="NodeBlockquote" class="bq">${headerP}${bodyPs}</div>`;
+}
+
 /** 全文总结 prompt：只输出总结正文，不带寒暄与前缀。 */
 export function buildSummarizePrompt(title: string, plain: string): string {
     const heading = title.trim() ? `《${title.trim()}》` : "这篇文章";

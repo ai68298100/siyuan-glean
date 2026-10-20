@@ -34,7 +34,7 @@ import { aiFailureKey } from "../libs/ai-feedback";
     import { makeQuoteCardPreview } from "./flashcard-dialog";
     import { findRelatedOutcome, type RelatedReason } from "../services/enrich-service";
     import { pickNextUnread } from "../services/resurface-service";
-    import { articleQuestionEnabled, clearReaderMarkdownCache, readerAiEnabled, readerArticleQuestion, readerSummarize, readerTranslate, saveReaderSummary } from "../services/reader-ai";
+    import { articleQuestionEnabled, clearReaderMarkdownCache, insertAiCalloutToDocument, readerAiEnabled, readerArticleQuestion, readerSummarize, readerTranslate, saveReaderSummary } from "../services/reader-ai";
     import ClipStatusActions from "./ClipStatusActions.svelte";
     import ClipRankControls from "./ClipRankControls.svelte";
     import { openFormattingDialog } from "./formatting-dialog";
@@ -223,6 +223,7 @@ import { aiFailureKey } from "../libs/ai-feedback";
     let aiResult = $state<{ kind: "summarize" | "translate"; action: string; text: string; scope: "full" | "selection" } | null>(null);
     let summarySaving = $state(false);
     let summarySaved = $state(false);
+    let insertingCallout = $state(false);
     let question = $state("");
     let questionMode = $state<"full" | "selection">("full");
     let questionResult = $state<{ answer: string; evidence: string[]; truncated: boolean; scope: "full" | "selection" } | null>(null);
@@ -826,6 +827,45 @@ import { aiFailureKey } from "../libs/ai-feedback";
         }
     }
 
+    async function insertAiResultCallout(): Promise<void> {
+        if (!docId || !aiResult || insertingCallout) return;
+        insertingCallout = true;
+        try {
+            await insertAiCalloutToDocument(docId, aiResult.text, {
+                title: aiResult.action,
+                source: channelLabel,
+            });
+            showMessage(t(i18n, "reader.aiCalloutInserted"), 3000);
+            facade.notifyDataChanged();
+        } catch (error) {
+            console.warn("[glean] AI 结果插入正文失败:", error);
+            showMessage(t(i18n, "msg.actionFailed"), 3000);
+        } finally {
+            insertingCallout = false;
+        }
+    }
+
+    async function insertQuestionCallout(): Promise<void> {
+        if (!docId || !questionResult || insertingCallout) return;
+        insertingCallout = true;
+        const body = questionResult.evidence.length > 0
+            ? `${questionResult.answer}\n\n${questionResult.evidence.map((line) => `> ${line}`).join("\n")}`
+            : questionResult.answer;
+        try {
+            await insertAiCalloutToDocument(docId, body, {
+                title: t(i18n, "reader.articleQuestion.action"),
+                source: question ? `“${question}”` : undefined,
+            });
+            showMessage(t(i18n, "reader.aiCalloutInserted"), 3000);
+            facade.notifyDataChanged();
+        } catch (error) {
+            console.warn("[glean] 问答结果插入正文失败:", error);
+            showMessage(t(i18n, "msg.actionFailed"), 3000);
+        } finally {
+            insertingCallout = false;
+        }
+    }
+
     function setMode(next: "read" | "edit"): void {
         if (mode === next || !protyle) return;
         mode = next;
@@ -1390,6 +1430,9 @@ import { aiFailureKey } from "../libs/ai-feedback";
                                                 {t(i18n, summarySaved ? "reader.aiSummarySaved" : "reader.aiSaveSummary")}
                                             </button>
                                         {/if}
+                                        <button class="glean-btn glean-btn--ghost" disabled={insertingCallout} onclick={() => void insertAiResultCallout()}>
+                                            {t(i18n, "reader.aiInsertCallout")}
+                                        </button>
                                         <button class="glean-btn glean-btn--ghost" onclick={() => { aiResult = null; }}>
                                             {t(i18n, "action.close")}
                                         </button>
@@ -1408,6 +1451,7 @@ import { aiFailureKey } from "../libs/ai-feedback";
                                     {:else}<div class="glean-reader__hint">{t(i18n, "reader.articleQuestion.insufficient")}</div>{/if}
                                     <div class="glean-reader__ops">
                                         <button class="glean-btn glean-btn--ghost" onclick={() => void copyText(`${questionResult!.answer}\n\n${questionResult!.evidence.join("\n")}`)}>{t(i18n, "reader.copy")}</button>
+                                        <button class="glean-btn glean-btn--ghost" disabled={insertingCallout} onclick={() => void insertQuestionCallout()}>{t(i18n, "reader.aiInsertCallout")}</button>
                                         <button class="glean-btn glean-btn--ghost" onclick={() => { questionResult = null; }}>{t(i18n, "action.close")}</button>
                                     </div>
                                 </div>
