@@ -207,3 +207,11 @@ test("SnapshotGovernance支持window级别Escape忙碌守卫（T-3412）", () =>
     assert.match(snapshot, /<svelte:window onkeydown=\{handleWindowKeydown\} \/>/);
     assert.match(snapshot, /if \(event\.key === "Escape" && \(busy \|\| loading\)\) \{[\s\S]*?event\.preventDefault\(\);[\s\S]*?event\.stopPropagation\(\);/);
 });
+
+test("LibraryBatchBar支持批量条内部获焦时Escape快捷取消选择（T-3367）", () => {
+    const batchBar = read("src/ui/LibraryBatchBar.svelte");
+    assert.match(batchBar, /<svelte:window onkeydown=\{handleWindowKeydown\} \/>/);
+    assert.match(batchBar, /if \(event\.key === "Escape" && !busy && selectedCount > 0\) \{/);
+    assert.match(batchBar, /if \(barEl && document\.activeElement && barEl\.contains\(document\.activeElement\)\) \{/);
+    assert.match(batchBar, /onClear\(\);/);
+});

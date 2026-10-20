@@ -1,5 +1,11 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-20 批量选择范围与底部操作在看板多列与窄屏移动端的无障碍走查）
+
+- T-3367/D-0292：承接批量选择范围与底部操作在各视图与屏幕断点下的无障碍与交互走查。在 `src/ui/LibraryBatchBar.svelte` 挂载 `<svelte:window>` 级别 Escape 监听；在用户通过 Tab 键盘导航或点击进入批量条内部（`barEl && barEl.contains(document.activeElement)`），且处于非忙碌（`!busy`）态并存在选中项时，按 Escape 立即触发 `onClear()` 清空选择并阻断冒泡；联动 `DockPanel.svelte` 中的焦点保护机制（`restoreLibrarySelectionFocus()`），在批量操作条卸载后安全将焦点回退到可见搜索输入框或折叠搜索按钮；批量条继续维持在正常流中占位并在所有移动宽度（含平板/横屏）保留左右安全区（`--glean-safe-left` / `--glean-safe-right`），避免窄屏遮挡或横向溢出。纯组件层焦点路由与按键事件拦截，不修改底层数据契约、文章属性、端点或持久化存储。
+- 全量门禁闭环：定向 `tests/library-selection.test.ts` 29/29、`tests/modal-escape.test.ts`、完整 `pnpm test`、`tsc` 与 `svelte-check` 0 错误 0 警告、`pnpm build`、`pnpm check:release`、`pnpm perf:check`、`pnpm visual:check`（24 项仍待真实宿主）与任务账本检查均通过。真实宿主批量分拣与键盘走查仍归 B-0002。
+- 下一步：按当前执行板顺序推进下一个任务（如 T-3413 读库与今日拾遗键盘流快捷设置优先级与评分，或按作者点单继续）。版本保持 1.3.7，本轮不打 tag、不发布、不推送。
+
 ## 当前有效交接（2026-10-20 快照治理面板 Escape 忙碌守卫与键盘交互闭环）
 
 - T-3412/D-0291：承接全插件键盘交互走查（T-1792）与快照治理维护流打磨。在 `src/ui/SnapshotGovernance.svelte` 挂载 `<svelte:window>` 级别 Escape 监听；在批量补拍快照（`busy` 为 true，包括首次批量补拍与重试失败文章）或对账扫描加载中（`loading` 为 true）时，按下 Escape 拦截并阻止冒泡（`event.preventDefault(); event.stopPropagation();`），避免外部设置弹窗意外关闭导致中途卸载；当处于空闲状态时，不阻止 Escape，允许正常由外层 `SettingsView.svelte` 处理关闭。纯组件事件响应与状态守卫，不修改底层数据契约、文章属性、端点或持久化存储。

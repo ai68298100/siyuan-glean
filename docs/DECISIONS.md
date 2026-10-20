@@ -1603,3 +1603,14 @@ T-3412 承接全插件键盘无障碍交互统一收口（T-1792）与快照治�
 2. 空闲安全交还宿主：
    - 当快照治理面板处于扫描完毕且非忙碌的空闲状态时，不拦截 Escape，允许正常由外层 `SettingsView.svelte` 处理关闭并检查未保存脏草稿；
 3. 严格数据主权与架构分层契约：纯组件生命周期内的视图事件拦截，不修改思源 API 端点契约、快照块存储规范（`custom-clip-snapshot`）或任何全局状态。
+
+## D-0292（2026-10-20）批量操作栏内部获焦 Escape 快捷取消选择与焦点可达性闭环（T-3367）
+
+T-3367 承接批量选择范围与底部操作在各视图与屏幕断点下的无障碍与交互走查：
+1. 批量条内部获焦 Escape 快捷取消选择：
+   - 在 `src/ui/LibraryBatchBar.svelte` 挂载 `<svelte:window>` 级别 Escape 监听；
+   - 当用户通过 Tab 键盘导航或点击进入批量条内部（`barEl && barEl.contains(document.activeElement)`），且处于非忙碌（`!busy`）态并存在选中项时，按下 Escape 触发 `event.preventDefault(); event.stopPropagation(); onClear();` 立即清空会话选择；
+   - 联动 `DockPanel.svelte` 中的焦点保护机制（`restoreLibrarySelectionFocus()`），在批量操作条卸载后安全将焦点回退到可见搜索输入框或折叠搜索按钮，彻底解决用户获焦在批量条上时无法通过 Escape 快速取消选择或丢焦退到 body 的问题；
+2. 批量忙碌与数据安全保护：
+   - 当正在批量应用状态写入（`busy === true`）期间，严格忽略 Escape 键，避免中途并发清空选择导致写回结果与界面集合状态不一致；
+3. 严格数据主权与架构契约：纯组件层焦点路由与按键事件拦截，不改变底层文档属性、数据库或思源内核端点。

@@ -1,5 +1,11 @@
 # 进度（PROGRESS）
 
+## T-3367 批量选择范围与底部操作在看板多列与窄屏移动端的无障碍走查（2026-10-20）
+
+- [x] 批量条内部获焦 Escape 快捷取消选择：`src/ui/LibraryBatchBar.svelte` 挂载 `<svelte:window>` 级别 Escape 监听；在用户通过 Tab 键盘导航或点击进入批量条内部（`barEl && barEl.contains(document.activeElement)`），且处于非忙碌（`!busy`）态并存在选中项时，按 Escape 立即触发 `onClear()` 清空选择并阻断冒泡。
+- [x] 焦点回退保护与移动安全区稳固：联动 `DockPanel.svelte` 中的焦点保护机制（`restoreLibrarySelectionFocus()`），在批量操作条卸载后安全将焦点回退到可见搜索输入框或折叠搜索按钮；批量条继续维持在正常流中占位并在所有移动宽度（含平板/横屏）保留左右安全区（`--glean-safe-left` / `--glean-safe-right`），避免窄屏遮挡或横向溢出。
+- [x] 单测完备与架构闭环：`tests/library-selection.test.ts` 与 `tests/modal-escape.test.ts` 补充针对 `LibraryBatchBar` 获焦时 Escape 快捷清空与焦点回退契约单测（29/29 全数通过）。
+
 ## T-3412 快照治理面板 Escape 忙碌守卫与键盘交互闭环（2026-10-20）
 
 - [x] 快照批量补拍与对账扫描忙碌锁定：`src/ui/SnapshotGovernance.svelte` 挂载 `<svelte:window>` 级别 Escape 监听；在批量补拍快照（`busy` 为 true）或对账扫描加载中（`loading` 为 true）时，按下 Escape 拦截并阻止冒泡（`event.preventDefault(); event.stopPropagation();`），避免外部设置弹窗意外关闭导致中途卸载。

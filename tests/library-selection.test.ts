@@ -288,3 +288,11 @@ test("列表、看板与移动卡片的选择控件都提供可见提示和可�
     const mobileCard = /<label class="glean-card__check" title=\{t\(i18n, "library\.selectArticle"\)\}>[\s\S]*?<input[\s\S]*?aria-label=\{t\(i18n, "library\.selectArticle"\)\}[\s\S]*?onclick=\{\(event\) => event\.stopPropagation\(\)\}/;
     assert.match(dock, mobileCard);
 });
+
+test("批量条键盘与焦点：获焦在批量条内部时按 Escape 安全取消选择并回退焦点", () => {
+    const rawBar = readFileSync(new URL("../src/ui/LibraryBatchBar.svelte", import.meta.url), "utf8");
+    assert.match(rawBar, /<svelte:window onkeydown=\{handleWindowKeydown\} \/>/);
+    assert.match(rawBar, /if \(event\.key === "Escape" && !busy && selectedCount > 0\) \{/);
+    assert.match(rawBar, /if \(barEl && document\.activeElement && barEl\.contains\(document\.activeElement\)\) \{/);
+    assert.match(rawBar, /onClear\(\);/);
+});
