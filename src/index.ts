@@ -74,6 +74,7 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
     private readonly pendingReaderDocIds = new Map<string, string>();
     private readonly destroyedReaderTabIds = new Set<string>();
     private readerOpenRequest = 0;
+    private topBarElement?: HTMLElement;
     private readonly openWorkbenchPopupSingleton = createDialogSingleton(
         (initialPreviewId: string | undefined, onClose: () => void) => svelteDialog({
             title: t(this.i18n, "workbench.popupTitle"),
@@ -225,6 +226,10 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
         // M5：收集箱右键"迁入读库"
         this.eventBus.on("open-menu-inbox", this.onMenuInbox);
 
+        // 官方自定义协议 siyuan://plugins/siyuan-glean 与云同步完成事件
+        this.eventBus.on("open-siyuan-url-plugin", this.onPluginUrl);
+        this.eventBus.on("sync-end", this.onSyncEnd);
+
         // M3：预置 AI 动作（总结/要点/反方观点），幂等静默
         if (this.settings.ai.presetActions) {
             void ensurePresetActions().catch(() => undefined);
@@ -302,12 +307,28 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
         }
 
         if (this.isMobile) return;
-        this.addTopBar({
+        if (this.topBarElement) return;
+        this.topBarElement = this.addTopBar({
             icon: "iconGleanWheat",
             title: t(this.i18n, "pluginName"),
             position: "right",
             callback: () => this.openPanel(),
         });
+    }
+
+    /**
+     * 官方前端插件生命周期契约（覆盖基类空实现，防止数据同步或多窗口写入时整插件被暴力卸载重载）：
+     * 收到多端云同步（sync）或外部窗口覆写（overwrite）时，平滑重新拉取配置与索引并通知 UI 响应式就地刷新。
+     */
+    async onDataChanged(reason?: "sync" | "overwrite"): Promise<void> {
+        void reason;
+        if (!this.loaded) return;
+        try {
+            this.settings = await loadSettings(this);
+            this.notifyDataChanged();
+        } catch (error) {
+            console.warn("[glean] onDataChanged 刷新失败:", error);
+        }
     }
 
     async onunload() {
@@ -331,8 +352,11 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
         this.disposeBridge = null;
         this.eventBus.off("open-menu-content", this.onMenuContent);
         this.eventBus.off("open-menu-inbox", this.onMenuInbox);
+        this.eventBus.off("open-siyuan-url-plugin", this.onPluginUrl);
+        this.eventBus.off("sync-end", this.onSyncEnd);
         this.disposeReadingContext?.();
         this.disposeReadingContext = null;
+        this.topBarElement = undefined;
         // dock/tab 的 Svelte 实例由 addDock/addTab 的 destroy 回调负责卸载
     }
 
@@ -777,6 +801,34 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
         if (duplicates > 0) showMessage(`${t(this.i18n, "inbox.duplicate")}（${duplicates}）`, 3500);
         this.notifyDataChanged();
         void ok;
+    };
+
+    private readonly onSyncEnd = (): void => {
+        if (!this.loaded) return;
+        this.notifyDataChanged();
+    };
+
+    private readonly onPluginUrl = (event: { detail?: { url?: string } }): void => {
+        if (!this.loaded) return;
+        const raw = event?.detail?.url;
+        if (!raw || typeof raw !== "string") return;
+        try {
+            const parsed = new URL(raw);
+            const action = parsed.searchParams.get("action");
+            if (action === "workbench" || action === "library" || action === "resurface" || action === "highlights") {
+                this.openPanel();
+            } else if (action === "settings") {
+                this.openSettings();
+            } else if (action === "open") {
+                const id = parsed.searchParams.get("id");
+                if (id) this.openReadingDocument(id);
+            } else if (action === "capture") {
+                const docId = this.currentDocId();
+                if (docId) void captureDocument(this, docId, { src: "manual" }).then(() => this.notifyDataChanged());
+            }
+        } catch {
+            // 忽略非标准 URL
+        }
     };
 
     private readonly onMenuInbox = (event: { detail: { ids?: string[]; menu: { addItem: (item: unknown) => void } } }): void => {

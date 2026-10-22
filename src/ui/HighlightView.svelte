@@ -60,6 +60,7 @@ let generation = 0;
 let relatedGeneration = 0;
 let loadedContext = "";
 let tagAliasGeneration = 0;
+let allGroupsOpen = $state(true);
 
 const facets = $derived(highlightFacets(items));
 const filtered = $derived(filterHighlights(items, { search, site, tag, aiTag, sort, direction }));
@@ -466,6 +467,20 @@ function focusHighlightRow(id: string): void {
             <button aria-pressed={scope === "library"} disabled={exportBusy} onclick={() => scope = "library"}>{t(i18n, "highlight.allLibrary")}</button>
             <button aria-pressed={viewMode === "timeline"} disabled={exportBusy} onclick={() => viewMode = "timeline"}>{t(i18n, "highlight.viewTimeline")}</button>
             <button aria-pressed={viewMode === "article"} disabled={exportBusy} onclick={() => viewMode = "article"}>{t(i18n, "highlight.viewArticle")}</button>
+            {#if viewMode === "article" && articleGroups.length > 0}
+                <button
+                    type="button"
+                    class="glean-highlights__fold-toggle"
+                    disabled={exportBusy}
+                    onclick={() => allGroupsOpen = !allGroupsOpen}
+                    title={t(i18n, allGroupsOpen ? "highlight.collapseAll" : "highlight.expandAll")}
+                    aria-label={t(i18n, allGroupsOpen ? "highlight.collapseAll" : "highlight.expandAll")}
+                >
+                    <svg class="glean-icon glean-icon--xs" aria-hidden="true">
+                        <use href={allGroupsOpen ? "#iconGleanCollapseAll" : "#iconGleanExpandAll"} />
+                    </svg>
+                </button>
+            {/if}
             <button class="glean-highlights__refresh" disabled={loading || exportBusy} onclick={refresh}>{t(i18n, "action.refresh")}</button>
         </div>
     </div>
@@ -571,7 +586,7 @@ function focusHighlightRow(id: string): void {
         {:else}
             <div class="glean-highlights__article-groups">
                 {#each articleGroups as group (group.rootId)}
-                    <details class="glean-highlights__article-group" open>
+                    <details class="glean-highlights__article-group" open={allGroupsOpen}>
                         <summary class="glean-highlights__article-header">
                             <span class="glean-highlights__article-title" title={group.title || t(i18n, "panel.untitled")}>
                                 {group.title || t(i18n, "panel.untitled")}

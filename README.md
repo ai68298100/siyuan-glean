@@ -8,6 +8,17 @@
 
 [English](README.en-US.md) · [下载最新版](https://github.com/ai68298100/siyuan-glean/releases/latest) · [能力矩阵](docs/CAPABILITY-MATRIX.md) · [反馈与问题](https://github.com/ai68298100/siyuan-glean/issues/new/choose)
 
+## v1.3.9 更新（2026-10-22）
+
+本次版本重点带来思源官方最新 Petal 插件生命周期契约对齐、伴读四维指标看板与时长分级微标、批注卡片色彩即时轮换与多色筛选、长文回到顶部悬浮胶囊，以及摘录聚类视图一键全部折叠/展开。
+
+**新增与体验增强：**
+
+- **官方 Petal 生命周期契约深度对齐**：覆盖实现 `onDataChanged`，免疫多端同步或外部覆写时的整插件暴力重载；`onLayoutReady` 增加单实例幂等防护，杜绝二次触发重复挂载顶栏按钮；接入官方 `open-siyuan-url-plugin` 协议与 `sync-end` 云同步完成秒级就地刷新。
+- **伴生栏阅读指标分级与批注色彩管理**：四维看板接入 `resolveReadingTimeTier` 预估时长分档圆点（短文绿色/中篇蓝色/长篇橙色）；批注卡片高亮色点支持点击直接循环切换四色（黄/红/蓝/绿）并写入思源块级 IAL，提供就地微型颜色筛选器；指标胶囊下方呈现用户标签（`#tag`）与 AI 标签（`✨aiTag`）胶囊展台。
+- **长文深读平滑回到顶部悬浮胶囊**：阅读进度超过 12% 时，右下角平滑浮现极简圆环回到顶部悬浮按钮（`.glean-reader__back-to-top`），点击平滑平移至文章开头。
+- **摘录聚类视图一键全部折叠/展开**：全局摘录墙在按文章聚类视图模式下，工具栏提供「全部折叠 / 全部展开」动作按钮（`allGroupsOpen`）。
+
 ## v1.3.8 更新（2026-10-22）
 
 本次版本重点带来微信公众号文章垂直深度体验优化、正文全文高亮搜索、划词悬浮胶囊工具条与思考批注、摘录双向精准定位、Bento 连续打卡与阅读成就系统，以及设置大面板全量升级。
@@ -271,7 +282,7 @@
 
 ## 兼容性与验收
 
-本次发布为 [v1.3.8](https://github.com/ai68298100/siyuan-glean/releases/tag/v1.3.8)。自动门禁与发布证据见[发布候选复核](docs/RELEASE-CANDIDATE.md)；这不代表所有真实环境都已验收。
+本次发布为 [v1.3.9](https://github.com/ai68298100/siyuan-glean/releases/tag/v1.3.9)。自动门禁与发布证据见[发布候选复核](docs/RELEASE-CANDIDATE.md)；这不代表所有真实环境都已验收。
 
 桌面宿主、Android/移动端、浏览器前端、真实模型、官方剪藏、外部文件和订阅服务仍按环境分别验收。使用前提、降级方式和阻塞项以[能力矩阵](docs/CAPABILITY-MATRIX.md)及[已知阻塞](docs/BLOCKERS.md)为准；请勿把单元测试或隔离 E2E 当作真机通过。
 

@@ -126,6 +126,7 @@ import { aiFailureKey } from "../libs/ai-feedback";
     let outlineGeneration = 0;
     let currentBookmarkBlockId = $state<string | null>(null);
     let pendingScrollBlockId = $state<string | null>(null);
+    const showBackToTop = $derived((readingPercentage ?? 0) > 12);
     let companionTab = $state<"all" | "outline" | "notes" | "ai">("all");
     let highlightColorFilter = $state<string>("");
     let authorArticles = $state<Array<{ id: string; title: string }>>([]);
@@ -475,6 +476,11 @@ import { aiFailureKey } from "../libs/ai-feedback";
             return;
         }
         if (docId) void openTab({ app: facade.pluginInstance.app, doc: { id }, keepCursor: false });
+    }
+
+    function scrollToTop(): void {
+        const scroller = protyleHost?.querySelector<HTMLElement>(".protyle-content, .protyle-wysiwyg") ?? protyleHost;
+        scroller?.scrollTo({ top: 0, behavior: "smooth" });
     }
 
     async function cardFromHighlight(item: HighlightItem): Promise<void> {
@@ -847,9 +853,10 @@ import { aiFailureKey } from "../libs/ai-feedback";
         if (pendingScrollBlockId && protyleHost) {
             const target = pendingScrollBlockId;
             pendingScrollBlockId = null;
-            window.setTimeout(() => {
-                scrollToHighlight(target);
+            const timer = window.setTimeout(() => {
+                if (mounted && docId) scrollToHighlight(target);
             }, 350);
+            return () => window.clearTimeout(timer);
         }
     });
 
@@ -880,8 +887,8 @@ import { aiFailureKey } from "../libs/ai-feedback";
                 if (parts.length >= 2) {
                     const parentHpath = "/" + parts.slice(0, -1).join("/");
                     const sameSeries = allClips
-                        .filter((c) => c.id !== docId && c.hpath.startsWith(parentHpath + "/"))
-                        .sort((a, b) => a.hpath.localeCompare(b.hpath) || (a.time || "").localeCompare(b.time || ""))
+                        .filter((c) => c && c.id !== docId && typeof c.hpath === "string" && c.hpath.startsWith(parentHpath + "/"))
+                        .sort((a, b) => (a.hpath || "").localeCompare(b.hpath || "") || (a.time || "").localeCompare(b.time || ""))
                         .slice(0, 8)
                         .map((c) => ({ id: c.id, title: c.title || t(i18n, "panel.untitled") }));
                     seriesArticles = sameSeries;
@@ -896,7 +903,7 @@ import { aiFailureKey } from "../libs/ai-feedback";
             const author = authorName?.trim().toLowerCase();
             if (author) {
                 const sameAuthor = allClips
-                    .filter((c) => c.id !== docId && (c.author || "").trim().toLowerCase() === author && !seriesArticles.some((s) => s.id === c.id))
+                    .filter((c) => c && c.id !== docId && (c.author || "").trim().toLowerCase() === author && !seriesArticles.some((s) => s.id === c.id))
                     .sort((a, b) => (b.time || "").localeCompare(a.time || ""))
                     .slice(0, 5)
                     .map((c) => ({ id: c.id, title: c.title || t(i18n, "panel.untitled") }));
@@ -1504,6 +1511,17 @@ import { aiFailureKey } from "../libs/ai-feedback";
                     </button>
                 </div>
             {/if}
+            {#if showBackToTop}
+                <button
+                    type="button"
+                    class="glean-reader__back-to-top"
+                    onclick={scrollToTop}
+                    title={t(i18n, "reader.backToTop")}
+                    aria-label={t(i18n, "reader.backToTop")}
+                >
+                    <svg class="glean-icon" aria-hidden="true"><use href="#iconGleanArrowUp" /></svg>
+                </button>
+            {/if}
         {:else}
             <div class="glean-reader__empty">
                 <div class="glean-reader__empty-art">📖</div>
@@ -1779,7 +1797,7 @@ import { aiFailureKey } from "../libs/ai-feedback";
                         <div class="glean-reader__hint">{t(i18n, "reader.highlightsEmpty")}</div>
                     {:else}
                         {#if highlightColorsPresent.length > 1}
-                            <div class="glean-reader__highlight-color-filters" role="group" aria-label="按颜色筛选批注">
+                            <div class="glean-reader__highlight-color-filters" role="group" aria-label={t(i18n, "reader.filterByColor")}>
                                 <button
                                     type="button"
                                     class="glean-reader__color-filter-btn"
@@ -1793,7 +1811,7 @@ import { aiFailureKey } from "../libs/ai-feedback";
                                             class="glean-reader__color-filter-btn glean-reader__color-filter-btn--dot"
                                             class:glean-reader__color-filter-btn--active={highlightColorFilter === c}
                                             onclick={() => highlightColorFilter = highlightColorFilter === c ? "" : c}
-                                            title={`筛选 ${c}`}
+                                            title={t(i18n, "reader.filterColorItem", { color: c })}
                                         >
                                             <span class="glean-reader__highlight-dot glean-reader__highlight-dot--{c}" aria-hidden="true"></span>
                                         </button>
@@ -1808,7 +1826,7 @@ import { aiFailureKey } from "../libs/ai-feedback";
                                         <button
                                             type="button"
                                             class="glean-reader__highlight-dot-btn"
-                                            title="点击切换高亮颜色"
+                                            title={t(i18n, "reader.cycleColorHint")}
                                             onclick={(e) => { e.stopPropagation(); void cycleHighlightColor(hl); }}
                                         >
                                             <span class="glean-reader__highlight-dot glean-reader__highlight-dot--{hl.color || 'yellow'}" aria-hidden="true"></span>

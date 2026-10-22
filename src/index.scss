@@ -1960,6 +1960,7 @@ mark.glean-search-highlight {
 
 /* 伴读栏顶部导航分段切换 */
 .glean-reader__side-nav {
+    flex-shrink: 0;
     display: flex;
     align-items: center;
     gap: 4px;
@@ -2006,6 +2007,7 @@ mark.glean-search-highlight {
 
 /* 伴读栏顶部阅读指标胶囊 */
 .glean-reader__metric-capsule {
+    flex-shrink: 0;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -2047,6 +2049,7 @@ mark.glean-search-highlight {
 }
 
 .glean-reader__tags-bar {
+    flex-shrink: 0;
     display: flex;
     flex-wrap: wrap;
     gap: 4px;
@@ -2212,7 +2215,7 @@ mark.glean-search-highlight {
 
 .glean-reader__outline-item--active .glean-reader__outline-tag {
     background: var(--b3-theme-primary);
-    color: #fff;
+    color: var(--b3-theme-on-primary);
     opacity: 1;
 }
 
@@ -2254,6 +2257,36 @@ mark.glean-search-highlight {
     transition: width 0.15s ease-out;
     pointer-events: none;
     border-radius: 0 2px 2px 0;
+}
+
+.glean-reader__back-to-top {
+    position: absolute;
+    right: var(--glean-space-4);
+    bottom: var(--glean-space-4);
+    z-index: var(--glean-z-sticky);
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--b3-theme-surface);
+    color: var(--b3-theme-on-surface);
+    border: 1px solid var(--glean-border-soft);
+    box-shadow: var(--glean-shadow-card);
+    cursor: pointer;
+    transition: transform var(--glean-duration-fast) var(--glean-ease-out), background var(--glean-duration-fast) ease, color var(--glean-duration-fast) ease;
+    animation: glean-slide-up 0.18s var(--glean-ease-spring);
+
+    &:hover {
+        background: var(--b3-theme-primary);
+        color: var(--b3-theme-on-primary);
+        transform: translateY(-2px);
+    }
+
+    &:active {
+        transform: scale(0.92);
+    }
 }
 
 .glean-reader__highlights-list {
@@ -9295,6 +9328,20 @@ mark.glean-search-highlight {
     margin-left: var(--glean-space-micro);
     padding-inline: var(--glean-space-2-5);
     color: var(--b3-theme-on-surface);
+}
+
+.glean-highlights__tools--scope .glean-highlights__fold-toggle {
+    padding: var(--glean-space-1) var(--glean-space-1-5);
+    color: var(--b3-theme-on-surface);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--glean-radius-sm);
+
+    &:hover {
+        color: var(--b3-theme-primary);
+        background: color-mix(in srgb, var(--b3-theme-on-surface) 6%, transparent);
+    }
 }
 
 .glean-highlights__items {

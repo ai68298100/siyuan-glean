@@ -200,8 +200,8 @@ export function groupHighlightsByArticle(items: readonly HighlightItem[]): Artic
                 title: item.title,
                 site: item.site,
                 url: item.url,
-                tags: [...item.tags],
-                aiTags: [...item.aiTags],
+                tags: item.tags ? [...item.tags] : [],
+                aiTags: item.aiTags ? [...item.aiTags] : [],
                 items: [item],
             });
         }

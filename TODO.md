@@ -125,6 +125,10 @@
 
 - [◐] **T-3440**（P2，2026-10-22）伴生栏文章分类标签横向胶囊展台与上下文数据层扩展：`clip-store.ts`（`readClipContext`）接入 `parseUserTags` 与 `attrs.aiTags` 补充文章级标签投影（`tags` 与 `aiTags`）；`ReaderTab.svelte` 伴生栏在指标胶囊下方呈现文章级用户标签与 AI 标签微胶囊网格（`.glean-reader__tags-bar`），消除伴读视图看不到文章分类标签的体验盲区；单测与门禁完备。代码状态：完成；隔离验证：`tests/reader.test.ts` 14/14、`tests/clip-store.test.ts` 48/48、`tsc` 与 `svelte-check` 0 错误 0 警告；真实验收：待 B-0002 真实文章多标签呈现走查；延后原因：真实宿主标签交互仍归 B-0002。
 
+- [◐] **T-3441**（P1，2026-10-22）思源官方最新 Petal 插件生命周期契约对齐与生态联动加固：`index.ts`（`LvGleanPlugin`）覆盖实现 `onDataChanged(reason?: "sync" | "overwrite")`，彻底免疫思源底层 `loader.ts` 默认将未覆盖实例整插件暴力重载（`requestReload`）的体验缺陷；`onLayoutReady` 增加 `topBarElement` 引用记录与幂等性防护，杜绝二次触发重复挂载顶栏按钮；接入官方 `open-siyuan-url-plugin` 事件实现外部快捷唤起，接入 `sync-end` 事件实现多端同步完成秒级自动刷新；单测与门禁完备。代码状态：完成；隔离验证：`tests/lifecycle-contract.test.ts` 3/3、`tests/reader-acceptance.test.ts` 30/30、`tsc` 与 `svelte-check` 0 错误 0 警告；真实验收：待 B-0002 真实思源云同步走查；延后原因：真实多设备同步仍归 B-0002。
+
+- [◐] **T-3442**（P2，2026-10-22）长文深读平滑回到顶部悬浮胶囊与摘录聚类一键全部折叠/展开（操作流深度优化）：`ReaderTab.svelte` 在阅读进度超过 12% 时右下角平滑浮现极简圆环回到顶部悬浮按钮（`scrollToTop` 与 `.glean-reader__back-to-top`）；`HighlightView.svelte` 聚类视图工具栏提供「全部折叠 / 全部展开」动作按钮（`allGroupsOpen`）；单测与门禁完备。代码状态：完成；隔离验证：`tests/reader.test.ts` 14/14、`tests/highlights.test.ts` 14/14、`tsc` 与 `svelte-check` 0 错误 0 警告；真实验收：待 B-0002 真实万字长文往返滚动走查；延后原因：真实宿主编辑器滚动跟随仍归 B-0002。
+
 
 - [◐] **T-3367**（P1，2026-10-18）批量选择范围与底部操作可达性：保留跨筛选选择，显示总数及筛选外数量，提供仅保留当前筛选、追加已显示文章和清空入口；三画布共用正常流批量条，获焦时按 Escape 快捷取消选择并安全回退焦点；移动窄屏保留左右安全区。代码状态：实现完成，契约见 D-0247/D-0292，不新增属性、端点或持久化；隔离验证：定向 51/51、完整 `pnpm test` 1517/1517、`pnpm check` 0 错误/0 警告、`pnpm build`、`pnpm check:release`、`pnpm perf:check`、`pnpm visual:check`、`pnpm task:ledger -- --check` 与 `git diff --check` 通过；Chrome 原型已点验宽/窄 Dock、筛选外提示、显式保留和清空，窄布局批量区 `738px` 宽、`142px` 高且无横溢出。真实验收：待 B-0002 原工作区、触控和系统读屏；延后原因：Chrome 原型与隔离样本不替代真实设备与视觉矩阵，视觉登记仍为 24 项待真实宿主。
 

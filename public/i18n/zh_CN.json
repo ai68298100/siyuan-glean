@@ -1343,5 +1343,11 @@
   "reader.companionNavNotes": "批注",
   "reader.companionNavAi": "AI 伴读",
   "reader.outlineFilterPlaceholder": "过滤大纲标题…",
-  "reader.copyAllHighlights": "复制本文全部批注"
+  "reader.copyAllHighlights": "复制本文全部批注",
+  "reader.filterByColor": "按颜色筛选批注",
+  "reader.cycleColorHint": "点击切换高亮颜色",
+  "reader.filterColorItem": "筛选 ${color}",
+  "reader.backToTop": "回到顶部",
+  "highlight.collapseAll": "全部折叠",
+  "highlight.expandAll": "全部展开"
 }

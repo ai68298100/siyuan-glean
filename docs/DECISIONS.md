@@ -1939,3 +1939,25 @@ T-3416 承接方向五（有依据的阅读 AI）与同类产品对标（Readwis
 2. 伴生栏文章分类标签微胶囊网格（`.glean-reader__tags-bar`）：
    - 在指标胶囊下方紧凑呈现用户标签（`#tag`）与 AI 标签（`✨aiTag`），视觉上采用浅色圆角药丸胶囊微标；
    - 读者在伴读界面可即时获知文章在库内的知识分类定位。
+
+## D-0321（2026-10-22）思源官方最新 Petal 插件生命周期契约对齐与生态联动加固（T-3441）
+
+针对思源官方 Petal 生命周期演进（Issue #18979、PR #16244）与底层调度机制的深度对齐：
+1. 覆写 `onDataChanged(reason?: "sync" | "overwrite")`：
+   - 思源内核 `app/src/plugin/loader.ts` 规则：`plugin.onDataChanged === Plugin.prototype.onDataChanged` 时判定插件不支持就地数据响应，跨设备同步（`sync`）或外部写入时会直接把插件加入 `reloadPlugins` 执行整机暴力注销与重新加载，导致用户当前阅读页签、选区与计时器被直接掐断；
+   - `LvGleanPlugin` 覆盖实现 `onDataChanged`，在收到变更时平滑重新加载 `settings` 并派发 `notifyDataChanged()`，免疫宿主强制重载，保证阅读流与会话的最高级连续性；
+2. 顶栏按钮挂载单实例幂等防护：
+   - 思源多窗口环境或二次激活时可能重复触发 `onLayoutReady`。`LvGleanPlugin` 记录 `topBarElement`，在 `onLayoutReady` 中做单实例守护，并在 `onunload` 中重置引用，杜绝多挂顶栏图标；
+3. 官方 `open-siyuan-url-plugin` 与 `sync-end` 生态事件打通：
+   - 监听 `open-siyuan-url-plugin`，支持第三方动作（Quicker、快捷指令、Raycast 等）通过标准 `siyuan://plugins/siyuan-glean?...` 打开工作台、今日拾遗、具体文章或触发收录；
+   - 监听 `sync-end`，多端云同步完成后自动触发轻量对账与视图刷新，移动端最新剪藏秒级无感呈现。
+
+## D-0322（2026-10-22）长文深读平滑回到顶部悬浮胶囊与摘录聚类一键全部折叠/展开（T-3442）
+
+针对长篇深度研读与大规模摘录浏览的高频操作流优化：
+1. 阅读器深读回到顶部悬浮按钮（`.glean-reader__back-to-top`）：
+   - 当阅读进度超过 12% 时，正文右下角平滑淡入浮现回到顶部圆环悬浮胶囊；
+   - 读者点击即可利用原生平滑滚动（`scrollTo({ top: 0, behavior: "smooth" })`）一键回到文章开头，极大降低万字长文、专著合集往返翻页的操作负担；
+2. 全局摘录墙聚类模式一键全部折叠/展开（`allGroupsOpen`）：
+   - 当在 `HighlightView` 中切换为按文章聚类视图时，顶栏工具区提供「全部折叠 / 全部展开」双向动作按钮；
+   - 支持一键将几十篇文章的引述卡片统一收起为紧凑目录，或一键全部展开，解决长列表滚动浏览困难。

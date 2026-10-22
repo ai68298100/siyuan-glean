@@ -1343,5 +1343,11 @@
   "reader.companionNavNotes": "Notes",
   "reader.companionNavAi": "AI Assistant",
   "reader.outlineFilterPlaceholder": "Filter outline…",
-  "reader.copyAllHighlights": "Copy all highlights"
+  "reader.copyAllHighlights": "Copy all highlights",
+  "reader.filterByColor": "Filter highlights by color",
+  "reader.cycleColorHint": "Click to change highlight color",
+  "reader.filterColorItem": "Filter ${color}",
+  "reader.backToTop": "Back to top",
+  "highlight.collapseAll": "Collapse all",
+  "highlight.expandAll": "Expand all"
 }

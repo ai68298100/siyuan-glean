@@ -8,6 +8,17 @@ Lv Glean organizes clippings and articles already in SiYuan. It does not crawl t
 
 [中文说明](README.md) · [Latest Release](https://github.com/ai68298100/siyuan-glean/releases/latest) · [Capability matrix](docs/CAPABILITY-MATRIX.md) · [Feedback](https://github.com/ai68298100/siyuan-glean/issues/new/choose)
 
+## v1.3.9 update (2026-10-22)
+
+This release focuses on alignment with SiYuan's latest official Petal lifecycle contracts, four-dimensional reading metrics with tier color dots, in-place highlight color cycling and color filtering, smooth back-to-top floating capsule for deep reading, and one-click expand/collapse all for article highlight groups.
+
+**New features & improvements:**
+
+- **Official Petal Lifecycle Alignment**: Implements `onDataChanged` to prevent full plugin reload during cross-device cloud sync or external writes; adds single-instance guard to `onLayoutReady` to prevent duplicate topbar icons; integrates official `open-siyuan-url-plugin` protocol and `sync-end` event for instant UI refresh.
+- **Reading Metrics & Highlight Color Management**: Four-dimensional metrics capsule integrates `resolveReadingTimeTier` color dots (short/emerald, medium/azure, long/amber); sidebar highlight dots support 1-click cycling across 4 colors (yellow/red/blue/green) with block-level IAL persistence and in-place color filtering; compact tag bar display below metrics.
+- **Smooth Back-to-Top Floating Capsule**: Floating action button (`.glean-reader__back-to-top`) smoothly appears when reading progress exceeds 12%, allowing effortless return to document start in long essays.
+- **Expand/Collapse All in Grouped Highlights**: Highlights view toolbar adds one-click "Collapse all / Expand all" action in article grouping mode (`allGroupsOpen`).
+
 ## v1.3.8 update (2026-10-22)
 
 This release delivers comprehensive WeChat Official Account clipping optimizations, fulltext in-page highlight search, floating selection toolbar with inline notes, precision highlight targeting, Bento streak and reading achievement milestones, and an overhauled settings dialog.
@@ -270,7 +281,7 @@ Ordinary notes are not bulk-captured just because of their location, and opening
 
 ## Compatibility and acceptance
 
-This release is [v1.3.8](https://github.com/ai68298100/siyuan-glean/releases/tag/v1.3.8). See the [release candidate record](docs/RELEASE-CANDIDATE.md) for automated gates and release evidence; this does not mean every real environment has been accepted.
+This release is [v1.3.9](https://github.com/ai68298100/siyuan-glean/releases/tag/v1.3.9). See the [release candidate record](docs/RELEASE-CANDIDATE.md) for automated gates and release evidence; this does not mean every real environment has been accepted.
 
 Desktop host, Android/mobile, browser frontend, real models, the official clipper, external files, and subscription services still require environment-specific checks. Prerequisites, fallbacks, and open blockers are listed in the [capability matrix](docs/CAPABILITY-MATRIX.md) and [known blockers](docs/BLOCKERS.md). Unit tests and isolated E2E are not device acceptance.
 
