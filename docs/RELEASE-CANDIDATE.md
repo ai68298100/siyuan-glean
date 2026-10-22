@@ -1,15 +1,15 @@
 # 发布候选复核
 
-> **v1.3.7 发布候选（2026-10-19）**：本次发布覆盖全插件 UI 走查与无障碍对齐、预计阅读时长分层筛选、阅读门面路由贯通、会话连续阅读与竞品功能扩充。
+> **v1.3.8 发布候选（2026-10-22）**：本次发布覆盖微信公众号文章垂直深度体验优化、正文全文高亮搜索、选区悬浮胶囊工具条与思考批注、摘录双向精准定位、Bento 连续打卡与阅读成就系统，以及设置大面板全量升级。
 >
 > 真实宿主、读屏、移动端和外部能力仍按能力矩阵及 B-0002、B-0004–B-0008 验收。
 
-## 1. 发布产物与门禁核验（v1.3.7）
+## 1. 发布产物与门禁核验（v1.3.8）
 
 | 项目 | 结果 | 证据 |
 |---|---|---|
-| 源版本 | `1.3.7` | `package.json` 与 `plugin.json` 一致 |
-| 变更记录 | 已有 `v1.3.7` 条目 | `docs/CHANGELOG.md` |
+| 源版本 | `1.3.8` | `package.json` 与 `plugin.json` 一致 |
+| 变更记录 | 已有 `v1.3.8` 条目 | `docs/CHANGELOG.md` |
 | 类型与 Svelte 检查 | 通过，0 错误/0 警告 | `pnpm check` |
 | 全量测试 | 1540/1540 通过；覆盖全套架构、i18n、无障碍与域层回归 | `pnpm test` |
 | 生产构建 | 通过 | `pnpm build` |
@@ -20,7 +20,7 @@
 | 任务账本与差异 | 通过；文档与账本定向 10/10 通过 | `pnpm task:ledger -- --check`、`git diff --check` |
 | 隔离内核 | S1 服务级 E2E 58/58 通过；不替代真实主工作区验收 | 本轮 `scripts/e2e/s1-flow.mjs`，证据 `%TEMP%/siyuan-glean-s1-1792119060362-19972/s1-run-evidence.json` |
 | 隔离宿主界面 | 修复包覆盖加载；引导 2→3 步、普通文档、文章切回与工作台预览冒烟通过；warn/error 日志为空 | 思源 `3.8.8-alpha.1`、独立工作区、IAB（Chrome 当前不可用）；正文切回保留上下文实例 `c1`，普通文档可见阅读栏 0，内嵌预览重复注入 0 |
-| GitHub 发布 | `v1.3.6` 已公开，Latest，非预发布；发布于 `2026-10-16 11:08:32 +08:00` | [Release](https://github.com/ai68298100/siyuan-glean/releases/tag/v1.3.6)；annotated tag 指向 `408d92cd159886033263f2da7048f45d757a56e5`；公开附件重新下载，421105B、SHA-256 与本地产物一致 |
+| GitHub 发布 | `v1.3.8` 准备发版 | [Releases](https://github.com/ai68298100/siyuan-glean/releases) |
 | GitHub 工作流 | 发布提交两项均成功 | [Quality gates 38843676470](https://github.com/ai68298100/siyuan-glean/actions/runs/38843676470)、[CodeQL 38843676467](https://github.com/ai68298100/siyuan-glean/actions/runs/38843676467) |
 
 本轮变更重点是重复加载/切换事件幂等、后台刷新保留已判定内容或无栏状态，以及内嵌编辑器避免重复注入。AI 仍默认手动且需要用户配置通道；详细前置条件以[能力矩阵](CAPABILITY-MATRIX.md)为准。

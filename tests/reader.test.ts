@@ -134,6 +134,7 @@ test("ReaderTab 快捷键接线：稍后读(A)、打开原文(O)与帮助浮层E
 test("ReaderTab 伴读 AI 结果卡片可关闭与问答输入 Escape 清空（T-3402）", () => {
     const tab = readFileSync(new URL("../src/ui/ReaderTab.svelte", import.meta.url), "utf8");
     assert.match(tab, /if \(aiResult \|\| questionResult\) \{[\s\S]*?aiResult = null;[\s\S]*?questionResult = null;/);
+    assert.match(tab, /if \(immersive\) \{[\s\S]*?void exitImmersive\(\);/);
     assert.match(tab, /if \(event\.key === "Escape" && question\) \{ event\.stopPropagation\(\); question = ""; \}/);
     assert.match(tab, /onclick=\{\(\) => \{ aiResult = null; \}\}>[\s\S]*?\{t\(i18n, "action\.close"\)\}/);
     assert.match(tab, /onclick=\{\(\) => \{ questionResult = null; \}\}>[\s\S]*?\{t\(i18n, "action\.close"\)\}/);
@@ -158,4 +159,35 @@ test("buildAiCalloutBlockDom 格式化与 ReaderTab 插入正文开头接线（T
     assert.match(tab, /insertAiResultCallout/);
     assert.match(tab, /insertQuestionCallout/);
     assert.match(tab, /\{t\(i18n, "reader\.aiInsertCallout"\)\}/);
+});
+
+test("ReaderTab 正文搜索与高亮批注伴生栏接线（T-3419 与批注优化）", () => {
+    const tab = readFileSync(new URL("../src/ui/ReaderTab.svelte", import.meta.url), "utf8");
+    assert.match(tab, /import ReaderSearch from "\.\/ReaderSearch\.svelte";/);
+    assert.match(tab, /import \{ isFindShortcut \} from "\.\.\/domain\/reader-search";/);
+    assert.match(tab, /import \{ listDocHighlights, type HighlightItem \} from "\.\.\/services\/highlights";/);
+    assert.match(tab, /import \{ estimateReadingPercentage \} from "\.\.\/domain\/reading-position";/);
+    assert.match(tab, /<ReaderSearch bind:open=\{searchOpen\}/);
+    assert.match(tab, /class="glean-reader__progress-bar"/);
+    assert.match(tab, /class="glean-reader__highlights-list"/);
+    assert.match(tab, /scrollToHighlight\(hl\.id\)/);
+    assert.match(tab, /class="glean-reader__selection-bar"/);
+    assert.match(tab, /\{t\(i18n, "reader\.selectionToolbar"\)\}/);
+    assert.match(tab, /class="[^"]*glean-reader__toolbar-theme[^"]*"/);
+    assert.match(tab, /\{t\(i18n, "reader\.themeToggle"\)\}/);
+    assert.match(tab, /class="glean-wechat-publisher"/);
+    assert.match(tab, /class="glean-wechat-publisher__head"/);
+    assert.match(tab, /\{t\(i18n, "wechat\.badge"\)\}/);
+    assert.match(tab, /\{t\(i18n, "reader\.openWeread"\)\}/);
+    assert.match(tab, /\{t\(i18n, "reader\.copyCleanUrl"\)\}/);
+    assert.match(tab, /\{t\(i18n, "wechat\.moreFromAuthor", \{ n: authorArticles\.length \}\)\}/);
+    assert.match(tab, /\{t\(i18n, "wechat\.seriesTitle", \{ n: seriesArticles\.length \}\)\}/);
+    assert.match(tab, /onclick=\{\(\) => startSpeech\("selection"\)\}/);
+    assert.match(tab, /class="glean-reader__side-nav"/);
+    assert.match(tab, /class="glean-reader__preset-prompts"/);
+    assert.match(tab, /\{t\(i18n, "reader\.quickPromptPoints"\)\}/);
+    assert.match(tab, /\{t\(i18n, "reader\.copyAllHighlights"\)\}/);
+    assert.match(tab, /class="glean-reader__metric-capsule"/);
+    assert.match(tab, /class="glean-reader__tags-bar"/);
+    assert.match(tab, /class="glean-reader__highlight-dot-btn"/);
 });

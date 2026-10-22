@@ -1,7 +1,8 @@
 import type { Plugin } from "siyuan";
 import { createDocWithMd, getHighlightBlocks, listHighlightBlocks, listHighlightDocuments, newNodeId, querySql, type BlockRow } from "../api/client";
 import {
-    cleanHighlightText, highlightMarker, isHighlightId, renderHighlightsCsv, renderHighlightsMarkdown, selectHighlights,
+    cleanHighlightText, highlightColor, highlightMarker, isHighlightId, renderHighlightsCsv, renderHighlightsMarkdown, selectHighlights,
+    renderArticleHighlightsMarkdown, type ArticleHighlightGroup,
     type HighlightExportLabels, type HighlightItem, type HighlightRoot,
 } from "../domain/highlights";
 import { CLIP_STATUSES, parseClipAttrs, parseUserTags } from "../domain/schema";
@@ -68,7 +69,8 @@ function toHighlight(row: BlockRow, root: HighlightRoot): HighlightItem | null {
     if (!isHighlightId(row.id) || row.root_id !== root.id || row.box !== root.box || typeof row.content !== "string" || typeof row.markdown !== "string") throw new HighlightExportError("readFailed");
     const text = cleanHighlightText(row.content);
     if (!text) return null;
-    return { ...root, tags: [...root.tags], aiTags: [...root.aiTags], id: row.id, rootId: root.id, text, markdown: row.markdown, source: { content: row.content, markdown: row.markdown, type: row.type, highlight } };
+    const color = highlightColor(row.ial ?? "");
+    return { ...root, color: color || undefined, tags: [...root.tags], aiTags: [...root.aiTags], id: row.id, rootId: root.id, text, markdown: row.markdown, source: { content: row.content, markdown: row.markdown, type: row.type, highlight } };
 }
 
 async function collectHighlights(roots: Map<string, QualifiedRoot>): Promise<HighlightItem[]> {
@@ -270,5 +272,33 @@ export async function saveHighlightDraft(plugin: Plugin, session: HighlightExpor
         }
     } finally {
         session.busy = false;
+    }
+}
+
+/**
+ * 将整篇文章的所有摘录直接沉淀为思源笔记文档（知识回流闭环）。
+ * 文档标为 internal 避免被误入读库候选，严格遵守数据主权。
+ */
+export async function createArticleHighlightsDoc(
+    plugin: Plugin,
+    group: ArticleHighlightGroup,
+    labels: HighlightExportLabels,
+): Promise<{ ok: boolean; docId?: string; reason?: string }> {
+    if (!group.items.length) return { ok: false, reason: "empty" };
+    const firstItem = group.items[0];
+    const box = firstItem.box;
+    const parent = firstItem.hpath.slice(0, firstItem.hpath.lastIndexOf("/"));
+    const safeTitle = (group.title || "未命名").replace(/[\\/\u0000-\u001f]/g, " ").trim().slice(0, 100);
+    const hpath = `${parent}/[${labels.title}] ${safeTitle} ${newNodeId()}`;
+    const markdown = renderArticleHighlightsMarkdown(group, labels);
+
+    try {
+        const docId = await createDocWithMd(box, hpath, markdown);
+        if (!isHighlightId(docId)) return { ok: false, reason: "createFailed" };
+        await writeClip(plugin, docId, { internal: true });
+        return { ok: true, docId };
+    } catch (error) {
+        console.warn("[glean] 创建读书笔记文档失败:", error);
+        return { ok: false, reason: "error" };
     }
 }

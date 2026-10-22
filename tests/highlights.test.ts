@@ -201,4 +201,6 @@ test("HighlightView 接线：支持平铺与按文章聚类双视图切换（T-3
     assert.match(view, /class="glean-highlights__article-groups"/);
     assert.match(view, /copyArticleQuotes\(group\)/);
     assert.match(view, /exportArticleQuotes\(group\)/);
+    assert.match(view, /createDocFromArticleQuotes\(group\)/);
+    assert.match(view, /\{t\(i18n, "highlight\.createArticleDoc"\)\}/);
 });

@@ -75,10 +75,13 @@ export function excerptFromSelection(host: Element | null, selection: Selection 
     }
 }
 
-/** 摘录为引述块：插在所选块之后；返回引述块 ID。 */
-export async function insertQuoteExcerpt(blockId: string, text: string): Promise<string> {
+/** 摘录为引述块：插在所选块之后；支持附加个人思考批注（memo）；返回引述块 ID。 */
+export async function insertQuoteExcerpt(blockId: string, text: string, memo?: string): Promise<string> {
     if (typeof blockId !== "string" || !BLOCK_ID_PATTERN.test(blockId)) throw new Error("摘录块 ID 无效");
-    const dom = buildQuoteBlockDom(clampExcerpt(text).slice(0, EXCERPT_MAX_LENGTH), escapeDomText);
+    const rawQuote = clampExcerpt(text).slice(0, EXCERPT_MAX_LENGTH);
+    const trimmedMemo = memo?.trim() ? memo.trim().slice(0, EXCERPT_MAX_LENGTH) : "";
+    const fullText = trimmedMemo ? `${rawQuote}\n\n💡 ${trimmedMemo}` : rawQuote;
+    const dom = buildQuoteBlockDom(fullText, escapeDomText);
     if (!dom) throw new Error("摘录内容为空");
     return insertBlockAfter(blockId, dom);
 }

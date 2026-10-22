@@ -31,6 +31,17 @@ export function matchReadingTimeTier(tier: ReadingTimeTier | undefined, minutes:
     return true;
 }
 
+/**
+ * 解析条目预计阅读时长的所属分档类型（短文、中篇、长篇、未知）。
+ */
+export function resolveReadingTimeTier(minutes: number | undefined): "short" | "medium" | "long" | "unknown" {
+    const mins = Number.isFinite(minutes) && (minutes as number) > 0 ? (minutes as number) : 0;
+    if (mins <= 0) return "unknown";
+    if (mins <= 5) return "short";
+    if (mins <= 15) return "medium";
+    return "long";
+}
+
 export interface LibraryItem {
     kind: LibraryItemKind;
     id: string;

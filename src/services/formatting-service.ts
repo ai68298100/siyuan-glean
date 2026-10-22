@@ -13,6 +13,7 @@ import {
 import { readClipDocument, writeClip } from "./clip-store";
 import { activeAiSettings, aiQuotaAvailable, callLLM, enqueueEnrich, logAiEvent, recordAiUsage, type AiCallFailure } from "./enrich-service";
 import type { GleanSettings } from "./settings";
+import { isWechatUrl, repairWechatContent } from "../domain/wechat";
 
 interface FormattingSource {
     id: string;
@@ -44,7 +45,9 @@ export type FormattingSaveReason = "changed" | "readFailed" | "markFailed" | "cr
 async function readSource(docId: string): Promise<FormattingSource> {
     const { meta, attrs, markdown } = await readClipDocument(docId, { yfm: false, addTitle: false, refMode: 2 });
     if (!attrs.status || attrs.internal) throw new Error("Not a reading library article");
-    return { id: docId, title: meta.title, box: meta.box, hpath: meta.hpath, url: attrs.url ?? "", markdown };
+    const isWechat = Boolean(attrs.url && isWechatUrl(attrs.url));
+    const processedMarkdown = isWechat ? repairWechatContent(markdown) : markdown;
+    return { id: docId, title: meta.title, box: meta.box, hpath: meta.hpath, url: attrs.url ?? "", markdown: processedMarkdown };
 }
 
 export async function loadFormattingSession(docId: string): Promise<FormattingSession> {

@@ -78,7 +78,16 @@ function writeJson(filePath, value) {
     fs.mkdirSync(path.dirname(filePath), { recursive: true });
     const temporary = filePath + ".tmp-" + process.pid;
     fs.writeFileSync(temporary, JSON.stringify(value, null, 2) + "\n");
-    fs.renameSync(temporary, filePath);
+    try {
+        fs.renameSync(temporary, filePath);
+    } catch (err) {
+        if (err && (err.code === "EPERM" || err.code === "EBUSY")) {
+            fs.copyFileSync(temporary, filePath);
+            try { fs.unlinkSync(temporary); } catch {}
+        } else {
+            throw err;
+        }
+    }
 }
 
 function sessionPath(value) {

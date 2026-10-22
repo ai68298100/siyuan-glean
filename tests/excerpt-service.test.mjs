@@ -184,6 +184,19 @@ test("插入摘录先校验目标块 ID，合法 ID 才调用内核", async () =
     assert.equal(calls[0].body.previousID, validBlockId);
 });
 
+test("插入摘录支持附加 memo 个人思考批注", async () => {
+    const calls = [];
+    globalThis.__gleanExcerptPost = async (route, body) => {
+        calls.push({ route, body });
+        return { code: 0, data: [{ doOperations: [{ id: "20261004120003-ddddddd" }] }] };
+    };
+
+    assert.equal(await insertQuoteExcerpt(validBlockId, "重要观点", "很有启发的论述"), "20261004120003-ddddddd");
+    assert.equal(calls.length, 1);
+    assert.ok(calls[0].body.data.includes("重要观点"));
+    assert.ok(calls[0].body.data.includes("💡 很有启发的论述"));
+});
+
 const exportEntry = {
     id: "20261014115900-aaaaaaa",
     rootId: "20261014115800-bbbbbbb",

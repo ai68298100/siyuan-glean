@@ -1,5 +1,44 @@
 # HANDOFF — 续跑交接（每轮开发结束更新本页）
 
+## 当前有效交接（2026-10-21 正文搜索、微信公众号专属优化与文章批注进度条落地）
+
+- T-3419/D-0299：阅读器正文搜索与命中高亮导航。新增 `src/domain/reader-search.ts` 纯函数层、`src/libs/reader-search-dom.ts` 与 `src/ui/ReaderSearch.svelte`；采用非侵入式现代 CSS Custom Highlight API（`CSS.highlights`），不破坏或修改 Protyle 原生 DOM 树；支持大小写区分、Enter / Shift+Enter 前后导航；`ReaderTab.svelte` 接入 Ctrl/Cmd+F 呼出与 Escape 退出；使用原生 SVG 图标替换纯文本/Emoji；双语与测试完备。
+- T-3420/D-0300：微信公众号文章专属优化。新增 `src/domain/wechat.ts` 纯函数层，提供 `isWechatUrl`、`extractWechatAuthor`、`extractWechatTime`、`isWechatImage` 与 `cleanWechatNoise`；支持从 HTML js_name、profile_nickname、og:site_name 以及 Markdown 首部结构化标签和微信特有原创标头提取公众号具体名称；提取真实发布时间并打上 `timeSource="source"`，避免误记为剪藏当天；在 `captureClip` 与 `migrate` 中自动回填（已有手填值严格保护）；`ProtyleHost.svelte` 挂载就绪后对 `qpic.cn` 微信图片设置 `no-referrer` 避免 403 裂图；在字数统计与 `FormattingDialog` 排版中清洗模板噪点行。
+- T-3421/D-0301：剪藏文章批注本篇伴生栏、正文划词悬浮胶囊与思源笔记沉淀。`ReaderTab.svelte` 伴生栏新增【本篇批注与摘录】列表（调用 `listDocHighlights`），点击批注卡片立即平滑滚动（`scrollIntoView`）至正文对应块并施加 1.2 秒脉冲高亮强调反馈（`.glean-pulse-highlight`），卡片支持高亮颜色指示、时间戳展示、一键复制引用与一键制卡；正文区域提供选区悬浮胶囊工具条（`glean-reader__selection-bar`）；`HighlightView.svelte` 提供「📄 生成思源笔记」一键沉淀为思源块引用文档（`createArticleHighlightsDoc`）；主视图顶部接入平滑阅读进度条（`estimateReadingPercentage`）。
+- T-3422/D-0302：每日拾遗智能融合作者公众号推荐理由与读库微信紧凑展示。`domain/resurface.ts` 新增 `SurfaceReason.author`（`kind: "author"`），`resurface-service.ts` 接入 `author` 属性；`ResurfaceView.svelte` 智能呈现「来自 ${author}」理由；`DockPanel.svelte` 列表行、卡片与移动端来源标签对微信公众号文章自动收敛为紧凑「微信 · 作者」；双语文案与单测完备。
+- T-3423/D-0303：阅读器工具栏一键主题循环切换（跟随思源 / 纸感 / 护眼绿）。`ReaderTab.svelte` 顶部工具栏增设 `glean-reader__toolbar-theme` 循环切换按钮，实时切换 `readerAppearance.theme` 并展示专属三色状态指示圆点；单测与门禁完备，不改变配置 schema 或端点契约。
+- T-3424/D-0304：ReaderTab 选区快捷批注与个人思考插入（Quote with Memo）。`services/excerpt-service.ts` 的 `insertQuoteExcerpt` 接入 `memo?: string` 参数，将引述与感想分别按段落构建为结构化引述块；`ReaderTab.svelte` 选区悬浮胶囊工具条提供「💬 批注」按钮与回车快捷插入；单测与门禁完备，不改变底层文档属性与端点契约。
+- T-3425/D-0305：分面侧栏一键折叠收起与宽窄自适应切换。`services/prefs.ts` 接入 `railCollapsed: boolean` 偏好；`DockPanel.svelte` 侧栏分面工具条提供一键收起按钮，并在收起后于列表顶栏展示展开快捷按钮；单测与门禁完备，不改变底层文档属性与端点契约。
+- T-3426/D-0306：读库列表与卡片时长标签（Reading Time Badge）分级视觉色彩优化。`domain/library-view.ts` 新增 `resolveReadingTimeTier` 纯函数；`DockPanel.svelte` 列表行、看板卡片与移动端时长标签按短文（绿色）、中篇（蓝色）、长篇（橙色）赋予轻量色彩辨识；单测与门禁完备。
+- T-3427/D-0307：参考图美学落地：今日拾遗 7 日打卡步进条与连续完成 Bento 卡片。`domain/stats.ts` 新增 `computeRecent7DaysStatus` 纯函数；`ResurfaceView.svelte` 顶部接入暖琥珀渐变 Streak 鼓励卡片与 7 日水平打卡步进条（`.glean-surf-banner`）；单测与门禁完备。
+- T-3428/D-0308：参考图美学落地：统计回顾页派生阅读里程碑印记。`domain/stats.ts` 新增 `computeReadingMilestones` 纯函数，根据读库藏书规模、连续天数、本周读完量等派生 6 类阶段印记；`StatsView.svelte` 呈现轻量 Bento 胶囊徽章墙；单测与门禁完备。
+- T-3429/D-0309：时间线引导轴微标、沉浸阅读呼吸隐退与全卡片触控微动效。摘录墙平铺时间线模式接入竖向引导轴与动态放大圆环锚点；`ReaderTab.svelte` 沉浸模式工具栏支持非获焦呼吸隐退并在 Escape 监听中支持快捷退出；连续阅读卡片、打卡步进器与分段选择器按压时接入 spring scale 微动效；单测与门禁完备。
+- T-3430/D-0310：微信文章懒加载修复、官方封面摘要提取与纯净短链/微信读书互通。`domain/wechat.ts` 新增 `repairWechatImages`、`extractWechatCover`、`extractWechatDescription`、`cleanWechatArticleUrl` 与 `wechatArticleToWereadUrl`；`domain/content.ts` 自动提取官方摘要与封面，`clip-store.ts` 首次收录自动回填免调 AI 的高质量作者简介；`ReaderTab.svelte` 伴生栏提供「微信读书」与「复制纯净短链」动作；扩充 `cleanWechatNoise` 深度清洗赞赏码/阅读原文/往期推荐等模板噪点；单测与门禁完备。
+- T-3431/D-0311：微信公众号 LaTeX 公式逆向、代码块提纯、语音组件转换与同作者合集连读导航。`domain/wechat.ts` 新增 `repairWechatMath`、`repairWechatCode`、`repairWechatVoice`、`repairWechatContent`、`extractWechatAvatar` 与 `extractWechatBiz`；`formatting.ts` 扩充微信赞赏/阅读原文/往期推荐等推广噪点匹配；`ReaderTab.svelte` 伴生栏呈现公众号圆形头像与同号文章连读导航列表（`loadAuthorArticles`）；单测与门禁完备。
+- T-3432/D-0312：微信 CSS 背景插图抢救、内嵌视频转换与读库一键公众号分面筛选。`domain/wechat.ts` 新增 `repairWechatBackgroundImages`、`repairWechatVideos` 与整合函数 `repairWechatContent`；`DockPanel.svelte` 行表、看板卡片与移动端列表来源微标接入一键筛选（`selectSite(entry.site)`）；单测与门禁完备。
+- T-3433/D-0313：设置页弹窗放大（920x720px）、新手提示卡片截断修复与 8 大分类导航图标重构。`index.ts` 弹窗尺寸升级为 920px x 720px；`SettingsView.svelte` 与 `src/index.scss` 彻底消除 `newbie-hint` 的纵向 Flex 挤压与高度截断，重构为完整自适应的横幅通知组件（`glean-settings__newbie-banner`）；左侧分类导航扩充 8 大分类专属 SVG 图标与 220px 宽屏排版；单测与门禁完备。
+- T-3434/D-0314：排版整理微信专属提纯、摘录精准制导原文定位、专栏合集连读扩展与看板卡片标题收敛。`formatting-service.ts` 与 `FormattingDialog.svelte` 接入微信正文专属清洗提纯（`repairWechatContent`）；`HighlightView.svelte` 跳转原文精确锚定引述块（`openReadingDocument(rootId, blockId)`）；`ReaderTab.svelte` 基于只读目录派生系列专栏文章列表（`seriesArticles`）；看板卡片与列表卡片超长标题接入 `line-clamp: 3` 收敛；单测与门禁完备。
+- T-3435/D-0315：快捷键面板立体键帽矩阵重构、大纲活动导轨与标题跳转脉冲光晕。`ReaderTab.svelte` 快捷键提示条升级为现代化半透明毛玻璃底面与立体阴影键帽徽标；伴生栏大纲树活动章节（`--active`）增加左侧 2.5px 品牌主色活动轨道指示；点击大纲项（`scrollToOutline`）平滑滚动至对应正文块时自动挂载 1.2 秒脉冲光晕（`.glean-pulse-highlight`）；拾遗换篇与撤销增加弹簧平滑淡入动效；单测与门禁完备。
+- T-3436/D-0316：选区划词即时朗读接入与今日拾遗读完闭环持久激励呈现。`ReaderTab.svelte` 划词悬浮胶囊工具条增设即时朗读选区按钮（`startSpeech("selection")`）；`ResurfaceView.svelte` 当日文章全部消化读完时保持渲染连续阅读天数与 7 日步进条，赋予读者满满成就感；单测与门禁完备。
+- T-3437/D-0317：伴读栏全方位体验重构。伴生栏顶部接入四维阅读看板胶囊（`glean-reader__metric-capsule`：字数/预估时长/累计已读/阅读进度百分比）；正文大纲树（Outline）与本篇批注（Highlights）提升为一级核心独立卡片面板，解开 `moreTools` 双重折叠嵌套；大纲目录树接入 H1-H6 标题层级微标（`glean-reader__outline-tag`）与主题色轨道指示；单测与门禁完备。
+- T-3438/D-0318：伴生栏全方位体验深度打磨。伴生栏新增分段导航条（`companionTab`：全部/大纲/批注/AI），支持专项聚焦与全景视图无缝切换；大纲长篇标题超过 6 条时提供关键词即时过滤栏与一键清空；批注卡片标题增设「复制本文全部批注」一键动作（`copyAllDocHighlights`）；文章提问接入预设灵感胶囊（核心论点/实践建议/一句话总结）；单测与门禁完备。
+- T-3439/D-0319：阅读指标胶囊时长分级色彩徽标融入、批注卡片高亮颜色即时切换与全局摘录墙色彩对齐。`ReaderTab.svelte` 伴读指标胶囊接入 `resolveReadingTimeTier` 时长分档圆点（短文绿色/中篇蓝色/长篇橙色）；批注卡片圆点按钮支持直接点击循环切换四色高亮（`cycleHighlightColor`：黄/红/蓝/绿）并调用 `writeHighlightColor` 写入块级 IAL 属性；多色存在时提供就地颜色分级筛选器（`highlightColorFilter`）；`HighlightView.svelte` 单条引述同步呈现高亮色彩圆点；单测与门禁完备。
+- T-3440/D-0320：伴生栏文章分类标签横向胶囊展台与上下文数据层扩展。`clip-store.ts`（`readClipContext`）接入 `parseUserTags` 与 `attrs.aiTags` 补充文章级标签投影（`tags` 与 `aiTags`）；`ReaderTab.svelte` 伴生栏在指标胶囊下方呈现文章级用户标签与 AI 标签微胶囊网格（`.glean-reader__tags-bar`），消除伴读视图看不到文章分类标签的体验盲区；单测与门禁完备。
+- 全量门禁闭环：定向单测（`tests/header-actions.test.ts` 27/27、`tests/wechat.test.ts` 22/22、`tests/reader-search.test.ts` 10/10、`tests/reader-search-dom.test.ts` 4/4、`tests/reader.test.ts` 14/14、`tests/formatting.test.ts` 28/28、`tests/formatting-service.test.mjs` 20/20、`tests/highlights.test.ts` 14/14、`tests/resurface.test.ts` 26/26、`tests/stats.test.ts` 24/24、`tests/library-view.test.ts` 20/20、`tests/prefs.test.ts` 17/17、`tests/excerpt-service.test.mjs` 12/12、`tests/content-url.test.ts` 8/8、`tests/architecture.test.ts` 3/3、`tests/i18n.test.ts` 5/5、`tests/task-ledger.test.mjs` 2/2）、`tsc` 与 `svelte-check` 0 错误 0 警告、`pnpm build`、`pnpm check:release`、`pnpm perf:check`、`pnpm visual:check`（24 项仍待真实宿主）与任务账本检查均通过。真实宿主交互手感仍归 B-0002。
+- 下一步：按当前执行板顺序推进下一个任务（如 T-3367 批量选择范围与底部操作在更多场景的走查，或按作者点单继续）。版本保持 1.3.8，本轮不打 tag、不发布、不推送。
+
+
+## 当前有效交接（2026-10-20 分面侧栏未读与待办动态角标计数投影）
+
+- T-3418/D-0298：承接分面侧栏未读与待办动态角标计数投影。对标 Cubox/Readwise 实现无感动态计数：
+  1. 新增 `src/domain/library-rail-badges.ts`，定义 `RailBadgeKey` 规范类型，并实现 `buildRailBadgeMap(articles, options)` 纯函数，支持传入全部文章或已筛选文章，支持状态（inbox/later/reading/done/archived）、优先级（P1-P5/未设置）、星标收藏、时间源、预计阅读时长分档（短文/中篇/长篇/未知）、用户主题标签、AI 标签与作者等多维度并行统计；
+  2. 支持智能排除当前筛选所在维度（`excludeCurrentDimension: true`），即在已选中某个状态（如 later）时，其余状态项展示全局可用总数，避免其他状态因交集互斥被错误归零；
+  3. `src/domain/library-rail.ts` 的 `RailItem` 接口增加可选只读属性 `badge?: number | string`；`src/ui/LibraryRailGroup.svelte` 在分类项右侧渲染 `.glean-rail-item__badge`，提供零值抑制（不显示 0，保持界面纯净整洁）以及符合无障碍规范的 `aria-label` 计数语义补充；
+  4. `src/ui/DockPanel.svelte` 使用 `$derived` 响应式计算 `railBadgeMap` 并注入各分面项投影；
+  5. 纯客户端前端响应式内存只读聚合，不发起任何额外的思源端点请求，不修改任何文档属性（`custom-clip-*`），不修改底层存储。
+- 全量门禁闭环：定向单测（`tests/library-rail-badges.test.ts` 10/10、`tests/library-rail-accordion.test.ts` 13/13 全部通过）、`tsc` 与 `svelte-check` 0 错误 0 警告、`pnpm build`、`pnpm check:release`、`pnpm perf:check`、`pnpm visual:check`（24 项仍待真实宿主）与任务账本检查均通过。真实宿主交互手感仍归 B-0002。
+- 下一步：按当前执行板顺序推进下一个任务（如 T-3419 阅读器正文搜索与命中高亮导航，或按作者点单继续）。版本保持 1.3.7，本轮不打 tag、不发布、不推送。
+
 ## 当前有效交接（2026-10-20 分面侧栏手风琴互斥折叠与全展开/全收起顶部工具栏支持）
 
 - T-3417/D-0297：承接分面侧栏手风琴互斥折叠与全展开/全收起支持。`src/domain/library-rail.ts` 新增 `RailGroupStateMap` 类型，提供 `toggleRailGroupState`（手风琴模式激活时自动互斥折叠其余分组，普通模式独立切换）、`collapseAllRailGroups`（一键全收起）与 `expandAllRailGroups`（一键全展开）纯函数；`src/services/prefs.ts` 新增 `railAccordion: boolean` 偏好配置，默认保持 `false`；`src/ui/LibraryRailGroup.svelte` 重构支持外部受控 `groupPrefs` 与 `onToggleGroup` 变更通知，同时保留非受控回退逻辑保证兼容；`src/ui/DockPanel.svelte` 侧栏分面头部新增操作工具栏，提供手风琴互斥开关（`glean-rail-accordion-btn`）、一键全收起（`collapseAll`）与一键全展开（`expandAll`）按钮；新增 `library.railAccordion`、`library.railAccordionDesc`、`library.railCollapseAll`、`library.railExpandAll` 双语国际化键，注册 `iconGleanAccordion` 原生 SVG。

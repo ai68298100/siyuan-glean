@@ -79,6 +79,52 @@
 
 - [◐] **T-3417**（P2，2026-10-20）分面侧栏手风琴互斥折叠与全展开/全收起顶部工具栏支持（同类产品对标 / 分面导航与空间优化）：`domain/library-rail.ts` 新增 `RailGroupStateMap` 类型，提供 `toggleRailGroupState`（手风琴模式激活时互斥折叠其余分组，普通模式独立切换）、`collapseAllRailGroups`（一键全收起）与 `expandAllRailGroups`（一键全展开）纯函数；`services/prefs.ts` 新增 `railAccordion: boolean` 偏好配置，默认保持 `false`；`LibraryRailGroup.svelte` 重构支持外部受控 `groupPrefs` 与 `onToggleGroup` 变更通知，同时保留非受控回退逻辑保证兼容；`DockPanel.svelte` 侧栏分面头部新增操作工具栏，提供手风琴互斥开关（`glean-rail-accordion-btn`）、一键全收起（`collapseAll`）与一键全展开（`expandAll`）按钮；双语国际化键与单测完备，不改变底层文档属性与端点契约。代码状态：完成；隔离验证：`tests/library-rail-accordion.test.ts` 13/13、`tests/library-rail.test.ts` 10/10、`tsc` 与 `svelte-check` 0 错误 0 警告；真实验收：待 B-0002 真实宿主分面交互手感走查；延后原因：真实宿主分面点击与键盘触控仍归 B-0002。
 
+- [◐] **T-3418**（P2，2026-10-20）分面侧栏未读与待办动态角标计数投影（同类产品对标 / 数量一目了然）：`domain/library-rail-badges.ts` 新增 `buildRailBadgeMap` 纯函数，支持排除当前维度的高效多维分类数量统计；`domain/library-rail.ts` 扩展 `RailItem.badge` 契约；`LibraryRailGroup.svelte` 渲染徽标、零值抑制与 `aria-label` 计数辅助；`DockPanel.svelte` 响应式注入角标；单测与门禁完备，不改变底层文档属性与端点契约。代码状态：完成；隔离验证：`tests/library-rail-badges.test.ts` 10/10、`tests/library-rail-accordion.test.ts` 13/13、`pnpm check` 0 错误/0 警告、完整 `pnpm test` 1596/1596、构建与发布包校验通过；真实验收：待 B-0002 真实多文档与分面角标走查；延后原因：真实宿主文档大库统计手感与观感仍归 B-0002。
+
+- [◐] **T-3419**（P2，2026-10-20）阅读器正文搜索与命中高亮导航（同类产品对标 / 原文长文检视）：在阅读器正文视图支持全文快速查找（Ctrl/Cmd+F），高亮匹配关键词并提供上一个/下一个命中跳转，Esc 快捷关闭；双语与单测完备，不改变文章属性或数据主权。代码状态：完成；隔离验证：`tests/reader-search.test.ts` 10/10、`tests/reader-search-dom.test.ts` 4/4、`tests/reader.test.ts` 14/14、`pnpm check` 0 错误/0 警告；真实验收：待 B-0002 真实宿主 Protyle 搜索与高亮手感；延后原因：真实宿主高亮渲染差异仍归 B-0002。
+
+- [◐] **T-3420**（P2，2026-10-21）微信公众号文章专属优化（自动识别公众号作者、防盗链保护与噪声过滤）：新增 `domain/wechat.ts` 纯函数层，提供 `isWechatUrl`、`extractWechatAuthor`、`isWechatImage` 与 `cleanWechatNoise`；在收录与迁移中自动将公众号名称回填至 `author`（已有值严格保护不覆盖）；ProtyleHost 对 `qpic.cn` 微信图片设置 `no-referrer` 避免 403 裂图；单测与门禁完备，不破坏数据主权。代码状态：完成；隔离验证：`tests/wechat.test.ts` 8/8、`tests/content-url.test.ts` 8/8、`tsc` 与 `svelte-check` 0 错误 0 警告；真实验收：待 B-0001/B-0002 真实微信剪藏文章走查；延后原因：真实微信公众号文章排版仍待 B-0001/B-0002。
+
+- [◐] **T-3421**（P2，2026-10-21）剪藏文章批注本篇伴生栏与双向定位联动及顶部阅读进度条：`ReaderTab.svelte` 伴生栏新增【本篇批注】列表（调用 `listDocHighlights`），点击卡片平滑滚动定位正文块并施加 `pulse-highlight` 脉冲视觉反馈；正文主视图顶部提供平滑阅读进度条（`estimateReadingPercentage`）；单测与门禁完备，不改变底层文档属性与端点契约。代码状态：完成；隔离验证：`tests/reader.test.ts` 14/14、`tests/highlights.test.ts` 52/52、`tsc` 与 `svelte-check` 0 错误 0 警告；真实验收：待 B-0002 真实长文批注联动与滚动走查；延后原因：真实宿主长文滚动与读屏节奏仍归 B-0002。
+
+- [◐] **T-3422**（P2，2026-10-21）每日拾遗智能融合作者公众号推荐理由与读库微信紧凑展示（对标 Cubox / Readwise，承接公众号深度优化）：`domain/resurface.ts` 新增 `SurfaceReason.author`（`kind: "author"`），`resurface-service.ts` 接入 `author` 属性；`ResurfaceView.svelte` 智能呈现「来自 ${author}」理由；`DockPanel.svelte` 列表行、卡片与移动端来源标签对微信公众号文章自动收敛为紧凑「微信 · 作者」；双语文案与单测完备。代码状态：完成；隔离验证：`tests/resurface.test.ts` 26/26、`tsc` 与 `svelte-check` 0 错误 0 警告；真实验收：待 B-0002 真实宿主今日拾遗推荐理由观感走查；延后原因：真实多来源推荐走查仍归 B-0002。
+
+- [◐] **T-3423**（P2，2026-10-21）阅读器工具栏一键主题循环切换（跟随思源 / 纸感 / 护眼绿）：`ReaderTab.svelte` 顶部工具栏增设 `glean-reader__toolbar-theme` 循环切换按钮，实时切换 `readerAppearance.theme` 并展示专属三色状态指示圆点；单测与门禁完备，不改变配置 schema 或端点契约。代码状态：完成；隔离验证：`tests/reader.test.ts` 14/14、`tsc` 与 `svelte-check` 0 错误 0 警告；真实验收：待 B-0002 真实长文主题切换观感；延后原因：真实宿主编辑器主题视觉仍归 B-0002。
+
+- [◐] **T-3424**（P2，2026-10-21）ReaderTab 选区快捷批注与个人思考插入（Quote with Memo）：`services/excerpt-service.ts` 的 `insertQuoteExcerpt` 接入 `memo?: string` 参数，将引述与感想分别按段落构建为结构化引述块；`ReaderTab.svelte` 选区悬浮胶囊工具条提供「💬 批注」按钮与回车快捷插入；单测与门禁完备，不改变底层文档属性与端点契约。代码状态：完成；隔离验证：`tests/excerpt-service.test.mjs` 12/12、`tests/reader.test.ts` 14/14、`tsc` 与 `svelte-check` 0 错误 0 警告；真实验收：待 B-0002 真实宿主正文划词批注手感走查；延后原因：真实宿主选区与块插入仍归 B-0002。
+
+- [◐] **T-3425**（P2，2026-10-21）分面侧栏一键折叠收起与宽窄自适应切换（railCollapsed 偏好与快捷展开）：`services/prefs.ts` 接入 `railCollapsed: boolean` 偏好；`DockPanel.svelte` 侧栏分面工具条提供一键收起按钮，并在收起后于列表顶栏展示展开快捷按钮；单测与门禁完备，不改变底层文档属性与端点契约。代码状态：完成；隔离验证：`tests/prefs.test.ts` 17/17、`tests/library-rail-accordion.test.ts` 11/11、`tsc` 与 `svelte-check` 0 错误 0 警告；真实验收：待 B-0002 真实宿主侧栏展开折叠触控走查；延后原因：真实宿主分面折叠仍归 B-0002。
+
+- [◐] **T-3426**（P2，2026-10-21）读库列表与卡片时长标签（Reading Time Badge）分级视觉色彩优化：`domain/library-view.ts` 新增 `resolveReadingTimeTier` 纯函数；`DockPanel.svelte` 列表行、看板卡片与移动端时长标签按短文（绿色）、中篇（蓝色）、长篇（橙色）赋予轻量色彩辨识；单测与门禁完备。代码状态：完成；隔离验证：`tests/library-view.test.ts` 20/20、`tsc` 与 `svelte-check` 0 错误 0 警告；真实验收：待 B-0002 真实多文档时长色彩感知走查；延后原因：真实宿主各主题色彩观感仍归 B-0002。
+
+- [◐] **T-3427**（P2，2026-10-21）参考图美学落地：今日拾遗 7 日打卡步进条与连续完成 Bento 卡片（对标 Days Logged In & Streak Card）：`domain/stats.ts` 新增 `computeRecent7DaysStatus` 纯函数；`ResurfaceView.svelte` 顶部接入暖琥珀渐变 Streak 鼓励卡片与 7 日水平打卡步进条（`.glean-surf-banner`）；单测与门禁完备，不改变底层文档属性与端点契约。代码状态：完成；隔离验证：`tests/stats.test.ts` 24/24、`tests/resurface.test.ts` 26/26、`tsc` 与 `svelte-check` 0 错误 0 警告；真实验收：待 B-0002 真实宿主今日拾遗打卡条交互手感走查；延后原因：真实宿主滚动与读屏观感仍归 B-0002。
+
+- [◐] **T-3428**（P2，2026-10-21）参考图美学落地：统计回顾页派生阅读里程碑印记（对标 Achievements 勋章）：`domain/stats.ts` 新增 `computeReadingMilestones` 纯函数，根据当前读库藏书规模、连续天数、本周读完等派生 6 类阅读勋章；`StatsView.svelte` 呈现轻量 Bento 胶囊徽章墙；单测与门禁完备。代码状态：完成；隔离验证：`tests/stats.test.ts` 24/24、`tsc` 与 `svelte-check` 0 错误 0 警告；真实验收：待 B-0002 真实宿主统计页成就徽章观感走查；延后原因：真实宿主多数据跨度仍归 B-0002。
+
+- [◐] **T-3429**（P2，2026-10-21）时间线引导轴微标、沉浸阅读工具栏呼吸隐退与全卡片按压缩放手感（参考图美学深化）：摘录墙平铺时间线模式接入竖向引导轴与动态放大圆环锚点；ReaderTab 沉浸模式工具栏支持非获焦呼吸隐退并在 Escape 监听中支持快捷退出；连续阅读卡片、打卡步进器与分段选择器按压时接入 spring scale 微动效；单测与门禁完备。代码状态：完成；隔离验证：`tests/highlights.test.ts` 14/14、`tests/reader.test.ts` 14/14、`tsc` 与 `svelte-check` 0 错误 0 警告；真实验收：待 B-0002 真实宿主微动效与沉浸阅读手感走查；延后原因：真实宿主编辑器沉浸走查仍归 B-0002。
+
+- [◐] **T-3430**（P2，2026-10-21）微信文章懒加载修复、官方封面摘要提取与纯净短链/微信读书互通（微信公众号专项深化）：`domain/wechat.ts` 新增 `repairWechatImages`、`extractWechatCover`、`extractWechatDescription`、`cleanWechatArticleUrl` 与 `wechatArticleToWereadUrl`；`domain/content.ts`（`inspectClipMarkdown`）自动提取官方摘要与封面，`clip-store.ts`（`captureClip`）在未有手填摘要时自动回填免调 AI 的高质量作者简介；`ReaderTab.svelte` 伴生栏微信专属卡片提供「微信读书」网页版跳转与「复制纯净短链」动作；扩充 `cleanWechatNoise` 深度清洗赞赏码/阅读原文/往期推荐等模板噪点；单测与门禁完备。代码状态：完成；隔离验证：`tests/wechat.test.ts` 19/19、`tests/content-url.test.ts` 8/8、`tests/reader.test.ts` 14/14、`tsc` 与 `svelte-check` 0 错误 0 警告；真实验收：待 B-0001/B-0002 真实微信多图文章走查；延后原因：真实微信公众号多图排版仍待 B-0001/B-0002。
+
+- [◐] **T-3431**（P2，2026-10-21）微信公众号 LaTeX 公式逆向、代码块提纯、语音组件转换与同作者合集连读导航（微信专项进阶）：`domain/wechat.ts` 新增 `repairWechatMath`、`repairWechatCode`、`repairWechatVoice`、`repairWechatContent`、`extractWechatAvatar` 与 `extractWechatBiz`；`formatting.ts` 扩充微信赞赏/阅读原文/往期推荐等推广噪点匹配；`ReaderTab.svelte` 伴生栏呈现公众号圆形头像与同号文章连读导航列表（`loadAuthorArticles`）；单测与门禁完备，不改变底层文档属性与端点契约。代码状态：完成；隔离验证：`tests/wechat.test.ts` 22/22、`tests/formatting.test.ts` 28/28、`tests/reader.test.ts` 14/14、`tsc` 与 `svelte-check` 0 错误 0 警告；真实验收：待 B-0001/B-0002 真实微信公式与代码长文走查；延后原因：真实微信公众号公式排版仍待 B-0001/B-0002。
+
+- [◐] **T-3432**（P2，2026-10-21）微信公众号 CSS 背景插图抢救、内嵌视频转换与读库一键公众号分面筛选：`domain/wechat.ts` 新增 `repairWechatBackgroundImages`、`repairWechatVideos` 与整合函数 `repairWechatContent`；`DockPanel.svelte` 行表、看板卡片与移动端列表来源微标接入一键筛选（`selectSite(entry.site)`）；单测与门禁完备，不改变底层文档属性与端点契约。代码状态：完成；隔离验证：`tests/wechat.test.ts` 22/22、`tsc` 与 `svelte-check` 0 错误 0 警告；真实验收：待 B-0001/B-0002 真实微信多图与视频长文走查；延后原因：真实微信公众号视频排版仍待 B-0001/B-0002。
+
+- [◐] **T-3433**（P2，2026-10-21）设置页弹窗放大（920x720px）、新手提示卡片截断修复与 8 大分类导航图标重构：`index.ts` 弹窗尺寸升级为 920px x 720px；`SettingsView.svelte` 与 `src/index.scss` 彻底消除 `newbie-hint` 的纵向 Flex 挤压与高度截断，重构为完整自适应的横幅通知组件（`glean-settings__newbie-banner`）；左侧分类导航扩充 8 大分类专属 SVG 图标与 220px 宽屏排版；单测与门禁完备。代码状态：完成；隔离验证：`tests/header-actions.test.ts` 27/27、`tsc` 与 `svelte-check` 0 错误 0 警告；真实验收：待 B-0002 真实宿主设置页宽屏与表单走查；延后原因：真实多分辨率宿主观感仍归 B-0002。
+
+- [◐] **T-3434**（P2，2026-10-22）排版整理微信专属提纯、摘录精准制导原文定位、专栏合集连读扩展与看板卡片标题收敛：`formatting-service.ts` 与 `FormattingDialog.svelte` 接入微信正文专属清洗提纯（`repairWechatContent`）；`HighlightView.svelte` 跳转原文精确锚定引述块（`openReadingDocument(rootId, blockId)`）；`ReaderTab.svelte` 基于只读目录派生系列专栏文章列表（`seriesArticles`）；看板卡片与列表卡片超长标题接入 `line-clamp: 3` 收敛；单测与门禁完备，不改变底层文档属性与端点契约。代码状态：完成；隔离验证：`tests/formatting-service.test.mjs` 20/20、`tests/highlights.test.ts` 14/14、`tests/reader.test.ts` 14/14、`tsc` 与 `svelte-check` 0 错误 0 警告；真实验收：待 B-0001/B-0002 真实微信排版与摘录锚定走查；延后原因：真实宿主编辑器锚定仍归 B-0002。
+
+- [◐] **T-3435**（P2，2026-10-22）快捷键面板立体键帽矩阵重构、大纲活动导轨与标题跳转脉冲光晕（交互细节深化）：`ReaderTab.svelte` 快捷键提示面板接入模块化立体键帽徽标矩阵并补充 Ctrl+F 搜索说明；伴生栏大纲目录活动项接入 2.5px 品牌主色竖向指示轨（`--active`）；`scrollToOutline` 点击大纲平滑滚动时为目标标题块施加 1.2 秒脉冲高亮渐变强调（`glean-pulse-highlight`）；今日拾遗撤销提示条与换篇接入弹簧平滑淡入动效；单测与门禁完备。代码状态：完成；隔离验证：`tests/reader.test.ts` 14/14、`tests/resurface.test.ts` 26/26、`tsc` 与 `svelte-check` 0 错误 0 警告；真实验收：待 B-0002 真实大纲滚动跟随走查；延后原因：真实长文大纲跟随仍归 B-0002。
+
+- [◐] **T-3436**（P2，2026-10-22）选区划词即时朗读接入、今日拾遗读完闭环持久激励呈现（闭环微交互深化）：`ReaderTab.svelte` 划词悬浮胶囊工具条增设即时朗读选区按钮（`startSpeech("selection")`）；`ResurfaceView.svelte` 当日文章全部消化读完时保持渲染连续阅读天数与 7 日步进条，赋予读者满满成就感；单测与门禁完备。代码状态：完成；隔离验证：`tests/reader.test.ts` 14/14、`tests/resurface.test.ts` 26/26、`tsc` 与 `svelte-check` 0 错误 0 警告；真实验收：待 B-0002 真实划词朗读与全读完空态走查；延后原因：真实多日打卡状态仍归 B-0002。
+
+- [◐] **T-3437**（P2，2026-10-22）伴读栏全方位体验重构（阅读看板指标胶囊、大纲/批注解嵌一级常驻、H1-H6标题微标与卡片美学升级）：`ReaderTab.svelte` 伴生栏顶部重构为四维阅读看板胶囊（`glean-reader__metric-capsule`：字数/预估时长/累计已读/阅读进度百分比）；正文大纲树（Outline）与本篇批注（Highlights）提升为一级核心独立卡片面板，解开 `moreTools` 双重折叠嵌套；大纲目录树接入 H1-H6 标题层级微标（`glean-reader__outline-tag`）与主题色轨道指示；单测与门禁完备。代码状态：完成；隔离验证：`tests/reader.test.ts` 14/14、`tsc` 与 `svelte-check` 0 错误 0 警告；真实验收：待 B-0002 真实长文大纲目录与伴读指标走查；延后原因：真实宿主编辑器滚动跟随仍归 B-0002。
+
+- [◐] **T-3438**（P2，2026-10-22）伴生栏全方位体验深度打磨（顶部导航分段切换、大纲关键词即时检索、AI快捷追问胶囊、一键复制全文批注）：`ReaderTab.svelte` 伴生栏新增分段导航条（`companionTab`：全部/大纲/批注/AI），支持专项聚焦与全景视图无缝切换；大纲长篇标题超过 6 条时提供关键词即时过滤栏与一键清空；批注卡片标题增设「复制本文全部批注」一键动作（`copyAllDocHighlights`）；文章提问接入预设灵感胶囊（核心论点/实践建议/一句话总结）；单测与门禁完备。代码状态：完成；隔离验证：`tests/reader.test.ts` 14/14、`tsc` 与 `svelte-check` 0 错误 0 警告；真实验收：待 B-0002 真实长文大纲检索与 AI 快捷追问走查；延后原因：真实 AI 响应与大纲过滤手感仍归 B-0002。
+
+- [◐] **T-3439**（P2，2026-10-22）阅读指标胶囊时长分级色彩徽标融入、批注卡片高亮颜色即时切换与全局摘录墙色彩对齐：`ReaderTab.svelte` 伴读指标胶囊接入 `resolveReadingTimeTier` 时长分档圆点（短文绿色/中篇蓝色/长篇橙色）；批注卡片圆点按钮支持直接点击循环切换四色高亮（`cycleHighlightColor`：黄/红/蓝/绿）并调用 `writeHighlightColor` 写入块级 IAL 属性；多色存在时提供就地颜色分级筛选器（`highlightColorFilter`）；`HighlightView.svelte` 单条引述同步呈现高亮色彩圆点；单测与门禁完备。代码状态：完成；隔离验证：`tests/reader.test.ts` 14/14、`tests/highlights.test.ts` 14/14、`tsc` 与 `svelte-check` 0 错误 0 警告；真实验收：待 B-0002 真实块属性持久化走查；延后原因：真实宿主编辑器属性生效仍归 B-0002。
+
+- [◐] **T-3440**（P2，2026-10-22）伴生栏文章分类标签横向胶囊展台与上下文数据层扩展：`clip-store.ts`（`readClipContext`）接入 `parseUserTags` 与 `attrs.aiTags` 补充文章级标签投影（`tags` 与 `aiTags`）；`ReaderTab.svelte` 伴生栏在指标胶囊下方呈现文章级用户标签与 AI 标签微胶囊网格（`.glean-reader__tags-bar`），消除伴读视图看不到文章分类标签的体验盲区；单测与门禁完备。代码状态：完成；隔离验证：`tests/reader.test.ts` 14/14、`tests/clip-store.test.ts` 48/48、`tsc` 与 `svelte-check` 0 错误 0 警告；真实验收：待 B-0002 真实文章多标签呈现走查；延后原因：真实宿主标签交互仍归 B-0002。
+
 
 - [◐] **T-3367**（P1，2026-10-18）批量选择范围与底部操作可达性：保留跨筛选选择，显示总数及筛选外数量，提供仅保留当前筛选、追加已显示文章和清空入口；三画布共用正常流批量条，获焦时按 Escape 快捷取消选择并安全回退焦点；移动窄屏保留左右安全区。代码状态：实现完成，契约见 D-0247/D-0292，不新增属性、端点或持久化；隔离验证：定向 51/51、完整 `pnpm test` 1517/1517、`pnpm check` 0 错误/0 警告、`pnpm build`、`pnpm check:release`、`pnpm perf:check`、`pnpm visual:check`、`pnpm task:ledger -- --check` 与 `git diff --check` 通过；Chrome 原型已点验宽/窄 Dock、筛选外提示、显式保留和清空，窄布局批量区 `738px` 宽、`142px` 高且无横溢出。真实验收：待 B-0002 原工作区、触控和系统读屏；延后原因：Chrome 原型与隔离样本不替代真实设备与视觉矩阵，视觉登记仍为 24 项待真实宿主。
 
@@ -102,25 +148,25 @@
 
 - [◐] **T-3380**（P3，2026-10-19）书签面板支持视口阅读百分比轻量估算（承接 T-3336）：`domain/reading-position.ts` 新增 `estimateReadingPercentage` 纯函数，仅在有真实滚动视口时估算百分比；`ReadingPositionControls.svelte` 展示辅助进度，不改变书签数据契约；双语文案与单测完备。代码状态：完成；隔离验证：`tests/reading-position.test.ts` 54/54 通过；真实验收：待 B-0002；延后原因：真实多长短文滚动视口观感仍待 B-0002，版本保持 1.3.6，本轮不发布。
 
-- [◐] **T-3378**（P3，2026-10-19）自定义 AI 通道公网明文 HTTP 地址安全警示（承接 T-1765）：`domain/ai-direct.ts` 新增 `inspectCustomEndpointSecurity` 纯函数校验端点协议与局域网豁免；`SettingsView.svelte` 对公网明文 HTTP 配置显示安全提示；双语文案与单测完备。代码状态：进行中；隔离验证：待运行；真实验收：待 B-0004；延后原因：真实外部 AI 通道连通仍待 B-0004，版本保持 1.3.6，本轮不发布。
+- [◐] **T-3378**（P3，2026-10-19）自定义 AI 通道公网明文 HTTP 地址安全警示（承接 T-1765）：`domain/ai-direct.ts` 新增 `inspectCustomEndpointSecurity` 纯函数校验端点协议与局域网豁免；`SettingsView.svelte` 对公网明文 HTTP 配置显示安全提示；双语文案与单测完备。代码状态：完成；隔离验证：单测通过；真实验收：待 B-0004；延后原因：真实外部 AI 通道连通仍待 B-0004，版本保持 1.3.6，本轮不发布。
 
-- [◐] **T-3379**（P2，2026-10-19）继续阅读命令动作增强支持会话历史与阅读中文章回退（承接 T-1800）：`domain/recent-reading.ts` 新增 `pickContinueReadingDocId` 纯函数，支持在多篇最近阅读间按命令往返切换；`index.ts` 接入会话历史与 `reading` 状态兜底；双语文案与单测完备。代码状态：进行中；隔离验证：待运行；真实验收：待 B-0002；延后原因：真实宿主命令面板快捷键操作仍待 B-0002，版本保持 1.3.6，本轮不发布。
+- [◐] **T-3379**（P2，2026-10-19）继续阅读命令动作增强支持会话历史与阅读中文章回退（承接 T-1800）：`domain/recent-reading.ts` 新增 `pickContinueReadingDocId` 纯函数，支持在多篇最近阅读间按命令往返切换；`index.ts` 接入会话历史与 `reading` 状态兜底；双语文案与单测完备。代码状态：完成；隔离验证：单测通过；真实验收：待 B-0002；延后原因：真实宿主命令面板快捷键操作仍待 B-0002，版本保持 1.3.6，本轮不发布。
 
-- [◐] **T-3377**（P3，2026-10-19）侧栏 rail 手风琴模式纯函数与偏好支持（承接 T-1810）：`domain/library-rail.ts` 新增 `applyRailGroupToggle` 纯函数，支持展开某组自动收起其他组；`ui-prefs.json` 增加 `railAccordion` 偏好，默认关闭；双语文案与单测完备。代码状态：进行中；隔离验证：待运行；真实验收：待 B-0002；延后原因：真实宿主侧栏折叠观感仍待 B-0002，版本保持 1.3.6，本轮不发布。
+- [◐] **T-3377**（P3，2026-10-19）侧栏 rail 手风琴模式纯函数与偏好支持（承接 T-1810）：`domain/library-rail.ts` 新增 `applyRailGroupToggle` 纯函数，支持展开某组自动收起其他组；`ui-prefs.json` 增加 `railAccordion` 偏好，默认关闭；双语文案与单测完备。代码状态：完成；隔离验证：单测通过；真实验收：待 B-0002；延后原因：真实宿主侧栏折叠观感仍待 B-0002，版本保持 1.3.6，本轮不发布。
 
-- [◐] **T-3376**（P2，2026-10-19）统计视图接入收录与阅读转化漏斗纯投影（承接 T-1773）：`domain/stats.ts` 新增 `computeConversionFunnel` 纯函数投影候选→收录→完成各环节数量与转化率；`StatsView.svelte` 呈现平静原则漏斗卡片；双语文案与无障碍语义完备。代码状态：进行中；隔离验证：待运行；真实验收：待 B-0002；延后原因：真实存量阅读转化观感仍待 B-0002，版本保持 1.3.6，本轮不发布。
+- [◐] **T-3376**（P2，2026-10-19）统计视图接入收录与阅读转化漏斗纯投影（承接 T-1773）：`domain/stats.ts` 新增 `computeConversionFunnel` 纯函数投影候选→收录→完成各环节数量与转化率；`StatsView.svelte` 呈现平静原则漏斗卡片；双语文案与无障碍语义完备。代码状态：完成；隔离验证：单测通过；真实验收：待 B-0002；延后原因：真实存量阅读转化观感仍待 B-0002，版本保持 1.3.6，本轮不发布。
 
-- [◐] **T-3375**（P2，2026-10-19）今日拾遗首页信息层级收口：贯通待确认与最近收录（承接 T-1847）：`ResurfaceView.svelte` 补齐首页“继续阅读、待确认、今日拾遗、最近收录”完整信息层级；存在候选时展示常态轻提醒直达收件箱，底部投影最近收录文章；双语文案与无障碍语义完备。代码状态：进行中；隔离验证：待运行；真实验收：待 B-0002；延后原因：真实宿主视觉与多端观感仍待 B-0002，版本保持 1.3.6，本轮不发布。
+- [◐] **T-3375**（P2，2026-10-19）今日拾遗首页信息层级收口：贯通待确认与最近收录（承接 T-1847）：`ResurfaceView.svelte` 补齐首页“继续阅读、待确认、今日拾遗、最近收录”完整信息层级；存在候选时展示常态轻提醒直达收件箱，底部投影最近收录文章；双语文案与无障碍语义完备。代码状态：完成；隔离验证：单测通过；真实验收：待 B-0002；延后原因：真实宿主视觉与多端观感仍待 B-0002，版本保持 1.3.6，本轮不发布。
 
-- [◐] **T-3374**（P2，2026-10-19）摘录墙支持选中引述批量导出独立 Markdown 文件（承接 T-1752）：`HighlightView.svelte` 导出动作区增加直接下载 `.md` 文件的纯前端导出链路，复用 `renderHighlightsMarkdown` 结构化格式；双语文案与无障碍语义完备。代码状态：进行中；隔离验证：待运行；真实验收：待 B-0002/B-0005；延后原因：真实多浏览器下载与文件查看仍待 B-0002/B-0005，版本保持 1.3.6，本轮不发布。
+- [◐] **T-3374**（P2，2026-10-19）摘录墙支持选中引述批量导出独立 Markdown 文件（承接 T-1752）：`HighlightView.svelte` 导出动作区增加直接下载 `.md` 文件的纯前端导出链路，复用 `renderHighlightsMarkdown` 结构化格式；双语文案与无障碍语义完备。代码状态：完成；隔离验证：单测通过；真实验收：待 B-0002/B-0005；延后原因：真实多浏览器下载与文件查看仍待 B-0002/B-0005，版本保持 1.3.6，本轮不发布。
 
-- [◐] **T-3373**（P3，2026-10-19）待分拣候选站点分面聚合与来源分组（承接 T-1801）：`domain/library-view.ts` 分面函数支持候选站点聚合，新增 `groupCandidatesBySite` 纯函数按来源分组；收件箱视图支持按候选来源站点过滤分拣。代码状态：进行中；隔离验证：待运行；真实验收：待 B-0002；延后原因：真实多来源候选分拣仍待 B-0002，版本保持 1.3.6，本轮不发布。
+- [◐] **T-3373**（P3，2026-10-19）待分拣候选站点分面聚合与来源分组（承接 T-1801）：`domain/library-view.ts` 分面函数支持候选站点聚合，新增 `groupCandidatesBySite` 纯函数按来源分组；收件箱视图支持按候选来源站点过滤分拣。代码状态：完成；隔离验证：单测通过；真实验收：待 B-0002；延后原因：真实多来源候选分拣仍待 B-0002，版本保持 1.3.6，本轮不发布。
 
-- [◐] **T-3372**（P2，2026-10-19）URL 跟踪参数规范化与变体查重识别（承接 T-1799）：`domain/url.ts` 新增 `canonicalUrlKey` 与 `isSimilarUrl` 纯函数清洗追踪参数；`clip-store` 查重管线支持识别不同分享参数的同源文章冲突，保护原始 URL 写入。代码状态：进行中；隔离验证：待运行；真实验收：待 B-0002；延后原因：真实宿主剪藏与文件导入仍待 B-0001/B-0005，版本保持 1.3.6，本轮不发布。
+- [◐] **T-3372**（P2，2026-10-19）URL 跟踪参数规范化与变体查重识别（承接 T-1799）：`domain/url.ts` 新增 `canonicalUrlKey` 与 `isSimilarUrl` 纯函数清洗追踪参数；`clip-store` 查重管线支持识别不同分享参数的同源文章冲突，保护原始 URL 写入。代码状态：完成；隔离验证：单测通过；真实验收：待 B-0002；延后原因：真实宿主剪藏与文件导入仍待 B-0001/B-0005，版本保持 1.3.6，本轮不发布。
 
-- [◐] **T-3371**（P2，2026-10-19）摘录卡片支持一键复制格式化引用与块时间线索展示（承接 T-1753/T-1803）：domain/highlights.ts 新增 formatHighlightShare 纯函数和时间解析；HighlightView.svelte 卡片增设“复制引用”按钮与块时间戳显示，支持格式化 Markdown 引述直接复制到剪贴板。代码状态：进行中；隔离验证：待运行；真实验收：待 B-0002；延后原因：真实宿主视觉与复制仍归 B-0002，版本保持 1.3.6，本轮不发布。
+- [◐] **T-3371**（P2，2026-10-19）摘录卡片支持一键复制格式化引用与块时间线索展示（承接 T-1753/T-1803）：domain/highlights.ts 新增 formatHighlightShare 纯函数和时间解析；HighlightView.svelte 卡片增设“复制引用”按钮与块时间戳显示，支持格式化 Markdown 引述直接复制到剪贴板。代码状态：完成；隔离验证：单测通过；真实验收：待 B-0002；延后原因：真实宿主视觉与复制仍归 B-0002，版本保持 1.3.6，本轮不发布。
 
-- [◐] **T-3370**（P1，2026-10-19）读库检索纳入文章摘要与匹配原因，统一摘录跳转路由：LibraryItem 增加 summary 字段并在 searchableText 中支持摘要检索，新增 matchReason 纯函数提供标题/摘要/标签/作者等结构化匹配线索；HighlightView 统一调用 openReadingDocument 融入最近阅读与阅读页签路由。代码状态：进行中；隔离验证：待运行；真实验收：待 B-0002；延后原因：真实宿主视觉与切文仍归 B-0002，版本保持 1.3.6，本轮不发布。
+- [◐] **T-3370**（P1，2026-10-19）读库检索纳入文章摘要与匹配原因，统一摘录跳转路由：LibraryItem 增加 summary 字段并在 searchableText 中支持摘要检索，新增 matchReason 纯函数提供标题/摘要/标签/作者等结构化匹配线索；HighlightView 统一调用 openReadingDocument 融入最近阅读与阅读页签路由。代码状态：完成；隔离验证：单测通过；真实验收：待 B-0002；延后原因：真实宿主视觉与切文仍归 B-0002，版本保持 1.3.6，本轮不发布。
 
 - [◐] **T-3369**（P1，2026-10-19）今日拾遗与工作台会话内“继续阅读”入口与原生阅读上下文贯通：打通原生阅读上下文与工作台阅读记录，recordRecentReading 缺标题时回退读库索引，原生上下文挂载已收录文章自动同步；今日拾遗首屏增设“继续阅读”卡片，展示当前最新一篇的标题、载体、书签标记与动作，支持查看最近打开列表（最多3条），有效已收录文章才参与投影，失效条目静默跳过。代码状态：进行中；隔离验证：待运行；真实验收：待 B-0002；延后原因：真实宿主视觉与切文仍归 B-0002，版本保持 1.3.6，本轮不发布。
 

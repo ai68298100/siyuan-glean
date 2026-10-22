@@ -37,6 +37,7 @@ function indexToSurfaceItems(index: GleanIndex): SurfaceItem[] {
         contentType: clip.contentType,
         url: clip.url,
         site: clip.site,
+        author: clip.author,
     }));
 }
 

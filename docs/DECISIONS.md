@@ -1677,3 +1677,265 @@ T-3416 承接方向五（有依据的阅读 AI）与同类产品对标（Readwis
    - 提供双语国际化文案（`library.railAccordion` / `library.railAccordionDesc` / `library.railCollapseAll` / `library.railExpandAll`）与 `iconGleanAccordion` 原生 SVG 注册；
    - 新增 `tests/library-rail-accordion.test.ts` 全面验证纯函数折叠逻辑与边界情况（13/13 全数通过），保证分层单向依赖与数据主权不受影响。
 
+## D-0298（2026-10-20）分面侧栏未读与待办动态角标计数投影（T-3418）
+
+针对读库分面侧栏各分类项缺乏即时数量反馈、难以直观把握各分类下文档规模的问题，对标主流知识库产品（如 Cubox/Readwise）实现无感动态角标计数系统：
+1. 纯函数多维分类聚合与排除当前维度的基数计算：
+   - 新增 `src/domain/library-rail-badges.ts`，定义 `RailBadgeKey` 规范类型；
+   - 提供 `buildRailBadgeMap(articles, options)` 纯函数，支持传入全部文章或已筛选文章，支持状态（inbox/later/reading/done/archived）、优先级（P1-P5/未设置）、星标收藏、时间源、预计阅读时长分档（短文/中篇/长篇/未知）、用户主题标签、AI 标签与作者等多维度并行统计；
+   - 支持智能排除当前筛选所在维度（`excludeCurrentDimension: true`），即在已选中某个状态（如 later）时，其余状态项展示全局可用总数，避免其他状态因交集互斥被错误归零；
+2. 组件级轻量只读渲染与无障碍无缝接入：
+   - `src/domain/library-rail.ts` 的 `RailItem` 接口增加可选只读属性 `badge?: number | string`；
+   - `src/ui/LibraryRailGroup.svelte` 在分类项右侧渲染 `.glean-rail-item__badge`，提供零值抑制（不显示 0，保持界面纯净整洁）以及符合无障碍规范的 `aria-label` 计数语义补充；
+   - `src/ui/DockPanel.svelte` 使用 `$derived` 响应式计算 `railBadgeMap` 并注入各分面项投影；
+3. 严格数据主权与架构边界：
+   - 纯客户端前端响应式内存只读聚合，不发起任何额外的思源端点请求，不修改任何文档属性（`custom-clip-*`），不修改底层存储。
+
+## D-0299（2026-10-20）阅读器正文搜索与命中高亮导航（T-3419）
+
+针对长文阅读场景下快速定位段落关键词的需求，实现内嵌阅读器正文实时查找与高亮导航系统：
+1. 非侵入式 DOM 高亮与安全降级：
+   - 新增 `src/domain/reader-search.ts` 纯函数层与 `src/libs/reader-search-dom.ts` 控制器；
+   - 优先采用现代 CSS Custom Highlight API（`CSS.highlights`），不破坏或修改 Protyle 编辑器原生 DOM 树与内容结构；无 API 环境平滑降级；
+   - 支持大小写匹配切换（Aa 按钮）与回车（Enter / Shift+Enter）双向循环导航；
+2. 交互与全键盘贯通：
+   - `src/ui/ReaderSearch.svelte` 提供极简悬浮搜索条，支持与 `ReaderTab.svelte` 键盘监听联动；
+   - 快捷键支持：按 Ctrl/Cmd+F 打开搜索条并自动聚焦输入框，按 Escape 优先安全退出搜索并清理高亮；
+   - 遵从无障碍与设计系统，使用原生 SVG 图标替代文本字符；不改变任何底层文档属性与端点契约。
+
+## D-0300（2026-10-21）微信公众号专属优化：自动识别公众号作者、真实时间提取、防盗链保护与噪声过滤（T-3420）
+
+针对中文场景下高频剪藏的微信公众号文章进行深度垂直优化：
+1. 启发式公众号具体名称识别与回填：
+   - 新增 `src/domain/wechat.ts` 纯函数层，提供 `isWechatUrl`、`extractWechatAuthor` 等算法；
+   - 综合解析 HTML js_name、profile_nickname、og:site_name 以及 Markdown 首部结构化标签和微信特有原创标头；
+   - 在首次收录（`captureClip`）与存量迁移（`migrate`）时，若检测为微信文章且 `author` 属性尚为空，自动将识别出的具体公众号名称安全回填至 `custom-clip-author`（若用户已有手填值则严格遵照数据主权铁律保护，绝不覆写）；
+2. 真实发布时间识别与时间源绑定：
+   - `extractWechatTime` 解析微信 HTML `id="publish_time"`、JS 变量 `createDate/publish_time` 或正文前置时间标头，格式化为符合思源规范的 14 位本地时间（`YYYYMMDDHHmmss`）；
+   - 首次收录时优先使用该真实发布时间并打上 `custom-clip-time-source="source"`，避免将旧文误记为剪藏当天；
+3. 图片防盗链防护与模板噪点清洗：
+   - `ProtyleHost.svelte` 挂载就绪后，对 `mmbiz.qpic.cn` / `qpic.cn` 微信外链图片自动应用 `referrerPolicy = "no-referrer"`，彻底解决由于 HTTP Referer 校验导致的 403 裂图问题；
+   - `cleanWechatNoise` 纯函数在字数统计与 `FormattingDialog` 排版整理中过滤“收录于合集”、“点击上方蓝字关注”、“喜欢本文点赞在看”等微信模板固定噪点行，防止虚高文章正文字数。
+
+## D-0301（2026-10-21）剪藏文章批注本篇伴生栏、正文划词悬浮胶囊与思源笔记沉淀（T-3421）
+
+针对深度阅读中的划线批注回流与长文阅读进度感知进行系统性增强：
+1. 本篇批注伴生栏与双向定位：
+   - 在 `ReaderTab.svelte` 伴生栏中新增【本篇批注与摘录】折叠卡片，调用既有服务 `listDocHighlights(rootDocId)`；
+   - 卡片流式展示当前文章所有引述与高亮块，还原高亮颜色标签与时间线索，点击任意批注卡片立即平滑滚动（`scrollIntoView`）至编辑器内对应块并聚焦，施加 1.2 秒的脉冲渐变强调效果（`.glean-pulse-highlight`）；
+   - 卡片提供一键复制带块链接的引用与一键制作思源 riff 闪卡；正文内执行选区摘录后自动增量刷新伴生栏列表；
+2. 划词悬浮快捷胶囊工具条：
+   - 当在阅读器正文中划选文字时，正文区域下方即时浮现轻量吸顶悬浮胶囊工具条（`glean-reader__selection-bar`），提供快速引述摘录、制作闪卡、划词翻译与快速关闭，大幅缩短用户做笔记的鼠标移动路径；
+3. 读书笔记一键沉淀与双向引用：
+   - 服务层新增 `createArticleHighlightsDoc`，在 `HighlightView.svelte` 按文章聚类分组头部提供「📄 生成思源笔记」按钮；
+   - 一键将该文章所有引述以思源原生块引用格式（`((blockId "原文引述"))`）沉淀为同目录下的普通思源文档，并标记 `internal: true` 防候选污染；
+4. 顶部阅读进度条：
+   - 结合既有纯函数 `estimateReadingPercentage`，实时监听 Protyle 滚动容器视口百分比；
+   - 阅读器主视图顶部渲染 3px 高的琥珀渐变阅读进度条（`.glean-reader__progress-bar`），赋予读者清晰的长文进度感知；
+5. 严格数据主权与架构契约：所有高亮数据完全依托思源原生块（`NodeBlockquote`），不增加插件专有文档属性，不修改后端存储。
+
+## D-0302（2026-10-21）每日拾遗智能融合作者公众号推荐理由与读库微信紧凑展示（T-3422）
+
+针对微信公众号与知名作者文章在重浮决策与列表识别中的体验优化：
+1. 每日重浮推荐理由接入作者维度：
+   - `domain/resurface.ts` 新增 `SurfaceReason.author`（`kind: "author"`），`resurface-service.ts` 接入 `author` 属性；
+   - `ResurfaceView.svelte` 智能呈现「来自 ${author}」理由；
+2. 读库多画布来源标签紧凑展示：
+   - `DockPanel.svelte` 列表行、卡片与移动端来源标签对微信公众号文章自动收敛为紧凑「微信 · 作者」；双语文案与单测完备。
+
+## D-0303（2026-10-21）阅读器工具栏一键主题循环切换（跟随思源 / 纸感 / 护眼绿）（T-3423）
+
+针对阅读器多主题快速切换的视觉舒适度需求：
+1. 工具栏一键循环切换：
+   - `ReaderTab.svelte` 顶部工具栏增设 `glean-reader__toolbar-theme` 循环切换按钮，实时切换 `readerAppearance.theme` 并展示专属三色状态指示圆点；
+2. 偏好持久化与样式规范：单测与门禁完备，不改变配置 schema 或端点契约。
+
+## D-0304（2026-10-21）ReaderTab 选区快捷批注与个人思考插入（Quote with Memo）（T-3424）
+
+针对用户在长文阅读中记录个人思考的深度批注需求：
+1. 思考批注结构化沉淀：
+   - `services/excerpt-service.ts` 的 `insertQuoteExcerpt` 接入可选 `memo?: string` 参数；
+   - 纯函数 DOM 构建在保留原文引述的同时，将个人感想作为后续段落（`💡 感想内容`）一并插入引述块，形成严谨的原生引用+思考结构；
+2. 选区胶囊工具条交互贯通：
+   - `ReaderTab.svelte` 划选悬浮胶囊工具条新增「💬 批注」按钮，点击就地展开内联输入框，支持回车快捷插入、Escape 取消；插入成功后立即增量刷新伴生栏批注列表；
+3. 严格数据主权与架构边界：不新增插件专有属性，感想与引述完全作为思源块级内容事实留存。
+
+## D-0305（2026-10-21）分面侧栏一键折叠收起与宽窄自适应切换（T-3425）
+
+针对用户希望最大化文章列表或看板浏览空间、自由控制界面密度的需求：
+1. 侧栏折叠偏好与状态机：
+   - `services/prefs.ts` 接入 `railCollapsed: boolean` 偏好（默认 false），支持用户偏好跨会话记忆；
+   - `DockPanel.svelte` 侧栏分面工具条提供一键收起按钮（`<svg><use href="#iconGleanArrowLeft" /></svg>`），侧栏收起时自动隐藏 `<aside class="glean-rail">`，使文章列表或看板自适应填满 100% 画布；
+2. 列表顶栏快捷展开恢复：
+   - 在侧栏收起状态下，`DockPanel.svelte` 列表顶栏提供醒目的展开按钮（`<svg><use href="#iconGleanArrowRight" /></svg>`），一键平滑恢复分面侧栏，兼顾空间最大化与快捷检索。
+
+## D-0306（2026-10-21）读库列表与卡片时长标签（Reading Time Badge）分级视觉色彩优化（T-3426）
+
+针对读者在快速浏览分拣时直观识别文章体量与阅读门槛的诉求：
+1. 时长分档类型纯函数映射：
+   - `domain/library-view.ts` 新增 `resolveReadingTimeTier(minutes)` 纯函数，精准映射为 `short` (≤5m)、`medium` (6-15m)、`long` (>15m) 与 `unknown` 四类；
+2. 分级色彩视觉系统：
+   - `DockPanel.svelte` 行表（`.glean-drow__len`）、看板卡片与移动端条目（`.glean-tier-badge`）根据所属时长档位赋予轻量、高对比度的色彩语义：短文呈翡翠绿（轻松无负担）、中篇呈蔚蓝（适中深度）、长篇呈琥珀橙（深度研读）；
+   - 严格遵循设计系统规范，支持 forced-colors 与系统高对比度回退。
+
+## D-0307（2026-10-21）参考图美学落地：今日拾遗 7 日打卡步进条与连续完成 Bento 卡片（T-3427）
+
+对标标杆移动端与桌面阅读应用中 "Days Logged In" 与 "Streak" 卡片的情绪价值与平静打卡激励：
+1. 近 7 日完成打卡状态纯函数：
+   - `domain/stats.ts` 新增 `computeRecent7DaysStatus(items, now)` 纯函数，精准计算近 7 个日历日每日是否有已完成阅读的真实事实（`doneTime`）；
+2. 暖琥珀色 Bento 打卡横幅：
+   - `ResurfaceView.svelte` 顶部接入 `.glean-surf-banner`：左侧为暖琥珀渐变 Streak 连续完成激励卡（`🔥 连续阅读 N 天`），右侧为水平 7 日打卡胶囊步进器（`.glean-surf-stepper`），已读呈现对勾 `✓`，今日呈现活动琥珀点 `◉`，无催促感与羞辱感，严格遵守平静原则；
+3. 单测与门禁完备，不增加任何底层文档属性与端点契约。
+
+## D-0308（2026-10-21）参考图美学落地：统计回顾页派生阅读里程碑印记（T-3428）
+
+对标标杆产品中 Achievements 成就勋章与阅读徽章的阶段感：
+1. 阶段里程碑纯只读投影：
+   - `domain/stats.ts` 新增 `computeReadingMilestones(stats)` 纯函数，依据当前读库规模、连续天数、本周读完量、阅读总字数等派生 6 类阶段印记（拾遗起步、开卷有益、本周读家、持之以恒、博采众长、万字阅览）；
+2. 统计页 Bento 胶囊徽章墙：
+   - `StatsView.svelte` 在核心指标下方渲染 `.glean-stats__milestones` 徽章墙，已解锁印记点亮主色并具备悬浮浮动动效，未解锁印记保持优雅半透明；
+   - 纯客户端只读派生，不修改后端存储，不产生额外端点调用。
+
+## D-0309（2026-10-21）时间线引导轴微标、沉浸阅读呼吸隐退与全卡片触控微动效（T-3429）
+
+深度融合参考设计图的微动效与排版层次：
+1. 摘录时间线立体竖轴（Timeline Rail）：
+   - `HighlightView.svelte` 平铺时间线模式接入竖向引导轴与动态放大圆环锚点（`.glean-highlights__items:not(.glean-highlights__items--grouped)`），营造流式日程时间线的阅读连贯感；
+2. 沉浸模式呼吸隐退与 Escape 快捷退出：
+   - `ReaderTab.svelte` 沉浸模式下工具栏在无鼠标活动或未获焦时保持 0.38 半透明呼吸隐退，鼠标移动至顶栏时平滑恢复完全可见；
+   - `onReaderKey` 监听在沉浸模式下按 Escape 优先安全退出沉浸视图，无需寻找屏幕角落的退出按钮；
+3. 触控与按压微动效（Scale feedback & spring press）：
+   - 连续阅读卡片、7 日打卡胶囊（`.glean-surf-step`）、成就勋章与分段控件在用户按压（`:active`）时接入 `scale(0.92~0.97)` 弹性微动效，提升整套界面的原生触感与操作反馈。
+
+## D-0310（2026-10-21）微信文章懒加载修复、官方封面摘要提取与纯净短链/微信读书互通（T-3430）
+
+针对微信公众号剪藏内容完整性、摘要免模型提取与生态互联的专项深化：
+1. 图片 data-src 懒加载修复（`repairWechatImages`）：
+   - `domain/wechat.ts` 智能识别占位 transparent gif/data URL，将真实图片 `data-src` 提升为标准 Markdown 图片，彻底解决剪藏微信文章导致的图片空白失真；
+2. 官方封面与作者摘要免模型提取：
+   - `extractWechatCover` 与 `extractWechatDescription` 从微信文章 meta 标签或内嵌 JS 变量中提取官方大图与作者引言；
+   - `clip-store.ts` 在首次收录时自动回填 `custom-clip-summary`，无需耗费 AI 额度即可获得原作者亲自撰写的高质量摘要；
+3. 微信纯净短链接与微信读书网页版打通：
+   - `cleanWechatArticleUrl` 剥离全部 chksm/mpshare 追踪会话参数，生成规范的永久短链并支持一键复制；
+   - `wechatArticleToWereadUrl` 转换生成微信读书网页版直达阅读入口，`ReaderTab.svelte` 伴生栏提供专属跳转按钮；
+4. 深度模板噪点清洗：`cleanWechatNoise` 扩充清洗赞赏码、阅读原文跳转、往期推荐列表与名片卡片；单测与门禁完备。
+
+## D-0311（2026-10-21）微信 LaTeX 公式逆向、代码块提纯、语音组件转换与同作者合集连读导航（T-3431）
+
+对标标杆剪藏产品（简悦、Cubox、微信读书）针对技术与人文公众号的高保真排版还原：
+1. LaTeX 数学公式逆向解析（`repairWechatMath`）：
+   - 智能识别微信公式标签（`data-formula="..."`），精准还原为原生 Markdown LaTeX 语法（`$inline$` 或 `$$block$$`），交给思源原生数学引擎高精度渲染；
+2. 代码块提纯与行号过滤（`repairWechatCode`）：
+   - 提取 `<pre class="js_dark_code">` 容器，剥离微信多重嵌套的行号与 table 噪音，解码 HTML 实体并生成带有语言标记（如 ````python````）的标准 Markdown 代码块；
+3. 微信原声音频条转换（`repairWechatVoice`）：
+   - 将 `<mpvoice>` 标签提取转换为结构化 Markdown 音频卡片，保留标题与时长提示；
+4. 公众号官方头像沉淀与同号连读导航（`extractWechatAvatar` & `loadAuthorArticles`）：
+   - `ReaderTab.svelte` 微信卡片渲染公众号圆形官方头像，赋予文章杂志级排版质感；
+   - 基于只读派生索引自动推荐同一公众号在读库中的最新文章，支持在阅读器内一键连贯切换阅读。
+
+## D-0312（2026-10-21）微信 CSS 背景插图抢救、内嵌视频转换与读库一键公众号分面筛选（T-3432）
+
+针对微信复杂图文排版资产防丢失与多端浏览筛选效率的专项强化：
+1. CSS `background-image` 插图抢救（`repairWechatBackgroundImages`）：
+   - 微信长图、全景信息图常直接使用 `<section style="background-image: url(...)">` 排版，普通剪藏转换为 Markdown 时背景图常彻底丢失；
+   - 提取真实图片地址并转为标准 Markdown 插图插入文档流，最大程度挽救图文完整性；
+2. 腾讯视频与视频号内嵌转换（`repairWechatVideos`）：
+   - 提取微信内嵌的腾讯视频（`iframe.video_iframe`）与视频号（`mpvideo`），生成结构化引述卡片并保留播放链接；
+3. 读库全画布微信公众号来源一键筛选：
+   - `DockPanel.svelte` 行表、看板卡片与移动端列表中的绿色微标与站点标签均支持点击直通（`selectSite(entry.site)`），一键按 `mp.weixin.qq.com` 聚合公众号藏书。
+
+## D-0313（2026-10-21）设置页弹窗放大（920x720px）、新手提示卡片截断修复与 8 大分类导航图标重构（T-3433）
+
+针对用户反馈设置弹窗太小局促、提示条内容被截断与分类信息架构优化的深度重构：
+1. 弹窗尺寸从 720x640px 扩容至 920x720px：
+   - 为宽屏显示器留出充分的横向展示空间，消除表单项过窄和换行错乱，右侧内容区扩展至 650px+；
+2. 彻底解决新手提示条（newbie-hint）纵向挤压截断问题：
+   - 根因分析：外层 `.glean-settings__content` 为 Flex column 容器，`.glean-settings__newbie-hint` 未设 `flex-shrink: 0` 且带着 `.glean-set-group` 的 `overflow: hidden`，在高度紧张时被 Flex 算法强行纵向压扁，导致文字与按钮下半截被硬生生切掉；
+   - 重构落地：剥离潜在挤压风险，赋予 `flex-shrink: 0 !important; min-height: fit-content !important;`，并重构为大圆角通知卡片（`.glean-settings__newbie-banner`），图标、文字自适应换行与操作按钮区清晰分离，彻底杜绝切角；
+3. 左侧导航重构为 220px 并注入 8 大分类专属 SVG 图标：
+   - 为 8 大分类（工作区、今日拾遗、阅读器、AI 增强、AI 通道、联动集成、数据备份、系统维护）分别注入语义图标（麦穗、循环、卡片、星火、搜索、外链、归档、齿轮）；
+   - 导航项最小高度提升至 42px，增加悬停与激活态对比度，赋予设置面板现代专业级工业质感。
+
+## D-0314（2026-10-22）排版整理微信专属提纯、摘录精准制导原文定位、专栏合集连读扩展与看板卡片标题收敛（T-3434）
+
+针对深度阅读流、摘录双向交互与信息密度的系统性闭环：
+1. 排版整理深度集成微信正文专属清洗（`repairWechatContent`）：
+   - `formatting-service.ts`（`readSource`）在载入待排版文章时，若来源为微信文章，自动调用 `repairWechatContent` 逆向提纯公式、代码块、背景长图与懒加载图片；
+   - `FormattingDialog.svelte` 顶栏增加微信提纯微标感知，用户生成排版整理稿时自动沉淀高质量正文；
+2. 摘录墙跳转原文精准定位具体引述块：
+   - 扩展 `facade.openReadingDocument(docId, focusBlockId?)` 与 `openReaderTab`，原生支持指定定位块；
+   - `HighlightView.svelte` 在单篇与聚类视图中点击「打开原文」时传入引述块 ID，进入阅读器自动平滑滚屏至对应块并施加 1.2 秒脉冲高亮强调反馈（`.glean-pulse-highlight`），消除“从摘录跳到文章开头找不到原文”的体验割裂；
+3. 专栏合集（Series）连读扩展（`seriesArticles`）：
+   - `ReaderTab.svelte` 基于只读派生索引，依据文档 `hpath` 目录结构智能聚合同一合集/系列下的其他章节，并按章节顺序排列呈现，打通公众号与专栏系列连贯深度阅读；
+4. 看板卡片标题行数收敛：
+   - 看板卡片（`.glean-kcard__t`）与列表卡片（`.glean-card__title`）统一接入 `line-clamp: 3` 收敛超长微信标题，保持 100% 悬停完整展示，提升多列看板的整洁度与垂直节奏。
+
+## D-0315（2026-10-22）快捷键面板立体键帽矩阵重构、大纲活动导轨与标题跳转脉冲光晕（T-3435）
+
+对齐参考图美学，针对阅读器大纲树、快捷键指引与拾遗换篇的微交互体验深化：
+1. 快捷键浮层现代化键帽矩阵重构：
+   - `ReaderTab.svelte` 快捷键提示条升级为现代化半透明毛玻璃底面（`backdrop-filter: blur(12px)`），每个键位采用立体阴影（`0 1.5px 0 var(--b3-border-color), 0 2px 4px rgba(0,0,0,0.05)`）键帽胶囊；
+   - 补充 `Ctrl+F` 查找快捷键指引，保持 DOM 契约完全向后兼容；
+2. 伴生栏大纲活动章节高亮轨与脉冲定位：
+   - 伴生栏大纲树活动章节（`--active`）增加左侧 2.5px 品牌主色活动轨道指示；
+   - 点击大纲项（`scrollToOutline`）平滑滚动至对应正文块时，自动挂载 1.2 秒脉冲光晕（`.glean-pulse-highlight`），使长文视线落点清晰确定；
+3. 拾遗换篇与撤销轻微弹簧平滑浮现：
+   - `glean-surf-undo` 增加弹簧轻微上浮入场动画（`glean-slide-up`），消除卡片切换时的突兀感。
+
+## D-0316（2026-10-22）选区划词即时朗读接入与今日拾遗读完闭环持久激励呈现（T-3436）
+
+针对长文阅读沉浸感与微习惯正向反馈的闭环微交互打磨：
+1. 划词悬浮胶囊工具条即时朗读（`speechSelection`）：
+   - `ReaderTab.svelte` 划词悬浮条增设 `🔊 朗读选区` 按钮，直接调用 `startSpeech("selection")` 针对当前选中文本进行朗读；
+   - 消除读者为了听一段文字必须折叠/翻找侧边伴生栏的操作摩擦，真正做到划词即听；
+2. 今日拾遗“全部读完”空态持久化呈现成就与 7 日步进条：
+   - `ResurfaceView.svelte` 当日 3 篇重浮文章全部消化读完时，在平静完成空态上方依然常驻展示暖琥珀火焰卡片（`🔥 连续阅读 N 天`）与打卡步进条（今日展示翡翠绿对勾 `✓`）；
+   - 在用户完成当日目标的时刻，给予最及时的正向情绪回馈。
+
+## D-0317（2026-10-22）伴读栏全方位体验重构（阅读看板指标胶囊、大纲/批注解嵌一级常驻、H1-H6标题微标与卡片美学升级）（T-3437）
+
+针对伴读侧栏信息架构深层折叠嵌套、长文指标缺乏感知等痛点的深度重构：
+1. 顶部阅读指标看板胶囊（Reading Metrics Capsule）：
+   - `ReaderTab.svelte` 伴生栏顶部重构为四维阅读看板胶囊（`glean-reader__metric-capsule`），整合当前文章字数、预计阅读时长、当前累计已读分钟与实时阅读进度百分比（`words · est · read · progress`）；
+2. 大纲目录（Outline）与本篇批注（Highlights）提升为一级核心独立卡片：
+   - 彻底解开此前大纲与批注深埋在 `moreTools` 折叠面板内的双重折叠嵌套；
+   - 目录大纲默认展开，批注卡片在有批注时保持展开，大幅缩短用户翻看目录与引述的点击路径；
+   - `moreTools` 回归专一职责，仅收纳历史足迹、作者编辑、语音朗读高级控制与外观设置；
+3. 大纲目录树视觉系统升级：
+   - 为每个大纲项注入 H1-H6 标题层级微标（`glean-reader__outline-tag`），层级清晰直观；活动章节左侧增加 2.5px 品牌主色活动轨道指示。
+
+## D-0318（2026-10-22）伴生栏全方位体验深度打磨（顶部导航分段切换、大纲关键词即时检索、AI快捷追问胶囊、一键复制全文批注）（T-3438）
+
+为提升长文阅读、专题深度研读场景下的专注度与操作能效：
+1. 伴生栏分段导航条（`companionTab`）：
+   - 在伴读侧栏顶部注入便当盒微胶囊分段导航（`全部` / `📑 大纲` / `💡 批注` / `✨ AI`）；
+   - 默认保持 `all` 全景展示（保持完全的 DOM 向后兼容）；当切换到 `outline`、`notes` 或 `ai` 时，相应卡片获得整栏专属纵向视口，彻底告别来回滚轮反复翻找的焦虑；
+2. 大纲长篇标题即时检索：
+   - 当大纲标题数量达到 6 条及以上时，自动在目录卡片上方浮现细体检索框，支持键入拼音或关键字即时筛选目录项，点击 ✕ 即刻还原；
+3. 本篇批注一键汇总复制：
+   - 在批注卡片标题右侧注入「复制本文全部批注」快捷按钮（`copyAllDocHighlights`），一键将文中分散的划线与思源块双链按 Markdown 规范复制到剪贴板，方便二次整理或流转；
+4. AI 提问灵感预设胶囊：
+   - 在“问这篇”输入框下方提供三个极简胶囊按钮（`💡 核心论点是什么？`、`📝 有什么行动建议？`、`🎯 一句话快速总结`），读者点击即可就地免打字发起结构化深入问答。
+
+## D-0319（2026-10-22）阅读指标胶囊时长分级色彩徽标融入、批注卡片高亮颜色即时切换与全局摘录墙色彩对齐（T-3439）
+
+强化视觉信息层级与批注色彩管理能力：
+1. 阅读指标胶囊融入时长分档色彩微标：
+   - 伴读指标胶囊（`glean-reader__metric-capsule`）中的预计阅读时长整合纯函数 `resolveReadingTimeTier`；
+   - 融入直观的时长分档小圆点（短文绿色 `🟢`、中篇蓝色 `🔵`、长篇橙色 `🟠`），帮助读者建立清晰的时间预期；
+2. 伴生栏批注卡片高亮颜色即时循环切换（`cycleHighlightColor`）：
+   - 将批注卡片上的颜色圆点升级为可交互按钮，点击在 `黄 (yellow) → 红 (red) → 蓝 (blue) → 绿 (green)` 之间循环切换；
+   - 严格通过 `clip-store.ts` 的 `writeHighlightColor` 写入块级 IAL 属性，符合单向数据流与数据主权契约；
+   - 当一篇文章存在多种颜色批注时，就地提供微型颜色分级筛选器（`highlightColorFilter`），方便重点彩色回看；
+3. 全局摘录墙（`HighlightView.svelte`）卡片对齐呈现高亮色彩圆点：
+   - 在时间线平铺与按文章聚类两种视图中，单条引述卡片头部对齐呈现引述的色彩小圆点（`glean-reader__highlight-dot`），使全库摘录与阅读器伴生栏形成统一视觉语言。
+
+## D-0320（2026-10-22）伴生栏文章分类标签横向胶囊展台与上下文数据层扩展（T-3440）
+
+消除伴读视图看不到文章分类标签的体验盲区：
+1. 编辑器上下文服务扩展（`readClipContext`）：
+   - `ReadingClipContext` 增加 `tags?: string[]` 与 `aiTags?: string[]` 字段；
+   - 在 `readClipContext(docId)` 流程中解析块属性 `ial.tags`（使用纯函数 `parseUserTags`）与 `attrs.aiTags`，避免伴生栏额外触发二次查询，保持 O(1) 内存访问效率；
+2. 伴生栏文章分类标签微胶囊网格（`.glean-reader__tags-bar`）：
+   - 在指标胶囊下方紧凑呈现用户标签（`#tag`）与 AI 标签（`✨aiTag`），视觉上采用浅色圆角药丸胶囊微标；
+   - 读者在伴读界面可即时获知文章在库内的知识分类定位。

@@ -49,7 +49,7 @@ const defaultSettings = {
 };
 
 const fakePlugin = {
-    manifest: { version: "1.3.7" },
+    manifest: { version: "1.3.8" },
 };
 
 function makeIndexEntry(id, overrides = {}) {
@@ -358,7 +358,7 @@ test("exportAnonymousDiagnostic: 正常聚合读库状态并脱敏输出", async
     const diag = JSON.parse(jsonStr);
 
     assert.equal(diag.version, 1);
-    assert.equal(diag.pluginVersion, "1.3.7");
+    assert.equal(diag.pluginVersion, "1.3.8");
     assert.equal(diag.apiVersion, "siyuan-kernel-http-v1");
     assert.equal(diag.index.fresh, true);
     assert.equal(diag.index.clipCount, 4);
@@ -381,7 +381,7 @@ test("exportAnonymousDiagnostic: reconcileIndex 异常时安全捕获并记录 f
     const diag = JSON.parse(jsonStr);
 
     assert.equal(diag.version, 1);
-    assert.equal(diag.pluginVersion, "1.3.7");
+    assert.equal(diag.pluginVersion, "1.3.8");
     assert.equal(diag.index.fresh, false);
     assert.equal(diag.index.clipCount, 0);
     assert.equal(diag.frontend, "mobile");

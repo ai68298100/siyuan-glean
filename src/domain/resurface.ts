@@ -27,6 +27,8 @@ export interface SurfaceItem {
     url?: string;
     /** 站点名，仅用于"为什么出现"说明，不参与评分。 */
     site?: string;
+    /** 来源作者或公众号名称，用于推荐理由。 */
+    author?: string;
 }
 
 export interface SurfacePick {
@@ -35,13 +37,14 @@ export interface SurfacePick {
 }
 
 /** "为什么出现"的结构化理由（T-1717）；UI 负责转 i18n，域层不做文案。 */
-export type SurfaceReasonKind = "stale" | "priority" | "site" | "freshTopic";
+export type SurfaceReasonKind = "stale" | "priority" | "site" | "author" | "freshTopic";
 
 export interface SurfaceReason {
     kind: SurfaceReasonKind;
     days?: number;
     priority?: number;
     site?: string;
+    author?: string;
 }
 
 const DAY_MS = 86_400_000;
@@ -229,8 +232,13 @@ export function surfaceReasons(
     const days = ageDays(item.time, now);
     if (days >= 7) reasons.push({ kind: "stale", days });
     if ((item.priority || 3) >= 4) reasons.push({ kind: "priority", priority: item.priority || 3 });
-    const site = String(item.site ?? "").trim();
-    if (site) reasons.push({ kind: "site", site });
+    const author = String(item.author ?? "").trim();
+    if (author) {
+        reasons.push({ kind: "author", author });
+    } else {
+        const site = String(item.site ?? "").trim();
+        if (site) reasons.push({ kind: "site", site });
+    }
     const tags = new Set((item.aiTags || []).map((tag) => tag.toLowerCase()));
     if (recentTagSets.length > 0 && tags.size > 0) {
         let overlap = false;

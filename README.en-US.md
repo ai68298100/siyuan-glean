@@ -8,6 +8,36 @@ Lv Glean organizes clippings and articles already in SiYuan. It does not crawl t
 
 [中文说明](README.md) · [Latest Release](https://github.com/ai68298100/siyuan-glean/releases/latest) · [Capability matrix](docs/CAPABILITY-MATRIX.md) · [Feedback](https://github.com/ai68298100/siyuan-glean/issues/new/choose)
 
+## v1.3.8 update (2026-10-22)
+
+This release delivers comprehensive WeChat Official Account clipping optimizations, fulltext in-page highlight search, floating selection toolbar with inline notes, precision highlight targeting, Bento streak and reading achievement milestones, and an overhauled settings dialog.
+
+**Added & Enhanced:**
+
+- **WeChat Official Account deep optimizations**:
+  - Automatically identifies publisher names, publication time, and author lead summaries without extra AI token costs.
+  - Automatically fixes `data-src` lazy-loaded images, restores CSS `background-image` panoramic illustrations, and avoids anti-hotlink 403 errors.
+  - Reverse-engineers LaTeX math formulas into standard Markdown syntax and purifies code blocks without line-number clutter.
+  - Converts `<mpvideo>` and Tencent Video embeds to structured cards and extracts audio widgets to voice quote cards.
+  - Adds a dedicated WeChat companion card with publisher avatar, Biz ID, WeRead web reading shortcut, clean short link copying, and series/folder chapter continuous navigation.
+  - Library cards and rows feature one-click WeChat source facet filtering.
+- **Enhanced deep reader (ReaderTab)**:
+  - In-page fulltext search using the modern, non-invasive `CSS.highlights` API with bidirectional navigation.
+  - Selection floating toolbar (`glean-reader__selection-bar`) for instant quotes, inline notes ("Quote with Memo"), flashcards, and translation.
+  - Theme switching (Follow SiYuan / Paper / Eye-protection green), immersive mode with breathing toolbar fade-out and Escape restoration.
+- **Highlight and quote knowledge flow**:
+  - Companion panel lists document highlights with smooth scroll and pulse highlight feedback.
+  - Highlights wall "Original" action precisely targets and scrolls directly to the referenced quote block.
+  - Flat timeline view with vertical rail and interactive circular anchors; exports quotes to linked SiYuan documents with native block references.
+- **Today's Gleaning and stats achievements**:
+  - Bento habit loop: streak flame card and 7-day stepper pill bar for calm reading motivation.
+  - Reading achievements: 6 milestone badges on the stats review page.
+  - Reading time tier badges (emerald green for short, azure blue for medium, amber orange for long); Kanban titles capped with `line-clamp: 3`.
+- **Expanded settings panel**:
+  - Expanded to 920×720px with 8 categories equipped with dedicated SVG icons; fixed newbie hint banner truncation.
+- **Complete keyboard accessibility**:
+  - Collapsible library rail (`railCollapsed`); full keyboard triage across library, highlights, resurface, and modal dialogs.
+
 ## v1.3.7 update (2026-10-19)
 
 This release unifies keyboard accessibility across dialogs, introduces reading time tier filtering inspired by Readwise Reader and Cubox, and completes reading-facade routing for uninterrupted reading continuity.
@@ -240,7 +270,7 @@ Ordinary notes are not bulk-captured just because of their location, and opening
 
 ## Compatibility and acceptance
 
-This hotfix is [v1.3.6](https://github.com/ai68298100/siyuan-glean/releases/tag/v1.3.6). See the [release candidate record](docs/RELEASE-CANDIDATE.md) for automated gates and release evidence; this does not mean every real environment has been accepted.
+This release is [v1.3.8](https://github.com/ai68298100/siyuan-glean/releases/tag/v1.3.8). See the [release candidate record](docs/RELEASE-CANDIDATE.md) for automated gates and release evidence; this does not mean every real environment has been accepted.
 
 Desktop host, Android/mobile, browser frontend, real models, the official clipper, external files, and subscription services still require environment-specific checks. Prerequisites, fallbacks, and open blockers are listed in the [capability matrix](docs/CAPABILITY-MATRIX.md) and [known blockers](docs/BLOCKERS.md). Unit tests and isolated E2E are not device acceptance.
 

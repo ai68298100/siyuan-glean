@@ -15,6 +15,7 @@ export interface HighlightItem extends HighlightRoot {
     rootId: string;
     text: string;
     markdown: string;
+    color?: string;
     source: { content: string; markdown: string; type: string; highlight: string };
 }
 
@@ -39,6 +40,12 @@ export function isHighlightId(value: string): boolean {
 
 export function highlightMarker(ial: string): string {
     return /(?:^|[\s{])custom-clip-highlight="([^"]*)"/.exec(ial)?.[1] ?? "";
+}
+
+export function highlightColor(ial: string): string {
+    return /(?:^|[\s{])custom-clip-hl-color="([^"]*)"/.exec(ial)?.[1]
+        ?? /(?:^|[\s{])custom-clip-highlight="([^"]*)"/.exec(ial)?.[1]
+        ?? "";
 }
 
 export function cleanHighlightText(content: string): string {

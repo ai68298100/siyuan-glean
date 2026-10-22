@@ -37,15 +37,15 @@ const panelId = `${idPrefix}-panel`;
 
 /** 设置分类（T-3314）：参照 Obsidian/思源的"左导航 + 右内容"设置范式，11 个平铺组归并为 8 个大类。 */
 type SettingsSectionId = "workspace" | "resurface" | "reading" | "ai" | "aiChannel" | "integration" | "data" | "maintenance";
-const SETTINGS_SECTIONS: Array<{ id: SettingsSectionId; labelKey: string; titleKey: string; descKey: string }> = [
-    { id: "workspace", labelKey: "settings.nav.workspace", titleKey: "settings.workspaceGroup", descKey: "settings.desc.workspace" },
-    { id: "resurface", labelKey: "settings.nav.resurface", titleKey: "settings.resurfaceGroup", descKey: "settings.desc.resurface" },
-    { id: "reading", labelKey: "settings.nav.reading", titleKey: "settings.readerGroup", descKey: "settings.desc.reading" },
-    { id: "ai", labelKey: "settings.nav.ai", titleKey: "settings.aiGroup", descKey: "settings.desc.ai" },
-    { id: "aiChannel", labelKey: "settings.nav.aiChannel", titleKey: "settings.aiChannelGroup", descKey: "settings.desc.aiChannel" },
-    { id: "integration", labelKey: "settings.nav.integration", titleKey: "settings.checkinGroup", descKey: "settings.desc.integration" },
-    { id: "data", labelKey: "settings.nav.data", titleKey: "settings.dataGroup", descKey: "settings.desc.data" },
-    { id: "maintenance", labelKey: "settings.nav.maintenance", titleKey: "settings.maintenanceToolsGroup", descKey: "settings.desc.maintenance" },
+const SETTINGS_SECTIONS: Array<{ id: SettingsSectionId; labelKey: string; titleKey: string; descKey: string; iconHref: string }> = [
+    { id: "workspace", labelKey: "settings.nav.workspace", titleKey: "settings.workspaceGroup", descKey: "settings.desc.workspace", iconHref: "#iconGleanWheat" },
+    { id: "resurface", labelKey: "settings.nav.resurface", titleKey: "settings.resurfaceGroup", descKey: "settings.desc.resurface", iconHref: "#iconGleanRefresh" },
+    { id: "reading", labelKey: "settings.nav.reading", titleKey: "settings.readerGroup", descKey: "settings.desc.reading", iconHref: "#iconGleanCard" },
+    { id: "ai", labelKey: "settings.nav.ai", titleKey: "settings.aiGroup", descKey: "settings.desc.ai", iconHref: "#iconGleanSpark" },
+    { id: "aiChannel", labelKey: "settings.nav.aiChannel", titleKey: "settings.aiChannelGroup", descKey: "settings.desc.aiChannel", iconHref: "#iconGleanSearch" },
+    { id: "integration", labelKey: "settings.nav.integration", titleKey: "settings.checkinGroup", descKey: "settings.desc.integration", iconHref: "#iconGleanExternal" },
+    { id: "data", labelKey: "settings.nav.data", titleKey: "settings.dataGroup", descKey: "settings.desc.data", iconHref: "#iconGleanArchive" },
+    { id: "maintenance", labelKey: "settings.nav.maintenance", titleKey: "settings.maintenanceToolsGroup", descKey: "settings.desc.maintenance", iconHref: "#iconGleanGear" },
 ];
 let activeSection = $state<SettingsSectionId>("workspace");
 const activeSectionMeta = $derived(SETTINGS_SECTIONS.find((section) => section.id === activeSection) ?? SETTINGS_SECTIONS[0]);
@@ -623,6 +623,7 @@ async function doMountBoard() {
                         disabled={saveBusy}
                         onclick={() => selectSection(section.id)}
                     >
+                        <svg class="glean-icon glean-icon--sm glean-settings__tab-icon" aria-hidden="true"><use href={section.iconHref} /></svg>
                         <span class="glean-settings__tab-label">{t(i18n, section.labelKey)}</span>
                         {#if section.id === "workspace" && anchorNotebooks.length > 0}
                             <span class="glean-settings__tab-badge">{anchorNotebooks.length}</span>
@@ -637,14 +638,21 @@ async function doMountBoard() {
                 <div class="glean-settings__page-desc">{t(i18n, activeSectionMeta.descKey)}</div>
             </header>
             {#if showNewbieHint && activeSection === "workspace"}
-                <div class="glean-set-group glean-settings__newbie-hint" role="status">
-                    <span class="glean-settings__newbie-hint-text"><svg class="glean-icon glean-icon--sm" aria-hidden="true"><use href="#iconGleanWheat" /></svg>{t(i18n, "settings.newbieHint")}</span>
-                    <button class="glean-btn glean-btn--pri glean-settings__newbie-hint-open" type="button" onclick={() => facade.openOnboarding()}>
-                        {t(i18n, "settings.openOnboarding")}
-                    </button>
-                    <button class="glean-linkish glean-settings__newbie-hint-dismiss" aria-busy={dismissHintBusy} disabled={dismissHintBusy} onclick={() => void dismissNewbieHint()}>
-                        {t(i18n, "settings.dismissNewbieHint")}
-                    </button>
+                <div class="glean-set-group glean-settings__newbie-hint glean-settings__newbie-banner" role="status">
+                    <div class="glean-settings__newbie-banner-icon" aria-hidden="true">
+                        <svg class="glean-icon"><use href="#iconGleanWheat" /></svg>
+                    </div>
+                    <div class="glean-settings__newbie-banner-body">
+                        <div class="glean-settings__newbie-banner-text">{t(i18n, "settings.newbieHint")}</div>
+                        <div class="glean-settings__newbie-banner-actions">
+                            <button class="glean-btn glean-btn--pri glean-settings__newbie-hint-open" type="button" onclick={() => facade.openOnboarding()}>
+                                {t(i18n, "settings.openOnboarding")}
+                            </button>
+                            <button class="glean-linkish glean-settings__newbie-hint-dismiss" aria-busy={dismissHintBusy} disabled={dismissHintBusy} onclick={() => void dismissNewbieHint()}>
+                                {t(i18n, "settings.dismissNewbieHint")}
+                            </button>
+                        </div>
+                    </div>
                 </div>
             {/if}
             {#if activeSection === "workspace" && !showNewbieHint}
@@ -1151,7 +1159,7 @@ async function doMountBoard() {
     }
 
     .glean-settings__nav {
-        flex: 0 0 208px;
+        flex: 0 0 220px;
         min-width: 0;
         display: flex;
         flex-direction: column;
@@ -1213,21 +1221,28 @@ async function doMountBoard() {
     .glean-settings__tab {
         display: flex;
         align-items: center;
-        gap: var(--glean-space-2);
+        gap: var(--glean-space-2-5);
         width: 100%;
-        min-height: 40px;
+        min-height: 42px;
         padding: 8px 12px;
         border: none;
         border-radius: var(--glean-radius-md);
         background: none;
         color: var(--b3-theme-on-background);
         font: inherit;
-        font-size: 13px;
+        font-size: 13.5px;
         line-height: 1.5;
         text-align: left;
         cursor: pointer;
         position: relative;
         transition: background-color 160ms var(--glean-ease-out), color 160ms var(--glean-ease-out);
+    }
+
+    .glean-settings__tab-icon {
+        flex: 0 0 auto;
+        opacity: 0.72;
+        color: inherit;
+        transition: opacity 160ms var(--glean-ease-out), color 160ms var(--glean-ease-out);
     }
 
     .glean-settings__tab:hover {
@@ -1243,6 +1258,11 @@ async function doMountBoard() {
         background: var(--glean-primary-soft);
         color: var(--glean-accent-b);
         font-weight: 650;
+    }
+
+    .glean-settings__tab--on .glean-settings__tab-icon {
+        opacity: 1;
+        color: var(--glean-accent-b);
     }
 
     .glean-settings__tab-label {
@@ -1276,8 +1296,57 @@ async function doMountBoard() {
         display: flex;
         flex-direction: column;
         gap: var(--glean-space-5);
-        padding: 0 var(--glean-space-1) var(--glean-space-1) 0;
+        padding: 0 var(--glean-space-2) var(--glean-space-2) 0;
         scrollbar-gutter: stable;
+    }
+
+    .glean-settings__newbie-banner {
+        flex-shrink: 0 !important;
+        min-height: fit-content !important;
+        box-sizing: border-box;
+        display: flex;
+        align-items: flex-start;
+        gap: var(--glean-space-3);
+        padding: var(--glean-space-3) var(--glean-space-4);
+        border-radius: var(--glean-radius-lg);
+        background: color-mix(in srgb, var(--b3-theme-primary) 8%, var(--b3-theme-surface));
+        border: 1px solid color-mix(in srgb, var(--b3-theme-primary) 28%, var(--glean-border-soft));
+        box-shadow: var(--glean-shadow-card);
+    }
+
+    .glean-settings__newbie-banner-icon {
+        flex: 0 0 32px;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: color-mix(in srgb, var(--b3-theme-primary) 18%, transparent);
+        color: var(--b3-theme-primary);
+        margin-top: 2px;
+    }
+
+    .glean-settings__newbie-banner-body {
+        flex: 1 1 auto;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: var(--glean-space-2);
+    }
+
+    .glean-settings__newbie-banner-text {
+        font-size: 13px;
+        line-height: 1.6;
+        color: var(--b3-theme-on-surface);
+        overflow-wrap: anywhere;
+    }
+
+    .glean-settings__newbie-banner-actions {
+        display: flex;
+        align-items: center;
+        gap: var(--glean-space-3);
+        flex-wrap: wrap;
     }
 
     .glean-settings__pagehead {

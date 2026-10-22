@@ -37,6 +37,7 @@ test("loadUiPrefs：旧存档补齐首启进度默认值", async () => {
         workbenchPreviewRatio: 0.45,
         libraryRailGroups: { queues: { collapsed: false, expanded: false }, sites: { collapsed: false, expanded: false }, authors: { collapsed: false, expanded: false }, tags: { collapsed: false, expanded: false }, aiTags: { collapsed: false, expanded: false } },
         railAccordion: false,
+        railCollapsed: false,
         savedViews: [],
         tagAliases: [],
         defaultSavedViewId: "",
@@ -58,6 +59,7 @@ test("normalizeUiPrefs：非法步骤与已完成状态不会产生可恢复脏�
         workbenchPreviewRatio: 0.45,
         libraryRailGroups: { queues: { collapsed: false, expanded: false }, sites: { collapsed: false, expanded: false }, authors: { collapsed: false, expanded: false }, tags: { collapsed: false, expanded: false }, aiTags: { collapsed: false, expanded: false } },
         railAccordion: false,
+        railCollapsed: false,
         savedViews: [],
         tagAliases: [],
         defaultSavedViewId: "",
@@ -76,6 +78,7 @@ test("normalizeUiPrefs：非法步骤与已完成状态不会产生可恢复脏�
         workbenchPreviewRatio: 0.45,
         libraryRailGroups: { queues: { collapsed: false, expanded: false }, sites: { collapsed: false, expanded: false }, authors: { collapsed: false, expanded: false }, tags: { collapsed: false, expanded: false }, aiTags: { collapsed: false, expanded: false } },
         railAccordion: false,
+        railCollapsed: false,
         savedViews: [],
         tagAliases: [],
         defaultSavedViewId: "",
@@ -279,5 +282,17 @@ test("saveUiPrefs：持久化分面手风琴开关 railAccordion", async () => {
     await saveUiPrefs(harness.plugin, { railAccordion: false });
     prefs = await loadUiPrefs(harness.plugin);
     assert.equal(prefs.railAccordion, false);
+});
+
+test("saveUiPrefs：持久化分面侧栏折叠开关 railCollapsed", async () => {
+    const harness = createPlugin({});
+    let prefs = await loadUiPrefs(harness.plugin);
+    assert.equal(prefs.railCollapsed, false);
+    await saveUiPrefs(harness.plugin, { railCollapsed: true });
+    prefs = await loadUiPrefs(harness.plugin);
+    assert.equal(prefs.railCollapsed, true);
+    await saveUiPrefs(harness.plugin, { railCollapsed: false });
+    prefs = await loadUiPrefs(harness.plugin);
+    assert.equal(prefs.railCollapsed, false);
 });
 

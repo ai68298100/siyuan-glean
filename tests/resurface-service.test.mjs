@@ -133,6 +133,7 @@ function loadSurfaceControls({ act, undo, pin, replacement, tick, openReading } 
         "../libs/i18n": { t: (_dictionary, key) => key },
         "../services/resurface-service": services,
         "../domain/resurface": { todayStamp: () => "20261016" },
+        "../domain/stats": { computeRecent7DaysStatus: () => [] },
         "../domain/carrier": { resolveCarrier: () => "local", openTargetForCarrier: () => "document" },
         "../domain/surface-swipe": {},
         "../domain/recent-reading": {

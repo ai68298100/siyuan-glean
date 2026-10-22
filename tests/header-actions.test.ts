@@ -244,8 +244,8 @@ test("settings, migration and import dialogs keep the standard bounded dialog co
     const styles = read("src/index.scss");
     assert.match(index, /openMigrate\(\)[\s\S]*?width:\s*"720px",\s*height:\s*"560px"/);
     assert.match(index, /openImport\(\)[\s\S]*?width:\s*"720px",\s*height:\s*"560px"/);
-    // T-3314：设置页改为分类导航版式，对话框加宽加高
-    assert.match(index, /openSettings\(\)[\s\S]*?width:\s*"720px",\s*height:\s*"640px"/);
+    // 设置页大面板契约：对话框放大为 920px x 720px，提供充足横向展示空间
+    assert.match(index, /openSettings\(\)[\s\S]*?width:\s*"920px",\s*height:\s*"720px"/);
     assert.match(styles, /\.glean-migrate\s*\{[\s\S]*height:\s*100%;[\s\S]*overflow:\s*hidden/);
     assert.match(styles, /\.glean-settings\s*\{[\s\S]*height:\s*100%;[\s\S]*overflow-y:\s*auto/);
     assert.match(styles, /\.glean-mtable\s*\{[\s\S]*overflow:\s*auto/);

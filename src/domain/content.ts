@@ -6,7 +6,8 @@
 import { stripMarkdown } from "./migrate.ts";
 import { inspectCandidate } from "./candidate-policy.ts";
 import { normalizeUrl } from "./url.ts";
-import { countWords, estimateMinutes, siteFromUrl, type ClipContentType } from "./schema.ts";
+import { countWords, estimateMinutes, siteFromUrl, type ClipContentType, type ClipTimeSource } from "./schema.ts";
+import { isWechatUrl, extractWechatAuthor, extractWechatTime, extractWechatSeries, extractWechatCover, extractWechatDescription } from "./wechat.ts";
 
 export interface ClipMarkdownMetadata {
     /** 正文中找到的来源 URL；未找到时为空。 */
@@ -15,6 +16,12 @@ export interface ClipMarkdownMetadata {
     words: number;
     minutes: number;
     contentType: ClipContentType;
+    author?: string;
+    series?: string;
+    time?: string;
+    timeSource?: ClipTimeSource;
+    summary?: string;
+    cover?: string;
 }
 
 export interface InspectMarkdownOptions {
@@ -45,6 +52,8 @@ function articleBody(markdown: string): string {
         // Common generated metadata lines; they are not article content.
         if (/^(?:[-*+]\s*)?(?:来源|收藏于|已读于|标签|由迁移导入器带入)\s*[：:]/.test(trimmed)) continue;
         if (/^>\s*由迁移导入器带入/.test(trimmed)) continue;
+        if (/^(?:[-*+]\s*)?收录于[合话专][集题栏]/i.test(trimmed)) continue;
+        if (/^(?:[-*+]\s*)?(?:点击上方.*关注|长按二维码.*关注|喜欢本文.*点赞|预览时标签不可点|后台回复.*领取|商务合作\s*[:：]|点击.*?阅读原文|排版设计\s*[:：])/i.test(trimmed)) continue;
         body.push(line);
     }
     return stripMarkdown(body.join("\n")).replace(/\s+/g, " ").trim();
@@ -60,12 +69,38 @@ export function inspectClipMarkdown(markdown: string, options: InspectMarkdownOp
     const rawWords = countWords(body);
     const contentType = options.contentType ?? (url ? (rawWords > 0 ? "fulltext" : "link") : "local");
     const words = contentType === "link" ? 0 : rawWords;
+    let author: string | undefined = undefined;
+    let series: string | undefined = undefined;
+    let time: string | undefined = undefined;
+    let timeSource: ClipTimeSource | undefined = undefined;
+    let summary: string | undefined = undefined;
+    let cover: string | undefined = undefined;
+    if (url && isWechatUrl(url)) {
+        const wechatAuthor = extractWechatAuthor(markdown);
+        if (wechatAuthor) author = wechatAuthor;
+        const wechatSeries = extractWechatSeries(markdown);
+        if (wechatSeries) series = wechatSeries;
+        const wechatTime = extractWechatTime(markdown);
+        if (wechatTime) {
+            time = wechatTime;
+            timeSource = "source";
+        }
+        const wechatDesc = extractWechatDescription(markdown);
+        if (wechatDesc) summary = wechatDesc;
+        const wechatCover = extractWechatCover(markdown);
+        if (wechatCover) cover = wechatCover;
+    }
     return {
         url,
         site: url ? siteFromUrl(url) : "",
         words,
         minutes: estimateMinutes(words),
         contentType,
+        ...(author ? { author } : {}),
+        ...(series ? { series } : {}),
+        ...(time ? { time, timeSource } : {}),
+        ...(summary ? { summary } : {}),
+        ...(cover ? { cover } : {}),
     };
 }
 

@@ -97,3 +97,305 @@ export function syncAccordionRailGroups(current: RailGroups, preferredKey?: Rail
     return next;
 }
 
+/**
+ * 判定两个分面列表的内容与计数是否完全相同（保持引用稳定）。
+ */
+export function areFacetListsEqual(
+    a: readonly LibraryFacet[] | undefined,
+    b: readonly LibraryFacet[] | undefined
+): boolean {
+    if (a === b) return true;
+    if (!a || !b) return false;
+    if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) {
+        if (a[i].value !== b[i].value || a[i].count !== b[i].count) {
+            return false;
+        }
+    }
+    return true;
+}
+
+/**
+ * 判定两个队列计数映射是否完全相同。
+ */
+export function areQueueCountsEqual(
+    a: Record<string, number> | undefined,
+    b: Record<string, number> | undefined
+): boolean {
+    if (a === b) return true;
+    if (!a || !b) return false;
+    const aKeys = Object.keys(a);
+    const bKeys = Object.keys(b);
+    if (aKeys.length !== bKeys.length) return false;
+    for (const key of aKeys) {
+        if (a[key] !== b[key]) return false;
+    }
+    return true;
+}
+
+export interface FacetCountDiff {
+    value: string;
+    prevCount: number;
+    nextCount: number;
+    delta: number;
+}
+
+export interface FacetListDiff {
+    added: LibraryFacet[];
+    removed: LibraryFacet[];
+    changed: FacetCountDiff[];
+    unchanged: LibraryFacet[];
+    hasChanges: boolean;
+}
+
+/**
+ * 计算新旧分面列表之间的具体增量差异（新增、移除、计数变化、未变化）。
+ */
+export function diffFacetList(
+    prev: readonly LibraryFacet[],
+    next: readonly LibraryFacet[]
+): FacetListDiff {
+    const prevMap = new Map<string, number>();
+    for (const item of prev) {
+        prevMap.set(item.value, item.count);
+    }
+
+    const nextMap = new Map<string, number>();
+    for (const item of next) {
+        nextMap.set(item.value, item.count);
+    }
+
+    const added: LibraryFacet[] = [];
+    const removed: LibraryFacet[] = [];
+    const changed: FacetCountDiff[] = [];
+    const unchanged: LibraryFacet[] = [];
+
+    for (const item of next) {
+        const prevCount = prevMap.get(item.value);
+        if (prevCount === undefined) {
+            added.push(item);
+        } else if (prevCount === item.count) {
+            unchanged.push(item);
+        } else {
+            changed.push({
+                value: item.value,
+                prevCount,
+                nextCount: item.count,
+                delta: item.count - prevCount,
+            });
+        }
+    }
+
+    for (const item of prev) {
+        if (!nextMap.has(item.value)) {
+            removed.push(item);
+        }
+    }
+
+    return {
+        added,
+        removed,
+        changed,
+        unchanged,
+        hasChanges: added.length > 0 || removed.length > 0 || changed.length > 0,
+    };
+}
+
+/**
+ * 基于增量 Delta 映射局部打补丁更新分面项。
+ * 适用于无需全量扫描条目时的轻量级徽章调整。
+ */
+export function patchFacetCounts(
+    base: readonly LibraryFacet[],
+    deltas: Record<string, number> | ReadonlyMap<string, number>,
+    options?: { keepZero?: boolean }
+): LibraryFacet[] {
+    const map = new Map<string, LibraryFacet>();
+    for (const item of base) {
+        map.set(item.value, { ...item });
+    }
+
+    const entries = deltas instanceof Map ? deltas.entries() : Object.entries(deltas);
+    for (const [key, delta] of entries) {
+        const current = map.get(key);
+        if (current) {
+            current.count += delta;
+        } else if (delta > 0) {
+            map.set(key, { value: key, count: delta });
+        }
+    }
+
+    const keepZero = options?.keepZero ?? false;
+    const result: LibraryFacet[] = [];
+    for (const item of map.values()) {
+        if (keepZero || item.count > 0) {
+            result.push(item);
+        }
+    }
+
+    return result.sort((a, b) => b.count - a.count || a.value.localeCompare(b.value));
+}
+
+export interface RailFacetsSnapshot {
+    queues?: Record<string, number>;
+    sites: readonly LibraryFacet[];
+    authors: readonly LibraryFacet[];
+    tags: readonly LibraryFacet[];
+    aiTags: readonly LibraryFacet[];
+}
+
+/**
+ * 局部对账分面快照：若某一分组新旧项完全一致，则直接重用旧引用，防止不必要的响应式子树重绘。
+ */
+export function reconcileRailFacets(
+    prev: RailFacetsSnapshot | undefined,
+    next: RailFacetsSnapshot
+): { snapshot: RailFacetsSnapshot; changedGroups: RailGroupKey[] } {
+    if (!prev) {
+        return {
+            snapshot: next,
+            changedGroups: [...RAIL_GROUP_KEYS],
+        };
+    }
+
+    const changedGroups: RailGroupKey[] = [];
+    const snapshot: RailFacetsSnapshot = {
+        queues: next.queues,
+        sites: next.sites,
+        authors: next.authors,
+        tags: next.tags,
+        aiTags: next.aiTags,
+    };
+
+    if (areQueueCountsEqual(prev.queues, next.queues)) {
+        snapshot.queues = prev.queues;
+    } else {
+        changedGroups.push("queues");
+    }
+
+    if (areFacetListsEqual(prev.sites, next.sites)) {
+        snapshot.sites = prev.sites;
+    } else {
+        changedGroups.push("sites");
+    }
+
+    if (areFacetListsEqual(prev.authors, next.authors)) {
+        snapshot.authors = prev.authors;
+    } else {
+        changedGroups.push("authors");
+    }
+
+    if (areFacetListsEqual(prev.tags, next.tags)) {
+        snapshot.tags = prev.tags;
+    } else {
+        changedGroups.push("tags");
+    }
+
+    if (areFacetListsEqual(prev.aiTags, next.aiTags)) {
+        snapshot.aiTags = prev.aiTags;
+    } else {
+        changedGroups.push("aiTags");
+    }
+
+    return { snapshot, changedGroups };
+}
+
+export interface RailBadgeDebouncerOptions<T> {
+    delayMs?: number;
+    mode?: "microtask" | "timer";
+    onFlush: (latest: T) => void;
+    setTimer?: (fn: () => void, ms: number) => unknown;
+    clearTimer?: (handle: unknown) => void;
+    microtask?: (fn: () => void) => void;
+}
+
+export interface RailBadgeDebouncer<T> {
+    schedule: (payload: T) => void;
+    flush: () => void;
+    cancel: () => void;
+    isPending: () => boolean;
+    getPendingPayload: () => T | undefined;
+}
+
+/**
+ * 分面项徽章计数防抖与微任务聚合控制器（T-3418）
+ * 无论在高频导入还是批量操作中，确保平滑合并连续更新并防止计时器泄漏。
+ */
+export function createRailBadgeDebouncer<T>(options: RailBadgeDebouncerOptions<T>): RailBadgeDebouncer<T> {
+    const mode = options.mode ?? (options.delayMs === 0 ? "microtask" : "timer");
+    const delayMs = Math.max(0, options.delayMs ?? 16);
+    const setTimer = options.setTimer ?? ((fn, ms) => setTimeout(fn, ms));
+    const clearTimer = options.clearTimer ?? ((handle) => clearTimeout(handle as ReturnType<typeof setTimeout>));
+    const microtask = options.microtask ?? ((fn) => {
+        if (typeof queueMicrotask === "function") {
+            queueMicrotask(fn);
+        } else {
+            setTimeout(fn, 0);
+        }
+    });
+
+    let pendingPayload: T | undefined;
+    let hasPending = false;
+    let timerHandle: unknown = null;
+    let microtaskActive = false;
+
+    function flush(): void {
+        if (timerHandle !== null) {
+            clearTimer(timerHandle);
+            timerHandle = null;
+        }
+        microtaskActive = false;
+        if (!hasPending) return;
+
+        const payload = pendingPayload as T;
+        hasPending = false;
+        pendingPayload = undefined;
+        options.onFlush(payload);
+    }
+
+    function schedule(payload: T): void {
+        pendingPayload = payload;
+        hasPending = true;
+
+        if (mode === "microtask") {
+            if (!microtaskActive) {
+                microtaskActive = true;
+                microtask(() => {
+                    if (microtaskActive && hasPending) {
+                        flush();
+                    }
+                });
+            }
+            return;
+        }
+
+        // timer 模式：防抖重新计时
+        if (timerHandle !== null) {
+            clearTimer(timerHandle);
+        }
+        timerHandle = setTimer(() => {
+            timerHandle = null;
+            if (hasPending) {
+                flush();
+            }
+        }, delayMs);
+    }
+
+    function cancel(): void {
+        if (timerHandle !== null) {
+            clearTimer(timerHandle);
+            timerHandle = null;
+        }
+        microtaskActive = false;
+        hasPending = false;
+        pendingPayload = undefined;
+    }
+
+    return {
+        schedule,
+        flush,
+        cancel,
+        isPending: () => hasPending,
+        getPendingPayload: () => pendingPayload,
+    };
+}

@@ -554,3 +554,101 @@ export function filterCompletedItemsByDate<T extends { doneTime: string }>(
     if (!clean) return [...items];
     return items.filter((item) => item.doneTime.startsWith(clean));
 }
+
+export interface DailyCompletionStep {
+    date: string;
+    dayLabel: string;
+    completed: boolean;
+    isToday: boolean;
+}
+
+const WEEKDAY_NAMES_ZH = ["日", "一", "二", "三", "四", "五", "六"];
+
+/**
+ * 计算近 7 天每日的完成打卡状态（用于水平 7 日打卡进度步进条）。
+ * 参照设计规范中 "Days Logged In" 步进器，以今天为最后一格。
+ */
+export function computeRecent7DaysStatus(items: CompletionFact[], now: Date = new Date()): DailyCompletionStep[] {
+    if (!Number.isFinite(now.getTime())) return [];
+    const completedDays = new Set<string>();
+    for (const item of items) {
+        if (item.internal || !VALID_REVIEW_STATUSES.has(item.status) || !trustedTimestamp(item.doneTime, now)) continue;
+        completedDays.add(item.doneTime.slice(0, 8));
+    }
+
+    const steps: DailyCompletionStep[] = [];
+    const todayStr = siyuanDate(now);
+
+    for (let i = 6; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i, 12);
+        const dateStr = siyuanDate(d);
+        const weekdayIdx = d.getDay();
+        steps.push({
+            date: dateStr,
+            dayLabel: WEEKDAY_NAMES_ZH[weekdayIdx],
+            completed: completedDays.has(dateStr),
+            isToday: dateStr === todayStr,
+        });
+    }
+
+    return steps;
+}
+
+export interface ReadingMilestone {
+    id: string;
+    icon: string;
+    title: string;
+    desc: string;
+    unlocked: boolean;
+}
+
+/**
+ * 依据当前阅读统计派生阅读里程碑印记（纯只读投影，不写任何后端事实）。
+ * 对标优秀阅读产品的 Achievements 徽章设计。
+ */
+export function computeReadingMilestones(stats: ReadingStats): ReadingMilestone[] {
+    return [
+        {
+            id: "starter",
+            icon: "🌱",
+            title: "拾遗起步",
+            desc: "已收录文章进入读库",
+            unlocked: stats.total >= 1,
+        },
+        {
+            id: "first_done",
+            icon: "📖",
+            title: "开卷有益",
+            desc: "完成至少 1 篇文章阅读",
+            unlocked: stats.done >= 1,
+        },
+        {
+            id: "weekly_reader",
+            icon: "🏆",
+            title: "本周读家",
+            desc: `本周读完 ${stats.doneThisWeek} 篇文章`,
+            unlocked: stats.doneThisWeek >= 3,
+        },
+        {
+            id: "streak_3",
+            icon: "🔥",
+            title: "持之以恒",
+            desc: `连续完成阅读达 ${stats.completionStreak} 天`,
+            unlocked: stats.completionStreak >= 3,
+        },
+        {
+            id: "library_50",
+            icon: "📚",
+            title: "博采众长",
+            desc: "读库文章积累达到 50 篇",
+            unlocked: stats.total >= 50,
+        },
+        {
+            id: "words_10k",
+            icon: "⚡",
+            title: "万字阅览",
+            desc: "累计阅读正文超过 10,000 字",
+            unlocked: stats.totalWords >= 10000,
+        },
+    ];
+}

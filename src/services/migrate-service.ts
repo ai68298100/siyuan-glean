@@ -23,6 +23,7 @@ export interface MigrateRow {
     /** dry-run 发现的来源 URL（空串 = 正文里没找到，回填后归入手填类） */
     url: string;
     site: string;
+    author?: string;
     words: number;
     minutes: number;
     contentType?: ClipContentType;
@@ -552,6 +553,7 @@ async function resolveMigrateRowUnlocked(
             await writeClip(plugin, row.id, {
                 url,
                 site: metadata.site || undefined,
+                author: (!ial[ATTR.author] && metadata.author) ? metadata.author : undefined,
                 contentType: metadata.contentType,
                 words: metadata.words > 0 ? metadata.words : undefined,
                 minutes: metadata.minutes > 0 ? metadata.minutes : undefined,
@@ -672,6 +674,7 @@ async function probeRow(
             // link into source evidence; candidate policy owns URL eligibility.
             url: candidate.url,
             site: candidate.site,
+            author: ial[ATTR.author] || metadata.author || undefined,
             words: metadata.words,
             minutes: metadata.minutes,
             contentType: candidate.url ? metadata.contentType : undefined,
@@ -771,7 +774,7 @@ async function runBackfillBatchUnlocked(
                             const markdown = (await exportMdContent(saved.id))?.content ?? "";
                             const metadata = inspectClipMarkdown(markdown, { url });
                             if (!hasValidClipStatus(ial)) await captureClip(plugin, saved.id, { url, markdown, src: "migration", contentType: metadata.contentType, allowDuplicate: plan.allowDuplicate });
-                            else await writeClip(plugin, saved.id, { url, site: !ial[ATTR.site] ? metadata.site || undefined : undefined, contentType: !ial[ATTR.contentType] ? metadata.contentType : undefined, words: !ial[ATTR.words] && metadata.words > 0 ? metadata.words : undefined, minutes: !ial[ATTR.minutes] && metadata.minutes > 0 ? metadata.minutes : undefined });
+                            else await writeClip(plugin, saved.id, { url, site: !ial[ATTR.site] ? metadata.site || undefined : undefined, author: !ial[ATTR.author] && metadata.author ? metadata.author : undefined, contentType: !ial[ATTR.contentType] ? metadata.contentType : undefined, words: !ial[ATTR.words] && metadata.words > 0 ? metadata.words : undefined, minutes: !ial[ATTR.minutes] && metadata.minutes > 0 ? metadata.minutes : undefined });
                             result = { ...result, url, site: metadata.site, words: metadata.words, minutes: metadata.minutes, contentType: metadata.contentType, state: "ok", conflictDocId: undefined };
                         }
                     }
@@ -791,6 +794,7 @@ async function runBackfillBatchUnlocked(
                         } else {
                             const patch: Parameters<typeof writeClip>[2] = { url: candidate.url, src: "migration" };
                             if (!ial[ATTR.site] && candidate.site) patch.site = candidate.site;
+                            if (!ial[ATTR.author] && candidate.author) patch.author = candidate.author;
                             if (!ial[ATTR.time]) {
                                 patch.time = candidate.time ?? documentTimeFromId(saved.id) ?? stamped;
                                 patch.timeSource = candidate.timeSource ?? (documentTimeFromId(saved.id) ? "document" : "capture");

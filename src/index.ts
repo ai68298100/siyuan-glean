@@ -376,16 +376,16 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
         return editors[0].protyle.block.rootID;
     }
 
-    openReadingDocument(docId: string): void {
+    openReadingDocument(docId: string, focusBlockId?: string): void {
         if (!docId) return;
         this.lastReadingDocId = docId;
         this.recordRecentReading(docId);
         // D-0029：设置开启且桌面端时，开始阅读进内嵌阅读页签；默认沿用原生页签。
         if (!this.isMobile && this.settings.reader.openInTab) {
-            void this.openReaderTab(docId);
+            void this.openReaderTab(docId, focusBlockId);
             return;
         }
-        void this.openNativeReadingDocument(docId);
+        void this.openNativeReadingDocument(docId, focusBlockId);
     }
 
     /** 显式打开内嵌阅读页签（不写五态；移动端回退原生查看器）。 */
@@ -400,21 +400,21 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
         void this.openReaderTab(docId);
     }
 
-    private async openNativeReadingDocument(docId: string): Promise<void> {
+    private async openNativeReadingDocument(docId: string, focusBlockId?: string): Promise<void> {
         const request = ++this.readerOpenRequest;
         try {
             if (this.isMobile) {
                 // SDK 返回 void，只能捕获调用异常，不能把调用返回视作正文已打开。
-                openMobileFileById(this.app, docId);
+                openMobileFileById(this.app, focusBlockId || docId);
                 return;
             }
-            await openTab({ app: this.app, doc: { id: docId }, keepCursor: false });
+            await openTab({ app: this.app, doc: { id: focusBlockId || docId }, keepCursor: false });
         } catch {
             if (this.loaded && request === this.readerOpenRequest) showMessage(t(this.i18n, "msg.actionFailed"), 3500);
         }
     }
 
-    private async openReaderTab(docId: string): Promise<void> {
+    private async openReaderTab(docId: string, focusBlockId?: string): Promise<void> {
         const request = ++this.readerOpenRequest;
         try {
             const tab = await openTab({
@@ -429,13 +429,13 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
             if (!this.loaded || request !== this.readerOpenRequest || this.destroyedReaderTabIds.has(tab.id)) return;
             // openTab 的公开返回值给出确切目标；隐藏页签和其他分屏不能抢走此次打开请求。
             this.pendingReaderDocIds.set(tab.id, docId);
-            document.dispatchEvent(new CustomEvent("glean:focus-reader", { detail: { tabId: tab.id } }));
+            document.dispatchEvent(new CustomEvent("glean:focus-reader", { detail: { tabId: tab.id, focusBlockId } }));
         } catch {
             // 自定义页签是实验能力；宿主拒绝创建时仍交付同一篇文章的原生页签。
             // 只允许当前请求回退，避免较早请求在用户已打开另一篇后抢占导航。
             if (!this.loaded || request !== this.readerOpenRequest) return;
             try {
-                await openTab({ app: this.app, doc: { id: docId }, keepCursor: false });
+                await openTab({ app: this.app, doc: { id: focusBlockId || docId }, keepCursor: false });
             } catch {
                 if (this.loaded && request === this.readerOpenRequest) showMessage(t(this.i18n, "msg.actionFailed"), 3500);
             }
@@ -1032,9 +1032,9 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
             closeLabel: t(this.i18n, "action.close"),
             component: SettingsView,
             props: { facade: this },
-            // T-3314：分类导航版式需要横向空间；窄屏仍由容器查询降级为顶部 tab
-            width: "720px",
-            height: "640px",
+            // 现代化大设置面板：提供充足横向展示宽度，避免选项拥挤与提示截断
+            width: "920px",
+            height: "720px",
         });
     }
 }

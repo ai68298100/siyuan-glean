@@ -77,3 +77,24 @@ test("canonicalUrlKey：剥离常见 UTM 和微信/B站/知乎追踪参数（T-1
     const bizUrl = "https://example.com/api?b=2&a=1&utm_source=test";
     assert.equal(canonicalUrlKey(bizUrl), "https://example.com/api?a=1&b=2");
 });
+
+test("inspectClipMarkdown：微信公众号文章自动识别并填充 author", () => {
+    const wechatMd = [
+        "# 人工智能新前沿",
+        "<meta property=\"og:image\" content=\"https://mmbiz.qpic.cn/cover123.jpg\" />",
+        "<meta property=\"og:description\" content=\"本文是大模型与人工智能前沿探索综述。\" />",
+        "- [https://mp.weixin.qq.com/s/sample123](https://mp.weixin.qq.com/s/sample123)",
+        "原创 机器之心 2024-05-01",
+        "收录于合集 #大模型 5个",
+        "点击上方蓝字关注我们",
+        "这是大模型最新研究的正文内容...",
+    ].join("\n");
+    const meta = inspectClipMarkdown(wechatMd);
+    assert.equal(meta.url, "https://mp.weixin.qq.com/s/sample123");
+    assert.equal(meta.site, "mp.weixin.qq.com");
+    assert.equal(meta.author, "机器之心");
+    assert.equal(meta.series, "大模型");
+    assert.equal(meta.summary, "本文是大模型与人工智能前沿探索综述。");
+    assert.equal(meta.cover, "https://mmbiz.qpic.cn/cover123.jpg");
+    assert.equal(meta.contentType, "fulltext");
+});

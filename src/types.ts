@@ -32,8 +32,8 @@ export interface GleanFacade {
     notifyDataChanged(): void;
     /** 当前活动文档（右键/命令收录目标、高亮侧栏来源），无则空串 */
     currentDocId(): string;
-    /** 用思源原生编辑器打开一篇文章，并记录会话内最近阅读文档。 */
-    openReadingDocument(docId: string): void;
+    /** 用思源原生编辑器打开一篇文章，并记录会话内最近阅读文档；支持指定具体锚点块。 */
+    openReadingDocument(docId: string, focusBlockId?: string): void;
     /** 读取会话内最近阅读列表；不落 saveData。 */
     recentReadingDocuments(): readonly RecentReadingEntry[];
     /** 在上下文读回标题后补充最近阅读列表的显示投影。 */

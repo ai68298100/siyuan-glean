@@ -160,7 +160,15 @@ test("surfaceReasons：只列事实理由，不用欠账口吻（T-1717）", () 
         NOW
     );
     assert.deepEqual(explained.map((reason) => reason.kind), ["stale", "priority", "site"]);
-    // 刚收录、普通优先级、无站点：不需要解释
+    // 当存在作者/公众号时，推荐理由展示 author 来源
+    const withAuthor = surfaceReasons(
+        item({ time: "20260901000000", priority: 3, author: "差评", site: "mp.weixin.qq.com" }),
+        [],
+        NOW
+    );
+    assert.deepEqual(withAuthor.map((reason) => reason.kind), ["stale", "author"]);
+    assert.equal(withAuthor.find((r) => r.kind === "author")?.author, "差评");
+    // 刚收录、普通优先级、无站点与作者：不需要解释
     const fresh = item({ time: "20260928000000", priority: 3 });
     assert.equal(surfaceReasons(fresh, [], NOW).length, 0);
 });

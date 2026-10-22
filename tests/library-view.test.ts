@@ -1,7 +1,7 @@
 /** 读库时间线筛选/排序纯函数（S3 / T-1715）。 */
 import test from "node:test";
 import assert from "node:assert/strict";
-import { filterAndSortLibrary, groupCandidatesBySite, libraryFacets, matchLibraryReason, matchReadingTimeTier, type LibraryItem } from "../src/domain/library-view.ts";
+import { filterAndSortLibrary, groupCandidatesBySite, libraryFacets, matchLibraryReason, matchReadingTimeTier, resolveReadingTimeTier, type LibraryItem } from "../src/domain/library-view.ts";
 import { parseUserTags } from "../src/domain/schema.ts";
 import { applyRailGroupToggle, normalizeRailGroups, projectRailFacets, railFacetSelected } from "../src/domain/library-rail.ts";
 
@@ -325,4 +325,16 @@ test("matchReadingTimeTier：预计阅读时间分档纯函数与读库过滤（
     assert.deepEqual(filterAndSortLibrary(items, { readingTimeTier: "medium" }).map((i) => i.id), ["med-doc"]);
     assert.deepEqual(filterAndSortLibrary(items, { readingTimeTier: "long" }).map((i) => i.id), ["long-doc"]);
     assert.equal(filterAndSortLibrary(items, { readingTimeTier: "all" }).length, 4);
+});
+
+test("resolveReadingTimeTier：准确归档为 short, medium, long 或 unknown", () => {
+    assert.equal(resolveReadingTimeTier(undefined), "unknown");
+    assert.equal(resolveReadingTimeTier(0), "unknown");
+    assert.equal(resolveReadingTimeTier(-5), "unknown");
+    assert.equal(resolveReadingTimeTier(1), "short");
+    assert.equal(resolveReadingTimeTier(5), "short");
+    assert.equal(resolveReadingTimeTier(6), "medium");
+    assert.equal(resolveReadingTimeTier(15), "medium");
+    assert.equal(resolveReadingTimeTier(16), "long");
+    assert.equal(resolveReadingTimeTier(120), "long");
 });

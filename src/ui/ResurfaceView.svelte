@@ -8,6 +8,7 @@ import { t } from "../libs/i18n";
 import { actOnSurface, computeDailyFromIndex, pickSurfaceReplacementFromIndex, setSurfacePinned, undoSurfaceAction, type SurfaceAction, type SurfaceUndoToken } from "../services/resurface-service";
 import type { GleanIndex } from "../services/index-store";
 import { todayStamp, type SurfacePick, type SurfaceReason } from "../domain/resurface";
+import { computeRecent7DaysStatus } from "../domain/stats";
 import { hasSourceAction, openTargetForCarrier, resolveCarrier, sourceUrlForCarrier } from "../domain/carrier";
 import { clampSurfaceSwipe, resolveSurfaceSwipe, type SurfaceSwipeAction } from "../domain/surface-swipe";
 import ContextSelectionPanel from "./ContextSelectionPanel.svelte";
@@ -54,6 +55,8 @@ let replacementNotice = $state<{ from: string; to: string } | null>(null);
         if (cursorId && !pickIds.includes(cursorId)) cursorId = "";
     });
 const recentCount = $derived(daily.recentCount);
+const completionStreak = $derived(daily.completionStreak);
+const recent7Days = $derived(computeRecent7DaysStatus(Object.values(index.clips), currentTime));
 const clipCount = $derived(Object.keys(index.clips).length);
 const candidateCount = $derived(Object.keys(index.candidates).length);
 // 仅比较快照引用；深代理会改变裸索引的身份并反复触发此处的刷新 effect。
@@ -430,6 +433,7 @@ function reasonText(reason: SurfaceReason): string {
         case "stale": return t(i18n, "resurface.reason.stale", { n: reason.days ?? 0 });
         case "priority": return t(i18n, "resurface.reason.priority", { n: reason.priority ?? 3 });
         case "site": return t(i18n, "resurface.reason.site", { site: reason.site ?? "" });
+        case "author": return t(i18n, "resurface.reason.author", { author: reason.author ?? "" });
         case "freshTopic": return t(i18n, "resurface.reason.freshTopic");
     }
 }
@@ -683,6 +687,31 @@ function focusCard(id: string): void {
             </div>
         </div>
     {:else if picks.length === 0 && startedToday.length === 0 && !activeContinue}
+        {#if completionStreak > 0 || recent7Days.some((d) => d.completed)}
+            <div class="glean-surf-banner" style="margin-top: var(--glean-space-3);">
+                <div class="glean-surf-streak-card">
+                    <div class="glean-surf-streak-card__head">
+                        <svg class="glean-icon glean-icon--xs" aria-hidden="true"><use href="#iconGleanSpark" /></svg>
+                        <span>{t(i18n, "resurface.streakCardTitle")}</span>
+                    </div>
+                    <strong class="glean-surf-streak-card__count">🔥 {t(i18n, "resurface.streakCardDays", { n: completionStreak || 0 })}</strong>
+                </div>
+                <div class="glean-surf-stepper" role="group" aria-label={t(i18n, "resurface.weeklyStepper")}>
+                    {#each recent7Days as step (step.date)}
+                        <div class="glean-surf-step" class:glean-surf-step--done={step.completed} class:glean-surf-step--today={step.isToday} title={`${step.date}: ${step.completed ? '已完成' : (step.isToday ? '今日待读' : '未读')}`}>
+                            <span class="glean-surf-step__day">{step.dayLabel}</span>
+                            <div class="glean-surf-step__circle">
+                                {#if step.completed}
+                                    ✓
+                                {:else if step.isToday}
+                                    <span class="glean-surf-step__dot"></span>
+                                {/if}
+                            </div>
+                        </div>
+                    {/each}
+                </div>
+            </div>
+        {/if}
         <div class="glean-empty" role="status">
             <div class="glean-empty__art"><svg aria-hidden="true"><use href="#iconGleanSpark" /></svg></div>
             <div class="glean-empty__title">{t(i18n, "resurface.allDone")}</div>
@@ -698,6 +727,32 @@ function focusCard(id: string): void {
                 <button type="button" class="glean-btn glean-btn--ghost glean-btn--sm" onclick={onQuickCandidates}>
                     {t(i18n, "panel.viewCandidates")}
                 </button>
+            </div>
+        {/if}
+
+        {#if completionStreak > 0 || recent7Days.some((d) => d.completed)}
+            <div class="glean-surf-banner">
+                <div class="glean-surf-streak-card">
+                    <div class="glean-surf-streak-card__head">
+                        <svg class="glean-icon glean-icon--xs" aria-hidden="true"><use href="#iconGleanSpark" /></svg>
+                        <span>{t(i18n, "resurface.streakCardTitle")}</span>
+                    </div>
+                    <strong class="glean-surf-streak-card__count">🔥 {t(i18n, "resurface.streakCardDays", { n: completionStreak || 0 })}</strong>
+                </div>
+                <div class="glean-surf-stepper" role="group" aria-label={t(i18n, "resurface.weeklyStepper")}>
+                    {#each recent7Days as step (step.date)}
+                        <div class="glean-surf-step" class:glean-surf-step--done={step.completed} class:glean-surf-step--today={step.isToday} title={`${step.date}: ${step.completed ? '已完成' : (step.isToday ? '今日待读' : '未读')}`}>
+                            <span class="glean-surf-step__day">{step.dayLabel}</span>
+                            <div class="glean-surf-step__circle">
+                                {#if step.completed}
+                                    ✓
+                                {:else if step.isToday}
+                                    <span class="glean-surf-step__dot"></span>
+                                {/if}
+                            </div>
+                        </div>
+                    {/each}
+                </div>
             </div>
         {/if}
 
@@ -827,7 +882,7 @@ function focusCard(id: string): void {
                     {#if pick.reasons.length > 0}
                         <div class="glean-surf__why" title={t(i18n, "resurface.why")}>
                             <span class="glean-surf__why-label">{t(i18n, "resurface.why")}</span>
-                            {#each pick.reasons as reason (reason.kind + (reason.site ?? ""))}
+                            {#each pick.reasons as reason (reason.kind + (reason.site ?? "") + (reason.author ?? ""))}
                                 <span class="glean-stale">{reasonText(reason)}</span>
                             {/each}
                         </div>

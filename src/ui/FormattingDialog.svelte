@@ -3,6 +3,7 @@
     import { showMessage } from "siyuan";
     import { t } from "../libs/i18n";
     import { aiFailureKey } from "../libs/ai-feedback";
+    import { isWechatUrl } from "../domain/wechat";
     import { formattingCandidates, renderFormatting, type FormattingPlan } from "../domain/formatting";
     import { formattingAiEnabled, loadFormattingSession, planAiFormatting, saveFormattingDraft, type FormattingSession } from "../services/formatting-service";
     import type { GleanFacade } from "../types";
@@ -27,6 +28,7 @@
     let disposed = false;
     let settings = $state.raw<GleanSettings>(DEFAULT_SETTINGS);
     const aiOn = $derived(formattingAiEnabled(settings));
+    const isWechat = $derived(Boolean(session?.source?.url && isWechatUrl(session.source.url)));
     const candidates = $derived(session ? formattingCandidates(session.analysis, plan) : []);
     const preview = $derived(session ? renderFormatting(session.analysis, plan, selected) : "");
     const locked = $derived(saveState !== "ready");
@@ -140,7 +142,9 @@
             <h3 id="glean-formatting-title">{t(i18n, "formatting.open")}</h3>
             <p id="glean-formatting-desc" class="glean-formatting__hint">{t(i18n, "formatting.hint")}</p>
         </div>
-        <span class="glean-formatting__mode">{aiOn ? "AI" : "BASIC"}</span>
+        <span class="glean-formatting__mode">
+            {aiOn ? "AI" : "BASIC"}{#if isWechat} · WECHAT{/if}
+        </span>
     </header>
     <div class="glean-formatting__toolbar glean-formatting__toolbar--top">
         <button class="glean-btn glean-btn--ghost" disabled={busy || locked || !session} onclick={basic}>{t(i18n, "formatting.basic")}</button>
@@ -149,6 +153,12 @@
             <button class="glean-btn glean-btn--pri" disabled={busy || locked || !session} onclick={() => void formatAi()}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanSpark" /></svg>{t(i18n, "formatting.ai")}</button>
         {:else}
             <button class="glean-btn glean-btn--ghost" disabled={busy} onclick={() => facade.openSettings()}>{t(i18n, "formatting.enable")}</button>
+        {/if}
+        {#if isWechat}
+            <span class="glean-wechat-publisher__badge" style="margin-left: auto;">
+                <span class="glean-wechat-publisher__dot"></span>
+                {t(i18n, "formatting.wechatRepaired")}
+            </span>
         {/if}
     </div>
     <p class="glean-formatting__hint">

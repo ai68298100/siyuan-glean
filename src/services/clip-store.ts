@@ -24,6 +24,7 @@ import {
     CLIP_HIGHLIGHT_COLORS,
     documentTimeFromId,
     parseClipAttrs,
+    parseUserTags,
     captureDefaults,
     serializePatch,
     siteFromUrl,
@@ -128,6 +129,8 @@ export interface ReadingClipContext {
     priority?: number;
     rating?: number;
     readingPosition?: ReadingPosition;
+    tags?: string[];
+    aiTags?: string[];
 }
 
 /** 编辑器上下文只读当前根块属性；旧索引不能冒充正在阅读的状态。 */
@@ -151,6 +154,8 @@ export async function readClipContext(docId: string): Promise<ReadingClipContext
         priority: attrs.priority ?? 3,
         rating: attrs.rating ?? 0,
         readingPosition: attrs.readingPosition,
+        tags: parseUserTags(ial.tags),
+        aiTags: attrs.aiTags ?? [],
     };
 }
 
@@ -577,6 +582,7 @@ export async function captureClip(
     options: {
         url?: string;
         site?: string;
+        author?: string;
         src?: ClipAttrs["src"];
         time?: string;
         timeSource?: ClipAttrs["timeSource"];
@@ -615,14 +621,17 @@ export async function captureClip(
     patch.status = options.status ?? defaults.status;
     if (!ial[ATTR.time]) {
         const documentTime = documentTimeFromId(docId);
-        patch.time = options.time ?? documentTime ?? defaults.time;
-        patch.timeSource = options.timeSource ?? (documentTime ? "document" : "capture");
+        const sourceTime = options.time ?? metadata.time;
+        patch.time = sourceTime ?? documentTime ?? defaults.time;
+        patch.timeSource = options.timeSource ?? metadata.timeSource ?? (sourceTime ? "source" : (documentTime ? "document" : "capture"));
     }
     if (!ial[ATTR.priority]) patch.priority = defaults.priority;
     if (!ial[ATTR.src]) patch.src = options.src ?? defaults.src;
     if (!ial[ATTR.url] && (options.url || metadata.url)) patch.url = options.url || metadata.url;
     const url = effectiveUrl;
     if (!ial[ATTR.site]) patch.site = options.site || metadata.site || (url ? siteFromUrl(url) : "") || undefined;
+    if (!ial[ATTR.author] && (options.author || metadata.author)) patch.author = options.author || metadata.author;
+    if (!ial[ATTR.summary] && metadata.summary) patch.summary = metadata.summary;
     if (!ial[ATTR.contentType]) patch.contentType = options.contentType ?? metadata.contentType;
     if (!ial[ATTR.words] && metadata.words > 0) patch.words = metadata.words;
     if (!ial[ATTR.minutes] && metadata.minutes > 0) patch.minutes = metadata.minutes;

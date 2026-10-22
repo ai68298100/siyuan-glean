@@ -28,6 +28,19 @@
     let hostFocusOrigin: Element | null = null;
     const statusLabelId = `glean-protyle-status-label-${++protyleStatusCounter}`;
 
+    function patchWechatImages(root: HTMLElement): void {
+        try {
+            const images = root.querySelectorAll<HTMLImageElement>("img[src*='qpic.cn']");
+            for (const img of images) {
+                if (img.referrerPolicy !== "no-referrer") {
+                    img.referrerPolicy = "no-referrer";
+                }
+            }
+        } catch {
+            // ignore
+        }
+    }
+
     $effect(() => {
         const element = host;
         void docId;
@@ -87,7 +100,13 @@
                 observer.observe(target);
                 return () => observer.disconnect();
             },
-            onReady: () => { if (active) { window.clearTimeout(timeout); stage = "ready"; } },
+            onReady: () => {
+                if (active) {
+                    window.clearTimeout(timeout);
+                    stage = "ready";
+                    patchWechatImages(element);
+                }
+            },
             onError: (error) => {
                 console.debug("[glean] Protyle lifecycle failed:", error);
                 if (active) { window.clearTimeout(timeout); stage = "failed"; }

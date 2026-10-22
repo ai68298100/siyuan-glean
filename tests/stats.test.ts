@@ -7,7 +7,7 @@ import { summarizeDistribution } from "../src/domain/distribution.ts";
 
 import {
     aggregateStats, aggregateReadingReview, buildReadingReviewCsv, buildReadingReviewMarkdown,
-    completedReviewItems, computeConversionFunnel, currentCompletionStreak, filterCompletedItemsByDate, csvCell, parseLocalTimestamp, parseReviewDate, reviewPeriod, withinWeek,
+    completedReviewItems, computeConversionFunnel, computeRecent7DaysStatus, computeReadingMilestones, currentCompletionStreak, filterCompletedItemsByDate, csvCell, parseLocalTimestamp, parseReviewDate, reviewPeriod, withinWeek,
     type ReadingReview, type StatsInput,
 } from "../src/domain/stats.ts";
 
@@ -430,4 +430,35 @@ test("StatsView 接线：回顾预览与日期过滤支持 Escape 快捷退出�
     assert.match(view, /if \(event\.key !== "Escape"/);
     assert.match(view, /if \(session && !busy && \(saveState === "ready" \|\| saveState === "saved"\)\) \{[\s\S]*?discard\(\);/);
     assert.match(view, /if \(selectedDayDate\) \{[\s\S]*?selectedDayDate = "";/);
+});
+
+test("computeRecent7DaysStatus：准确计算近 7 天每日打卡完成状态（对标 Days Logged In）", () => {
+    const items = [
+        item({ id: "1", status: "done", doneTime: "20260929100000" }), // 今天
+        item({ id: "2", status: "done", doneTime: "20260928150000" }), // 昨天
+        item({ id: "3", status: "done", doneTime: "20260925090000" }), // 4天前
+    ];
+
+    const steps = computeRecent7DaysStatus(items, NOW);
+    assert.equal(steps.length, 7);
+    assert.equal(steps[6].isToday, true);
+    assert.equal(steps[6].completed, true); // 今天完成
+    assert.equal(steps[5].completed, true); // 昨天完成
+    assert.equal(steps[4].completed, false); // 前天未完成
+    assert.equal(steps[2].completed, true); // 20260925 完成
+});
+
+test("computeReadingMilestones：派生阅读阶段印记与成就勋章", () => {
+    const emptyStats = aggregateStats([], NOW);
+    const emptyMilestones = computeReadingMilestones(emptyStats);
+    assert.equal(emptyMilestones.length, 6);
+    assert.equal(emptyMilestones[0].unlocked, false);
+
+    const activeStats = aggregateStats([
+        item({ id: "1", status: "done", doneTime: "20260929100000", words: 12000 }),
+    ], NOW);
+    const milestones = computeReadingMilestones(activeStats);
+    assert.equal(milestones.find((m) => m.id === "starter")?.unlocked, true);
+    assert.equal(milestones.find((m) => m.id === "first_done")?.unlocked, true);
+    assert.equal(milestones.find((m) => m.id === "words_10k")?.unlocked, true);
 });

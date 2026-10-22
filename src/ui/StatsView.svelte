@@ -12,7 +12,7 @@ import DistributionList from "./DistributionList.svelte";
 import { t } from "../libs/i18n";
 import type { GleanIndex } from "../services/index-store";
 import { buildReadingReview, previewReadingReview, resolveUnknownReadingReview, saveReadingReviewReport, type ReadingReviewSession } from "../services/stats-service";
-import { computeConversionFunnel, filterCompletedItemsByDate, parseReviewDate, reviewDateInput, type ReadingReviewLabels, type ReviewPeriodKind } from "../domain/stats";
+import { computeConversionFunnel, computeReadingMilestones, filterCompletedItemsByDate, parseReviewDate, reviewDateInput, type ReadingReviewLabels, type ReviewPeriodKind } from "../domain/stats";
 
 interface Props {
     facade: GleanFacade;
@@ -51,6 +51,7 @@ const heatmapPadding = $derived((new Date(`${stats.heatmap[0].date}T12:00:00`).g
 const recentDays = $derived(stats.recentCompletionTrend);
 const visibleCompletedItems = $derived(filterCompletedItemsByDate(review.completedItems, selectedDayDate));
 const funnel = $derived(computeConversionFunnel(index.clips, index.candidates));
+const readingMilestones = $derived(computeReadingMilestones(stats));
 const maxRecent = $derived(Math.max(1, ...recentDays.map((day) => day.count)));
 const distributions = $derived([
     { key: "review.bySite", counts: stats.periodBySite },
@@ -278,6 +279,20 @@ function onWindowKeyDown(event: KeyboardEvent): void {
                 <div class="glean-stats__metric"><dt>{t(i18n, metric.key)}</dt><dd>{metric.count}</dd><dd class="glean-stats__metric-hint">{t(i18n, metric.hint)}</dd></div>
             {/each}
         </dl>
+        <div class="glean-stats__milestones" role="region" aria-label={t(i18n, "stats.milestonesTitle")}>
+            <div class="glean-stats__milestones-title">{t(i18n, "stats.milestonesTitle")}</div>
+            <div class="glean-stats__milestones-grid">
+                {#each readingMilestones as ms (ms.id)}
+                    <div class="glean-milestone-chip" class:glean-milestone-chip--unlocked={ms.unlocked} title={ms.desc}>
+                        <span class="glean-milestone-chip__icon" aria-hidden="true">{ms.icon}</span>
+                        <div class="glean-milestone-chip__content">
+                            <span class="glean-milestone-chip__name">{ms.title}</span>
+                            <span class="glean-milestone-chip__desc">{ms.desc}</span>
+                        </div>
+                    </div>
+                {/each}
+            </div>
+        </div>
         <div class="glean-stats__funnel" role="region" aria-label={t(i18n, "stats.funnel.title")}>
             <div class="glean-stats__funnel-head">
                 <span class="glean-stats__funnel-title">{t(i18n, "stats.funnel.title")}</span>

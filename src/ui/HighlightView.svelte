@@ -9,7 +9,7 @@ import type { GleanFacade } from "../types";
 import { t } from "../libs/i18n";
 import { filterHighlights, formatHighlightShare, formatHighlightTime, groupHighlightsByArticle, highlightFacets, pageHighlights, renderArticleHighlightsMarkdown, retainHighlightSelection, type ArticleHighlightGroup, type HighlightFilter } from "../domain/highlights";
 import {
-    copyHighlights, exportHighlightsCsv, HighlightExportError, highlightDocumentTitle, listDocHighlights, listLibraryHighlights,
+    copyHighlights, createArticleHighlightsDoc, exportHighlightsCsv, HighlightExportError, highlightDocumentTitle, listDocHighlights, listLibraryHighlights,
     prepareHighlightExport, saveHighlightDraft, type HighlightExportSession, type HighlightItem, type HighlightSaveReason,
 } from "../services/highlights";
 import { findRelatedOutcome, type RelatedReason } from "../services/enrich-service";
@@ -53,6 +53,8 @@ let retryAction = $state<"copy" | "csv" | "markdown" | "preview" | "save">("prev
 let tagAliases = $state<TagAlias[]>([]);
 /** 摘录墙键盘光标（T-3399）：只描述当前页可见条目，不写入任何文章事实。 */
 let cursorId = $state("");
+let expandedTags = $state<Record<string, boolean>>({});
+let expandedAiTags = $state<Record<string, boolean>>({});
 let rootEl = $state<HTMLElement | null>(null);
 let generation = 0;
 let relatedGeneration = 0;
@@ -319,8 +321,8 @@ async function copyQuote(item: HighlightItem): Promise<void> {
     }
 }
 
-function openDoc(id: string) {
-    facade.openReadingDocument(id);
+function openDoc(id: string, focusBlockId?: string) {
+    facade.openReadingDocument(id, focusBlockId);
 }
 
 async function copyArticleQuotes(group: ArticleHighlightGroup): Promise<void> {
@@ -361,6 +363,28 @@ function exportArticleQuotes(group: ArticleHighlightGroup): void {
     } catch (error) {
         console.warn("[glean] 文章摘录导出失败:", error);
         showMessage(t(i18n, "msg.actionFailed"), 3000);
+    } finally {
+        exportBusy = false;
+    }
+}
+
+async function createDocFromArticleQuotes(group: ArticleHighlightGroup): Promise<void> {
+    if (exportBusy || loading) return;
+    exportBusy = true;
+    try {
+        const result = await createArticleHighlightsDoc(facade.pluginInstance, group, labels);
+        if (result.ok && result.docId) {
+            showMessage(t(i18n, "highlight.articleDocCreated"), 3000);
+            facade.notifyDataChanged();
+            openDoc(result.docId);
+        } else {
+            showMessage(t(i18n, "msg.actionFailed"), 3000);
+        }
+    } catch (error) {
+        console.warn("[glean] 创建读书笔记失败:", error);
+        showMessage(t(i18n, "msg.actionFailed"), 3000);
+    } finally {
+        exportBusy = false;
     }
 }
 
@@ -514,6 +538,7 @@ function focusHighlightRow(id: string): void {
                 {#each visible.items as item (item.id)}
                     <article class="glean-highlights__item" data-glean-highlight-id={item.id} class:glean-highlights__item--cursor={cursorId === item.id} aria-current={cursorId === item.id ? "true" : undefined} aria-busy={cardingKey === item.id}>
                         <div class="glean-highlights__item-head">
+                            <span class="glean-reader__highlight-dot glean-reader__highlight-dot--{item.color || 'yellow'}" aria-hidden="true"></span>
                             <span class="glean-highlights__item-label">{t(i18n, "highlight.quoteTag")}</span>
                             <span class="glean-highlights__item-index">{(visible.page - 1) * highlightPageSize + visible.items.indexOf(item) + 1}</span>
                         </div>
@@ -522,10 +547,10 @@ function focusHighlightRow(id: string): void {
                             {item.title || t(i18n, "panel.untitled")} {item.site ? ` · ${item.site}` : ""}
                             {#if formatHighlightTime(item.id)}<span class="glean-highlights__time"> · {formatHighlightTime(item.id)}</span>{/if}
                         </p>
-                        {#if item.tags.length}<p class="glean-highlights__meta glean-highlights__tags"><span>{t(i18n, "library.filterTag")}</span>{#each item.tags as value}<span class="glean-highlights__tag">{value}</span>{/each}</p>{/if}
-                        {#if item.aiTags.length}<p class="glean-highlights__meta glean-highlights__tags glean-highlights__tags--ai"><span>{t(i18n, "library.filterAiTag")}</span>{#each item.aiTags as value}<span class="glean-highlights__tag">{value}</span>{/each}</p>{/if}
+                        {#if item.tags.length}<p class="glean-highlights__meta glean-highlights__tags"><span>{t(i18n, "library.filterTag")}</span>{#each (expandedTags[item.id] ? item.tags : item.tags.slice(0, 3)) as value}<span class="glean-highlights__tag">{value}</span>{/each}{#if item.tags.length > 3 && !expandedTags[item.id]}<button type="button" class="glean-highlights__tag glean-highlights__tag--more" onclick={() => expandedTags[item.id] = true}>+{item.tags.length - 3}</button>{/if}</p>{/if}
+                        {#if item.aiTags.length}<p class="glean-highlights__meta glean-highlights__tags glean-highlights__tags--ai"><span>{t(i18n, "library.filterAiTag")}</span>{#each (expandedAiTags[item.id] ? item.aiTags : item.aiTags.slice(0, 3)) as value}<span class="glean-highlights__tag">{value}</span>{/each}{#if item.aiTags.length > 3 && !expandedAiTags[item.id]}<button type="button" class="glean-highlights__tag glean-highlights__tag--more" onclick={() => expandedAiTags[item.id] = true}>+{item.aiTags.length - 3}</button>{/if}</p>{/if}
                         <div class="glean-highlights__tools glean-highlights__tools--card">
-                            <button type="button" onclick={() => openDoc(item.id)}>{t(i18n, "highlight.original")}</button>
+                            <button type="button" onclick={() => openDoc(item.rootId, item.id)}>{t(i18n, "highlight.original")}</button>
                             <button type="button" onclick={() => openDoc(item.rootId)}>{t(i18n, "action.openDoc")}</button>
                             <button type="button" aria-busy={copyingId === item.id} disabled={Boolean(copyingId)} onclick={() => void copyQuote(item)} title={t(i18n, "highlight.copyShare")}>
                                 <svg class="glean-icon" aria-hidden="true"><use href="#iconGleanCopy" /></svg>
@@ -563,19 +588,24 @@ function focusHighlightRow(id: string): void {
                                     <svg class="glean-icon" aria-hidden="true"><use href="#iconGleanDownload" /></svg>
                                     {t(i18n, "highlight.exportArticleQuotes")}
                                 </button>
+                                <button type="button" class="glean-btn glean-btn--ghost" disabled={exportBusy} onclick={(e) => { e.stopPropagation(); void createDocFromArticleQuotes(group); }} title={t(i18n, "highlight.createArticleDoc")}>
+                                    <svg class="glean-icon" aria-hidden="true"><use href="#iconGleanNews" /></svg>
+                                    {t(i18n, "highlight.createArticleDoc")}
+                                </button>
                             </div>
                         </summary>
                         <div class="glean-highlights__items glean-highlights__items--grouped">
                             {#each group.items as item, itemIndex (item.id)}
                                 <article class="glean-highlights__item" data-glean-highlight-id={item.id} class:glean-highlights__item--cursor={cursorId === item.id} aria-current={cursorId === item.id ? "true" : undefined} aria-busy={cardingKey === item.id}>
                                     <div class="glean-highlights__item-head">
+                                        <span class="glean-reader__highlight-dot glean-reader__highlight-dot--{item.color || 'yellow'}" aria-hidden="true"></span>
                                         <span class="glean-highlights__item-label">{t(i18n, "highlight.quoteTag")}</span>
                                         <span class="glean-highlights__item-index">{itemIndex + 1}</span>
                                     </div>
                                     <label class="glean-highlights__quote"><input type="checkbox" checked={selected.includes(item.id)} disabled={exportBusy} onchange={() => toggle(item.id)} aria-label={`${t(i18n, "highlight.quoteTag")} ${itemIndex + 1}: ${item.text.slice(0, 120)}`} /><span>{item.text}</span></label>
                                     {#if formatHighlightTime(item.id)}<p class="glean-highlights__meta"><span class="glean-highlights__time">{formatHighlightTime(item.id)}</span></p>{/if}
                                     <div class="glean-highlights__tools glean-highlights__tools--card">
-                                        <button type="button" onclick={() => openDoc(item.id)}>{t(i18n, "highlight.original")}</button>
+                                        <button type="button" onclick={() => openDoc(group.rootId, item.id)}>{t(i18n, "highlight.original")}</button>
                                         <button type="button" onclick={() => openDoc(item.rootId)}>{t(i18n, "action.openDoc")}</button>
                                         <button type="button" aria-busy={copyingId === item.id} disabled={Boolean(copyingId)} onclick={() => void copyQuote(item)} title={t(i18n, "highlight.copyShare")}>
                                             <svg class="glean-icon" aria-hidden="true"><use href="#iconGleanCopy" /></svg>

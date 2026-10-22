@@ -101,7 +101,10 @@ export function analyzeFormatting(source: string): FormattingAnalysis {
             if (seenImages.has(image[2])) reasons.push("duplicateImage");
             seenImages.add(image[2]);
             if (!image[1].trim()) reasons.push("unlabelledImage");
-        } else if (block.kind === "text" && block.raw.trim().length <= 220 && /^(?:广告\s*[:：]|推广\s*[:：]|赞助\s*[:：]|请关注|关注公众号|扫码关注|点击下载|下载\S{0,12}(?:APP|客户端)|Advertisement\b|Sponsored\b|Subscribe (?:to|now)|Download (?:our|the) app)/i.test(block.raw.trim())) {
+        } else if (block.kind === "text" && block.raw.trim().length <= 260 && (
+            /^(?:广告\s*[:：]|推广\s*[:：]|赞助\s*[:：]|请关注|关注公众号|扫码关注|点击下载|下载\S{0,12}(?:APP|客户端)|Advertisement\b|Sponsored\b|Subscribe (?:to|now)|Download (?:our|the) app)/i.test(block.raw.trim())
+            || /^(?:收录于[合话专][集题栏]\s*#|点击上方.*关注|长按二维码.*关注|微信扫一扫.*关注|预览时标签不可点|喜欢本文.*(?:点赞|在看|转发)|文章已于.*修改|后台回复.*领取|商务合作\s*[:：]|点击.*?阅读原文|排版设计\s*[:：]|赞赏作者|喜欢作者|长按赞赏|阅读原文$|\[阅读原文\]|往期推荐|延伸阅读|推荐阅读|往期精彩|精彩回顾|图片来自网络)/i.test(block.raw.trim())
+        )) {
             reasons.push("promotion");
         }
         if (reasons.length) candidates.push({ id: block.id, reasons });

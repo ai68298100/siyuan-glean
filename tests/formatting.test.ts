@@ -139,3 +139,27 @@ test("来源回链仅接受安全的 HTTP(S) URL", () => {
     for (const source of ["javascript:alert(1)", "https://example.test/ x", "https://example.test/<x>", "https://example.test/\\x", ""]) assert.equal(formattingSourceLink(source), "");
     assert.equal(formattingSourceLink(longUrl), longUrl);
 });
+
+test("微信公众号特有模板噪声（合集、关注、在看）识别为推广清理候选", () => {
+    const doc = [
+        "正常段落一内容。",
+        "收录于合集 #深度报道 10个",
+        "正常段落二内容。",
+        "点击上方蓝字关注我们，获取最新推送",
+        "正常段落三内容。",
+        "喜欢本文请点赞在看转发！",
+        "正常段落四内容。",
+        "赞赏作者喜欢就支持一下吧",
+        "往期推荐精彩内容回顾：",
+    ].join("\n\n");
+    const analysis = analyzeFormatting(doc);
+    const promoIds = analysis.candidates
+        .filter((c) => c.reasons.includes("promotion"))
+        .map((c) => c.id);
+    assert.equal(promoIds.length, 5);
+    assert.equal(analysis.blocks.find((b) => b.id === promoIds[0])?.raw.trim(), "收录于合集 #深度报道 10个");
+    assert.equal(analysis.blocks.find((b) => b.id === promoIds[1])?.raw.trim(), "点击上方蓝字关注我们，获取最新推送");
+    assert.equal(analysis.blocks.find((b) => b.id === promoIds[2])?.raw.trim(), "喜欢本文请点赞在看转发！");
+    assert.equal(analysis.blocks.find((b) => b.id === promoIds[3])?.raw.trim(), "赞赏作者喜欢就支持一下吧");
+    assert.equal(analysis.blocks.find((b) => b.id === promoIds[4])?.raw.trim(), "往期推荐精彩内容回顾：");
+});
