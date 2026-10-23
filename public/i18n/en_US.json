@@ -1353,5 +1353,9 @@
   "reader.examMake": "AI Quiz",
   "reader.examStarted": "Sent to Lv Exam to generate quiz question",
   "reader.cardGhostHint": "💡 Install Lv Cards to create flashcards",
-  "reader.examGhostHint": "💡 Install Lv Exam to generate quiz questions"
+  "reader.examGhostHint": "💡 Install Lv Exam to generate quiz questions",
+  "wechat.rescanAuthor": "Rescan publisher",
+  "wechat.authorRecognized": "Recognized publisher: ${name}",
+  "wechat.authorNotFound": "Could not recognize publisher from content",
+  "reader.highlightFilterPlaceholder": "Filter highlights…"
 }

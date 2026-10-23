@@ -193,4 +193,8 @@ test("ReaderTab 正文搜索与高亮批注伴生栏接线（T-3419 与批注优
     assert.match(tab, /class="glean-reader__back-to-top"/);
     assert.match(tab, /\{t\(i18n, "reader\.backToTop"\)\}/);
     assert.match(tab, /onclick=\{scrollToTop\}/);
+    assert.match(tab, /glean-wechat-publisher__rescan-btn/);
+    assert.match(tab, /\{t\(i18n, "wechat\.rescanAuthor"\)\}/);
+    assert.match(tab, /\{t\(i18n, "reader\.highlightFilterPlaceholder"\)\}/);
+    assert.match(tab, /examFromHighlight\(hl\)/);
 });

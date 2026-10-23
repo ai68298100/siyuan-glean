@@ -19,7 +19,7 @@ import { aiFailureKey } from "../libs/ai-feedback";
     import { fulltextBodyState } from "../domain/content";
     import { canCountReading, createReadingTimer, readingTimerMinutes, setReadingTimerActive, type ReadingTimerState } from "../domain/reading-timer";
     import { hasSourceAction, resolveCarrier, sourceUrlForCarrier } from "../domain/carrier";
-    import { isWechatUrl, cleanWechatArticleUrl, wechatArticleToWereadUrl } from "../domain/wechat";
+    import { isWechatUrl, cleanWechatArticleUrl, wechatArticleToWereadUrl, extractWechatAuthor } from "../domain/wechat";
     import { chunkSpeechText, clampSpeechRate, resumeSpeechChunkIndex, speechLanguage } from "../domain/speech";
     import type { ClipStatus } from "../domain/schema";
     import { DEFAULT_SETTINGS } from "../services/settings";
@@ -130,6 +130,7 @@ import { aiFailureKey } from "../libs/ai-feedback";
     const showBackToTop = $derived((readingPercentage ?? 0) > 12);
     let companionTab = $state<"all" | "outline" | "notes" | "ai">("all");
     let highlightColorFilter = $state<string>("");
+    let highlightFilter = $state<string>("");
     let authorArticles = $state<Array<{ id: string; title: string }>>([]);
     let seriesArticles = $state<Array<{ id: string; title: string }>>([]);
     let wechatAvatar = $state<string | null>(null);
@@ -137,9 +138,17 @@ import { aiFailureKey } from "../libs/ai-feedback";
     const activeOutlineId = $derived(
         findActiveOutlineItemInHost(protyleHost, outline, currentBookmarkBlockId) ?? findMatchingOutlineItemId(outline, currentBookmarkBlockId)
     );
-    const visibleDocHighlights = $derived(
-        highlightColorFilter ? docHighlights.filter((h) => (h.color || "yellow") === highlightColorFilter) : docHighlights
-    );
+    const visibleDocHighlights = $derived.by(() => {
+        let list = docHighlights;
+        if (highlightColorFilter) {
+            list = list.filter((h) => (h.color || "yellow") === highlightColorFilter);
+        }
+        if (highlightFilter.trim()) {
+            const q = highlightFilter.trim().toLowerCase();
+            list = list.filter((h) => h.text.toLowerCase().includes(q));
+        }
+        return list;
+    });
     const highlightColorsPresent = $derived(
         Array.from(new Set(docHighlights.map((h) => h.color || "yellow")))
     );
@@ -501,6 +510,27 @@ import { aiFailureKey } from "../libs/ai-feedback";
         }
     }
 
+    async function examFromHighlight(item: HighlightItem): Promise<void> {
+        if (!item.text || !item.id || !context) return;
+        const examBridge = getBridgeSafely<Record<string, unknown>>("exam");
+        if (examBridge && typeof examBridge.quickGenerateQuestion === "function") {
+            try {
+                await (examBridge.quickGenerateQuestion as (options: unknown) => Promise<unknown>)({
+                    title: context.title,
+                    text: item.text,
+                    docId: context.id,
+                    blockId: item.id,
+                });
+                showMessage(t(i18n, "reader.examStarted"), 2500);
+            } catch (error) {
+                console.warn("[LvGlean] 批注考试出题失败:", error);
+                showMessage(t(i18n, "reader.actionFailed"), 3000);
+            }
+        } else {
+            showMessage(t(i18n, "reader.examGhostHint"), 3000);
+        }
+    }
+
     async function cycleHighlightColor(item: HighlightItem): Promise<void> {
         const order = ["yellow", "red", "blue", "green"];
         const currentIdx = order.indexOf(item.color || "yellow");
@@ -849,7 +879,7 @@ import { aiFailureKey } from "../libs/ai-feedback";
         void mode;
         void bodyState;
         untrack(syncReadingTimer);
-        untrack(scanWechatAvatar);
+        untrack(scanWechatPublisher);
     });
 
     $effect(() => {
@@ -871,6 +901,50 @@ import { aiFailureKey } from "../libs/ai-feedback";
         const img = protyleHost.querySelector<HTMLImageElement>('img.radius_avatar, img.profile_avatar, img[data-src*="avatar"], img[src*="avatar"]');
         if (img) {
             wechatAvatar = img.src || img.getAttribute("data-src") || null;
+        }
+    }
+
+    async function scanWechatPublisher(manual = false): Promise<void> {
+        if (!isWechatArticle || !protyleHost || !docId) {
+            wechatAvatar = null;
+            return;
+        }
+        scanWechatAvatar();
+        if (context?.author && !manual) {
+            void loadAuthorArticles(context.author, context.location?.hpath);
+            return;
+        }
+
+        let detected: string | null = null;
+        const jsName = protyleHost.querySelector("#js_name");
+        if (jsName?.textContent?.trim()) {
+            detected = extractWechatAuthor(jsName.textContent.trim()) || jsName.textContent.trim();
+        }
+        if (!detected) {
+            const nickname = protyleHost.querySelector(".profile_nickname, .profile_meta_value");
+            if (nickname?.textContent?.trim()) {
+                detected = extractWechatAuthor(nickname.textContent.trim()) || nickname.textContent.trim();
+            }
+        }
+        if (!detected) {
+            const snippet = protyleHost.innerText?.slice(0, 2000) || "";
+            detected = extractWechatAuthor(snippet);
+        }
+
+        if (detected && detected !== context?.author) {
+            try {
+                await writeClip(facade.pluginInstance, docId, { author: detected });
+                if (context) context.author = detected;
+                facade.notifyDataChanged();
+                void loadAuthorArticles(detected, context?.location?.hpath);
+                if (manual) {
+                    showMessage(t(i18n, "wechat.authorRecognized", { name: detected }), 2500);
+                }
+            } catch (error) {
+                console.warn("[LvGlean] 自动识别微信公众号失败:", error);
+            }
+        } else if (manual) {
+            showMessage(t(i18n, detected ? "wechat.authorRecognized" : "wechat.authorNotFound", { name: detected || "" }), 2500);
         }
     }
 
@@ -1615,7 +1689,18 @@ import { aiFailureKey } from "../libs/ai-feedback";
                                 <span class="glean-wechat-publisher__dot" aria-hidden="true"></span>
                                 {t(i18n, "wechat.badge")}
                             </div>
-                            <div class="glean-wechat-publisher__name">{context?.author || t(i18n, "wechat.officialAccount")}</div>
+                            <div class="glean-wechat-publisher__name-row">
+                                <div class="glean-wechat-publisher__name">{context?.author || t(i18n, "wechat.officialAccount")}</div>
+                                <button
+                                    type="button"
+                                    class="glean-icon-btn glean-wechat-publisher__rescan-btn"
+                                    title={t(i18n, "wechat.rescanAuthor")}
+                                    aria-label={t(i18n, "wechat.rescanAuthor")}
+                                    onclick={() => void scanWechatPublisher(true)}
+                                >
+                                    <svg class="glean-icon glean-icon--xs" aria-hidden="true"><use href="#iconGleanRefresh" /></svg>
+                                </button>
+                            </div>
                         </div>
                     </div>
                     <div class="glean-wechat-publisher__actions">
@@ -1835,6 +1920,23 @@ import { aiFailureKey } from "../libs/ai-feedback";
                     {:else if docHighlights.length === 0}
                         <div class="glean-reader__hint">{t(i18n, "reader.highlightsEmpty")}</div>
                     {:else}
+                        {#if docHighlights.length >= 4}
+                            <div class="glean-reader__outline-filter-bar">
+                                <svg class="glean-icon glean-icon--xs glean-reader__outline-filter-icon" aria-hidden="true">
+                                    <use href="#iconGleanSearch" />
+                                </svg>
+                                <input
+                                    type="search"
+                                    class="glean-mini-input glean-reader__outline-filter-input"
+                                    bind:value={highlightFilter}
+                                    placeholder={t(i18n, "reader.highlightFilterPlaceholder")}
+                                    aria-label={t(i18n, "reader.highlightFilterPlaceholder")}
+                                />
+                                {#if highlightFilter}
+                                    <button type="button" class="glean-reader__outline-filter-clear" onclick={() => { highlightFilter = ""; }}>✕</button>
+                                {/if}
+                            </div>
+                        {/if}
                         {#if highlightColorsPresent.length > 1}
                             <div class="glean-reader__highlight-color-filters" role="group" aria-label={t(i18n, "reader.filterByColor")}>
                                 <button
@@ -1877,8 +1979,11 @@ import { aiFailureKey } from "../libs/ai-feedback";
                                         <button class="glean-op-btn" type="button" title={t(i18n, "highlight.copyShare")} aria-label={t(i18n, "highlight.copyShare")} onclick={(e) => { e.stopPropagation(); void copyHighlightQuote(hl); }}>
                                             <svg class="glean-icon glean-icon--xs" aria-hidden="true"><use href="#iconGleanCopy" /></svg>
                                         </button>
-                                        <button class="glean-op-btn" type="button" title={t(i18n, "flashcard.make")} aria-label={t(i18n, "flashcard.make")} onclick={(e) => { e.stopPropagation(); void cardFromHighlight(hl); }}>
+                                        <button class="glean-op-btn" type="button" class:glean-ghost-btn={!hasCardsInstalled} title={hasCardsInstalled ? t(i18n, "flashcard.make") : t(i18n, "reader.cardGhostHint")} aria-label={t(i18n, "flashcard.make")} onclick={(e) => { e.stopPropagation(); void cardFromHighlight(hl); }}>
                                             <svg class="glean-icon glean-icon--xs" aria-hidden="true"><use href="#iconGleanCard" /></svg>
+                                        </button>
+                                        <button class="glean-op-btn" type="button" class:glean-ghost-btn={!hasExamInstalled} title={hasExamInstalled ? t(i18n, "reader.examMake") : t(i18n, "reader.examGhostHint")} aria-label={t(i18n, "reader.examMake")} onclick={(e) => { e.stopPropagation(); void examFromHighlight(hl); }}>
+                                            📝
                                         </button>
                                         <button class="glean-linkish" type="button" onclick={(e) => { e.stopPropagation(); scrollToHighlight(hl.id); }}>{t(i18n, "reader.jumpToBlock")}</button>
                                     </div>

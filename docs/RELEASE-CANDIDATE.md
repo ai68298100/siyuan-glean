@@ -1,15 +1,15 @@
 # 发布候选复核
 
-> **v1.3.11 发布候选（2026-10-23）**：本次发布全面落实全表面 Dialog 统一品牌标题栏规范（`mountPlatformDialogTitleWrap`，22×22 青绿底白麦穗标 + 标题 + 紧凑版本胶囊），彻底消灭深层空指针隐患并加固联邦交互。
+> **v1.3.12 发布候选（2026-10-23）**：本次发布覆盖微信公众号文章全自动识别与一键重新扫描、伴生栏批注关键词即时检索过滤，以及批注单条 AI 出题（小驴考试生态联动与幽灵态降级）。
 >
 > 真实宿主、读屏、移动端和外部能力仍按能力矩阵及 B-0002、B-0004–B-0008 验收。
 
-## 1. 发布产物与门禁核验（v1.3.11）
+## 1. 发布产物与门禁核验（v1.3.12）
 
 | 项目 | 结果 | 证据 |
 |---|---|---|
-| 源版本 | `1.3.11` | `package.json` 与 `plugin.json` 一致 |
-| 变更记录 | 已有 `v1.3.11` 条目 | `docs/CHANGELOG.md` |
+| 源版本 | `1.3.12` | `package.json` 与 `plugin.json` 一致 |
+| 变更记录 | 已有 `v1.3.12` 条目 | `docs/CHANGELOG.md` |
 | 类型与 Svelte 检查 | 通过，0 错误/0 警告 | `pnpm check` |
 | 全量测试 | 1540/1540 通过；覆盖全套架构、i18n、无障碍与域层回归 | `pnpm test` |
 | 生产构建 | 通过 | `pnpm build` |
@@ -20,7 +20,7 @@
 | 任务账本与差异 | 通过；文档与账本定向 10/10 通过 | `pnpm task:ledger -- --check`、`git diff --check` |
 | 隔离内核 | S1 服务级 E2E 58/58 通过；不替代真实主工作区验收 | 本轮 `scripts/e2e/s1-flow.mjs`，证据 `%TEMP%/siyuan-glean-s1-1792119060362-19972/s1-run-evidence.json` |
 | 隔离宿主界面 | 修复包覆盖加载；引导 2→3 步、普通文档、文章切回与工作台预览冒烟通过；warn/error 日志为空 | 思源 `3.8.8-alpha.1`、独立工作区、IAB（Chrome 当前不可用）；正文切回保留上下文实例 `c1`，普通文档可见阅读栏 0，内嵌预览重复注入 0 |
-| GitHub 发布 | `v1.3.11` 准备发版 | [Releases](https://github.com/ai68298100/siyuan-glean/releases) |
+| GitHub 发布 | `v1.3.12` 准备发版 | [Releases](https://github.com/ai68298100/siyuan-glean/releases) |
 | GitHub 工作流 | 发布提交两项均成功 | [Quality gates 38843676470](https://github.com/ai68298100/siyuan-glean/actions/runs/38843676470)、[CodeQL 38843676467](https://github.com/ai68298100/siyuan-glean/actions/runs/38843676467) |
 
 本轮变更重点是重复加载/切换事件幂等、后台刷新保留已判定内容或无栏状态，以及内嵌编辑器避免重复注入。AI 仍默认手动且需要用户配置通道；详细前置条件以[能力矩阵](CAPABILITY-MATRIX.md)为准。

@@ -8,6 +8,15 @@ Lv Glean organizes clippings and articles already in SiYuan. It does not crawl t
 
 [中文说明](README.md) · [Latest Release](https://github.com/ai68298100/siyuan-glean/releases/latest) · [Capability matrix](docs/CAPABILITY-MATRIX.md) · [Feedback](https://github.com/ai68298100/siyuan-glean/issues/new/choose)
 
+## v1.3.12 update (2026-10-23)
+
+This release brings automatic WeChat Official Account recognition and manual rescan, in-sidebar highlight keyword search filtering, and single-highlight AI Quiz generation (Lv Exam federation with ghost button fallback).
+
+**New features & improvements:**
+
+- **Automatic WeChat Official Account Recognition**: Automatically probes content DOM and header text upon opening WeChat clippings without author; seamlessly writes back `custom-clip-author`; provides a one-click "Rescan publisher" button in the WeChat card.
+- **Enhanced Sidebar Highlight Study Stream**: Highlights filter bar automatically displays when 4 or more highlights exist; added "📝 AI Quiz" button to highlight cards with ghost fallback for uninstalled Lv Exam plugin.
+
 ## v1.3.11 update (2026-10-23)
 
 This release implements the unified `.lv-dialog-title-wrap` branded dialog header standard across all dialog surfaces (22×22 pine green wheat icon + title text + compact version badge) and reinforces deep series article path null-safety.
@@ -302,7 +311,7 @@ Ordinary notes are not bulk-captured just because of their location, and opening
 
 ## Compatibility and acceptance
 
-This release is [v1.3.11](https://github.com/ai68298100/siyuan-glean/releases/tag/v1.3.11). See the [release candidate record](docs/RELEASE-CANDIDATE.md) for automated gates and release evidence; this does not mean every real environment has been accepted.
+This release is [v1.3.12](https://github.com/ai68298100/siyuan-glean/releases/tag/v1.3.12). See the [release candidate record](docs/RELEASE-CANDIDATE.md) for automated gates and release evidence; this does not mean every real environment has been accepted.
 
 Desktop host, Android/mobile, browser frontend, real models, the official clipper, external files, and subscription services still require environment-specific checks. Prerequisites, fallbacks, and open blockers are listed in the [capability matrix](docs/CAPABILITY-MATRIX.md) and [known blockers](docs/BLOCKERS.md). Unit tests and isolated E2E are not device acceptance.
 

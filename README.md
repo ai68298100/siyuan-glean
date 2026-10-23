@@ -8,6 +8,15 @@
 
 [English](README.en-US.md) · [下载最新版](https://github.com/ai68298100/siyuan-glean/releases/latest) · [能力矩阵](docs/CAPABILITY-MATRIX.md) · [反馈与问题](https://github.com/ai68298100/siyuan-glean/issues/new/choose)
 
+## v1.3.12 更新（2026-10-23）
+
+本次版本实现微信公众号文章全自动识别与一键重新扫描、伴生栏批注关键词即时检索过滤，以及批注单条 AI 出题（小驴考试生态联动与幽灵态降级）。
+
+**新增与体验增强：**
+
+- **微信公众号文章全自动识别与一键重新扫描**：打开微信剪藏文章时，若作者为空，自动深度扫描正文 DOM 与前置文本提取公众号名称并自动回填；微信展台右侧提供「重新识别公众号」按钮随时一键重新探测。
+- **伴生栏批注研读流增强**：批注数量达到 4 条以上时自动提供过滤检索栏；批注卡片底部新增「📝 AI 出题」动作，智能探测小驴考试（`LvExam`）提供幽灵态降级与一键出题。
+
 ## v1.3.11 更新（2026-10-23）
 
 本次版本实现全表面 Dialog 统一品牌标题栏规范（`mountPlatformDialogTitleWrap`，22×22 青绿底白麦穗标 + 标题 + 紧凑版本胶囊），消灭深层空指针隐患并加固联邦交互。
@@ -303,7 +312,7 @@
 
 ## 兼容性与验收
 
-本次发布为 [v1.3.11](https://github.com/ai68298100/siyuan-glean/releases/tag/v1.3.11)。自动门禁与发布证据见[发布候选复核](docs/RELEASE-CANDIDATE.md)；这不代表所有真实环境都已验收。
+本次发布为 [v1.3.12](https://github.com/ai68298100/siyuan-glean/releases/tag/v1.3.12)。自动门禁与发布证据见[发布候选复核](docs/RELEASE-CANDIDATE.md)；这不代表所有真实环境都已验收。
 
 桌面宿主、Android/移动端、浏览器前端、真实模型、官方剪藏、外部文件和订阅服务仍按环境分别验收。使用前提、降级方式和阻塞项以[能力矩阵](docs/CAPABILITY-MATRIX.md)及[已知阻塞](docs/BLOCKERS.md)为准；请勿把单元测试或隔离 E2E 当作真机通过。
 

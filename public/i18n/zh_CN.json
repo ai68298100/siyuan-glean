@@ -1353,5 +1353,9 @@
   "reader.examMake": "AI 出题",
   "reader.examStarted": "已发送至小驴考试生成题目",
   "reader.cardGhostHint": "💡 安装小驴闪卡后可一键制卡",
-  "reader.examGhostHint": "💡 安装小驴考试后可一键出题"
+  "reader.examGhostHint": "💡 安装小驴考试后可一键出题",
+  "wechat.rescanAuthor": "重新识别公众号",
+  "wechat.authorRecognized": "已识别公众号：${name}",
+  "wechat.authorNotFound": "未从正文或元数据中识别到公众号",
+  "reader.highlightFilterPlaceholder": "过滤批注内容…"
 }
