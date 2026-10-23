@@ -172,10 +172,12 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
             },
         });
 
+        const isMac = typeof navigator !== "undefined" && Boolean(navigator.platform?.toUpperCase().includes("MAC") || navigator.userAgent?.toUpperCase().includes("MAC"));
+        const defaultHotkey = isMac ? "⌥⌘G" : "Ctrl+Alt+G";
         this.addCommand({
             langKey: "cmd.openPanel",
-            hotkey: "⌥⌘G",
-            hotkeys: ["⌥⌘G"],
+            hotkey: defaultHotkey,
+            hotkeys: [defaultHotkey],
             callback: () => this.openPanel(),
         });
 

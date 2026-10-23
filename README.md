@@ -8,6 +8,16 @@
 
 [English](README.en-US.md) · [下载最新版](https://github.com/ai68298100/siyuan-glean/releases/latest) · [能力矩阵](docs/CAPABILITY-MATRIX.md) · [反馈与问题](https://github.com/ai68298100/siyuan-glean/issues/new/choose)
 
+## v1.3.13 更新（2026-10-23）
+
+本次版本全面落实小驴生态统领指令，深度消除 `.dialog-content input` 裸类样式污染与强化选择器边界、摘录墙制卡幽灵态对齐、跨平台自适应快捷键纠偏，并严格保持新版 256×256 高清 `icon.png` 资产不变。
+
+**新增与体验增强：**
+
+- **消除全局 `.dialog-content input` 裸类样式污染**：`src/index.scss` 全面清除针对原生弹窗表单的裸类选择器，严格包裹至 `.lv-glean`、`.glean-dialog`、`[class*="glean"]` 专属作用域内，杜绝污染原生思源弹窗及其他插件。
+- **全仓摘录墙制卡幽灵态降级对齐**：`HighlightView.svelte` 平铺时间线与按文章聚类双视图下的制卡按钮全面接入 `hasCardsInstalled` 智能探测，未安装小驴闪卡时保持 45% 幽灵态并浮现引导安装气泡。
+- **跨平台自适应快捷键纠偏**：`src/index.ts` 快捷键纠偏为自适应平台语法（Mac 使用 `⌥⌘G`，Windows/Linux 使用跨平台标准 `Ctrl+Alt+G`），彻底免疫非 Mac 环境下的修饰符解析异常。
+
 ## v1.3.12 更新（2026-10-23）
 
 本次版本实现微信公众号文章全自动识别与一键重新扫描、伴生栏批注关键词即时检索过滤，以及批注单条 AI 出题（小驴考试生态联动与幽灵态降级）。
@@ -312,7 +322,7 @@
 
 ## 兼容性与验收
 
-本次发布为 [v1.3.12](https://github.com/ai68298100/siyuan-glean/releases/tag/v1.3.12)。自动门禁与发布证据见[发布候选复核](docs/RELEASE-CANDIDATE.md)；这不代表所有真实环境都已验收。
+本次发布为 [v1.3.13](https://github.com/ai68298100/siyuan-glean/releases/tag/v1.3.13)。自动门禁与发布证据见[发布候选复核](docs/RELEASE-CANDIDATE.md)；这不代表所有真实环境都已验收。
 
 桌面宿主、Android/移动端、浏览器前端、真实模型、官方剪藏、外部文件和订阅服务仍按环境分别验收。使用前提、降级方式和阻塞项以[能力矩阵](docs/CAPABILITY-MATRIX.md)及[已知阻塞](docs/BLOCKERS.md)为准；请勿把单元测试或隔离 E2E 当作真机通过。
 

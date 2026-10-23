@@ -16,6 +16,7 @@ import { findRelatedOutcome, type RelatedReason } from "../services/enrich-servi
 import { makeQuoteCardPreview } from "./flashcard-dialog";
 import type { GleanSettings } from "../services/settings";
 import { loadUiPrefs } from "../services/prefs";
+import { getBridgeSafely } from "../libs/ecosystem-bridge-kit";
 import { displayTagAlias, type TagAlias } from "../domain/ui-prefs";
 import { moveLibraryCursor, resolveLibraryShortcut } from "../domain/library-keyboard";
 
@@ -27,6 +28,7 @@ const previewTitleId = `glean-highlights-preview-title-${instanceId}`;
 const relatedTitleId = `glean-highlights-related-title-${instanceId}`;
 const i18n = $derived(facade.i18n);
 const currentDocId = $derived(facade.currentDocId());
+const hasCardsInstalled = $derived(typeof window !== "undefined" && Boolean(getBridgeSafely("cards")));
 let scope = $state<"current" | "library">("current");
 let viewMode = $state<"timeline" | "article">("timeline");
 let items = $state<HighlightItem[]>([]);
@@ -571,7 +573,7 @@ function focusHighlightRow(id: string): void {
                                 <svg class="glean-icon" aria-hidden="true"><use href="#iconGleanCopy" /></svg>
                                 {t(i18n, "highlight.copyShare")}
                             </button>
-                            <button type="button" aria-busy={cardingKey === item.id} disabled={Boolean(cardingKey)} onclick={() => void card(item)} title={t(i18n, "flashcard.make")} aria-label={t(i18n, "flashcard.make")}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanCard" /></svg>{t(i18n, "flashcard.make")}</button>
+                            <button type="button" class:glean-ghost-btn={!hasCardsInstalled} aria-busy={cardingKey === item.id} disabled={Boolean(cardingKey)} onclick={() => void card(item)} title={t(i18n, "flashcard.make")} aria-label={hasCardsInstalled ? t(i18n, "flashcard.make") : t(i18n, "reader.cardGhostHint")}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanCard" /></svg>{t(i18n, "flashcard.make")}</button>
                         </div>
                     </article>
                 {/each}
@@ -626,7 +628,7 @@ function focusHighlightRow(id: string): void {
                                             <svg class="glean-icon" aria-hidden="true"><use href="#iconGleanCopy" /></svg>
                                             {t(i18n, "highlight.copyShare")}
                                         </button>
-                                        <button type="button" aria-busy={cardingKey === item.id} disabled={Boolean(cardingKey)} onclick={() => void card(item)} title={t(i18n, "flashcard.make")} aria-label={t(i18n, "flashcard.make")}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanCard" /></svg>{t(i18n, "flashcard.make")}</button>
+                                        <button type="button" class:glean-ghost-btn={!hasCardsInstalled} aria-busy={cardingKey === item.id} disabled={Boolean(cardingKey)} onclick={() => void card(item)} title={t(i18n, "flashcard.make")} aria-label={hasCardsInstalled ? t(i18n, "flashcard.make") : t(i18n, "reader.cardGhostHint")}><svg class="glean-icon" aria-hidden="true"><use href="#iconGleanCard" /></svg>{t(i18n, "flashcard.make")}</button>
                                     </div>
                                 </article>
                             {/each}

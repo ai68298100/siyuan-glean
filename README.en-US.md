@@ -8,6 +8,16 @@ Lv Glean organizes clippings and articles already in SiYuan. It does not crawl t
 
 [中文说明](README.md) · [Latest Release](https://github.com/ai68298100/siyuan-glean/releases/latest) · [Capability matrix](docs/CAPABILITY-MATRIX.md) · [Feedback](https://github.com/ai68298100/siyuan-glean/issues/new/choose)
 
+## v1.3.13 update (2026-10-23)
+
+This release implements the ecosystem directive hardening, thoroughly eliminating `.dialog-content input` global CSS leaks, synchronizing ghost button degradation across the highlights wall, adapting cross-platform hotkeys, and guarding the new 256x256 high-contrast `icon.png` asset.
+
+**New features & improvements:**
+
+- **Eliminated Global `.dialog-content input` Leaks**: Scoped mobile dialog form styles strictly under `.lv-glean`, `.glean-dialog`, and `[class*="glean"]` namespaces, preventing unwanted overrides on native SiYuan or third-party modals.
+- **Synchronized Ghost Flashcard Buttons**: Highlights timeline and grouped article views now detect Lv Cards (`hasCardsInstalled`) and apply 45% ghost button styling with an informative tooltip when uninstalled.
+- **Cross-Platform Adaptive Hotkeys**: Tuned default workbench shortcut dynamically (`⌥⌘G` on macOS, `Ctrl+Alt+G` on Windows/Linux), eliminating modifier parsing issues on non-Mac desktops.
+
 ## v1.3.12 update (2026-10-23)
 
 This release brings automatic WeChat Official Account recognition and manual rescan, in-sidebar highlight keyword search filtering, and single-highlight AI Quiz generation (Lv Exam federation with ghost button fallback).
@@ -311,7 +321,7 @@ Ordinary notes are not bulk-captured just because of their location, and opening
 
 ## Compatibility and acceptance
 
-This release is [v1.3.12](https://github.com/ai68298100/siyuan-glean/releases/tag/v1.3.12). See the [release candidate record](docs/RELEASE-CANDIDATE.md) for automated gates and release evidence; this does not mean every real environment has been accepted.
+This release is [v1.3.13](https://github.com/ai68298100/siyuan-glean/releases/tag/v1.3.13). See the [release candidate record](docs/RELEASE-CANDIDATE.md) for automated gates and release evidence; this does not mean every real environment has been accepted.
 
 Desktop host, Android/mobile, browser frontend, real models, the official clipper, external files, and subscription services still require environment-specific checks. Prerequisites, fallbacks, and open blockers are listed in the [capability matrix](docs/CAPABILITY-MATRIX.md) and [known blockers](docs/BLOCKERS.md). Unit tests and isolated E2E are not device acceptance.
 

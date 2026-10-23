@@ -135,6 +135,8 @@
 
 - [◐] **T-3445**（P2，2026-10-23）微信公众号文章全自动识别、手动重扫与伴生栏批注研读流增强：`ReaderTab.svelte` 接入 `scanWechatPublisher`，打开微信剪藏文章自动扫描 DOM 与前置文本提取公众号名称并回填文档属性 `custom-clip-author`；微信展台右侧新增一键重新识别动作；批注数量达到 4 条以上时自动提供即时过滤检索栏（`highlightFilter`）；批注卡片底部新增「📝 AI 出题」动作，智能探测小驴考试（`LvExam`）提供幽灵态降级与一键出题；单测与门禁完备。代码状态：完成；隔离验证：`tests/reader.test.ts` 14/14、`tests/wechat.test.ts` 22/22、`tsc` 与 `svelte-check` 0 错误 0 警告；真实验收：待 B-0002 真实微信剪藏走查；延后原因：真实微信 DOM 与考试出题交互仍归 B-0002。
 
+- [◐] **T-3446**（P1，2026-10-23）生态统领指令深度贯彻与全仓样式隔离（Epoch 6 标准）：`src/index.scss` 彻底消除针对原生弹窗表单的裸类选择器，严格包裹至 `.lv-glean`、`.glean-dialog`、`[class*="glean"]` 专属作用域内；`HighlightView.svelte` 摘录墙平铺与聚类双视图制卡按钮全面接入 `hasCardsInstalled` 幽灵态降级；`src/index.ts` 快捷键纠偏为自适应平台语法（Mac 使用 `⌥⌘G`，Windows/Linux 使用跨平台标准 `Ctrl+Alt+G`）；严格保护新版 256×256 高清 `icon.png` 资产不变；单测与门禁完备。代码状态：完成；隔离验证：`tests/mobile-nav.test.ts` 26/26、`tests/highlights.test.ts` 14/14、完整 `pnpm test` 1661/1661、`tsc` 与 `svelte-check` 0 错误 0 警告；真实验收：待 B-0002 跨平台宿主走查；延后原因：多平台物理按键体验仍归 B-0002。
+
 
 - [◐] **T-3367**（P1，2026-10-18）批量选择范围与底部操作可达性：保留跨筛选选择，显示总数及筛选外数量，提供仅保留当前筛选、追加已显示文章和清空入口；三画布共用正常流批量条，获焦时按 Escape 快捷取消选择并安全回退焦点；移动窄屏保留左右安全区。代码状态：实现完成，契约见 D-0247/D-0292，不新增属性、端点或持久化；隔离验证：定向 51/51、完整 `pnpm test` 1517/1517、`pnpm check` 0 错误/0 警告、`pnpm build`、`pnpm check:release`、`pnpm perf:check`、`pnpm visual:check`、`pnpm task:ledger -- --check` 与 `git diff --check` 通过；Chrome 原型已点验宽/窄 Dock、筛选外提示、显式保留和清空，窄布局批量区 `738px` 宽、`142px` 高且无横溢出。真实验收：待 B-0002 原工作区、触控和系统读屏；延后原因：Chrome 原型与隔离样本不替代真实设备与视觉矩阵，视觉登记仍为 24 项待真实宿主。
 

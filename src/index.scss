@@ -5158,6 +5158,10 @@ mark.glean-search-highlight {
     .glean-panel--mobile .b3-select,
     .glean-panel--mobile input,
     .glean-panel--mobile select,
+    .lv-glean .dialog-content .b3-select,
+    .lv-glean .dialog-content .b3-text-field,
+    .lv-glean .dialog-content input,
+    .lv-glean .dialog-content select,
     .glean-dialog .dialog-content .b3-select,
     .glean-dialog .dialog-content .b3-text-field,
     .glean-dialog .dialog-content input,
@@ -5710,7 +5714,7 @@ mark.glean-search-highlight {
     display: contents;
 }
 
-[data-glean-keyboard-open] .dialog-content {
+[data-glean-keyboard-open] :is(.glean-dialog, .glean-dialog-root, .lv-glean, [class*="glean"]) .dialog-content {
     max-height: calc(var(--glean-visual-viewport-height, 100vh) - 16px);
 }
 
