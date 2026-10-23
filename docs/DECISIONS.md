@@ -1977,3 +1977,12 @@ T-3416 承接方向五（有依据的阅读 AI）与同类产品对标（Readwis
    - 彻底修复 `src/index.scss` 中 `.dialog-content` 顶层裸类对思源原生弹窗的样式污染，严格包裹进专属弹窗选择器中；注入 `--lv-brand: #0D9488` 与 `--lv-accent-wheat: #FB923C` 品牌色与 `:active` 物理微触感动效；
 4. 集市发现与工程合规：
    - `plugin.json` 补充 `"小驴"`, `"小驴拾遗"`, `"xiaolv"`, `"lv"` 核心搜索关键词，启用 `"settingsWindow": true`，补齐根目录 `CHANGELOG.md` 与 `.github/workflows/release.yml`。
+
+## D-0324（2026-10-23）全表面 Dialog 统一品牌标题栏规范（.lv-dialog-title-wrap）装配与专栏空值加固（T-3444）
+
+对齐生态中枢弹窗标题栏规范与深层空值排雷：
+1. 统一品牌标题栏规范装配（`mountPlatformDialogTitleWrap`）：
+   - 在 `src/libs/dialog.ts` 中实现 `mountPlatformDialogTitleWrap`，为所有弹窗标题栏自动注入 22×22 青绿底白麦穗标 + 标题文字 + 紧凑版本胶囊（`.lv-dialog-title-wrap`），并保持幂等；
+   - 在 `src/index.scss` 中加入标准标题栏布局与配色规范，全面提升桌面端弹窗视觉质感与生态归属感；
+2. 专栏合集目录检索空值防空：
+   - 在 `ReaderTab.svelte` 的 `loadAuthorArticles` 中加固路径可选链，彻底消灭未定义路径引发的边缘空指针隐患。

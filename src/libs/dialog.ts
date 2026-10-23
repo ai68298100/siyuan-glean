@@ -7,10 +7,48 @@ import type { Component } from "svelte";
 import { installMobileViewportVars } from "./mobile-viewport";
 import { installModalFocus } from "./modal-focus";
 import { isActivationKey } from "../domain/keyboard";
+import pluginManifest from "../../plugin.json";
 
 function isMobileFrontend(): boolean {
     const frontend = getFrontend();
     return frontend === "mobile" || frontend === "browser-mobile";
+}
+
+/**
+ * 统领规范：为思源原生 Dialog 标题栏装配统一的品牌标题栏规范（.lv-dialog-title-wrap）。
+ * 包含 22×22 青绿底白麦穗标 + 标题 + 版本胶囊，保持幂等。
+ */
+export function mountPlatformDialogTitleWrap(
+    dialogElement: HTMLElement | null | undefined,
+    titleText: string,
+    badgeText = `v${pluginManifest.version}`,
+    iconName = "iconGleanWheat",
+): HTMLElement | null {
+    if (!dialogElement || typeof dialogElement.querySelector !== "function") return null;
+    const header = dialogElement.querySelector(".b3-dialog__header");
+    const titleEl = header?.querySelector(".b3-dialog__title");
+    if (!header || !titleEl) return null;
+    const existing = header.querySelector(".lv-dialog-title-wrap") as HTMLElement | null;
+    if (existing) return existing;
+
+    const wrap = document.createElement("div");
+    wrap.className = "lv-dialog-title-wrap";
+    const iconSpan = document.createElement("span");
+    iconSpan.className = "lv-dialog-title-icon";
+    iconSpan.innerHTML = `<svg><use xlink:href="#${iconName || "iconGleanWheat"}"></use></svg>`;
+    const titleSpan = document.createElement("span");
+    titleSpan.className = "lv-dialog-title-text";
+    titleSpan.textContent = titleText || "";
+    wrap.append(iconSpan, titleSpan);
+    if (badgeText) {
+        const badgeSpan = document.createElement("span");
+        badgeSpan.className = "lv-dialog-title-pill";
+        badgeSpan.textContent = badgeText;
+        wrap.appendChild(badgeSpan);
+    }
+    titleEl.textContent = "";
+    titleEl.appendChild(wrap);
+    return wrap;
 }
 
 export const simpleDialog = (args: {
@@ -67,6 +105,7 @@ export const simpleDialog = (args: {
         });
     }
     disposeViewport = installMobileViewportVars(dialog.element, isMobileFrontend());
+    mountPlatformDialogTitleWrap(dialog.element, args.title);
     dialog.element.querySelector(".dialog-content")?.appendChild(args.ele);
     disposeFocus = installModalFocus(modalRoot, { onClose: requestClose, returnFocus: previousFocus });
     return {

@@ -8,6 +8,15 @@ Lv Glean organizes clippings and articles already in SiYuan. It does not crawl t
 
 [中文说明](README.md) · [Latest Release](https://github.com/ai68298100/siyuan-glean/releases/latest) · [Capability matrix](docs/CAPABILITY-MATRIX.md) · [Feedback](https://github.com/ai68298100/siyuan-glean/issues/new/choose)
 
+## v1.3.11 update (2026-10-23)
+
+This release implements the unified `.lv-dialog-title-wrap` branded dialog header standard across all dialog surfaces (22×22 pine green wheat icon + title text + compact version badge) and reinforces deep series article path null-safety.
+
+**New features & improvements:**
+
+- **Unified `.lv-dialog-title-wrap` Dialog Headers**: Dialog header bars across settings, formatting, onboarding, migration, import, flashcards, and workbench popup surfaces are now unified with standard brand insignia and version badge.
+- **Micro-Interaction & Defensiveness Hardening**: Fortified optional chaining and undefined checks in series collection traversal to eliminate edge-case null pointer hazards.
+
 ## v1.3.10 update (2026-10-23)
 
 This release implements the full Lv Ecosystem Directive (Epoch 6), featuring ecosystem federation bridge integration, automatic reading checkin logging, ghost degradation for flashcard and exam quiz creation, Raikiri workbench widget registration, 32×32 monochrome wheat icon upgrade, global CSS pollution elimination, and Nordic Pine Green + Harvest Wheat aesthetic tokens.
@@ -293,7 +302,7 @@ Ordinary notes are not bulk-captured just because of their location, and opening
 
 ## Compatibility and acceptance
 
-This release is [v1.3.10](https://github.com/ai68298100/siyuan-glean/releases/tag/v1.3.10). See the [release candidate record](docs/RELEASE-CANDIDATE.md) for automated gates and release evidence; this does not mean every real environment has been accepted.
+This release is [v1.3.11](https://github.com/ai68298100/siyuan-glean/releases/tag/v1.3.11). See the [release candidate record](docs/RELEASE-CANDIDATE.md) for automated gates and release evidence; this does not mean every real environment has been accepted.
 
 Desktop host, Android/mobile, browser frontend, real models, the official clipper, external files, and subscription services still require environment-specific checks. Prerequisites, fallbacks, and open blockers are listed in the [capability matrix](docs/CAPABILITY-MATRIX.md) and [known blockers](docs/BLOCKERS.md). Unit tests and isolated E2E are not device acceptance.
 

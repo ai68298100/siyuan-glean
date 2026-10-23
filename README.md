@@ -8,6 +8,15 @@
 
 [English](README.en-US.md) · [下载最新版](https://github.com/ai68298100/siyuan-glean/releases/latest) · [能力矩阵](docs/CAPABILITY-MATRIX.md) · [反馈与问题](https://github.com/ai68298100/siyuan-glean/issues/new/choose)
 
+## v1.3.11 更新（2026-10-23）
+
+本次版本实现全表面 Dialog 统一品牌标题栏规范（`mountPlatformDialogTitleWrap`，22×22 青绿底白麦穗标 + 标题 + 紧凑版本胶囊），消灭深层空指针隐患并加固联邦交互。
+
+**新增与体验增强：**
+
+- **统一 `.lv-dialog-title-wrap` 品牌弹窗标题栏规范**：全仓弹窗（设置、排版、引导、迁移、导入、制卡与工作台）全面接入 22×22 青绿底白麦穗标 + 标题文字 + 紧凑版本胶囊，视觉高度统一。
+- **微交互与深层排雷加固**：加固专栏目录检索空值韧性与可选链护卫，彻底消灭未定义路径引发的边缘空指针隐患。
+
 ## v1.3.10 更新（2026-10-23）
 
 本次版本全面落实小驴生态中枢统领规范，深度接入生态联邦标准、跨插件打卡自动化、闪卡出题幽灵态降级、雷切组件注册、32×32 展卷单色麦穗图标升级、消除顶层裸类样式污染并注入北欧青绿+金麦美学。
@@ -294,7 +303,7 @@
 
 ## 兼容性与验收
 
-本次发布为 [v1.3.10](https://github.com/ai68298100/siyuan-glean/releases/tag/v1.3.10)。自动门禁与发布证据见[发布候选复核](docs/RELEASE-CANDIDATE.md)；这不代表所有真实环境都已验收。
+本次发布为 [v1.3.11](https://github.com/ai68298100/siyuan-glean/releases/tag/v1.3.11)。自动门禁与发布证据见[发布候选复核](docs/RELEASE-CANDIDATE.md)；这不代表所有真实环境都已验收。
 
 桌面宿主、Android/移动端、浏览器前端、真实模型、官方剪藏、外部文件和订阅服务仍按环境分别验收。使用前提、降级方式和阻塞项以[能力矩阵](docs/CAPABILITY-MATRIX.md)及[已知阻塞](docs/BLOCKERS.md)为准；请勿把单元测试或隔离 E2E 当作真机通过。
 
