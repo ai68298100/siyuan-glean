@@ -2,6 +2,7 @@ import type { DocRow } from "../api/client";
 import { querySql } from "../api/client";
 import { matchesLibraryFilter } from "../domain/library-view";
 import { CLIP_STATUSES, parseClipAttrs, parseUserTags, siyuanTimestamp, type ClipAttrs, type ClipStatus } from "../domain/schema";
+import { logCheckinEventSafely } from "../libs/ecosystem-bridge-kit";
 import type { GleanFacade } from "../types";
 import { batchReadClipAttrs, reconcileIndex, writeClip } from "./clip-store";
 
@@ -255,6 +256,14 @@ export function installBridge(facade: BridgeFacade, version: string, host: Bridg
                 if (status === "done") patch.doneTime = siyuanTimestamp();
                 const written = await writeClip(facade.pluginInstance, id, patch, { forceStatus: true });
                 assertActive();
+                if (status === "done" && facade.settings.integration.checkinEnabled && facade.settings.integration.checkinItemId) {
+                    void logCheckinEventSafely({
+                        itemId: facade.settings.integration.checkinItemId,
+                        value: 1,
+                        externalRef: `glean:${clip.id}:${new Date().toISOString().slice(0, 10)}`,
+                        note: `完成文章阅读：《${clip.title}》`,
+                    });
+                }
                 // The document attribute is the source of truth. A failed
                 // derived-index save is recoverable and must not make callers
                 // repeat a real write; surface refresh will reconcile it.

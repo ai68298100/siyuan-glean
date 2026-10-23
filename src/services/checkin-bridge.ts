@@ -4,6 +4,7 @@
  * externalRef 幂等：glean:<docId>:<localDate>（domain/checkin.ts）。
  */
 import { readingEventNote, readingEventRef } from "../domain/checkin";
+import { logCheckinEventSafely } from "../libs/ecosystem-bridge-kit";
 
 /** window.siyuanCheckin v5 的最小消费切片（防御式 any 进、规范对象出）。 */
 interface CheckinApi {
@@ -78,12 +79,24 @@ export async function recordReadingDone(
     docId: string,
     docTitle: string
 ): Promise<ReadingRecordResult> {
+    if (!itemId) return "unavailable";
+    const externalRef = readingEventRef(docId);
+    try {
+        const logged = await logCheckinEventSafely({
+            itemId,
+            value: 1,
+            externalRef,
+            note: readingEventNote(docTitle),
+        });
+        if (logged) return "recorded";
+    } catch (e) {
+        console.warn("[LvGlean-checkin] logCheckinEventSafely fallback:", e);
+    }
     const checkin = await readyApi("events.record");
     if (!checkin?.recordEvent) {
-        console.warn("[glean-checkin] events.record 不可用，跳过打卡记录");
+        console.warn("[LvGlean-checkin] events.record 不可用，跳过打卡记录");
         return "unavailable";
     }
-    const externalRef = readingEventRef(docId);
     try {
         const result = await checkin.recordEvent({
             itemId,

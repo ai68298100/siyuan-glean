@@ -8,6 +8,18 @@ Lv Glean organizes clippings and articles already in SiYuan. It does not crawl t
 
 [中文说明](README.md) · [Latest Release](https://github.com/ai68298100/siyuan-glean/releases/latest) · [Capability matrix](docs/CAPABILITY-MATRIX.md) · [Feedback](https://github.com/ai68298100/siyuan-glean/issues/new/choose)
 
+## v1.3.10 update (2026-10-23)
+
+This release implements the full Lv Ecosystem Directive (Epoch 6), featuring ecosystem federation bridge integration, automatic reading checkin logging, ghost degradation for flashcard and exam quiz creation, Raikiri workbench widget registration, 32×32 monochrome wheat icon upgrade, global CSS pollution elimination, and Nordic Pine Green + Harvest Wheat aesthetic tokens.
+
+**New features & improvements:**
+
+- **Ecosystem Federation & Automatic Checkin**: Deep integration with `ecosystem-bridge-kit` SDK; automatically logs checkin events when articles are marked done with zero hard dependencies; four bridge aliases (`siyuanGlean`, `xiaolvGlean`, `lvGlean`, `LvGlean`) with first-instance-wins and safe teardown.
+- **Flashcard & Exam Question Ghost Degradation**: In-article selection bar detects Lv Cards (`window.xiaolvCards`) and Lv Exam (`window.LvExam`); renders a 45% ghost button with helpful installation tooltips when uninstalled; registers the `glean-later-list` reading stream widget with Lv Raikiri.
+- **Monochrome Vector Icon Upgrade**: Upgrades `iconGleanWheat` to an open-book base with wheat stalk, two pairs of grain seeds, and top wisdom bead, ensuring needle-sharp rendering on 16px retina displays.
+- **Global CSS Pollution Cleansing & Brand Styling**: Completely wraps raw `.dialog-content` selectors to prevent pollution of SiYuan native modals; injects brand tokens `--lv-brand: #0D9488` and `--lv-accent-wheat: #FB923C` with active physical micro-tactile button feedback.
+- **Marketplace Discovery & Engineering Hardening**: Prepends brand keywords `"小驴"`, `"小驴拾遗"`, `"xiaolv"`, `"lv"` to `plugin.json`; enables `"settingsWindow": true`; adds root `CHANGELOG.md` and `.github/workflows/release.yml`.
+
 ## v1.3.9 update (2026-10-22)
 
 This release focuses on alignment with SiYuan's latest official Petal lifecycle contracts, four-dimensional reading metrics with tier color dots, in-place highlight color cycling and color filtering, smooth back-to-top floating capsule for deep reading, and one-click expand/collapse all for article highlight groups.
@@ -281,7 +293,7 @@ Ordinary notes are not bulk-captured just because of their location, and opening
 
 ## Compatibility and acceptance
 
-This release is [v1.3.9](https://github.com/ai68298100/siyuan-glean/releases/tag/v1.3.9). See the [release candidate record](docs/RELEASE-CANDIDATE.md) for automated gates and release evidence; this does not mean every real environment has been accepted.
+This release is [v1.3.10](https://github.com/ai68298100/siyuan-glean/releases/tag/v1.3.10). See the [release candidate record](docs/RELEASE-CANDIDATE.md) for automated gates and release evidence; this does not mean every real environment has been accepted.
 
 Desktop host, Android/mobile, browser frontend, real models, the official clipper, external files, and subscription services still require environment-specific checks. Prerequisites, fallbacks, and open blockers are listed in the [capability matrix](docs/CAPABILITY-MATRIX.md) and [known blockers](docs/BLOCKERS.md). Unit tests and isolated E2E are not device acceptance.
 

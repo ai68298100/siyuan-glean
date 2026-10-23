@@ -36,6 +36,7 @@ import pluginManifest from "../plugin.json";
 import type { GleanFacade } from "./types";
 import { addRecentReading, pickContinueReadingDocId, type RecentReadingEntry } from "./domain/recent-reading";
 import { docUnderHostKind } from "./services/lifecycle-service";
+import { registerRaikiriModuleSafely } from "./libs/ecosystem-bridge-kit";
 
 const DOCK_TYPE = "glean-dock";
 const TAB_TYPE = "glean-library";
@@ -75,6 +76,7 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
     private readonly destroyedReaderTabIds = new Set<string>();
     private readerOpenRequest = 0;
     private topBarElement?: HTMLElement;
+    private unregisterRaikiri?: () => void;
     private readonly openWorkbenchPopupSingleton = createDialogSingleton(
         (initialPreviewId: string | undefined, onClose: () => void) => svelteDialog({
             title: t(this.i18n, "workbench.popupTitle"),
@@ -102,7 +104,12 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
         this.isMobile = frontend === "mobile" || frontend === "browser-mobile";
 
         this.addIcons(`<symbol id="iconGleanWheat" viewBox="0 0 32 32">
-<path d="M16 3c.9 2.2 1.4 4.4 1.4 6.6S16.9 13.8 16 16c-.9-2.2-1.4-4.2-1.4-6.4S15.1 5.2 16 3zM9.5 8.5c2 .8 3.7 2 5 3.6 1.2 1.6 1.9 3.4 2 5.4-2-.8-3.7-2-5-3.6-1.2-1.6-1.9-3.4-2-5.4zm13 0c-.1 2-.8 3.8-2 5.4-1.3 1.6-3 2.8-5 3.6.1-2 .8-3.8 2-5.4 1.3-1.6 3-2.8 5-3.6zM16 15c1.7 1.4 2.9 3.1 3.5 5.1.5 2 .4 4-.4 6-1.7-1.4-2.9-3.1-3.5-5.1-.5-2-.4-4 .4-6zm0 0c-1.7 1.4-2.9 3.1-3.5 5.1-.5 2-.4 4 .4 6 1.7-1.4 2.9-3.1 3.5-5.1.5-2 .4-4-.4-6zM15 26h2v3h-2z"/></symbol>
+  <path d="M5 24c4-1.8 8-1 11 1 3-2 7-2.8 11-1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+  <path d="M16 8v16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+  <path d="M16 11c2.8-1.5 5.5 0 5.5 2s-2.7 2-5.5 2M16 16c2.8-1.5 5.5 0 5.5 2s-2.7 2-5.5 2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+  <path d="M16 13.5c-2.8-1.5-5.5 0-5.5 2s2.7 2 5.5 2M16 18.5c-2.8-1.5-5.5 0-5.5 2s2.7 2 5.5 2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+  <circle cx="16" cy="5" r="2.5" fill="currentColor"/>
+</symbol>
 <symbol id="iconGleanGear" viewBox="0 0 32 32">
 <path d="M16 11.5a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9zm0 2.2a2.3 2.3 0 1 1 0 4.6 2.3 2.3 0 0 1 0-4.6z"/>
 <path d="M14 3h4l.7 3.4c.9.3 1.7.7 2.5 1.3l3.3-1.2 2 3.5-2.6 2.3c.1.5.1 1.1.1 1.7s0 1.2-.1 1.7l2.6 2.3-2 3.5-3.3-1.2c-.8.6-1.6 1-2.5 1.3L18 25h-4l-.7-3.4c-.9-.3-1.7-.7-2.5-1.3l-3.3 1.2-2-3.5 2.6-2.3a10 10 0 0 1 0-3.4L5.5 10l2-3.5 3.3 1.2c.8-.6 1.6-1 2.5-1.3L14 3zm1.2 2.2-.6 3-.9.3c-.7.2-1.3.6-1.9 1l-.8.6-2.9-1-1 1.7 2.3 2-.2 1a7.7 7.7 0 0 0 0 2.4l.2 1-2.3 2 1 1.7 2.9-1 .8.6c.6.4 1.2.8 1.9 1l.9.3.6 3h2l.6-3 .9-.3c.7-.2 1.3-.6 1.9-1l.8-.6 2.9 1 1-1.7-2.3-2 .2-1a7.7 7.7 0 0 0 0-2.4l-.2-1 2.3-2-1-1.7-2.9 1-.8-.6c-.6-.4-1.2-.8-1.9-1l-.9-.3-.6-3h-2z"/></symbol>
@@ -168,6 +175,7 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
         this.addCommand({
             langKey: "cmd.openPanel",
             hotkey: "⌥⌘G",
+            hotkeys: ["⌥⌘G"],
             callback: () => this.openPanel(),
         });
 
@@ -285,6 +293,34 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
         this.disposeReadingContext = installReadingContext(this);
         this.disposeBridge = installBridge(this, pluginManifest.version);
 
+        // 联邦生态：向小驴雷切工作台安全注册待读流小组件
+        this.unregisterRaikiri = registerRaikiriModuleSafely({
+            moduleId: "glean-later-list",
+            title: "小驴拾遗 · 待读列表",
+            icon: "iconGleanWheat",
+            category: "reading",
+            supportedDevices: ["desktop", "sidebar", "mobile"],
+            sizes: ["medium", "tall", "wide"],
+            description: "展示小驴拾遗待读文章与重浮队列",
+            source: { pluginId: "siyuan-glean", name: "小驴拾遗" },
+            read: async () => {
+                const { loadIndex } = await import("./services/index-store");
+                const index = await loadIndex(this);
+                const laterClips = Object.values(index.clips)
+                    .filter((c) => c.status === "later" || c.status === "inbox")
+                    .slice(0, 5);
+                return {
+                    title: "小驴拾遗 · 待读流",
+                    items: laterClips.map((c) => ({
+                        label: c.title || "未命名文章",
+                        value: c.site || "",
+                        command: `siyuan://plugins/siyuan-glean?action=open&id=${c.id}`,
+                    })),
+                };
+            },
+            open: () => this.openPanel(),
+        });
+
         this.cardsReviewedHandler = () => {
             this.notifyDataChanged();
         };
@@ -350,6 +386,8 @@ export default class LvGleanPlugin extends Plugin implements GleanFacade {
         }
         this.disposeBridge?.();
         this.disposeBridge = null;
+        this.unregisterRaikiri?.();
+        this.unregisterRaikiri = undefined;
         this.eventBus.off("open-menu-content", this.onMenuContent);
         this.eventBus.off("open-menu-inbox", this.onMenuInbox);
         this.eventBus.off("open-siyuan-url-plugin", this.onPluginUrl);

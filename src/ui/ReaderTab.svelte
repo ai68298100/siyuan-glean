@@ -54,6 +54,7 @@ import { aiFailureKey } from "../libs/ai-feedback";
     import { createLatestRequestGate } from "../libs/latest-request";
     import { loadIndex } from "../services/index-store";
     import { resolveReadingTimeTier } from "../domain/library-view";
+    import { getBridgeSafely } from "../libs/ecosystem-bridge-kit";
     import type { RecentReadingEntry } from "../domain/recent-reading";
 
     interface Props {
@@ -144,6 +145,8 @@ import { aiFailureKey } from "../libs/ai-feedback";
     );
     const estReadingMinutes = $derived(context?.words ? Math.max(1, Math.round(context.words / 350)) : undefined);
     const readingTimeTier = $derived(resolveReadingTimeTier(estReadingMinutes));
+    const hasCardsInstalled = $derived(typeof window !== "undefined" && Boolean(getBridgeSafely("cards")));
+    const hasExamInstalled = $derived(typeof window !== "undefined" && Boolean(getBridgeSafely("exam")));
     let recentReadings = $state<RecentReadingEntry[]>([]);
     let readingTimer = $state<ReadingTimerState>(createReadingTimer());
     let readingTimerDocId = "";
@@ -975,6 +978,27 @@ import { aiFailureKey } from "../libs/ai-feedback";
         }
     }
 
+    async function examFromExcerpt(): Promise<void> {
+        if (!excerpt?.text || !context || context.id !== docId) return;
+        const examBridge = getBridgeSafely<Record<string, unknown>>("exam");
+        if (examBridge && typeof examBridge.quickGenerateQuestion === "function") {
+            try {
+                await (examBridge.quickGenerateQuestion as (options: unknown) => Promise<unknown>)({
+                    title: context.title,
+                    text: excerpt.text,
+                    docId: context.id,
+                    blockId: excerpt.blockId,
+                });
+                showMessage(t(i18n, "reader.examStarted"), 2500);
+            } catch (error) {
+                console.warn("[LvGlean] 考试出题失败:", error);
+                showMessage(t(i18n, "reader.actionFailed"), 3000);
+            }
+        } else {
+            showMessage(t(i18n, "reader.examGhostHint"), 3000);
+        }
+    }
+
     async function copyText(text: string): Promise<void> {
         try {
             await navigator.clipboard.writeText(text);
@@ -1492,9 +1516,24 @@ import { aiFailureKey } from "../libs/ai-feedback";
                             </button>
                         </div>
                     {/if}
-                    <button type="button" class="glean-btn glean-btn--ghost glean-reader__selection-btn" onclick={() => void cardFromExcerpt()} title={t(i18n, "flashcard.make")}>
+                    <button
+                        type="button"
+                        class="glean-btn glean-btn--ghost glean-reader__selection-btn"
+                        class:glean-ghost-btn={!hasCardsInstalled}
+                        onclick={() => void cardFromExcerpt()}
+                        title={hasCardsInstalled ? t(i18n, "flashcard.make") : t(i18n, "reader.cardGhostHint")}
+                    >
                         <svg class="glean-icon glean-icon--xs" aria-hidden="true"><use href="#iconGleanCard" /></svg>
                         {t(i18n, "flashcard.make")}
+                    </button>
+                    <button
+                        type="button"
+                        class="glean-btn glean-btn--ghost glean-reader__selection-btn"
+                        class:glean-ghost-btn={!hasExamInstalled}
+                        onclick={() => void examFromExcerpt()}
+                        title={hasExamInstalled ? t(i18n, "reader.examMake") : t(i18n, "reader.examGhostHint")}
+                    >
+                        📝 {t(i18n, "reader.examMake")}
                     </button>
                     {#if speechSupported}
                         <button type="button" class="glean-btn glean-btn--ghost glean-reader__selection-btn" onclick={() => startSpeech("selection")} title={t(i18n, "reader.speechSelection")}>

@@ -129,6 +129,8 @@
 
 - [◐] **T-3442**（P2，2026-10-22）长文深读平滑回到顶部悬浮胶囊与摘录聚类一键全部折叠/展开（操作流深度优化）：`ReaderTab.svelte` 在阅读进度超过 12% 时右下角平滑浮现极简圆环回到顶部悬浮按钮（`scrollToTop` 与 `.glean-reader__back-to-top`）；`HighlightView.svelte` 聚类视图工具栏提供「全部折叠 / 全部展开」动作按钮（`allGroupsOpen`）；单测与门禁完备。代码状态：完成；隔离验证：`tests/reader.test.ts` 14/14、`tests/highlights.test.ts` 14/14、`tsc` 与 `svelte-check` 0 错误 0 警告；真实验收：待 B-0002 真实万字长文往返滚动走查；延后原因：真实宿主编辑器滚动跟随仍归 B-0002。
 
+- [◐] **T-3443**（P1，2026-10-23）小驴全生态跨插件联邦联动全面落地与规范加固（Epoch 6 标准）：深度接入 `ecosystem-bridge-kit` SDK；`checkin-bridge.ts` 与 `bridge.ts`（`setClipStatus`）文章读完（`done`）自动联动打卡，零强依赖降级；划词悬浮条智能探测小驴闪卡（`xiaolvCards`）与小驴考试（`LvExam`）提供幽灵态降级与出题桥接；`onload` 向小驴雷切注册 `glean-later-list` 稍后读待读流小组件并在 `onunload` 安全注销；`index.ts` 升级 `iconGleanWheat` 32×32 单色矢量图标并纠偏 `hotkeys`；`src/index.scss` 消除 `.dialog-content` 顶层裸类样式污染并注入北欧青绿+金麦美学；`plugin.json` 补齐小驴品牌关键词与独立设置大窗（`settingsWindow: true`）；补齐根目录 `CHANGELOG.md` 与 `.github/workflows/release.yml`；单测与门禁完备。代码状态：完成；隔离验证：`tests/reader.test.ts` 14/14、`tests/checkin.test.ts` 4/4、`tsc` 与 `svelte-check` 0 错误 0 警告；真实验收：待 B-0002 真实多插件协同走查；延后原因：真实兄弟插件联调仍归 B-0002。
+
 
 - [◐] **T-3367**（P1，2026-10-18）批量选择范围与底部操作可达性：保留跨筛选选择，显示总数及筛选外数量，提供仅保留当前筛选、追加已显示文章和清空入口；三画布共用正常流批量条，获焦时按 Escape 快捷取消选择并安全回退焦点；移动窄屏保留左右安全区。代码状态：实现完成，契约见 D-0247/D-0292，不新增属性、端点或持久化；隔离验证：定向 51/51、完整 `pnpm test` 1517/1517、`pnpm check` 0 错误/0 警告、`pnpm build`、`pnpm check:release`、`pnpm perf:check`、`pnpm visual:check`、`pnpm task:ledger -- --check` 与 `git diff --check` 通过；Chrome 原型已点验宽/窄 Dock、筛选外提示、显式保留和清空，窄布局批量区 `738px` 宽、`142px` 高且无横溢出。真实验收：待 B-0002 原工作区、触控和系统读屏；延后原因：Chrome 原型与隔离样本不替代真实设备与视觉矩阵，视觉登记仍为 24 项待真实宿主。
 

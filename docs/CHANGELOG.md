@@ -1,5 +1,15 @@
 # 更新日志（CHANGELOG）
 
+## v1.3.10（2026-10-23）
+
+### 跨插件生态联邦与规范加固（Epoch 6 标准）
+
+- **全生态跨插件联邦联动与打卡自动化**：深度接入 `ecosystem-bridge-kit` 标准 SDK；文章标记为 `done`（读完）时，自动安全联动小驴打卡记录阅读事实，零强依赖静默降级；四别名挂载与注销（`siyuanGlean`, `xiaolvGlean`, `lvGlean`, `LvGlean`）强化身份核验与安全守卫。
+- **高亮转闪卡与考试出题幽灵态降级**：阅读器划词工具栏智能探测小驴闪卡（`window.xiaolvCards`）与小驴考试（`window.LvExam`），未安装时呈现 45% 幽灵态并提示一键安装气泡，已安装时调用公开桥接口直达出题；向小驴雷切工作台注册 `glean-later-list` 稍后读待读流小组件。
+- **顶栏矢量图标全新升级**：`iconGleanWheat` 重构为与新版 Logo 1:1 映射的 32×32 单色矢量图标（展卷书页基座 + 麦穗茎秆两对麦粒 + 顶部智慧麦珠），16px 视网膜屏下依然锐利清晰。
+- **消除顶层 CSS 裸类污染与北欧青绿美学注入**：彻底消除 `.dialog-content` 顶层裸类对思源原生弹窗的样式污染；注入 `--lv-brand: #0D9488`（北欧文库青绿）与 `--lv-accent-wheat: #FB923C`（金杏麦穗色）品牌色；按钮接入 `:active` 物理微触感动效。
+- **集市检索与工程排雷加固**：`plugin.json` 前置补齐“小驴”、“小驴拾遗”、“xiaolv”、“lv”核心关键词，集市搜索即刻触达；开启 `"settingsWindow": true` 独立桌面大面板；补齐根目录 `CHANGELOG.md` 与 `.github/workflows/release.yml`。
+
 ## v1.3.9（2026-10-22）
 
 ### 新增与体验增强

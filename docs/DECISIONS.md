@@ -1961,3 +1961,19 @@ T-3416 承接方向五（有依据的阅读 AI）与同类产品对标（Readwis
 2. 全局摘录墙聚类模式一键全部折叠/展开（`allGroupsOpen`）：
    - 当在 `HighlightView` 中切换为按文章聚类视图时，顶栏工具区提供「全部折叠 / 全部展开」双向动作按钮；
    - 支持一键将几十篇文章的引述卡片统一收起为紧凑目录，或一键全部展开，解决长列表滚动浏览困难。
+
+## D-0323（2026-10-23）小驴全生态跨插件联邦联动全面落地与规范加固（T-3443）
+
+严格遵循《小驴生态中枢统领指令》，实现 Epoch 6 联邦规范落地与工程排雷：
+1. 生态跨插件联邦桥接与打卡自动化：
+   - 深度接入 `src/libs/ecosystem-bridge-kit.ts`；
+   - 在 `checkin-bridge.ts` 与 `bridge.ts`（`setClipStatus`）中，当文章读完标记为 `done` 且配置了打卡项时，自动安全调用 `logCheckinEventSafely`，未安装打卡插件时安静降级返回 false，绝不抛出任何未捕获异常；
+   - 严格维护四别名 `siyuanGlean`, `xiaolvGlean`, `lvGlean`, `LvGlean` 挂载与卸载时身份校验；
+2. 划词悬浮条高亮转闪卡/出题幽灵态与雷切小组件注册：
+   - 划词悬浮条智能探测 `xiaolvCards` 与 `LvExam`：未安装时呈现 45% 幽灵态并提示引导气泡，已安装时调用公开出题桥；
+   - 在 `onload` 中向小驴雷切工作台注册 `glean-later-list`（稍后读待读流）小组件，在 `onunload` 中安全退订；
+3. 单色矢量图标与 CSS 全局污染治理：
+   - 将 `iconGleanWheat` 重构为 32×32 展卷单色麦穗矢量图标，在 16px 视网膜屏下依然锐利清晰；
+   - 彻底修复 `src/index.scss` 中 `.dialog-content` 顶层裸类对思源原生弹窗的样式污染，严格包裹进专属弹窗选择器中；注入 `--lv-brand: #0D9488` 与 `--lv-accent-wheat: #FB923C` 品牌色与 `:active` 物理微触感动效；
+4. 集市发现与工程合规：
+   - `plugin.json` 补充 `"小驴"`, `"小驴拾遗"`, `"xiaolv"`, `"lv"` 核心搜索关键词，启用 `"settingsWindow": true`，补齐根目录 `CHANGELOG.md` 与 `.github/workflows/release.yml`。

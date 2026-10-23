@@ -1349,5 +1349,9 @@
   "reader.filterColorItem": "Filter ${color}",
   "reader.backToTop": "Back to top",
   "highlight.collapseAll": "Collapse all",
-  "highlight.expandAll": "Expand all"
+  "highlight.expandAll": "Expand all",
+  "reader.examMake": "AI Quiz",
+  "reader.examStarted": "Sent to Lv Exam to generate quiz question",
+  "reader.cardGhostHint": "💡 Install Lv Cards to create flashcards",
+  "reader.examGhostHint": "💡 Install Lv Exam to generate quiz questions"
 }

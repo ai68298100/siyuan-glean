@@ -168,6 +168,9 @@
        these are the only brand/status literals allowed in component CSS. */
     --glean-color-amber-300: #ffc15e;
     --glean-color-orange-500: #f97316;
+    --lv-brand: #0D9488; /* 北欧文库青绿 */
+    --lv-brand-soft: color-mix(in srgb, var(--lv-brand) 12%, transparent);
+    --lv-accent-wheat: #FB923C; /* 金杏麦穗色 */
     --glean-color-status-inbox: #f59e0b;
     --glean-color-status-later: #3b82f6;
     --glean-color-status-reading: #8b5cf6;
@@ -5089,10 +5092,14 @@ mark.glean-search-highlight {
     .glean-panel--mobile .b3-select,
     .glean-panel--mobile input,
     .glean-panel--mobile select,
-    .dialog-content .b3-select,
-    .dialog-content .b3-text-field,
-    .dialog-content input,
-    .dialog-content select {
+    .glean-dialog .dialog-content .b3-select,
+    .glean-dialog .dialog-content .b3-text-field,
+    .glean-dialog .dialog-content input,
+    .glean-dialog .dialog-content select,
+    .glean-panel--mobile .dialog-content .b3-select,
+    .glean-panel--mobile .dialog-content .b3-text-field,
+    .glean-panel--mobile .dialog-content input,
+    .glean-panel--mobile .dialog-content select {
         min-height: 44px;
         box-sizing: border-box;
     }
@@ -9098,7 +9105,16 @@ mark.glean-search-highlight {
 .glean-btn:active:not(:disabled),
 .glean-primary-btn:active:not(:disabled),
 .glean-surf-act:active:not(:disabled):not([aria-disabled="true"]) {
-    transform: translateY(0) scale(0.985);
+    transform: translateY(1.5px) scale(0.985);
+}
+
+.glean-ghost-btn {
+    opacity: 0.45 !important;
+    transition: opacity 0.15s ease;
+
+    &:hover {
+        opacity: 0.8 !important;
+    }
 }
 
 .glean-btn:focus-visible,
