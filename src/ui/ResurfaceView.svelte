@@ -16,6 +16,8 @@ import { projectActiveRecentReadings, type RecentReadingEntry } from "../domain/
 import { moveLibraryCursor, resolveLibraryShortcut } from "../domain/library-keyboard";
 import { cyclePriorityValue, cycleRatingValue } from "../domain/library-keyboard";
 import { writeClip } from "../services/clip-store";
+import { isWechatUrl } from "../domain/wechat";
+import { resolveReadingTimeTier } from "../domain/library-view";
 
 interface Props {
     facade: GleanFacade;
@@ -841,7 +843,8 @@ function focusCard(id: string): void {
             </div>
         {/if}
         <div class="glean-surf">
-            {#each picks as pick, index (pick.item.id)}
+            {#each picks as pick, pickIdx (pick.item.id)}
+                {@const clip = index.clips[pick.item.id]}
                 <div class="glean-surf-swipe">
                     <div class="glean-surf-swipe__action glean-surf-swipe__action--archive" aria-hidden="true">← {t(i18n, "resurface.swipeArchive")}</div>
                     <div class="glean-surf-swipe__action glean-surf-swipe__action--later" aria-hidden="true">{t(i18n, "resurface.swipeLater")} →</div>
@@ -853,13 +856,13 @@ function focusCard(id: string): void {
                         aria-current={cursorId === pick.item.id ? "true" : undefined}
                         aria-labelledby={cardTitleId(pick.item.id)}
                         aria-busy={actingId === pick.item.id || undoingId === pick.item.id}
-                        style="--glean-surf-index: {index}; --glean-swipe-offset: {swipeOffsetFor(pick.item.id)}px"
+                        style="--glean-surf-index: {pickIdx}; --glean-swipe-offset: {swipeOffsetFor(pick.item.id)}px"
                         onpointerdown={facade.isMobile ? (event) => beginSwipe(pick, event) : undefined}
                         onpointermove={facade.isMobile ? (event) => moveSwipe(pick, event) : undefined}
                         onpointerup={facade.isMobile ? (event) => finishSwipe(pick, event) : undefined}
                         onpointercancel={facade.isMobile ? (event) => cancelSwipe(pick, event) : undefined}
                     >
-                    <div class="glean-surf__tag">✨ {t(i18n, "resurface.cardTag", { n: index + 1 })}</div>
+                    <div class="glean-surf__tag">✨ {t(i18n, "resurface.cardTag", { n: pickIdx + 1 })}</div>
                     <h3 class="glean-surf__title">
                         <button
                             id={cardTitleId(pick.item.id)}
@@ -874,9 +877,22 @@ function focusCard(id: string): void {
                     <div class="glean-surf__summary">{summaryText(pick)}</div>
                     <div class="glean-surf__meta">
                         <span class={`glean-carrier-badge glean-carrier-badge--${resolveCarrier(pick.item.contentType)}`}>{carrierLabel(pick)}</span>
+                        {#if isWechatUrl(pick.item.url) || isWechatUrl(pick.item.site)}
+                            <span class="glean-badge glean-source-wechat" title={pick.item.author || t(i18n, "wechat.officialAccount")}>
+                                微信{#if pick.item.author} · {pick.item.author}{/if}
+                            </span>
+                        {/if}
                         {#if isPinnedToday(pick)}<span class="glean-surf__pinned"><svg class="glean-icon glean-icon--xs" aria-hidden="true"><use href="#iconGleanPin" /></svg>{t(i18n, "resurface.pinnedToday")}</span>{/if}
-                        {#if pick.item.aiTags.length > 0}
-                            <span>#{pick.item.aiTags.slice(0, 3).join(" #")}</span>
+                        {#if clip && clip.minutes > 0}
+                            <span class="glean-tier-badge glean-tier-badge--{resolveReadingTimeTier(clip.minutes)}">
+                                · {t(i18n, "panel.minutes", { n: clip.minutes })}
+                            </span>
+                        {/if}
+                        {#if clip && clip.tags && clip.tags.length > 0}
+                            <span>#{clip.tags.slice(0, 2).join(" #")}</span>
+                        {/if}
+                        {#if pick.item.aiTags && pick.item.aiTags.length > 0}
+                            <span>✨{pick.item.aiTags.slice(0, 2).join(" ✨")}</span>
                         {/if}
                     </div>
                     {#if pick.reasons.length > 0}
@@ -898,7 +914,7 @@ function focusCard(id: string): void {
                         {:else if pick.item.contentType === "link"}
                             <span class="glean-surf-source-missing">{t(i18n, "clip.sourceMissing")}</span>
                         {/if}
-                        <button class="glean-surf-act" aria-busy={false} aria-disabled={!!actingId || !!undoingId} onclick={() => void replacePick(index, pick)}>
+                        <button class="glean-surf-act" aria-busy={false} aria-disabled={!!actingId || !!undoingId} onclick={() => void replacePick(pickIdx, pick)}>
                             <svg class="glean-icon glean-icon--sm" aria-hidden="true"><use href="#iconGleanRefresh" /></svg>{t(i18n, "resurface.replace")}
                         </button>
                         <button class="glean-surf-act" aria-busy={actingId === pick.item.id} aria-disabled={!!actingId || !!undoingId} onclick={() => void act(pick, "later")}>

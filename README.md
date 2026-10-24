@@ -8,6 +8,15 @@
 
 [English](README.en-US.md) · [下载最新版](https://github.com/ai68298100/siyuan-glean/releases/latest) · [能力矩阵](docs/CAPABILITY-MATRIX.md) · [反馈与问题](https://github.com/ai68298100/siyuan-glean/issues/new/choose)
 
+## v1.3.16 更新（2026-10-24）
+
+本次版本实现今日拾遗卡片微信来源微标、阅读时长分级色彩徽标、主题与 AI 标签展示，以及年度回顾热力图单元格点击/键盘直达下钻联动。
+
+**新增与体验增强：**
+
+- **今日拾遗卡片多维元数据呈现全面对齐**：`ResurfaceView.svelte` 拾遗推荐卡片全面引入微信公众号绿色来源徽标（`.glean-source-wechat`）、预估阅读时长分级色彩徽标（短文/中篇/长篇圆点）以及用户主题标签（`#tag`）与 AI 标签（`✨aiTag`），多维度扫视预期清晰直观。
+- **回顾统计页全年热力图直达下钻交互**：`StatsView.svelte` 年度热力图单元格（`glean-stats__day`）升级为可聚焦与可交互单元，支持读者点击或键盘 `Enter`/`Space` 直接联动下方完成文章清单下钻筛选（`selectedDayDate`），再次点击取消。
+
 ## v1.3.15 更新（2026-10-24）
 
 本次版本实现思源原生编辑器阅读上下文胶囊微信绿色徽标与直达拾遗阅读器按钮，以及读库全卡片主题标签与 AI 标签微胶囊展台和点击钻取筛选。
@@ -341,7 +350,7 @@
 
 ## 兼容性与验收
 
-本次发布为 [v1.3.15](https://github.com/ai68298100/siyuan-glean/releases/tag/v1.3.15)。自动门禁与发布证据见[发布候选复核](docs/RELEASE-CANDIDATE.md)；这不代表所有真实环境都已验收。
+本次发布为 [v1.3.16](https://github.com/ai68298100/siyuan-glean/releases/tag/v1.3.16)。自动门禁与发布证据见[发布候选复核](docs/RELEASE-CANDIDATE.md)；这不代表所有真实环境都已验收。
 
 桌面宿主、Android/移动端、浏览器前端、真实模型、官方剪藏、外部文件和订阅服务仍按环境分别验收。使用前提、降级方式和阻塞项以[能力矩阵](docs/CAPABILITY-MATRIX.md)及[已知阻塞](docs/BLOCKERS.md)为准；请勿把单元测试或隔离 E2E 当作真机通过。
 

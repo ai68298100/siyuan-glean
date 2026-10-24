@@ -8,6 +8,15 @@ Lv Glean organizes clippings and articles already in SiYuan. It does not crawl t
 
 [中文说明](README.md) · [Latest Release](https://github.com/ai68298100/siyuan-glean/releases/latest) · [Capability matrix](docs/CAPABILITY-MATRIX.md) · [Feedback](https://github.com/ai68298100/siyuan-glean/issues/new/choose)
 
+## v1.3.16 update (2026-10-24)
+
+This release delivers multi-dimensional metadata alignment on resurface cards and interactive annual heatmap filtering in the stats review view.
+
+**New features & improvements:**
+
+- **Resurface Cards Rich Metadata Alignment**: Cards in `ResurfaceView.svelte` now present emerald WeChat publisher badges (`.glean-source-wechat`), reading duration tier badges, and user tags (`#tag`) along with AI tags (`✨aiTag`).
+- **Interactive Annual Heatmap Cell Drill-Down**: Cells in `StatsView.svelte` (`glean-stats__day`) now support keyboard focus and click-to-filter for completed articles on that specific day (`selectedDayDate`).
+
 ## v1.3.15 update (2026-10-24)
 
 This release equips the native SiYuan reading context capsule with emerald WeChat identification and a direct reader launch button, plus interactive tag pills across all library cards.
@@ -340,7 +349,7 @@ Ordinary notes are not bulk-captured just because of their location, and opening
 
 ## Compatibility and acceptance
 
-This release is [v1.3.15](https://github.com/ai68298100/siyuan-glean/releases/tag/v1.3.15). See the [release candidate record](docs/RELEASE-CANDIDATE.md) for automated gates and release evidence; this does not mean every real environment has been accepted.
+This release is [v1.3.16](https://github.com/ai68298100/siyuan-glean/releases/tag/v1.3.16). See the [release candidate record](docs/RELEASE-CANDIDATE.md) for automated gates and release evidence; this does not mean every real environment has been accepted.
 
 Desktop host, Android/mobile, browser frontend, real models, the official clipper, external files, and subscription services still require environment-specific checks. Prerequisites, fallbacks, and open blockers are listed in the [capability matrix](docs/CAPABILITY-MATRIX.md) and [known blockers](docs/BLOCKERS.md). Unit tests and isolated E2E are not device acceptance.
 
