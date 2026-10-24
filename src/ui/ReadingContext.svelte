@@ -14,6 +14,7 @@
     import { batchSetStatusDetailed, measureClipBody, readClipContext, type ReadingClipContext } from "../services/clip-store";
     import type { ClipStatus } from "../domain/schema";
     import { recordReadingDone } from "../services/checkin-bridge";
+    import { isWechatUrl } from "../domain/wechat";
     import ClipStatusActions from "./ClipStatusActions.svelte";
     import { openFormattingDialog } from "./formatting-dialog";
 
@@ -38,6 +39,7 @@
     let mounted = true;
     // 包括“普通文档，无阅读栏”的已判定结果；后台重读不重放骨架屏。
     let settled = false;
+    const isWechat = $derived(Boolean((context?.url && isWechatUrl(context.url)) || (context?.site && isWechatUrl(context.site))));
 
     async function reload(): Promise<void> {
         const token = ++reloadToken;
@@ -235,12 +237,20 @@
                     {carrierLabel(context.contentType)}
                 </span>
                 <span class="glean-reading-context__status">{statusLabel(context.status)}</span>
+                {#if isWechat}
+                    <span class="glean-badge glean-source-wechat" title={context?.author || t(i18n, "wechat.officialAccount")}>
+                        微信{#if context?.author} · {context.author}{/if}
+                    </span>
+                {/if}
                 {#if context.url}
                     <span class="glean-reading-context__source" title={context.url}>{context.url}</span>
                 {/if}
             </div>
         </div>
         <div class="glean-reading-context__actions">
+            <button type="button" class="glean-reading-context__source-btn" title={t(i18n, "reading.openInReader")} onclick={() => { if (context) facade.openReadingDocument(context.id); }}>
+                📖 {t(i18n, "reading.openInReader")}
+            </button>
             {#if hasSourceAction(context.contentType, context.url)}
                 <button type="button" class="glean-reading-context__source-btn glean-reading-context__source-btn--primary" title={t(i18n, "reading.sourceHint")} onclick={openSource}>
                     <svg class="glean-icon" aria-hidden="true"><use href="#iconGleanExternal" /></svg>{t(i18n, "clip.openSource")}

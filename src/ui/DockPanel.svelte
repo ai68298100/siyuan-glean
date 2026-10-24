@@ -656,6 +656,16 @@ function selectSite(value: string): void {
     selectedSite = alreadySelected ? "" : value;
 }
 
+function selectTag(value: string): void {
+    markPrefsInteraction();
+    selectedTag = selectedTag === value ? "" : value;
+}
+
+function selectAiTag(value: string): void {
+    markPrefsInteraction();
+    selectedAiTag = selectedAiTag === value ? "" : value;
+}
+
 function filterChipText(key: FilterChipKey, value: string): string {
     const labels: Record<FilterChipKey, string> = { author: "library.filterAuthor", site: "library.filterSite", tag: "library.filterTag", aiTag: "library.filterAiTag", src: "library.filterSource", timeSource: "library.filterTimeSource", contentType: "library.filterContentType", keyword: "action.search" };
     const text = key === "tag" ? `#${value}` : key === "aiTag" ? `✨${value}` : key === "src" ? sourceLabel(value) : key === "timeSource" || key === "contentType" ? facetLabel(value, key) : value;
@@ -2768,6 +2778,16 @@ function metaLine(entry: Row): string {
                                     {:else if entry.contentType === "link"}
                                         <span class="glean-source-missing">{t(i18n, "clip.sourceMissing")}</span>
                                     {/if}
+                                    {#if (entry.tags && entry.tags.length > 0) || (entry.aiTags && entry.aiTags.length > 0)}
+                                        <div class="glean-card__tags-row">
+                                            {#each (entry.tags || []).slice(0, 2) as tg}
+                                                <button type="button" class="glean-mini-tag" onclick={(e) => { e.stopPropagation(); selectTag(tg); }}>#{tg}</button>
+                                            {/each}
+                                            {#each (entry.aiTags || []).slice(0, 1) as atg}
+                                                <button type="button" class="glean-mini-tag glean-mini-tag--ai" onclick={(e) => { e.stopPropagation(); selectAiTag(atg); }}>✨{atg}</button>
+                                            {/each}
+                                        </div>
+                                    {/if}
                                 </div>
                                 <ClipStatusActions
                                     {i18n}
@@ -2914,6 +2934,16 @@ function metaLine(entry: Row): string {
                                                 <span class="glean-drow__st">
                                                     <span class="glean-st-badge glean-st-badge--{entry.status}">{queueLabel(entry.status)}</span>
                                                 </span>
+                                                {#if (entry.tags && entry.tags.length > 0) || (entry.aiTags && entry.aiTags.length > 0)}
+                                                    <span class="glean-card__tags-row">
+                                                        {#each (entry.tags || []).slice(0, 2) as tg}
+                                                            <button type="button" class="glean-mini-tag" onclick={(event) => { event.stopPropagation(); selectTag(tg); }}>#{tg}</button>
+                                                        {/each}
+                                                        {#each (entry.aiTags || []).slice(0, 1) as atg}
+                                                            <button type="button" class="glean-mini-tag glean-mini-tag--ai" onclick={(event) => { event.stopPropagation(); selectAiTag(atg); }}>✨{atg}</button>
+                                                        {/each}
+                                                    </span>
+                                                {/if}
                                             </div>
                                         </div>
                                         <div class="glean-drow__ops">
@@ -3065,6 +3095,16 @@ function metaLine(entry: Row): string {
                                         {@const days = staleDays(entry.time)}
                                         {#if days !== null && (entry.status === "inbox" || entry.status === "later")}
                                             <span class="glean-stale">{t(i18n, "panel.staleDays", { n: days })}</span>
+                                        {/if}
+                                        {#if (entry.tags && entry.tags.length > 0) || (entry.aiTags && entry.aiTags.length > 0)}
+                                            <div class="glean-card__tags-row">
+                                                {#each (entry.tags || []).slice(0, 2) as tg}
+                                                    <button type="button" class="glean-mini-tag" onclick={(event) => { event.stopPropagation(); selectTag(tg); }}>#{tg}</button>
+                                                {/each}
+                                                {#each (entry.aiTags || []).slice(0, 1) as atg}
+                                                    <button type="button" class="glean-mini-tag glean-mini-tag--ai" onclick={(event) => { event.stopPropagation(); selectAiTag(atg); }}>✨{atg}</button>
+                                                {/each}
+                                            </div>
                                         {/if}
                                     {/if}
                                 </div>

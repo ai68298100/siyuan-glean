@@ -8,6 +8,15 @@ Lv Glean organizes clippings and articles already in SiYuan. It does not crawl t
 
 [中文说明](README.md) · [Latest Release](https://github.com/ai68298100/siyuan-glean/releases/latest) · [Capability matrix](docs/CAPABILITY-MATRIX.md) · [Feedback](https://github.com/ai68298100/siyuan-glean/issues/new/choose)
 
+## v1.3.15 update (2026-10-24)
+
+This release equips the native SiYuan reading context capsule with emerald WeChat identification and a direct reader launch button, plus interactive tag pills across all library cards.
+
+**New features & improvements:**
+
+- **Native Reading Capsule WeChat Badge & Direct Reader Access**: `ReadingContext.svelte` now displays the emerald WeChat badge and publisher name on WeChat notes, along with an "📖 Open in Glean Reader" button to jump directly into deep distraction-free reading with companion tools.
+- **Library Cards Interactive Tag & AI Tag Pills**: Kanban, list, and table items in `DockPanel.svelte` now render user tags (`#tag`) and AI tags (`✨aiTag`) with instant drill-down filtering on click.
+
 ## v1.3.14 update (2026-10-24)
 
 This release delivers deep URL-level WeChat article recognition in the library workbench, smooth Space / Shift+Space page turning shortcuts for the reader, and full AI Quiz question generation across the highlights wall.
@@ -331,7 +340,7 @@ Ordinary notes are not bulk-captured just because of their location, and opening
 
 ## Compatibility and acceptance
 
-This release is [v1.3.14](https://github.com/ai68298100/siyuan-glean/releases/tag/v1.3.14). See the [release candidate record](docs/RELEASE-CANDIDATE.md) for automated gates and release evidence; this does not mean every real environment has been accepted.
+This release is [v1.3.15](https://github.com/ai68298100/siyuan-glean/releases/tag/v1.3.15). See the [release candidate record](docs/RELEASE-CANDIDATE.md) for automated gates and release evidence; this does not mean every real environment has been accepted.
 
 Desktop host, Android/mobile, browser frontend, real models, the official clipper, external files, and subscription services still require environment-specific checks. Prerequisites, fallbacks, and open blockers are listed in the [capability matrix](docs/CAPABILITY-MATRIX.md) and [known blockers](docs/BLOCKERS.md). Unit tests and isolated E2E are not device acceptance.
 

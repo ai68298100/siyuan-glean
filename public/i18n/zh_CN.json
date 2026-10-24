@@ -1359,5 +1359,6 @@
   "wechat.authorNotFound": "未从正文或元数据中识别到公众号",
   "reader.highlightFilterPlaceholder": "过滤批注内容…",
   "reader.shortcutPageDown": "向下翻屏",
-  "reader.shortcutPageUp": "向上翻屏"
+  "reader.shortcutPageUp": "向上翻屏",
+  "reading.openInReader": "在拾遗阅读器打开"
 }

@@ -445,6 +445,42 @@
     overflow-wrap: anywhere;
 }
 
+.glean-card__tags-row {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: wrap;
+    margin-top: 2px;
+}
+
+.glean-mini-tag {
+    font-size: 10px;
+    line-height: 1.2;
+    padding: 1px 5px;
+    border-radius: var(--glean-radius-pill, 9999px);
+    background: color-mix(in srgb, var(--b3-theme-on-surface) 6%, transparent);
+    color: var(--b3-theme-on-surface);
+    border: 1px solid var(--glean-border-soft);
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+
+    &:hover {
+        background: color-mix(in srgb, var(--b3-theme-primary) 12%, transparent);
+        color: var(--b3-theme-primary);
+        border-color: var(--b3-theme-primary);
+    }
+
+    &--ai {
+        color: var(--glean-accent-b, #f97316);
+        background: color-mix(in srgb, var(--glean-accent-b, #f97316) 8%, transparent);
+        border-color: color-mix(in srgb, var(--glean-accent-b, #f97316) 24%, transparent);
+
+        &:hover {
+            background: color-mix(in srgb, var(--glean-accent-b, #f97316) 16%, transparent);
+        }
+    }
+}
+
 [data-theme-mode="dark"],
 body.body--dark,
 body.b3-theme-dark {

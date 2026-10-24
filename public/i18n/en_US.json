@@ -1359,5 +1359,6 @@
   "wechat.authorNotFound": "Could not recognize publisher from content",
   "reader.highlightFilterPlaceholder": "Filter highlights…",
   "reader.shortcutPageDown": "Page down",
-  "reader.shortcutPageUp": "Page up"
+  "reader.shortcutPageUp": "Page up",
+  "reading.openInReader": "Open in Glean Reader"
 }
