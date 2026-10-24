@@ -8,6 +8,16 @@
 
 [English](README.en-US.md) · [下载最新版](https://github.com/ai68298100/siyuan-glean/releases/latest) · [能力矩阵](docs/CAPABILITY-MATRIX.md) · [反馈与问题](https://github.com/ai68298100/siyuan-glean/issues/new/choose)
 
+## v1.3.14 更新（2026-10-24）
+
+本次版本实现读库工作台微信文章 URL 深度识别与绿色微标对齐、阅读器 Space / Shift+Space 平滑翻页快捷键，以及全局摘录墙 AI 出题（小驴考试生态联动与幽灵态降级）。
+
+**新增与体验增强：**
+
+- **微信文章在读库工作台的专属识别增强**：`DockPanel.svelte` 引入 `isWechatUrl`，看板、列表、表格全面支持 URL 级别的微信文章深度判定，消除 `entry.site` 为空或未规范时被误报为“未知来源”的问题，统一对齐绿色品牌微标并支持按公众号一键筛选。
+- **现代化阅读器空格翻页快捷键**：深度借鉴 Readwise Reader / Cubox / Kindle 操作习惯，在阅读模式下新增 `Space`（向下平滑翻屏）与 `Shift+Space`（向上平滑翻屏）；并在快捷键浮层（`?`）同步展示。
+- **全局摘录墙接入小驴考试生态联动**：`HighlightView.svelte` 摘录卡片工具栏（平铺时间线与按文章聚类双视图）全量接入「📝 AI 出题」动作，智能探测小驴考试（`LvExam`），未安装时保持 45% 幽灵态并提示引导气泡，已安装时调用公开桥接口直达生成考题。
+
 ## v1.3.13 更新（2026-10-23）
 
 本次版本全面落实小驴生态统领指令，深度消除 `.dialog-content input` 裸类样式污染与强化选择器边界、摘录墙制卡幽灵态对齐、跨平台自适应快捷键纠偏，并严格保持新版 256×256 高清 `icon.png` 资产不变。
@@ -322,7 +332,7 @@
 
 ## 兼容性与验收
 
-本次发布为 [v1.3.13](https://github.com/ai68298100/siyuan-glean/releases/tag/v1.3.13)。自动门禁与发布证据见[发布候选复核](docs/RELEASE-CANDIDATE.md)；这不代表所有真实环境都已验收。
+本次发布为 [v1.3.14](https://github.com/ai68298100/siyuan-glean/releases/tag/v1.3.14)。自动门禁与发布证据见[发布候选复核](docs/RELEASE-CANDIDATE.md)；这不代表所有真实环境都已验收。
 
 桌面宿主、Android/移动端、浏览器前端、真实模型、官方剪藏、外部文件和订阅服务仍按环境分别验收。使用前提、降级方式和阻塞项以[能力矩阵](docs/CAPABILITY-MATRIX.md)及[已知阻塞](docs/BLOCKERS.md)为准；请勿把单元测试或隔离 E2E 当作真机通过。
 

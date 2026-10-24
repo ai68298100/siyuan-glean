@@ -1357,5 +1357,7 @@
   "wechat.rescanAuthor": "Rescan publisher",
   "wechat.authorRecognized": "Recognized publisher: ${name}",
   "wechat.authorNotFound": "Could not recognize publisher from content",
-  "reader.highlightFilterPlaceholder": "Filter highlights…"
+  "reader.highlightFilterPlaceholder": "Filter highlights…",
+  "reader.shortcutPageDown": "Page down",
+  "reader.shortcutPageUp": "Page up"
 }

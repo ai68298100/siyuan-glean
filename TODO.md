@@ -137,6 +137,8 @@
 
 - [◐] **T-3446**（P1，2026-10-23）生态统领指令深度贯彻与全仓样式隔离（Epoch 6 标准）：`src/index.scss` 彻底消除针对原生弹窗表单的裸类选择器，严格包裹至 `.lv-glean`、`.glean-dialog`、`[class*="glean"]` 专属作用域内；`HighlightView.svelte` 摘录墙平铺与聚类双视图制卡按钮全面接入 `hasCardsInstalled` 幽灵态降级；`src/index.ts` 快捷键纠偏为自适应平台语法（Mac 使用 `⌥⌘G`，Windows/Linux 使用跨平台标准 `Ctrl+Alt+G`）；严格保护新版 256×256 高清 `icon.png` 资产不变；单测与门禁完备。代码状态：完成；隔离验证：`tests/mobile-nav.test.ts` 26/26、`tests/highlights.test.ts` 14/14、完整 `pnpm test` 1661/1661、`tsc` 与 `svelte-check` 0 错误 0 警告；真实验收：待 B-0002 跨平台宿主走查；延后原因：多平台物理按键体验仍归 B-0002。
 
+- [◐] **T-3447**（P2，2026-10-24）读库工作台微信文章 URL 深度识别、阅读器空格翻页与摘录墙 AI 出题：`DockPanel.svelte` 引入 `isWechatUrl`，看板、列表、表格全面支持 URL 级别的微信文章深度判定，消除 `entry.site` 为空或未规范时被误报为“未知来源”的问题，统一对齐绿色品牌微标并支持按公众号一键筛选；`ReaderTab.svelte` 新增 `Space` / `Shift+Space` 平滑翻页并在浮层提供提示；`HighlightView.svelte` 摘录卡片工具栏全量接入「📝 AI 出题」动作（小驴考试联动与幽灵态降级）；单测与门禁完备。代码状态：完成；隔离验证：`tests/reader.test.ts` 14/14、`tests/highlights.test.ts` 14/14、`tsc` 与 `svelte-check` 0 错误 0 警告；真实验收：待 B-0002 真实键盘翻页与微信卡片走查；延后原因：真实键盘滚动速度与微信数据展示仍归 B-0002。
+
 
 - [◐] **T-3367**（P1，2026-10-18）批量选择范围与底部操作可达性：保留跨筛选选择，显示总数及筛选外数量，提供仅保留当前筛选、追加已显示文章和清空入口；三画布共用正常流批量条，获焦时按 Escape 快捷取消选择并安全回退焦点；移动窄屏保留左右安全区。代码状态：实现完成，契约见 D-0247/D-0292，不新增属性、端点或持久化；隔离验证：定向 51/51、完整 `pnpm test` 1517/1517、`pnpm check` 0 错误/0 警告、`pnpm build`、`pnpm check:release`、`pnpm perf:check`、`pnpm visual:check`、`pnpm task:ledger -- --check` 与 `git diff --check` 通过；Chrome 原型已点验宽/窄 Dock、筛选外提示、显式保留和清空，窄布局批量区 `738px` 宽、`142px` 高且无横溢出。真实验收：待 B-0002 原工作区、触控和系统读屏；延后原因：Chrome 原型与隔离样本不替代真实设备与视觉矩阵，视觉登记仍为 24 项待真实宿主。
 

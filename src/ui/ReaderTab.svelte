@@ -719,6 +719,14 @@ import { aiFailureKey } from "../libs/ai-feedback";
             searchOpen = true;
             return;
         }
+        if ((event.key === " " || event.key === "Spacebar") && mode === "read" && !blockedTarget && !modalOpen && !event.ctrlKey && !event.altKey && !event.metaKey) {
+            event.preventDefault();
+            event.stopPropagation();
+            const scroller = Array.from(protyleHost?.querySelectorAll<HTMLElement>(".protyle-content, .protyle-preview, .protyle-wysiwyg") ?? [])
+                .find((element) => element.clientHeight > 0 && element.scrollHeight > element.clientHeight + 1) ?? protyleHost;
+            scroller?.scrollBy({ top: (event.shiftKey ? -1 : 1) * Math.max(200, (scroller.clientHeight || 600) * 0.8), behavior: "smooth" });
+            return;
+        }
         const action = readerShortcut({
             key: event.key, mode, focused: Boolean(root && active && root.contains(active) && root.getClientRects().length),
             blocked: Boolean(blockedTarget || modalOpen), defaultPrevented: event.defaultPrevented,
@@ -1544,6 +1552,8 @@ import { aiFailureKey } from "../libs/ai-feedback";
                 <dl>
                     <div><dt><kbd>j</kbd></dt><dd>{t(i18n, "reader.shortcutScrollDown")}</dd></div>
                     <div><dt><kbd>k</kbd></dt><dd>{t(i18n, "reader.shortcutScrollUp")}</dd></div>
+                    <div><dt><kbd>Space</kbd></dt><dd>{t(i18n, "reader.shortcutPageDown")}</dd></div>
+                    <div><dt><kbd>Shift+Space</kbd></dt><dd>{t(i18n, "reader.shortcutPageUp")}</dd></div>
                     <div><dt><kbd>e</kbd></dt><dd>{t(i18n, "reader.shortcutEdit")}</dd></div>
                     <div><dt><kbd>m</kbd></dt><dd>{t(i18n, "reader.shortcutDone")}</dd></div>
                     <div><dt><kbd>a</kbd></dt><dd>{t(i18n, "reader.shortcutLater")}</dd></div>

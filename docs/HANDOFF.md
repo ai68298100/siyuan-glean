@@ -30,8 +30,9 @@
 - T-3444/D-0324：全表面 Dialog 统一品牌标题栏规范（.lv-dialog-title-wrap）装配与专栏空值加固。`dialog.ts` 新增 `mountPlatformDialogTitleWrap`，将设置大窗、排版优化、引导、迁移、导入、制卡与工作台弹窗标题栏统一升级为 22×22 青绿底白麦穗标 + 标题 + 紧凑版本胶囊；加固 `seriesArticles` 目录路径空值判断；单测与门禁完备。
 - T-3445/D-0325：微信公众号文章全自动识别、手动重扫与伴生栏批注研读流增强。`ReaderTab.svelte` 接入 `scanWechatPublisher`，打开微信剪藏文章自动扫描 DOM 与前置文本提取公众号名称并回填文档属性 `custom-clip-author`；微信展台右侧新增一键重新识别动作；批注数量达到 4 条以上时自动提供即时过滤检索栏（`highlightFilter`）；批注卡片底部新增「📝 AI 出题」动作，智能探测小驴考试（`LvExam`）提供幽灵态降级与一键出题；单测与门禁完备。
 - T-3446/D-0326：生态统领指令深度贯彻与全仓样式隔离（Epoch 6 标准）。`src/index.scss` 彻底消除针对原生弹窗表单的裸类选择器，严格包裹至 `.lv-glean`、`.glean-dialog`、`[class*="glean"]` 专属作用域内；`HighlightView.svelte` 摘录墙平铺与聚类双视图制卡按钮全面接入 `hasCardsInstalled` 幽灵态降级；`src/index.ts` 快捷键纠偏为自适应平台语法（Mac 使用 `⌥⌘G`，Windows/Linux 使用跨平台标准 `Ctrl+Alt+G`）；严格保护新版 256×256 高清 `icon.png` 资产不变；单测与门禁完备。
+- T-3447/D-0327：读库工作台微信文章 URL 深度识别、阅读器空格翻页与摘录墙 AI 出题。`DockPanel.svelte` 引入 `isWechatUrl`，看板、列表、表格全面支持 URL 级别的微信文章深度判定，消除 `entry.site` 为空或未规范时被误报为“未知来源”的问题，统一对齐绿色品牌微标并支持按公众号一键筛选；`ReaderTab.svelte` 新增 `Space` / `Shift+Space` 平滑翻页并在浮层提供提示；`HighlightView.svelte` 摘录卡片工具栏全量接入「📝 AI 出题」动作（小驴考试联动与幽灵态降级）；单测与门禁完备。
 - 全量门禁闭环：定向单测（`tests/header-actions.test.ts` 27/27、`tests/wechat.test.ts` 22/22、`tests/reader-search.test.ts` 10/10、`tests/reader-search-dom.test.ts` 4/4、`tests/reader.test.ts` 14/14、`tests/formatting.test.ts` 28/28、`tests/formatting-service.test.mjs` 20/20、`tests/highlights.test.ts` 14/14、`tests/resurface.test.ts` 26/26、`tests/stats.test.ts` 24/24、`tests/library-view.test.ts` 20/20、`tests/prefs.test.ts` 17/17、`tests/excerpt-service.test.mjs` 12/12、`tests/content-url.test.ts` 8/8、`tests/architecture.test.ts` 3/3、`tests/lifecycle-contract.test.ts` 3/3、`tests/checkin.test.ts` 4/4、`tests/mobile-nav.test.ts` 26/26、`tests/i18n.test.ts` 5/5、`tests/task-ledger.test.mjs` 2/2）、`tsc` 与 `svelte-check` 0 错误 0 警告、`pnpm build`、`pnpm check:release`、`pnpm perf:check`、`pnpm visual:check`（24 项仍待真实宿主）与任务账本检查均通过。真实宿主交互手感仍归 B-0002。
-- 下一步：按当前执行板顺序推进下一个任务（如 T-3367 批量选择范围与底部操作在更多场景的走查，或按作者点单继续）。版本保持 1.3.13，本轮不打 tag、不发布、不推送。
+- 下一步：按当前执行板顺序推进下一个任务（如 T-3367 批量选择范围与底部操作在更多场景的走查，或按作者点单继续）。版本保持 1.3.14，本轮不打 tag、不发布、不推送。
 
 
 ## 当前有效交接（2026-10-20 分面侧栏未读与待办动态角标计数投影）
